@@ -29,15 +29,15 @@ export default function SuccessPage() {
           </CardHeader>
           <CardContent className="space-y-6 text-center">
             <p className="text-slate-600">
-              Thank you for booking with Shalean. We've received your cleaning request and will send you
+              Thank you for booking with Shalean. We&apos;ve received your cleaning request and will send you
               a confirmation email shortly with all the details.
             </p>
 
             <div className="rounded-lg bg-slate-50 p-4">
               <p className="text-sm text-slate-600">
-                <strong className="text-slate-900">What's next?</strong>
+                <strong className="text-slate-900">What&apos;s next?</strong>
                 <br />
-                You'll receive an email confirmation with your booking details and payment link.
+                You&apos;ll receive an email confirmation with your booking details and payment link.
                 Our team will contact you 24 hours before your scheduled cleaning.
               </p>
             </div>
