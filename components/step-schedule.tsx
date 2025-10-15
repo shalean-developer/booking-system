@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useMemo } from 'react';
-import { useRouter, useParams } from 'next/navigation';
 import { useBooking } from '@/lib/useBooking';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,9 +16,6 @@ const timeSlots = generateTimeSlots();
 
 export function StepSchedule() {
   const { state, updateField, next, back } = useBooking();
-  const router = useRouter();
-  const params = useParams();
-  const slug = params.slug as string;
 
   const selectedDate = useMemo(() => 
     state.date ? new Date(state.date) : undefined, 
@@ -42,20 +38,14 @@ export function StepSchedule() {
   );
 
   const handleBack = useCallback(() => {
+    // Use new navigation system - just update step, main booking page will handle routing
     back();
-    // Navigate back to details page if we have a slug
-    if (window.location.pathname.includes('/booking/service/') && slug) {
-      router.push(`/booking/service/${slug}/details`);
-    }
-  }, [back, router, slug]);
+  }, [back]);
 
   const handleNext = useCallback(() => {
+    // Use new navigation system - just update step, main booking page will handle routing
     next();
-    // Navigate to contact page if we have a slug
-    if (window.location.pathname.includes('/booking/service/') && slug) {
-      router.push(`/booking/service/${slug}/contact`);
-    }
-  }, [next, router, slug]);
+  }, [next]);
 
   return (
     <Card className="border-0 shadow-lg">

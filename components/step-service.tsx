@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
 import { useBooking } from '@/lib/useBooking';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -71,7 +70,6 @@ interface StepServiceProps {
 
 export function StepService({ onNext }: StepServiceProps = {} as StepServiceProps) {
   const { state, updateField, next } = useBooking();
-  const router = useRouter();
 
   const handleSelect = useCallback((serviceType: ServiceType) => {
     updateField('service', serviceType);
@@ -81,12 +79,10 @@ export function StepService({ onNext }: StepServiceProps = {} as StepServiceProp
 
   const handleNext = useCallback(() => {
     if (state.service) {
-      // Navigate to the service-specific details URL and move to step 2
-      const slug = serviceTypeToSlug(state.service);
-      next(); // Update step to 2 in state
-      router.push(`/booking/service/${slug}/details`);
+      // Use new navigation system - just update step, main booking page will handle routing
+      next();
     }
-  }, [state.service, next, router]);
+  }, [state.service, next]);
 
   return (
     <Card className="border-0 shadow-lg">

@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback } from 'react';
-import { useRouter, useParams } from 'next/navigation';
 import type { ServiceType } from '@/types/booking';
 import { useBooking } from '@/lib/useBooking';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,25 +28,16 @@ function serviceTypeToSlug(serviceType: ServiceType): string {
 
 export function StepDetails() {
   const { state, updateField, next, back } = useBooking();
-  const router = useRouter();
-  const params = useParams();
-  const slug = params.slug as string;
 
   const handleBack = useCallback(() => {
+    // Use new navigation system - just update step, main booking page will handle routing
     back();
-    // Navigate back to service select if we have a slug, otherwise use main booking page
-    if (window.location.pathname.includes('/booking/service/') && slug) {
-      router.push('/booking/service/select');
-    }
-  }, [back, router, slug]);
+  }, [back]);
 
   const handleNext = useCallback(() => {
+    // Use new navigation system - just update step, main booking page will handle routing
     next();
-    // Navigate to schedule page if we have a slug, otherwise use main booking page
-    if (window.location.pathname.includes('/booking/service/') && slug) {
-      router.push(`/booking/service/${slug}/schedule`);
-    }
-  }, [next, router, slug]);
+  }, [next]);
 
   const handleBedroomChange = useCallback((value: string) => {
     const newValue = parseInt(value);

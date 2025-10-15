@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useMemo } from 'react';
-import { useRouter, useParams } from 'next/navigation';
 import { useBooking } from '@/lib/useBooking';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,9 +24,6 @@ type ContactForm = z.infer<typeof contactSchema>;
 
 export function StepContact() {
   const { state, setState, next, back } = useBooking();
-  const router = useRouter();
-  const params = useParams();
-  const slug = params.slug as string;
 
   const defaultValues = useMemo(() => ({
     firstName: state.firstName,
@@ -49,12 +45,9 @@ export function StepContact() {
   });
 
   const handleBack = useCallback(() => {
+    // Use new navigation system - just update step, main booking page will handle routing
     back();
-    // Navigate back to schedule page if we have a slug
-    if (window.location.pathname.includes('/booking/service/') && slug) {
-      router.push(`/booking/service/${slug}/schedule`);
-    }
-  }, [back, router, slug]);
+  }, [back]);
 
   const onSubmit = useCallback((data: ContactForm) => {
     setState({
@@ -69,12 +62,9 @@ export function StepContact() {
         city: data.city,
       },
     });
+    // Use new navigation system - just update step, main booking page will handle routing
     next();
-    // Navigate to review page if we have a slug
-    if (window.location.pathname.includes('/booking/service/') && slug) {
-      router.push(`/booking/service/${slug}/review`);
-    }
-  }, [state, setState, next, router, slug]);
+  }, [state, setState, next]);
 
   return (
     <Card className="border-0 shadow-lg">

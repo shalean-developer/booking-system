@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useBooking } from '@/lib/useBooking';
 import { calcTotal, PRICING } from '@/lib/pricing';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,8 +13,6 @@ import { format } from 'date-fns';
 
 export function StepReview() {
   const router = useRouter();
-  const params = useParams();
-  const slug = params.slug as string;
   const { state, back, reset } = useBooking();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -57,12 +55,9 @@ export function StepReview() {
   }, [state, reset, router]);
 
   const handleBack = useCallback(() => {
+    // Use new navigation system - just update step, main booking page will handle routing
     back();
-    // Navigate back to contact page if we have a slug
-    if (window.location.pathname.includes('/booking/service/') && slug) {
-      router.push(`/booking/service/${slug}/contact`);
-    }
-  }, [back, router, slug]);
+  }, [back]);
 
   return (
     <Card className="border-0 shadow-lg">
