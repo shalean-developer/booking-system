@@ -3,6 +3,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { LoginButton } from "@/components/login-button";
 import { 
   Sparkles, 
   Home, 
@@ -39,15 +40,29 @@ export default function HomePage() {
               <span className="text-sm text-gray-500">Cleaning Services</span>
             </div>
             <nav className="hidden md:flex items-center gap-8">
-              <Link href="/services" className="text-gray-700 hover:text-primary">Services</Link>
-              <Link href="/about" className="text-gray-700 hover:text-primary">About</Link>
-              <Link href="/pricing" className="text-gray-700 hover:text-primary">Pricing</Link>
-              <Link href="/contact" className="text-gray-700 hover:text-primary">Contact</Link>
-              <Link href="/login" className="text-gray-700 hover:text-primary">Login</Link>
+              <Link href="/" className="text-gray-700 hover:text-primary flex items-center gap-2">
+                <Home className="h-4 w-4" />
+                Home
+              </Link>
+              <Link href="/services" className="text-gray-700 hover:text-primary flex items-center gap-2">
+                <Sparkles className="h-4 w-4" />
+                Services
+              </Link>
+              <Link href="/location" className="text-gray-700 hover:text-primary flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                Location
+              </Link>
+              <Link href="/how-it-works" className="text-gray-700 hover:text-primary flex items-center gap-2">
+                <BookOpen className="h-4 w-4" />
+                How It Works
+              </Link>
               <Link href="/booking">
                 <Button className="bg-primary hover:bg-primary/90 text-white">
-                  Get Started
+                  Get Free Quote
                 </Button>
+              </Link>
+              <Link href="/login">
+                <LoginButton />
               </Link>
             </nav>
           </div>
@@ -75,12 +90,12 @@ export default function HomePage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/booking">
                 <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-8 py-4 text-lg">
-                  Book Cleaning Service
+                  Book a service
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
               <Button variant="outline" size="lg" className="border-primary text-primary hover:bg-primary/10 px-8 py-4 text-lg">
-                View Services
+                Apply to work
               </Button>
             </div>
           </div>
@@ -133,10 +148,10 @@ export default function HomePage() {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
               <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
-                Premium Services
+                Most Booked Services
               </Badge>
               <h2 className="text-4xl font-bold text-gray-900 mb-6">
-                Experience Our Premium Cleaning Services
+                Experience Our Most Booked Services
               </h2>
               <p className="text-lg text-gray-600 mb-8">
                 Comprehensive cleaning solutions designed to transform your space 
@@ -148,8 +163,8 @@ export default function HomePage() {
                     <CheckCircle className="h-4 w-4 text-white" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900">Deep Cleaning Sessions</h3>
-                    <p className="text-gray-600">Watch our experts tackle every corner and surface.</p>
+                    <h3 className="font-semibold text-gray-900">Standard Cleaning</h3>
+                    <p className="text-gray-600">Regular maintenance cleaning to keep your space fresh and organized.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
@@ -157,8 +172,17 @@ export default function HomePage() {
                     <CheckCircle className="h-4 w-4 text-white" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900">Personalized Service Plans</h3>
-                    <p className="text-gray-600">Receive customized cleaning schedules for lasting cleanliness.</p>
+                    <h3 className="font-semibold text-gray-900">Deep Cleaning</h3>
+                    <p className="text-gray-600">Thorough cleaning sessions that tackle every corner and surface.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                    <CheckCircle className="h-4 w-4 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Airbnb Cleaning</h3>
+                    <p className="text-gray-600">Professional turnover cleaning to ensure guest-ready perfection.</p>
                   </div>
                 </div>
               </div>
@@ -284,16 +308,16 @@ export default function HomePage() {
               <div className="bg-gray-200 h-48 flex items-center justify-center">
                 <div className="text-center">
                   <Home className="h-16 w-16 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500 text-sm">Residential Cleaning</p>
+                  <p className="text-gray-500 text-sm">Home Maintenance</p>
                 </div>
               </div>
               <CardContent className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Residential Cleaning</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Home Maintenance</h3>
                 <p className="text-gray-600 mb-6">
-                  Comprehensive home cleaning services available for regular maintenance and special occasions.
+                  Regular home cleaning for ongoing upkeep. Ideal for one-off or recurring visits.
                 </p>
-                <Link href="/residential">
-                  <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10">
+                <Link href="/services/home-maintenance">
+                  <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10" aria-label="Learn more about Home Maintenance">
                     Learn More
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
@@ -304,16 +328,16 @@ export default function HomePage() {
               <div className="bg-gray-200 h-48 flex items-center justify-center">
                 <div className="text-center">
                   <Building className="h-16 w-16 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500 text-sm">Commercial Cleaning</p>
+                  <p className="text-gray-500 text-sm">Deep & Specialty</p>
                 </div>
               </div>
               <CardContent className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Commercial Cleaning</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Deep & Specialty</h3>
                 <p className="text-gray-600 mb-6">
-                  Professional office and commercial space cleaning for all business types and sizes.
+                  Intensive or focused cleaning such as deep cleans, carpets & upholstery, and other specialty tasks.
                 </p>
-                <Link href="/commercial">
-                  <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10">
+                <Link href="/services/deep-specialty">
+                  <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10" aria-label="Learn more about Deep & Specialty">
                     Learn More
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
@@ -324,16 +348,16 @@ export default function HomePage() {
               <div className="bg-gray-200 h-48 flex items-center justify-center">
                 <div className="text-center">
                   <Calendar className="h-16 w-16 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500 text-sm">Special Services</p>
+                  <p className="text-gray-500 text-sm">Move & Turnover</p>
                 </div>
               </div>
               <CardContent className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Special Services</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Move & Turnover</h3>
                 <p className="text-gray-600 mb-6">
-                  Move-in/out cleaning, post-construction cleanup, and specialized cleaning services.
+                  Move-in/out and Airbnb turnover cleans for transitions and guest changeovers.
                 </p>
-                <Link href="/special">
-                  <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10">
+                <Link href="/services/move-turnover">
+                  <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10" aria-label="Learn more about Move & Turnover">
                     Learn More
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
@@ -364,7 +388,6 @@ export default function HomePage() {
                 <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center">
                   <User className="h-12 w-12 text-gray-400" />
                 </div>
-                <Badge className="mb-2">MANAGER</Badge>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Sarah Johnson</h3>
                 <div className="flex items-center justify-center gap-2 mb-4">
                   <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center">
@@ -388,7 +411,6 @@ export default function HomePage() {
                 <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center">
                   <User className="h-12 w-12 text-gray-400" />
                 </div>
-                <Badge className="mb-2">SUPERVISOR</Badge>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Mike Chen</h3>
                 <div className="flex items-center justify-center gap-2 mb-4">
                   <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center">
@@ -412,7 +434,6 @@ export default function HomePage() {
                 <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center">
                   <User className="h-12 w-12 text-gray-400" />
                 </div>
-                <Badge className="mb-2">TRAINER</Badge>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Emma Rodriguez</h3>
                 <div className="flex items-center justify-center gap-2 mb-4">
                   <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center">
