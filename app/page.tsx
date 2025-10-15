@@ -56,7 +56,7 @@ export default function HomePage() {
                 <BookOpen className="h-4 w-4" />
                 How It Works
               </Link>
-              <Link href="/booking">
+              <Link href="/booking/quote">
                 <Button className="bg-primary hover:bg-primary/90 text-white">
                   Get Free Quote
                 </Button>
@@ -88,9 +88,9 @@ export default function HomePage() {
               eco-friendly products, and guaranteed satisfaction for your home or office.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/booking">
+              <Link href="/booking/quote">
                 <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-8 py-4 text-lg">
-                  Book a service
+                  Get Free Quote
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
@@ -483,9 +483,9 @@ export default function HomePage() {
           <p className="text-xl text-gray-600 mb-8">
             Join thousands of satisfied customers who have transformed their spaces with Shalean Cleaning.
           </p>
-          <Link href="/booking">
+          <Link href="/booking/quote">
             <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-8 py-4 text-lg">
-              View All Services
+              Get Free Quote
             </Button>
           </Link>
         </div>

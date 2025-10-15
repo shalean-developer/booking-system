@@ -48,9 +48,9 @@ export default function MoveTurnoverPage() {
             <p className="mx-auto mb-8 max-w-3xl text-xl text-gray-600">
               Move-in/out and Airbnb turnover cleans for transitions and guest changeovers.
             </p>
-            <Link href="/booking">
+            <Link href="/booking/quote">
               <Button size="lg" className="bg-primary hover:bg-primary/90 text-white">
-                Book This Service
+                Get Free Quote
               </Button>
             </Link>
           </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import type { BookingState } from '@/types/booking';
 
 const KEY = 'booking_state_v1';
@@ -23,10 +23,12 @@ const initial: BookingState = {
 
 /**
  * Custom hook for managing booking state with localStorage persistence
+ * Optimized with debounced localStorage writes for better performance
  */
 export function useBooking() {
   const [state, setState] = useState<BookingState>(initial);
   const [isLoaded, setIsLoaded] = useState(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -41,32 +43,50 @@ export function useBooking() {
     setIsLoaded(true);
   }, []);
 
-  // Save to localStorage on state change
+  // Debounced save to localStorage (only write after 300ms of no changes)
   useEffect(() => {
     if (isLoaded) {
-      localStorage.setItem(KEY, JSON.stringify(state));
+      // Clear existing timeout
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+
+      // Set new timeout to save after 300ms
+      saveTimeoutRef.current = setTimeout(() => {
+        localStorage.setItem(KEY, JSON.stringify(state));
+      }, 300);
     }
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
   }, [state, isLoaded]);
 
-  function next() {
+  const next = useCallback(() => {
+    // Immediate state update for responsive navigation
     setState((s) => ({ ...s, step: Math.min(5, (s.step + 1)) as any }));
-  }
+  }, []);
 
-  function back() {
+  const back = useCallback(() => {
+    // Immediate state update for responsive navigation
     setState((s) => ({ ...s, step: Math.max(1, (s.step - 1)) as any }));
-  }
+  }, []);
 
-  function reset() {
+  const reset = useCallback(() => {
     setState(initial);
     localStorage.removeItem(KEY);
-  }
+  }, []);
 
-  function updateField<K extends keyof BookingState>(
+  const updateField = useCallback(<K extends keyof BookingState>(
     key: K,
     value: BookingState[K]
-  ) {
+  ) => {
+    // Immediate state update for all fields for better responsiveness
     setState((s) => ({ ...s, [key]: value }));
-  }
+  }, []);
 
   return { state, setState, next, back, reset, updateField, isLoaded };
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useBooking } from '@/lib/useBooking';
 import { calcTotal, PRICING } from '@/lib/pricing';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,12 +19,13 @@ import { format } from 'date-fns';
 export function BookingSummary() {
   const { state } = useBooking();
 
-  const total = calcTotal({
+  // Memoize price calculation - only recalculate when relevant fields change
+  const total = useMemo(() => calcTotal({
     service: state.service,
     bedrooms: state.bedrooms,
     bathrooms: state.bathrooms,
     extras: state.extras,
-  });
+  }), [state.service, state.bedrooms, state.bathrooms, state.extras]);
 
   const SummaryContent = () => (
     <div className="space-y-6">

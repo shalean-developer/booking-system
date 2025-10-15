@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useBooking } from '@/lib/useBooking';
 import { calcTotal, PRICING } from '@/lib/pricing';
@@ -16,14 +16,15 @@ export function StepReview() {
   const { state, back, reset } = useBooking();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const total = calcTotal({
+  // Memoize price calculation
+  const total = useMemo(() => calcTotal({
     service: state.service,
     bedrooms: state.bedrooms,
     bathrooms: state.bathrooms,
     extras: state.extras,
-  });
+  }), [state.service, state.bedrooms, state.bathrooms, state.extras]);
 
-  const handleConfirm = async () => {
+  const handleConfirm = useCallback(async () => {
     setIsSubmitting(true);
 
     try {
@@ -51,7 +52,7 @@ export function StepReview() {
       alert('An error occurred. Please try again.');
       setIsSubmitting(false);
     }
-  };
+  }, [state, reset, router]);
 
   return (
     <Card className="border-0 shadow-lg">
@@ -200,10 +201,10 @@ export function StepReview() {
 
         {/* Navigation */}
         <div className="flex justify-between gap-3 pt-4">
-          <Button variant="outline" onClick={back} size="lg" disabled={isSubmitting}>
+          <Button variant="outline" onClick={back} size="lg" disabled={isSubmitting} className="transition-all duration-150">
             Back
           </Button>
-          <Button onClick={handleConfirm} size="lg" disabled={isSubmitting} className="min-w-[200px]">
+          <Button onClick={handleConfirm} size="lg" disabled={isSubmitting} className="min-w-[200px] transition-all duration-150">
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

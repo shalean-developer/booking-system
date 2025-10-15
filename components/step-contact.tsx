@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback, useMemo } from 'react';
 import { useBooking } from '@/lib/useBooking';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,24 +25,26 @@ type ContactForm = z.infer<typeof contactSchema>;
 export function StepContact() {
   const { state, setState, next, back } = useBooking();
 
+  const defaultValues = useMemo(() => ({
+    firstName: state.firstName,
+    lastName: state.lastName,
+    email: state.email,
+    phone: state.phone,
+    line1: state.address.line1,
+    suburb: state.address.suburb,
+    city: state.address.city,
+  }), [state.firstName, state.lastName, state.email, state.phone, state.address]);
+
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<ContactForm>({
     resolver: zodResolver(contactSchema),
-    defaultValues: {
-      firstName: state.firstName,
-      lastName: state.lastName,
-      email: state.email,
-      phone: state.phone,
-      line1: state.address.line1,
-      suburb: state.address.suburb,
-      city: state.address.city,
-    },
+    defaultValues,
   });
 
-  const onSubmit = (data: ContactForm) => {
+  const onSubmit = useCallback((data: ContactForm) => {
     setState({
       ...state,
       firstName: data.firstName,
@@ -55,7 +58,7 @@ export function StepContact() {
       },
     });
     next();
-  };
+  }, [state, setState, next]);
 
   return (
     <Card className="border-0 shadow-lg">
@@ -176,10 +179,10 @@ export function StepContact() {
 
           {/* Navigation */}
           <div className="flex justify-between gap-3">
-            <Button type="button" variant="outline" onClick={back} size="lg">
+            <Button type="button" variant="outline" onClick={back} size="lg" className="transition-all duration-150">
               Back
             </Button>
-            <Button type="submit" size="lg">
+            <Button type="submit" size="lg" className="transition-all duration-150">
               Next: Review
             </Button>
           </div>

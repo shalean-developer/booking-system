@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback } from 'react';
 import { useBooking } from '@/lib/useBooking';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,23 +15,23 @@ const extrasList = Object.keys(PRICING.extras) as Array<keyof typeof PRICING.ext
 export function StepDetails() {
   const { state, updateField, next, back } = useBooking();
 
-  const handleBedroomChange = (delta: number) => {
+  const handleBedroomChange = useCallback((delta: number) => {
     const newValue = Math.max(0, Math.min(10, state.bedrooms + delta));
     updateField('bedrooms', newValue);
-  };
+  }, [state.bedrooms, updateField]);
 
-  const handleBathroomChange = (delta: number) => {
+  const handleBathroomChange = useCallback((delta: number) => {
     const newValue = Math.max(0, Math.min(10, state.bathrooms + delta));
     updateField('bathrooms', newValue);
-  };
+  }, [state.bathrooms, updateField]);
 
-  const toggleExtra = (extra: string) => {
+  const toggleExtra = useCallback((extra: string) => {
     if (state.extras.includes(extra)) {
       updateField('extras', state.extras.filter((e) => e !== extra));
     } else {
       updateField('extras', [...state.extras, extra]);
     }
-  };
+  }, [state.extras, updateField]);
 
   return (
     <Card className="border-0 shadow-lg">
@@ -140,10 +141,29 @@ export function StepDetails() {
 
         {/* Navigation */}
         <div className="flex justify-between gap-3">
-          <Button variant="outline" onClick={back} size="lg">
+          <Button 
+            variant="outline" 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              back();
+            }} 
+            size="lg" 
+            className="transition-all duration-150"
+            type="button"
+          >
             Back
           </Button>
-          <Button onClick={next} size="lg">
+          <Button 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              next();
+            }} 
+            size="lg" 
+            className="transition-all duration-150"
+            type="button"
+          >
             Next: Schedule
           </Button>
         </div>

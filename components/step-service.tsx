@@ -1,11 +1,11 @@
 'use client';
 
+import { useCallback, useMemo } from 'react';
 import { useBooking } from '@/lib/useBooking';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { motion } from 'framer-motion';
 import type { ServiceType } from '@/types/booking';
 
 const services: { type: ServiceType; title: string; description: string; multiplier: string }[] = [
@@ -38,11 +38,11 @@ const services: { type: ServiceType; title: string; description: string; multipl
 export function StepService() {
   const { state, updateField, next } = useBooking();
 
-  const handleSelect = (serviceType: ServiceType) => {
+  const handleSelect = useCallback((serviceType: ServiceType) => {
     updateField('service', serviceType);
-  };
+  }, [updateField]);
 
-  const canProceed = state.service !== null;
+  const canProceed = useMemo(() => state.service !== null, [state.service]);
 
   return (
     <Card className="border-0 shadow-lg">
@@ -55,40 +55,45 @@ export function StepService() {
           {services.map((service) => {
             const isSelected = state.service === service.type;
             return (
-              <motion.div
+              <Card
                 key={service.type}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                className={cn(
+                  'cursor-pointer border-2 transition-all duration-150 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]',
+                  isSelected
+                    ? 'border-primary bg-primary/5'
+                    : 'border-slate-200 hover:border-slate-300'
+                )}
+                onClick={() => handleSelect(service.type)}
               >
-                <Card
-                  className={cn(
-                    'cursor-pointer border-2 transition-all hover:shadow-md',
-                    isSelected
-                      ? 'border-primary bg-primary/5'
-                      : 'border-slate-200 hover:border-slate-300'
+                <CardHeader className="relative pb-3">
+                  {isSelected && (
+                    <div className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-white">
+                      <Check className="h-4 w-4" />
+                    </div>
                   )}
-                  onClick={() => handleSelect(service.type)}
-                >
-                  <CardHeader className="relative pb-3">
-                    {isSelected && (
-                      <div className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-white">
-                        <Check className="h-4 w-4" />
-                      </div>
-                    )}
-                    <CardTitle className="text-lg">{service.title}</CardTitle>
-                    <CardDescription className="text-xs">{service.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-xs font-medium text-slate-600">{service.multiplier}</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
+                  <CardTitle className="text-lg">{service.title}</CardTitle>
+                  <CardDescription className="text-xs">{service.description}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xs font-medium text-slate-600">{service.multiplier}</p>
+                </CardContent>
+              </Card>
             );
           })}
         </div>
 
         <div className="flex justify-end gap-3">
-          <Button onClick={next} disabled={!canProceed} size="lg">
+          <Button 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              next();
+            }} 
+            disabled={!canProceed} 
+            size="lg"
+            className="transition-all duration-150"
+            type="button"
+          >
             Next: Home Details
           </Button>
         </div>

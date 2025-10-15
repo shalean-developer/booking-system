@@ -41,6 +41,7 @@ const LoginButton = React.forwardRef<HTMLButtonElement, LoginButtonProps>(
         {showAvatar && (
           <div className="w-5 h-5 rounded-full bg-muted/50 flex items-center justify-center">
             {avatarSrc ? (
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={avatarSrc}
                 alt={avatarAlt}

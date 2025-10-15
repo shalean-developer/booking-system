@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback, useMemo } from 'react';
 import { useBooking } from '@/lib/useBooking';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,19 +17,25 @@ const timeSlots = generateTimeSlots();
 export function StepSchedule() {
   const { state, updateField, next, back } = useBooking();
 
-  const selectedDate = state.date ? new Date(state.date) : undefined;
+  const selectedDate = useMemo(() => 
+    state.date ? new Date(state.date) : undefined, 
+    [state.date]
+  );
 
-  const handleDateSelect = (date: Date | undefined) => {
+  const handleDateSelect = useCallback((date: Date | undefined) => {
     if (date) {
       updateField('date', format(date, 'yyyy-MM-dd'));
     }
-  };
+  }, [updateField]);
 
-  const handleTimeSelect = (time: string) => {
+  const handleTimeSelect = useCallback((time: string) => {
     updateField('time', time);
-  };
+  }, [updateField]);
 
-  const canProceed = state.date !== null && state.time !== null;
+  const canProceed = useMemo(() => 
+    state.date !== null && state.time !== null, 
+    [state.date, state.time]
+  );
 
   return (
     <Card className="border-0 shadow-lg">
@@ -101,10 +108,10 @@ export function StepSchedule() {
 
         {/* Navigation */}
         <div className="flex justify-between gap-3">
-          <Button variant="outline" onClick={back} size="lg">
+          <Button variant="outline" onClick={back} size="lg" className="transition-all duration-150">
             Back
           </Button>
-          <Button onClick={next} disabled={!canProceed} size="lg">
+          <Button onClick={next} disabled={!canProceed} size="lg" className="transition-all duration-150">
             Next: Contact Info
           </Button>
         </div>
