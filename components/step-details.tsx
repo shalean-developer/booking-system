@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import type { ServiceType } from '@/types/booking';
 import { useBooking } from '@/lib/useBooking';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,8 +14,40 @@ import { PRICING } from '@/lib/pricing';
 
 const extrasList = Object.keys(PRICING.extras) as Array<keyof typeof PRICING.extras>;
 
+// Helper function to convert ServiceType to URL slug
+function serviceTypeToSlug(serviceType: ServiceType): string {
+  // Handle "Move In/Out" special case first
+  if (serviceType === 'Move In/Out') {
+    return 'move-in-out';
+  }
+  
+  return serviceType
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '');
+}
+
 export function StepDetails() {
   const { state, updateField, next, back } = useBooking();
+  const router = useRouter();
+  const params = useParams();
+  const slug = params.slug as string;
+
+  const handleBack = useCallback(() => {
+    back();
+    // Navigate back to service select if we have a slug, otherwise use main booking page
+    if (window.location.pathname.includes('/booking/service/') && slug) {
+      router.push('/booking/service/select');
+    }
+  }, [back, router, slug]);
+
+  const handleNext = useCallback(() => {
+    next();
+    // Navigate to schedule page if we have a slug, otherwise use main booking page
+    if (window.location.pathname.includes('/booking/service/') && slug) {
+      router.push(`/booking/service/${slug}/schedule`);
+    }
+  }, [next, router, slug]);
 
   const handleBedroomChange = useCallback((value: string) => {
     const newValue = parseInt(value);
@@ -125,7 +159,7 @@ export function StepDetails() {
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              back();
+              handleBack();
             }} 
             size="lg" 
             className="transition-all duration-150"
@@ -137,7 +171,7 @@ export function StepDetails() {
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              next();
+              handleNext();
             }} 
             size="lg" 
             className="transition-all duration-150"

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useMemo } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import { useBooking } from '@/lib/useBooking';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,9 @@ type ContactForm = z.infer<typeof contactSchema>;
 
 export function StepContact() {
   const { state, setState, next, back } = useBooking();
+  const router = useRouter();
+  const params = useParams();
+  const slug = params.slug as string;
 
   const defaultValues = useMemo(() => ({
     firstName: state.firstName,
@@ -44,6 +48,14 @@ export function StepContact() {
     defaultValues,
   });
 
+  const handleBack = useCallback(() => {
+    back();
+    // Navigate back to schedule page if we have a slug
+    if (window.location.pathname.includes('/booking/service/') && slug) {
+      router.push(`/booking/service/${slug}/schedule`);
+    }
+  }, [back, router, slug]);
+
   const onSubmit = useCallback((data: ContactForm) => {
     setState({
       ...state,
@@ -58,7 +70,11 @@ export function StepContact() {
       },
     });
     next();
-  }, [state, setState, next]);
+    // Navigate to review page if we have a slug
+    if (window.location.pathname.includes('/booking/service/') && slug) {
+      router.push(`/booking/service/${slug}/review`);
+    }
+  }, [state, setState, next, router, slug]);
 
   return (
     <Card className="border-0 shadow-lg">
@@ -179,7 +195,17 @@ export function StepContact() {
 
           {/* Navigation */}
           <div className="flex justify-between gap-3">
-            <Button type="button" variant="outline" onClick={back} size="lg" className="transition-all duration-150">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleBack();
+              }} 
+              size="lg" 
+              className="transition-all duration-150"
+            >
               Back
             </Button>
             <Button type="submit" size="lg" className="transition-all duration-150">

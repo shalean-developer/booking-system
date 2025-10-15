@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle2, Home } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-export default function SuccessPage() {
+export default function ConfirmationPage() {
   useEffect(() => {
     // Clear booking state after successful submission
     // Done in the StepReview component after navigation
@@ -49,7 +49,7 @@ export default function SuccessPage() {
                   Back to Home
                 </Button>
               </Link>
-              <Link href="/booking">
+              <Link href="/booking/service/select">
                 <Button variant="outline" size="lg" className="w-full sm:w-auto">
                   Book Another
                 </Button>
@@ -61,4 +61,3 @@ export default function SuccessPage() {
     </div>
   );
 }
-

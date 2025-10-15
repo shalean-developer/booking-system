@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useBooking } from '@/lib/useBooking';
 import { calcTotal, PRICING } from '@/lib/pricing';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +13,8 @@ import { format } from 'date-fns';
 
 export function StepReview() {
   const router = useRouter();
+  const params = useParams();
+  const slug = params.slug as string;
   const { state, back, reset } = useBooking();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -41,8 +43,8 @@ export function StepReview() {
       if (result.ok) {
         // Clear booking state
         reset();
-        // Navigate to success page
-        router.push('/booking/success');
+        // Navigate to confirmation page
+        router.push('/booking/confirmation');
       } else {
         alert('Failed to submit booking. Please try again.');
         setIsSubmitting(false);
@@ -53,6 +55,14 @@ export function StepReview() {
       setIsSubmitting(false);
     }
   }, [state, reset, router]);
+
+  const handleBack = useCallback(() => {
+    back();
+    // Navigate back to contact page if we have a slug
+    if (window.location.pathname.includes('/booking/service/') && slug) {
+      router.push(`/booking/service/${slug}/contact`);
+    }
+  }, [back, router, slug]);
 
   return (
     <Card className="border-0 shadow-lg">
@@ -201,10 +211,27 @@ export function StepReview() {
 
         {/* Navigation */}
         <div className="flex justify-between gap-3 pt-4">
-          <Button variant="outline" onClick={back} size="lg" disabled={isSubmitting} className="transition-all duration-150">
+          <Button 
+            variant="outline" 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleBack();
+            }} 
+            size="lg" 
+            disabled={isSubmitting} 
+            className="transition-all duration-150"
+            type="button"
+          >
             Back
           </Button>
-          <Button onClick={handleConfirm} size="lg" disabled={isSubmitting} className="min-w-[200px] transition-all duration-150">
+          <Button 
+            onClick={handleConfirm} 
+            size="lg" 
+            disabled={isSubmitting} 
+            className="min-w-[200px] transition-all duration-150"
+            type="button"
+          >
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -1,5 +1,7 @@
 // Simple pricing model - edit values here
 
+import type { ServiceType } from '@/types/booking';
+
 export const PRICING = {
   base: 250, // base fee
   perBedroom: 20, // per bedroom
@@ -22,16 +24,23 @@ export type ExtraKey = keyof typeof PRICING.extras;
  * Calculate total booking price based on service type, home details, and extras
  */
 export function calcTotal(input: {
-  service: 'Standard' | 'Deep' | 'Move In/Out' | 'Airbnb' | null;
+  service: ServiceType | null;
   bedrooms: number;
   bathrooms: number;
   extras: string[];
 }) {
-  // Apply service multiplier to base fee
-  const baseMultiplier =
-    input.service === 'Deep' ? 1.4 :
-    input.service === 'Move In/Out' ? 1.6 :
-    input.service === 'Airbnb' ? 1.2 : 1;
+  // Apply service multiplier to base fee based on service types
+  const getServiceMultiplier = (service: ServiceType | null): number => {
+    switch (service) {
+      case 'Standard': return 1.0;
+      case 'Deep': return 1.4;
+      case 'Move In/Out': return 1.6;
+      case 'Airbnb': return 1.2;
+      default: return 1.0;
+    }
+  };
+
+  const baseMultiplier = getServiceMultiplier(input.service);
 
   const base = PRICING.base * baseMultiplier;
   const beds = input.bedrooms * PRICING.perBedroom;

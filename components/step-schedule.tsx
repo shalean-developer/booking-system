@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useMemo } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import { useBooking } from '@/lib/useBooking';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,9 @@ const timeSlots = generateTimeSlots();
 
 export function StepSchedule() {
   const { state, updateField, next, back } = useBooking();
+  const router = useRouter();
+  const params = useParams();
+  const slug = params.slug as string;
 
   const selectedDate = useMemo(() => 
     state.date ? new Date(state.date) : undefined, 
@@ -36,6 +40,22 @@ export function StepSchedule() {
     state.date !== null && state.time !== null, 
     [state.date, state.time]
   );
+
+  const handleBack = useCallback(() => {
+    back();
+    // Navigate back to details page if we have a slug
+    if (window.location.pathname.includes('/booking/service/') && slug) {
+      router.push(`/booking/service/${slug}/details`);
+    }
+  }, [back, router, slug]);
+
+  const handleNext = useCallback(() => {
+    next();
+    // Navigate to contact page if we have a slug
+    if (window.location.pathname.includes('/booking/service/') && slug) {
+      router.push(`/booking/service/${slug}/contact`);
+    }
+  }, [next, router, slug]);
 
   return (
     <Card className="border-0 shadow-lg">
@@ -108,10 +128,30 @@ export function StepSchedule() {
 
         {/* Navigation */}
         <div className="flex justify-between gap-3">
-          <Button variant="outline" onClick={back} size="lg" className="transition-all duration-150">
+          <Button 
+            variant="outline" 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleBack();
+            }} 
+            size="lg" 
+            className="transition-all duration-150"
+            type="button"
+          >
             Back
           </Button>
-          <Button onClick={next} disabled={!canProceed} size="lg" className="transition-all duration-150">
+          <Button 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleNext();
+            }} 
+            disabled={!canProceed} 
+            size="lg" 
+            className="transition-all duration-150"
+            type="button"
+          >
             Next: Contact Info
           </Button>
         </div>

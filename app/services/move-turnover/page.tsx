@@ -123,7 +123,7 @@ export default function MoveTurnoverPage() {
             Book your move & turnover cleaning service today for seamless transitions.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/booking">
+            <Link href="/booking/service/select">
               <Button size="lg" className="bg-primary hover:bg-primary/90 text-white">
                 Book Now
               </Button>
