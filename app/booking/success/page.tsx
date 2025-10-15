@@ -22,8 +22,8 @@ export default function SuccessPage() {
       >
         <Card className="mx-auto w-full max-w-lg border-0 shadow-xl">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-              <CheckCircle2 className="h-10 w-10 text-green-600" />
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
+              <CheckCircle2 className="h-10 w-10 text-blue-600" />
             </div>
             <CardTitle className="text-3xl">Booking Confirmed!</CardTitle>
           </CardHeader>

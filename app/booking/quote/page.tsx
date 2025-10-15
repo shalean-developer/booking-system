@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { 
   ArrowLeft, 
@@ -15,13 +16,19 @@ import {
   Sparkles, 
   TruckIcon, 
   Calendar,
-  Plus,
-  Minus,
   Receipt,
   ArrowRight,
   Mail,
   Phone,
-  User
+  User,
+  Settings,
+  Building,
+  Key,
+  Star,
+  Users,
+  Award,
+  BarChart3,
+  Plus
 } from 'lucide-react';
 import { PRICING } from '@/lib/pricing';
 import type { ServiceType } from '@/types/booking';
@@ -29,7 +36,7 @@ import type { ServiceType } from '@/types/booking';
 export default function QuotePage() {
   const router = useRouter();
   const [service, setService] = useState<ServiceType | null>(null);
-  const [bedrooms, setBedrooms] = useState(1);
+  const [bedrooms, setBedrooms] = useState(0);
   const [bathrooms, setBathrooms] = useState(1);
   const [extras, setExtras] = useState<string[]>([]);
   const [showContactForm, setShowContactForm] = useState(false);
@@ -40,28 +47,55 @@ export default function QuotePage() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
 
-  const serviceOptions: { type: ServiceType; icon: any; description: string }[] = [
+  const serviceOptions: { type: ServiceType; icon: any; label: string; subLabel: string; description: string; fillColor: string; iconColor: string }[] = [
     {
       type: 'Standard',
       icon: Home,
+      label: 'Standard',
+      subLabel: 'Cleaning',
       description: 'Regular home cleaning',
+      fillColor: 'bg-amber-50',
+      iconColor: 'text-amber-600',
     },
     {
       type: 'Deep',
-      icon: Sparkles,
-      description: 'Thorough deep cleaning',
+      icon: Star,
+      label: 'Deep',
+      subLabel: 'Cleaning',
+      description: 'Thorough deep cleaning services',
+      fillColor: 'bg-teal-50',
+      iconColor: 'text-teal-600',
     },
     {
       type: 'Move In/Out',
-      icon: TruckIcon,
+      icon: Building,
+      label: 'Moving',
+      subLabel: 'Cleaning',
       description: 'Moving transition cleaning',
+      fillColor: 'bg-orange-50',
+      iconColor: 'text-orange-500',
     },
     {
       type: 'Airbnb',
       icon: Calendar,
-      description: 'Guest turnover cleaning',
+      label: 'Airbnb',
+      subLabel: 'Cleaning',
+      description: 'Airbnb turnover cleaning',
+      fillColor: 'bg-teal-50',
+      iconColor: 'text-teal-600',
     },
   ];
+
+  const extraIconMap: { [key: string]: any } = {
+    'Inside Fridge': Home,
+    'Inside Oven': Star,
+    'Inside Cabinets': Building,
+    'Interior Windows': Users,
+    'Interior Walls': Award,
+    'Water Plants': Sparkles,
+    'Ironing': BarChart3,
+    'Laundry': Plus,
+  };
 
   const toggleExtra = (extra: string) => {
     setExtras((prev) =>
@@ -137,7 +171,7 @@ export default function QuotePage() {
                 <CardTitle>1. Select Your Service</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   {serviceOptions.map((option) => {
                     const Icon = option.icon;
                     const isSelected = service === option.type;
@@ -145,22 +179,24 @@ export default function QuotePage() {
                       <button
                         key={option.type}
                         onClick={() => setService(option.type)}
-                        className={`flex flex-col items-center gap-3 rounded-lg border-2 p-6 text-center transition-all ${
+                        className={`flex flex-col items-center gap-5 rounded-xl border-2 p-8 text-center transition-all hover:shadow-md ${
                           isSelected
                             ? 'border-primary bg-primary/5'
-                            : 'border-slate-200 hover:border-slate-300'
+                            : 'border-gray-200 hover:border-gray-300 bg-white'
                         }`}
                       >
-                        <div
-                          className={`rounded-full p-3 ${
-                            isSelected ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600'
-                          }`}
-                        >
-                          <Icon className="h-6 w-6" />
+                        <div className={`relative rounded-full p-4 ${option.fillColor}`}>
+                          <Icon className={`h-8 w-8 ${option.iconColor}`} strokeWidth={1.5} />
+                          {option.type === 'Airbnb' && (
+                            <div className="absolute -top-1 -right-1 flex gap-0.5">
+                              <Sparkles className="h-2.5 w-2.5 text-gray-600" strokeWidth={1.5} />
+                              <Sparkles className="h-2.5 w-2.5 text-gray-600" strokeWidth={1.5} />
+                            </div>
+                          )}
                         </div>
-                        <div>
-                          <div className="font-semibold text-slate-900">{option.type}</div>
-                          <div className="text-sm text-slate-600">{option.description}</div>
+                        <div className="space-y-0.5">
+                          <div className="font-medium text-gray-900 text-sm leading-tight">{option.label}</div>
+                          <div className="font-medium text-gray-900 text-sm leading-tight">{option.subLabel}</div>
                         </div>
                       </button>
                     );
@@ -176,59 +212,45 @@ export default function QuotePage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  {/* Bedrooms */}
-                  <div>
-                    <Label className="mb-3 block text-sm font-medium">
-                      Bedrooms
-                    </Label>
-                    <div className="flex items-center gap-4">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setBedrooms(Math.max(1, bedrooms - 1))}
-                        disabled={bedrooms <= 1}
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
-                      <div className="flex h-12 w-20 items-center justify-center rounded-lg border-2 border-slate-200 bg-white text-xl font-semibold">
-                        {bedrooms}
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setBedrooms(Math.min(10, bedrooms + 1))}
-                        disabled={bedrooms >= 10}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
+                  {/* Bedrooms & Bathrooms */}
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    {/* Bedrooms */}
+                    <div>
+                      <Label className="mb-3 block text-sm font-medium">
+                        Bedrooms
+                      </Label>
+                      <Select value={bedrooms.toString()} onValueChange={(value) => setBedrooms(parseInt(value))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select bedrooms" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">0 Bedrooms</SelectItem>
+                          <SelectItem value="1">1 Bedroom</SelectItem>
+                          <SelectItem value="2">2 Bedrooms</SelectItem>
+                          <SelectItem value="3">3 Bedrooms</SelectItem>
+                          <SelectItem value="4">4 Bedrooms</SelectItem>
+                          <SelectItem value="5">5+ Bedrooms</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                  </div>
 
-                  {/* Bathrooms */}
-                  <div>
-                    <Label className="mb-3 block text-sm font-medium">
-                      Bathrooms
-                    </Label>
-                    <div className="flex items-center gap-4">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setBathrooms(Math.max(1, bathrooms - 1))}
-                        disabled={bathrooms <= 1}
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
-                      <div className="flex h-12 w-20 items-center justify-center rounded-lg border-2 border-slate-200 bg-white text-xl font-semibold">
-                        {bathrooms}
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setBathrooms(Math.min(10, bathrooms + 1))}
-                        disabled={bathrooms >= 10}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
+                    {/* Bathrooms */}
+                    <div>
+                      <Label className="mb-3 block text-sm font-medium">
+                        Bathrooms
+                      </Label>
+                      <Select value={bathrooms.toString()} onValueChange={(value) => setBathrooms(parseInt(value))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select bathrooms" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">1 Bathroom</SelectItem>
+                          <SelectItem value="2">2 Bathrooms</SelectItem>
+                          <SelectItem value="3">3 Bathrooms</SelectItem>
+                          <SelectItem value="4">4 Bathrooms</SelectItem>
+                          <SelectItem value="5">5+ Bathrooms</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 </div>
@@ -238,30 +260,50 @@ export default function QuotePage() {
             {/* Extras */}
             <Card className="border-0 shadow-lg">
               <CardHeader>
-                <CardTitle>3. Additional Services (Optional)</CardTitle>
+                <CardTitle className="text-2xl font-bold text-gray-900">3. Additional Services (Optional)</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {Object.entries(PRICING.extras).map(([extra, price]) => (
-                    <div
-                      key={extra}
-                      className="flex items-center rounded-lg border p-4 hover:bg-slate-50"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          id={extra}
-                          checked={extras.includes(extra)}
-                          onCheckedChange={() => toggleExtra(extra)}
-                        />
-                        <label
-                          htmlFor={extra}
-                          className="cursor-pointer text-sm font-medium text-slate-900"
-                        >
-                          {extra}
-                        </label>
-                      </div>
-                    </div>
-                  ))}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-8">
+                  {Object.entries(PRICING.extras).map(([extra, price]) => {
+                    const Icon = extraIconMap[extra];
+                    const isSelected = extras.includes(extra);
+                    const labelWords = extra.split(' ');
+                    
+                    return (
+                      <button
+                        key={extra}
+                        onClick={() => toggleExtra(extra)}
+                        className="flex flex-col items-center gap-4 group cursor-pointer"
+                      >
+                        <div className={`relative w-24 h-24 rounded-full border bg-white flex items-center justify-center transition-all ${
+                          isSelected 
+                            ? 'border-primary bg-primary/5' 
+                            : 'border-blue-600 hover:border-blue-700'
+                        }`}>
+                          <Icon 
+                            className={`h-10 w-10 transition-colors ${
+                              isSelected 
+                                ? 'text-primary' 
+                                : 'text-blue-600 group-hover:text-blue-700'
+                            }`} 
+                            strokeWidth={1.5}
+                          />
+                          {isSelected && (
+                            <div className="absolute -top-1 -right-1 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
+                              <div className="w-3 h-3 bg-white rounded-full"></div>
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-center">
+                          {labelWords.map((word, index) => (
+                            <div key={index} className="text-sm font-medium text-gray-900 leading-tight">
+                              {word}
+                            </div>
+                          ))}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -418,8 +460,8 @@ export default function QuotePage() {
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   ) : (
-                    <div className="rounded-lg bg-green-50 p-4 text-center">
-                      <p className="text-sm font-medium text-green-800">
+                    <div className="rounded-lg bg-blue-50 p-4 text-center">
+                      <p className="text-sm font-medium text-blue-800">
                         ✓ Fill in your contact details below to receive your quote
                       </p>
                     </div>

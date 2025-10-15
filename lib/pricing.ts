@@ -10,6 +10,7 @@ export const PRICING = {
     'Inside Cabinets': 70,
     'Interior Windows': 100,
     'Interior Walls': 120,
+    'Water Plants': 40,
     'Ironing': 50,
     'Laundry': 70,
   },

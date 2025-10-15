@@ -88,9 +88,9 @@ export default function HomePage() {
               eco-friendly products, and guaranteed satisfaction for your home or office.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/booking/quote">
+              <Link href="/booking">
                 <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-8 py-4 text-lg">
-                  Get Free Quote
+                  Book a service
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
@@ -446,7 +446,7 @@ export default function HomePage() {
                   <p>• Developed cleaning protocols</p>
                   <p>• Customer satisfaction champion</p>
                 </div>
-                <Button className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white">
+                <Button className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white">
                   <Plus className="mr-2 h-4 w-4" />
                   Follow Emma
                 </Button>
@@ -483,9 +483,9 @@ export default function HomePage() {
           <p className="text-xl text-gray-600 mb-8">
             Join thousands of satisfied customers who have transformed their spaces with Shalean Cleaning.
           </p>
-          <Link href="/booking/quote">
+          <Link href="/booking">
             <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-8 py-4 text-lg">
-              Get Free Quote
+              Book a service
             </Button>
           </Link>
         </div>

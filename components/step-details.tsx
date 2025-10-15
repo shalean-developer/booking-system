@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Minus, Plus } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PRICING } from '@/lib/pricing';
 
 const extrasList = Object.keys(PRICING.extras) as Array<keyof typeof PRICING.extras>;
@@ -15,15 +15,15 @@ const extrasList = Object.keys(PRICING.extras) as Array<keyof typeof PRICING.ext
 export function StepDetails() {
   const { state, updateField, next, back } = useBooking();
 
-  const handleBedroomChange = useCallback((delta: number) => {
-    const newValue = Math.max(0, Math.min(10, state.bedrooms + delta));
+  const handleBedroomChange = useCallback((value: string) => {
+    const newValue = parseInt(value);
     updateField('bedrooms', newValue);
-  }, [state.bedrooms, updateField]);
+  }, [updateField]);
 
-  const handleBathroomChange = useCallback((delta: number) => {
-    const newValue = Math.max(0, Math.min(10, state.bathrooms + delta));
+  const handleBathroomChange = useCallback((value: string) => {
+    const newValue = parseInt(value);
     updateField('bathrooms', newValue);
-  }, [state.bathrooms, updateField]);
+  }, [updateField]);
 
   const toggleExtra = useCallback((extra: string) => {
     if (state.extras.includes(extra)) {
@@ -45,58 +45,37 @@ export function StepDetails() {
           {/* Bedrooms */}
           <div className="space-y-2">
             <Label>Bedrooms</Label>
-            <div className="flex items-center gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => handleBedroomChange(-1)}
-                disabled={state.bedrooms === 0}
-              >
-                <Minus className="h-4 w-4" />
-              </Button>
-              <span className="min-w-[3rem] text-center text-2xl font-semibold">
-                {state.bedrooms}
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => handleBedroomChange(1)}
-                disabled={state.bedrooms === 10}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
+            <Select value={state.bedrooms.toString()} onValueChange={handleBedroomChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select bedrooms" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">0 Bedrooms</SelectItem>
+                <SelectItem value="1">1 Bedroom</SelectItem>
+                <SelectItem value="2">2 Bedrooms</SelectItem>
+                <SelectItem value="3">3 Bedrooms</SelectItem>
+                <SelectItem value="4">4 Bedrooms</SelectItem>
+                <SelectItem value="5">5+ Bedrooms</SelectItem>
+              </SelectContent>
+            </Select>
             <p className="text-xs text-slate-500">+R{PRICING.perBedroom} per bedroom</p>
           </div>
 
           {/* Bathrooms */}
           <div className="space-y-2">
             <Label>Bathrooms</Label>
-            <div className="flex items-center gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => handleBathroomChange(-1)}
-                disabled={state.bathrooms === 0}
-              >
-                <Minus className="h-4 w-4" />
-              </Button>
-              <span className="min-w-[3rem] text-center text-2xl font-semibold">
-                {state.bathrooms}
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => handleBathroomChange(1)}
-                disabled={state.bathrooms === 10}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
+            <Select value={state.bathrooms.toString()} onValueChange={handleBathroomChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select bathrooms" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">1 Bathroom</SelectItem>
+                <SelectItem value="2">2 Bathrooms</SelectItem>
+                <SelectItem value="3">3 Bathrooms</SelectItem>
+                <SelectItem value="4">4 Bathrooms</SelectItem>
+                <SelectItem value="5">5+ Bathrooms</SelectItem>
+              </SelectContent>
+            </Select>
             <p className="text-xs text-slate-500">+R{PRICING.perBathroom} per bathroom</p>
           </div>
         </div>

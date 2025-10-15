@@ -23,13 +23,13 @@ const services: { type: ServiceType; title: string; description: string; multipl
   },
   {
     type: 'Move In/Out',
-    title: 'Move In/Out',
+    title: 'Moving Cleaning',
     description: 'Complete cleaning for moving in or out',
     multiplier: '1.6x base',
   },
   {
     type: 'Airbnb',
-    title: 'Airbnb Turnover',
+    title: 'Airbnb Cleaning',
     description: 'Quick turnover cleaning between guests',
     multiplier: '1.2x base',
   },
@@ -84,11 +84,7 @@ export function StepService() {
 
         <div className="flex justify-end gap-3">
           <Button 
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              next();
-            }} 
+            onClick={next} 
             disabled={!canProceed} 
             size="lg"
             className="transition-all duration-150"
