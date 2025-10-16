@@ -28,7 +28,8 @@ import {
   Users,
   Award,
   BarChart3,
-  Plus
+  Plus,
+  Loader2
 } from 'lucide-react';
 import { PRICING } from '@/lib/pricing';
 import type { ServiceType } from '@/types/booking';
@@ -46,6 +47,7 @@ export default function QuotePage() {
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const serviceOptions: { type: ServiceType; icon: any; label: string; subLabel: string; description: string; fillColor: string; iconColor: string }[] = [
     {
@@ -110,22 +112,66 @@ export default function QuotePage() {
 
   const handleSubmitQuote = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
-    // Here you would typically send the quote request to your backend
-    console.log('Quote request submitted:', {
-      service,
-      bedrooms,
-      bathrooms,
-      extras,
-      firstName,
-      lastName,
-      email,
-      phone,
-    });
+    try {
+      // Send quote confirmation request to backend
+      const response = await fetch('/api/quote-confirmation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          service,
+          bedrooms,
+          bathrooms,
+          extras,
+          firstName,
+          lastName,
+          email,
+          phone,
+        }),
+      });
 
-    // For now, redirect to booking page with pre-filled data
-    // You could also store this in localStorage and redirect
-    router.push('/booking');
+      // Check if response is ok before trying to parse JSON
+      if (!response.ok) {
+        console.error('HTTP error:', response.status, response.statusText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Try to parse JSON response
+      let result;
+      try {
+        result = await response.json();
+      } catch (jsonError) {
+        console.error('Failed to parse JSON response:', jsonError);
+        throw new Error('Invalid response from server');
+      }
+
+      if (result.ok) {
+        console.log('Quote confirmation sent successfully:', result);
+        
+        // Show success message even if email failed
+        if (result.emailError) {
+          if (result.emailError === 'Email service not configured') {
+            console.log('Quote recorded successfully (email service not configured):', result.quoteId);
+          } else {
+            console.warn('Email sending failed but quote was recorded:', result.emailError);
+          }
+        }
+        
+        // Redirect to quote confirmation page after successful submission
+        router.push('/booking/quote/confirmation');
+      } else {
+        console.error('Quote confirmation failed:', result.error);
+        alert(`Failed to send quote confirmation: ${result.error || 'Please try again.'}`);
+      }
+    } catch (error) {
+      console.error('Quote confirmation error:', error);
+      alert(`An error occurred: ${error instanceof Error ? error.message : 'Please try again.'}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -380,9 +426,19 @@ export default function QuotePage() {
                       type="submit"
                       size="lg"
                       className="w-full bg-primary hover:bg-primary/90"
+                      disabled={isSubmitting}
                     >
-                      Confirm Quote & Continue to Booking
-                      <ArrowRight className="ml-2 h-4 w-4" />
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sending Quote...
+                        </>
+                      ) : (
+                        <>
+                          Confirm Quote & Continue to Booking
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </>
+                      )}
                     </Button>
                   </form>
                 </CardContent>
