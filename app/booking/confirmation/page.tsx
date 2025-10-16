@@ -32,8 +32,16 @@ export default function ConfirmationPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             <p className="text-center text-base sm:text-lg text-slate-600">
-              Thank you for booking with Shalean Cleaning Services. We&apos;ve received your cleaning request and will send you a confirmation email shortly.
+              Thank you for booking with Shalean Cleaning Services. Your payment has been successfully processed and your booking is confirmed!
             </p>
+
+            <div className="rounded-xl bg-green-50 p-4 sm:p-6 border border-green-200 mb-4">
+              <p className="text-center text-sm text-green-800">
+                <strong className="text-green-900">Payment Successful</strong>
+                <br />
+                Your payment has been processed securely via Paystack
+              </p>
+            </div>
 
             <div className="rounded-xl bg-slate-50 p-4 sm:p-6 border border-slate-200">
               <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
@@ -43,7 +51,7 @@ export default function ConfirmationPage() {
               <ul className="space-y-2 text-sm text-slate-600">
                 <li className="flex items-start gap-2">
                   <span className="text-primary mt-0.5">✓</span>
-                  <span>You&apos;ll receive a confirmation email with your booking details and payment link</span>
+                  <span>You&apos;ll receive a confirmation email with your booking details and receipt</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-primary mt-0.5">✓</span>

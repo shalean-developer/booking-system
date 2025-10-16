@@ -2,14 +2,15 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import type { ServiceType } from '@/types/booking';
+import { PaystackConsumer } from 'react-paystack';
+import type { ServiceType, PaystackVerificationResponse } from '@/types/booking';
 import { useBooking } from '@/lib/useBooking';
 import { calcTotal, PRICING } from '@/lib/pricing';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, MapPin, Clock, Home, User, Mail, Phone, FileText, Loader2 } from 'lucide-react';
+import { Calendar, MapPin, Clock, Home, User, Mail, Phone, FileText, Loader2, CreditCard } from 'lucide-react';
 import { format } from 'date-fns';
 
 // Helper function to convert ServiceType to URL slug
@@ -28,6 +29,7 @@ export function StepReview() {
   const router = useRouter();
   const { state, reset } = useBooking();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   // Memoize price calculation
   const total = useMemo(() => calcTotal({
@@ -37,35 +39,131 @@ export function StepReview() {
     extras: state.extras,
   }), [state.service, state.bedrooms, state.bathrooms, state.extras]);
 
-  const handleConfirm = useCallback(async () => {
+  // Generate unique payment reference for each render
+  const [paymentReference] = useState(
+    () => `BK-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  );
+
+  // Paystack payment success handler (needs to be defined before config)
+  const onPaymentSuccess = useCallback(async (reference: any) => {
+    console.log('=== PAYMENT SUCCESS HANDLER CALLED ===');
+    console.log('Payment reference received:', reference);
+    
     setIsSubmitting(true);
+    setPaymentError(null);
 
     try {
-      const response = await fetch('/api/bookings', {
+      console.log('Step 1: Starting payment verification...');
+      console.log('Reference to verify:', reference.reference);
+
+      // Verify payment with our backend
+      const verifyResponse = await fetch('/api/payment/verify', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(state),
+        body: JSON.stringify({ reference: reference.reference }),
       });
 
-      const result = await response.json();
+      console.log('Step 2: Verification response received');
+      console.log('Response status:', verifyResponse.status);
+      console.log('Response ok:', verifyResponse.ok);
 
-      if (result.ok) {
+      const verifyResult: PaystackVerificationResponse = await verifyResponse.json();
+      console.log('Step 3: Verification result parsed:', verifyResult);
+
+      if (!verifyResult.ok) {
+        console.error('Verification failed:', verifyResult);
+        throw new Error(verifyResult.error || verifyResult.message || 'Payment verification failed');
+      }
+
+      console.log('Step 4: Payment verified successfully, submitting booking...');
+
+      // Submit booking with payment reference
+      const bookingPayload = {
+        ...state,
+        paymentReference: reference.reference,
+      };
+      console.log('Booking payload:', bookingPayload);
+
+      const bookingResponse = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bookingPayload),
+      });
+
+      console.log('Step 5: Booking response received');
+      console.log('Booking response status:', bookingResponse.status);
+      console.log('Booking response ok:', bookingResponse.ok);
+
+      const bookingResult = await bookingResponse.json();
+      console.log('Step 6: Booking result parsed:', bookingResult);
+
+      if (bookingResult.ok) {
+        console.log('Step 7: Booking successful! Redirecting...');
+        console.log('Booking ID:', bookingResult.bookingId);
+        console.log('Email sent:', bookingResult.emailSent);
+        
         // Clear booking state
         reset();
+        
         // Navigate to confirmation page
+        console.log('Navigating to /booking/confirmation');
         router.push('/booking/confirmation');
       } else {
-        alert('Failed to submit booking. Please try again.');
-        setIsSubmitting(false);
+        console.error('Booking submission failed:', bookingResult);
+        throw new Error(bookingResult.error || bookingResult.message || 'Failed to submit booking after payment');
       }
     } catch (error) {
-      console.error('Booking submission error:', error);
-      alert('An error occurred. Please try again.');
+      console.error('=== POST-PAYMENT ERROR ===');
+      console.error('Error type:', error instanceof Error ? 'Error object' : typeof error);
+      console.error('Error details:', error);
+      console.error('Error message:', error instanceof Error ? error.message : String(error));
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Failed to complete booking. Please contact support with your payment reference: ' + reference.reference;
+      
+      setPaymentError(errorMessage);
       setIsSubmitting(false);
+      
+      // Show alert as backup
+      alert('Error: ' + errorMessage);
     }
   }, [state, reset, router]);
+
+  // Paystack payment close handler
+  const onPaymentClose = useCallback(() => {
+    console.log('=== PAYMENT POPUP CLOSED ===');
+    console.log('User closed the payment popup without completing payment');
+    setPaymentError('Payment was cancelled. Please try again to complete your booking.');
+  }, []);
+
+  // Configure Paystack payment - simple object with all properties
+  const paystackConfig = {
+    reference: paymentReference,
+    email: state.email,
+    amount: total * 100, // Paystack uses kobo/cents
+    publicKey: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
+    currency: 'ZAR',
+    channels: ['card'],
+    metadata: {
+      service: state.service,
+      customer_name: `${state.firstName} ${state.lastName}`,
+      booking_reference: paymentReference,
+    },
+  };
+
+  // Wrapper component props for PaystackConsumer
+  const componentProps = {
+    ...paystackConfig,
+    text: 'Confirm & Pay',
+    onSuccess: onPaymentSuccess,
+    onClose: onPaymentClose,
+  };
 
   const handleBack = useCallback(() => {
     if (state.service) {
@@ -216,9 +314,16 @@ export function StepReview() {
             <span className="text-3xl font-bold text-primary">R{total}</span>
           </div>
           <p className="mt-2 text-xs text-slate-500">
-            Payment link will be sent to your email after confirmation
+            Secure payment powered by Paystack
           </p>
         </div>
+
+        {/* Payment Error */}
+        {paymentError && (
+          <div className="rounded-lg bg-red-50 border border-red-200 p-4">
+            <p className="text-sm text-red-800">{paymentError}</p>
+          </div>
+        )}
 
         {/* Navigation */}
         <div className="flex justify-between gap-3 pt-4 pb-20 lg:pb-0">
@@ -232,26 +337,49 @@ export function StepReview() {
           >
             Back
           </Button>
-          <Button 
-            onClick={handleConfirm} 
-            size="lg" 
-            disabled={isSubmitting} 
-            className="sm:min-w-[200px] transition-all duration-150 flex-1 sm:flex-none"
-            type="button"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                <span className="sm:hidden">Processing...</span>
-                <span className="hidden sm:inline">Processing...</span>
-              </>
-            ) : (
-              <>
-                <span className="sm:hidden">Confirm</span>
-                <span className="hidden sm:inline">Confirm Booking</span>
-              </>
+          
+          <PaystackConsumer {...componentProps}>
+            {({initializePayment}) => (
+              <Button 
+                onClick={() => {
+                  console.log('=== PAYSTACK BUTTON CLICKED ===');
+                  console.log('Config:', {
+                    ...paystackConfig,
+                    publicKey: paystackConfig.publicKey ? 'pk_***' : 'MISSING',
+                  });
+                  if (!process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY) {
+                    setPaymentError('Payment service is not configured. Please contact support.');
+                    return;
+                  }
+                  if (!state.email) {
+                    setPaymentError('Email is required for payment. Please go back and enter your email.');
+                    return;
+                  }
+                  setPaymentError(null);
+                  console.log('Calling initializePayment from PaystackConsumer');
+                  initializePayment();
+                }}
+                size="lg" 
+                disabled={isSubmitting} 
+                className="sm:min-w-[200px] transition-all duration-150 flex-1 sm:flex-none"
+                type="button"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <span className="sm:hidden">Processing...</span>
+                    <span className="hidden sm:inline">Processing Payment...</span>
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    <span className="sm:hidden">Pay R{total}</span>
+                    <span className="hidden sm:inline">Confirm & Pay R{total}</span>
+                  </>
+                )}
+              </Button>
             )}
-          </Button>
+          </PaystackConsumer>
         </div>
       </CardContent>
     </Card>

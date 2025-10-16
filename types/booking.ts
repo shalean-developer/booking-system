@@ -20,5 +20,23 @@ export interface BookingState {
     suburb: string;
     city: string;
   };
+  paymentReference?: string; // Paystack payment reference
+}
+
+// Payment verification response types
+export interface PaystackVerificationResponse {
+  ok: boolean;
+  data?: {
+    status: string;
+    reference: string;
+    amount: number;
+    currency: string;
+    paid_at: string;
+    customer: {
+      email: string;
+    };
+  };
+  message?: string;
+  error?: string;
 }
 
