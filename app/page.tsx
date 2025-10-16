@@ -18,7 +18,6 @@ import {
   GraduationCap,
   Calendar,
   User,
-  Plus,
   ArrowRight,
   Instagram,
   Mail,
@@ -26,10 +25,112 @@ import {
   MapPin,
   Building
 } from "lucide-react";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Shalean Cleaning Services | Professional Home & Office Cleaning",
+  description: "Expert professional cleaning services for homes and businesses. Standard cleaning, deep cleaning, move-in/out, and Airbnb turnover services. 98% satisfaction rate, eco-friendly products, insured & bonded. Book your service today!",
+  keywords: [
+    "cleaning services",
+    "professional cleaning",
+    "home cleaning",
+    "office cleaning",
+    "deep cleaning",
+    "standard cleaning",
+    "move in cleaning",
+    "move out cleaning",
+    "Airbnb cleaning",
+    "eco-friendly cleaning",
+    "residential cleaning",
+    "commercial cleaning",
+    "turnover cleaning",
+    "house cleaning",
+    "maid service"
+  ],
+  authors: [{ name: "Shalean Cleaning Services" }],
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://shalean.co.za",
+    siteName: "Shalean Cleaning Services",
+    title: "Shalean Cleaning Services | Professional Home & Office Cleaning",
+    description: "Expert professional cleaning services for homes and businesses. Standard cleaning, deep cleaning, move-in/out, and Airbnb turnover services. 98% satisfaction rate, eco-friendly products, insured & bonded.",
+    images: [
+      {
+        url: "/images/cleaning-team-hero.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Shalean Professional Cleaning Services Team",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Shalean Cleaning Services | Professional Home & Office Cleaning",
+    description: "Expert professional cleaning services for homes and businesses. 98% satisfaction rate, eco-friendly products, insured & bonded. Book your service today!",
+    images: ["/images/cleaning-team-hero.jpg"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  alternates: {
+    canonical: "https://shalean.co.za",
+  },
+};
 
 export default function HomePage() {
+  // Structured data for SEO
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    "@id": "https://shalean.co.za",
+    "name": "Shalean Cleaning Services",
+    "description": "Expert professional cleaning services for homes and businesses. Standard cleaning, deep cleaning, move-in/out, and Airbnb turnover services.",
+    "url": "https://shalean.co.za",
+    "logo": "https://shalean.co.za/icon-512.png",
+    "image": "https://shalean.co.za/images/cleaning-team-hero.jpg",
+    "priceRange": "$$",
+    "telephone": "+27 87 153 5250",
+    "serviceType": [
+      "Cleaning Service",
+      "House Cleaning",
+      "Deep Cleaning",
+      "Move In/Out Cleaning",
+      "Airbnb Cleaning",
+      "Commercial Cleaning",
+      "Residential Cleaning"
+    ],
+    "areaServed": {
+      "@type": "Country",
+      "name": "South Africa"
+    },
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.9",
+      "reviewCount": "2500",
+      "bestRating": "5",
+      "worstRating": "1"
+    },
+    "sameAs": [
+      "https://instagram.com/shaleancleaning"
+    ]
+  };
+
   return (
     <div className="min-h-screen bg-white">
+      {/* Structured Data for SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
 
       {/* Header */}
       <header className="bg-white border-b">
@@ -195,16 +296,14 @@ export default function HomePage() {
             </div>
             <div>
               <div className="relative">
-                <div className="rounded-lg overflow-hidden h-96 bg-gray-100">
+                <div className="rounded-lg overflow-hidden h-96 bg-gray-100 relative">
                   <Image
-                    src="/images/professional-cleaning-team.jpg"
+                    src="/images/cleaning-team-hero.jpg"
                     alt="Professional cleaning team working in a modern kitchen"
                     width={800}
                     height={600}
                     className="w-full h-full object-cover"
                     priority
-                    placeholder="blur"
-                    blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
                   />
                 </div>
                 <div className="absolute bottom-4 left-4 right-4 bg-white rounded-lg p-4 shadow-lg">
@@ -305,10 +404,19 @@ export default function HomePage() {
           </div>
           <div className="grid md:grid-cols-3 gap-8">
             <Card className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-shadow">
-              <div className="bg-gray-200 h-48 flex items-center justify-center">
-                <div className="text-center">
-                  <Home className="h-16 w-16 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500 text-sm">Home Maintenance</p>
+              <div className="h-48 relative bg-gradient-to-br from-primary/20 to-primary/40">
+                <Image
+                  src="/images/home-maintenance.jpg"
+                  alt="Home maintenance cleaning service"
+                  width={400}
+                  height={300}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                  <div className="text-center text-white">
+                    <Home className="h-16 w-16 mx-auto mb-2 opacity-80" />
+                    <p className="font-medium">Home Maintenance</p>
+                  </div>
                 </div>
               </div>
               <CardContent className="p-6">
@@ -325,10 +433,19 @@ export default function HomePage() {
               </CardContent>
             </Card>
             <Card className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-shadow">
-              <div className="bg-gray-200 h-48 flex items-center justify-center">
-                <div className="text-center">
-                  <Building className="h-16 w-16 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500 text-sm">Deep & Specialty</p>
+              <div className="h-48 relative bg-gradient-to-br from-blue-100 to-blue-200">
+                <Image
+                  src="/images/deep-specialty.jpg"
+                  alt="Deep cleaning and specialty services"
+                  width={400}
+                  height={300}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                  <div className="text-center text-white">
+                    <Building className="h-16 w-16 mx-auto mb-2 opacity-80" />
+                    <p className="font-medium">Deep & Specialty</p>
+                  </div>
                 </div>
               </div>
               <CardContent className="p-6">
@@ -345,10 +462,19 @@ export default function HomePage() {
               </CardContent>
             </Card>
             <Card className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-shadow">
-              <div className="bg-gray-200 h-48 flex items-center justify-center">
-                <div className="text-center">
-                  <Calendar className="h-16 w-16 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500 text-sm">Move & Turnover</p>
+              <div className="h-48 relative bg-gradient-to-br from-green-100 to-green-200">
+                <Image
+                  src="/images/move-turnover.jpg"
+                  alt="Move in/out and turnover cleaning services"
+                  width={400}
+                  height={300}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                  <div className="text-center text-white">
+                    <Calendar className="h-16 w-16 mx-auto mb-2 opacity-80" />
+                    <p className="font-medium">Move & Turnover</p>
+                  </div>
                 </div>
               </div>
               <CardContent className="p-6">
@@ -376,80 +502,71 @@ export default function HomePage() {
               Meet Our Team
             </Badge>
             <h2 className="text-4xl font-bold text-gray-900 mb-6">
-              Learn From Cleaning Experts
+              Meet Our Team
             </h2>
             <p className="text-lg text-gray-600">
-              Our services are designed and delivered by our experienced leadership team.
+              Our expert team leads by example, delivering exceptional cleaning services with care and professionalism.
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
             <Card className="text-center p-6 border-0 shadow-lg">
               <CardContent className="p-0">
-                <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center">
-                  <User className="h-12 w-12 text-gray-400" />
+                <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4 overflow-hidden">
+                  <Image
+                    src="/images/team-normatter.webp"
+                    alt="Normatter - Cleaning Expert"
+                    width={96}
+                    height={96}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Sarah Johnson</h3>
-                <div className="flex items-center justify-center gap-2 mb-4">
-                  <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center">
-                    <span className="text-white text-xs">@</span>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Normatter</h3>
+                <div className="text-sm text-gray-600 mb-6">
+                  <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-primary">
+                    <p className="italic mb-2">"Normatter's team transformed our office completely. The attention to detail and eco-friendly approach exceeded our expectations. Highly recommend!"</p>
+                    <p className="text-xs text-gray-500 font-medium">- Sarah M., Corporate Client</p>
                   </div>
-                  <span className="text-sm text-gray-600">@sarahjohnson</span>
                 </div>
-                <div className="text-sm text-gray-600 space-y-1 mb-6">
-                  <p>• 8+ years of cleaning experience</p>
-                  <p>• Managed 5,000+ cleaning projects</p>
-                  <p>• Certified in eco-friendly practices</p>
-                </div>
-                <Button className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Follow Sarah
-                </Button>
               </CardContent>
             </Card>
             <Card className="text-center p-6 border-0 shadow-lg">
               <CardContent className="p-0">
-                <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center">
-                  <User className="h-12 w-12 text-gray-400" />
+                <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4 overflow-hidden">
+                  <Image
+                    src="/images/team-lucia.webp"
+                    alt="Lucia - Commercial Cleaning Expert"
+                    width={96}
+                    height={96}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Mike Chen</h3>
-                <div className="flex items-center justify-center gap-2 mb-4">
-                  <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center">
-                    <span className="text-white text-xs">@</span>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Lucia</h3>
+                <div className="text-sm text-gray-600 mb-6">
+                  <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-primary">
+                    <p className="italic mb-2">"Lucia's commercial cleaning service is outstanding. Our restaurant has never looked cleaner. Professional, reliable, and thorough every time."</p>
+                    <p className="text-xs text-gray-500 font-medium">- David K., Restaurant Owner</p>
                   </div>
-                  <span className="text-sm text-gray-600">@mikechen</span>
                 </div>
-                <div className="text-sm text-gray-600 space-y-1 mb-6">
-                  <p>• 6+ years of commercial cleaning</p>
-                  <p>• Trained 200+ cleaning specialists</p>
-                  <p>• Quality assurance expert</p>
-                </div>
-                <Button className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Follow Mike
-                </Button>
               </CardContent>
             </Card>
             <Card className="text-center p-6 border-0 shadow-lg">
               <CardContent className="p-0">
-                <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center">
-                  <User className="h-12 w-12 text-gray-400" />
+                <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4 overflow-hidden">
+                  <Image
+                    src="/images/team-nyasha.webp"
+                    alt="Nyasha - Residential Cleaning Expert"
+                    width={96}
+                    height={96}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Emma Rodriguez</h3>
-                <div className="flex items-center justify-center gap-2 mb-4">
-                  <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center">
-                    <span className="text-white text-xs">@</span>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Nyasha</h3>
+                <div className="text-sm text-gray-600 mb-6">
+                  <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-primary">
+                    <p className="italic mb-2">"Nyasha's residential cleaning is exceptional. My home feels brand new after every visit. Trustworthy, efficient, and incredibly thorough."</p>
+                    <p className="text-xs text-gray-500 font-medium">- Jennifer L., Homeowner</p>
                   </div>
-                  <span className="text-sm text-gray-600">@emmarodriguez</span>
                 </div>
-                <div className="text-sm text-gray-600 space-y-1 mb-6">
-                  <p>• 10+ years of residential expertise</p>
-                  <p>• Developed cleaning protocols</p>
-                  <p>• Customer satisfaction champion</p>
-                </div>
-                <Button className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Follow Emma
-                </Button>
               </CardContent>
             </Card>
           </div>
@@ -470,6 +587,120 @@ export default function HomePage() {
             <div className="text-2xl font-bold text-gray-400">HOME MAGAZINE</div>
             <div className="text-2xl font-bold text-gray-400">BUSINESS WEEKLY</div>
             <div className="text-2xl font-bold text-gray-400">LOCAL NEWS</div>
+          </div>
+        </div>
+      </section>
+
+      {/* Blog Section */}
+      <section className="py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
+              Latest Insights
+            </Badge>
+            <h2 className="text-4xl font-bold text-gray-900 mb-6">
+              Cleaning Tips & Industry News
+            </h2>
+            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+              Stay informed with our latest cleaning tips, industry insights, and expert advice for maintaining a spotless space.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8 mb-12">
+            <Card className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <div className="h-48 relative bg-gradient-to-br from-primary/20 to-primary/40">
+                <Image
+                  src="/images/deep-specialty.jpg"
+                  alt="Deep cleaning tips and techniques"
+                  width={400}
+                  height={300}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <Badge variant="outline" className="text-xs">Cleaning Tips</Badge>
+                  <span className="text-xs text-gray-500">5 min read</span>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-3">
+                  10 Essential Deep Cleaning Tips for Every Home
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Discover professional techniques to deep clean your home like an expert, from kitchen to bathroom.
+                </p>
+                <Link href="/blog/deep-cleaning-tips">
+                  <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
+                    Read More
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+            <Card className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <div className="h-48 relative bg-gradient-to-br from-blue-100 to-blue-200">
+                <Image
+                  src="/images/home-maintenance.jpg"
+                  alt="Eco-friendly cleaning products"
+                  width={400}
+                  height={300}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <Badge variant="outline" className="text-xs">Sustainability</Badge>
+                  <span className="text-xs text-gray-500">4 min read</span>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-3">
+                  The Benefits of Eco-Friendly Cleaning Products
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Learn why switching to eco-friendly cleaning products is better for your health and the environment.
+                </p>
+                <Link href="/blog/eco-friendly-products">
+                  <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
+                    Read More
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+            <Card className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <div className="h-48 relative bg-gradient-to-br from-green-100 to-green-200">
+                <Image
+                  src="/images/move-turnover.jpg"
+                  alt="Airbnb cleaning checklist"
+                  width={400}
+                  height={300}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <Badge variant="outline" className="text-xs">Airbnb Hosts</Badge>
+                  <span className="text-xs text-gray-500">6 min read</span>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-3">
+                  Complete Airbnb Turnover Cleaning Checklist
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Master the art of Airbnb turnover with our comprehensive cleaning checklist for 5-star reviews.
+                </p>
+                <Link href="/blog/airbnb-cleaning-checklist">
+                  <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
+                    Read More
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="text-center">
+            <Link href="/blog">
+              <Button variant="outline" size="lg" className="border-primary text-primary hover:bg-primary/10 px-8 py-4">
+                View All Articles
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
@@ -509,19 +740,36 @@ export default function HomePage() {
             </div>
             <div className="flex flex-wrap gap-8">
               <div>
+                <h3 className="font-semibold mb-4">Services</h3>
+                <div className="space-y-2">
+                  <Link href="/services/deep-specialty" className="block text-gray-400 hover:text-white">Deep Specialty Cleaning</Link>
+                  <Link href="/services/home-maintenance" className="block text-gray-400 hover:text-white">Home Maintenance</Link>
+                  <Link href="/services/move-turnover" className="block text-gray-400 hover:text-white">Move-in/Turnover</Link>
+                  <Link href="/booking" className="block text-gray-400 hover:text-white">Book Service</Link>
+                </div>
+              </div>
+              <div>
+                <h3 className="font-semibold mb-4">Company</h3>
+                <div className="space-y-2">
+                  <Link href="/about" className="block text-gray-400 hover:text-white">About Us</Link>
+                  <Link href="/team" className="block text-gray-400 hover:text-white">Our Team</Link>
+                  <Link href="/contact" className="block text-gray-400 hover:text-white">Contact Us</Link>
+                  <Link href="/careers" className="block text-gray-400 hover:text-white">Careers</Link>
+                </div>
+              </div>
+              <div>
                 <h3 className="font-semibold mb-4">Legal</h3>
                 <div className="space-y-2">
                   <Link href="/terms" className="block text-gray-400 hover:text-white">Terms & Conditions</Link>
                   <Link href="/privacy" className="block text-gray-400 hover:text-white">Privacy Policy</Link>
                   <Link href="/cancellation" className="block text-gray-400 hover:text-white">Cancellation Policy</Link>
-                  <Link href="/contact" className="block text-gray-400 hover:text-white">Contact Us</Link>
                 </div>
               </div>
             </div>
           </div>
           <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center">
             <p className="text-gray-400 text-sm">
-              © 2024 Shalean Cleaning. All rights reserved.
+              © 2025 Shalean Cleaning Services. All rights reserved.
             </p>
             <div className="flex gap-4 mt-4 md:mt-0">
               <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">

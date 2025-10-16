@@ -1,0 +1,57 @@
+{
+  "name": "Shalean Cleaning Services",
+  "short_name": "Shalean",
+  "description": "Professional home and office cleaning services in South Africa. Book online for standard cleaning, deep cleaning, move-in/out, and Airbnb turnover services.",
+  "start_url": "https://shalean.co.za/",
+  "scope": "https://shalean.co.za/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "business",
+    "lifestyle",
+    "utilities"
+  ],
+  "shortcuts": [
+    {
+      "name": "Book a Service",
+      "short_name": "Book",
+      "description": "Book a cleaning service",
+      "url": "/booking/service/select",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Get Quote",
+      "short_name": "Quote",
+      "description": "Get a free quote",
+      "url": "/booking/quote",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}
+
