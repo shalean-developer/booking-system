@@ -22,7 +22,22 @@ export function Stepper({ currentStep }: StepperProps) {
   const total = TOTAL_STEPS;
   return (
     <div className="w-full">
-      <div className="flex items-center justify-between">
+      {/* Mobile: Compact Progress Indicator */}
+      <div className="mb-4 md:hidden">
+        <div className="flex items-center justify-between text-sm text-slate-600">
+          <span className="font-medium">Step {current} of {total}</span>
+          <span className="text-xs">{stepLabels[current - 1]}</span>
+        </div>
+        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-200">
+          <div
+            className="h-full bg-primary transition-all duration-300"
+            style={{ width: `${(current / total) * 100}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Desktop: Full Stepper */}
+      <div className="hidden md:flex items-center justify-between">
         {Array.from({ length: total }, (_, i) => i + 1).map((step, idx) => (
           <div key={step} className="flex flex-1 items-center">
             {/* Step Circle */}

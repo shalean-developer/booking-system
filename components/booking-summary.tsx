@@ -159,8 +159,9 @@ export function BookingSummary() {
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-white p-4 shadow-lg lg:hidden">
         <Sheet>
           <SheetTrigger asChild>
-            <Button className="w-full" size="lg">
-              View Summary · R{total}
+            <Button className="w-full text-sm sm:text-base" size="lg">
+              <span className="sm:hidden">Summary · R{total}</span>
+              <span className="hidden sm:inline">View Summary · R{total}</span>
             </Button>
           </SheetTrigger>
           <SheetContent side="bottom" className="h-[80vh] overflow-y-auto">

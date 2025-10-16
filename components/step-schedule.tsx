@@ -106,7 +106,7 @@ export function StepSchedule() {
         {/* Time Slots */}
         <div className="space-y-2">
           <Label>Preferred Time</Label>
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
             {timeSlots.map((time) => {
               const isSelected = state.time === time;
               return (
@@ -115,7 +115,7 @@ export function StepSchedule() {
                   type="button"
                   variant={isSelected ? 'default' : 'outline'}
                   className={cn(
-                    'font-mono text-sm',
+                    'font-mono text-sm min-h-[44px]',
                     isSelected && 'shadow-md'
                   )}
                   onClick={() => handleTimeSelect(time)}
@@ -138,7 +138,7 @@ export function StepSchedule() {
         )}
 
         {/* Navigation */}
-        <div className="flex justify-between gap-3">
+        <div className="flex justify-between gap-3 pb-20 lg:pb-0">
           <Button 
             variant="outline" 
             onClick={handleBack} 
@@ -155,7 +155,8 @@ export function StepSchedule() {
             className="transition-all duration-150"
             type="button"
           >
-            Next: Contact Info
+            <span className="sm:hidden">Next</span>
+            <span className="hidden sm:inline">Next: Contact Info</span>
           </Button>
         </div>
       </CardContent>

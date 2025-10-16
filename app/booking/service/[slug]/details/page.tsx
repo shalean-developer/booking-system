@@ -80,7 +80,9 @@ export default function DetailsPage() {
         </div>
 
         {/* Main Content - StepDetails now includes its own layout with live preview */}
-        <StepDetails />
+        <div className="pb-24 lg:pb-0">
+          <StepDetails />
+        </div>
       </div>
     </div>
   );

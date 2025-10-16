@@ -221,7 +221,7 @@ export function StepReview() {
         </div>
 
         {/* Navigation */}
-        <div className="flex justify-between gap-3 pt-4">
+        <div className="flex justify-between gap-3 pt-4 pb-20 lg:pb-0">
           <Button 
             variant="outline" 
             onClick={handleBack} 
@@ -236,16 +236,20 @@ export function StepReview() {
             onClick={handleConfirm} 
             size="lg" 
             disabled={isSubmitting} 
-            className="min-w-[200px] transition-all duration-150"
+            className="sm:min-w-[200px] transition-all duration-150 flex-1 sm:flex-none"
             type="button"
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing...
+                <span className="sm:hidden">Processing...</span>
+                <span className="hidden sm:inline">Processing...</span>
               </>
             ) : (
-              'Confirm Booking'
+              <>
+                <span className="sm:hidden">Confirm</span>
+                <span className="hidden sm:inline">Confirm Booking</span>
+              </>
             )}
           </Button>
         </div>

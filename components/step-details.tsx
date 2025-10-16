@@ -134,7 +134,7 @@ export function StepDetails() {
             {/* Extras */}
             <div className="space-y-3">
               <Label>Additional Services (Optional)</Label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {extrasList.map((extra) => {
                   const isSelected = state.extras.includes(extra);
                   return (
@@ -142,7 +142,7 @@ export function StepDetails() {
                       key={extra}
                       onClick={() => toggleExtra(extra)}
                       type="button"
-                      className={`flex flex-col items-center gap-3 rounded-lg border-2 p-4 text-center transition-all ${
+                      className={`flex flex-col items-center gap-2 sm:gap-3 rounded-lg border-2 p-3 sm:p-4 text-center transition-all min-h-[100px] ${
                         isSelected
                           ? 'border-primary bg-primary/5'
                           : 'border-gray-200 hover:border-gray-300 bg-white'
@@ -180,7 +180,7 @@ export function StepDetails() {
         </Card>
 
         {/* Navigation */}
-        <div className="flex justify-between gap-3">
+        <div className="flex justify-between gap-3 pb-20 lg:pb-0">
           <Button 
             variant="outline" 
             onClick={handleBack} 
@@ -196,7 +196,8 @@ export function StepDetails() {
             className="transition-all duration-150"
             type="button"
           >
-            Next: Schedule
+            <span className="sm:hidden">Next</span>
+            <span className="hidden sm:inline">Next: Schedule</span>
           </Button>
         </div>
       </div>

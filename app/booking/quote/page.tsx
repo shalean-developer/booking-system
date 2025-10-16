@@ -177,16 +177,16 @@ export default function QuotePage() {
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
       <header className="border-b bg-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-4">
-            <div className="flex items-center gap-2">
-              <div className="text-2xl font-bold text-primary">Shalean</div>
-              <span className="text-sm text-gray-500">Cleaning Services</span>
+        <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between py-3 sm:py-4">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="text-xl sm:text-2xl font-bold text-primary">Shalean</div>
+              <span className="text-xs sm:text-sm text-gray-500 hidden xs:inline">Cleaning Services</span>
             </div>
             <Link href="/">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Home
+              <Button variant="ghost" size="sm" className="h-9 px-2 sm:px-4">
+                <ArrowLeft className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Back to Home</span>
               </Button>
             </Link>
           </div>
@@ -194,15 +194,15 @@ export default function QuotePage() {
       </header>
 
       {/* Main Content */}
-      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="mb-8 text-center">
-          <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
+      <div className="mx-auto max-w-6xl px-3 sm:px-4 lg:px-8 py-6 sm:py-8 lg:py-12">
+        <div className="mb-6 sm:mb-8 text-center">
+          <Badge className="mb-3 sm:mb-4 bg-primary/10 text-primary border-primary/20 text-xs sm:text-sm">
             Free Quote Request
           </Badge>
-          <h1 className="mb-4 text-4xl font-bold text-gray-900">
+          <h1 className="mb-3 sm:mb-4 text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 px-2">
             Get Your Free Cleaning Quote
           </h1>
-          <p className="text-lg text-gray-600">
+          <p className="text-sm sm:text-base lg:text-lg text-gray-600 px-4 sm:px-0">
             Tell us about your cleaning needs and we&apos;ll get back to you with a personalized quote
           </p>
         </div>
@@ -212,11 +212,11 @@ export default function QuotePage() {
           <div className="space-y-6">
             {/* Service Type Selection */}
             <Card className="border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle>1. Select Your Service</CardTitle>
+              <CardHeader className="px-4 sm:px-6 py-4 sm:py-5">
+                <CardTitle className="text-lg sm:text-xl">1. Select Your Service</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
                   {serviceOptions.map((option) => {
                     const Icon = option.icon;
                     const isSelected = service === option.type;
@@ -224,24 +224,24 @@ export default function QuotePage() {
                       <button
                         key={option.type}
                         onClick={() => setService(option.type)}
-                        className={`flex flex-col items-center gap-5 rounded-xl border-2 p-8 text-center transition-all hover:shadow-md ${
+                        className={`flex flex-col items-center gap-2 sm:gap-3 lg:gap-5 rounded-lg sm:rounded-xl border-2 p-3 sm:p-5 lg:p-8 text-center transition-all hover:shadow-md active:scale-95 ${
                           isSelected
                             ? 'border-primary bg-primary/5'
                             : 'border-gray-200 hover:border-gray-300 bg-white'
                         }`}
                       >
-                        <div className={`relative rounded-full p-4 ${option.fillColor}`}>
-                          <Icon className={`h-8 w-8 ${option.iconColor}`} strokeWidth={1.5} />
+                        <div className={`relative rounded-full p-2 sm:p-3 lg:p-4 ${option.fillColor}`}>
+                          <Icon className={`h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 ${option.iconColor}`} strokeWidth={1.5} />
                           {option.type === 'Airbnb' && (
-                            <div className="absolute -top-1 -right-1 flex gap-0.5">
-                              <Sparkles className="h-2.5 w-2.5 text-gray-600" strokeWidth={1.5} />
-                              <Sparkles className="h-2.5 w-2.5 text-gray-600" strokeWidth={1.5} />
+                            <div className="absolute -top-0.5 sm:-top-1 -right-0.5 sm:-right-1 flex gap-0.5">
+                              <Sparkles className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-gray-600" strokeWidth={1.5} />
+                              <Sparkles className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-gray-600" strokeWidth={1.5} />
                             </div>
                           )}
                         </div>
                         <div className="space-y-0.5">
-                          <div className="font-medium text-gray-900 text-sm leading-tight">{option.label}</div>
-                          <div className="font-medium text-gray-900 text-sm leading-tight">{option.subLabel}</div>
+                          <div className="font-medium text-gray-900 text-xs sm:text-sm leading-tight">{option.label}</div>
+                          <div className="font-medium text-gray-900 text-xs sm:text-sm leading-tight">{option.subLabel}</div>
                         </div>
                       </button>
                     );
@@ -252,13 +252,13 @@ export default function QuotePage() {
 
             {/* Home Details */}
             <Card className="border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle>2. Home Details</CardTitle>
+              <CardHeader className="px-4 sm:px-6 py-4 sm:py-5">
+                <CardTitle className="text-lg sm:text-xl">2. Home Details</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
+              <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+                <div className="space-y-4 sm:space-y-6">
                   {/* Bedrooms & Bathrooms */}
-                  <div className="grid gap-6 sm:grid-cols-2">
+                  <div className="grid gap-4 sm:gap-6 sm:grid-cols-2">
                     {/* Bedrooms */}
                     <div>
                       <Label className="mb-3 block text-sm font-medium">
@@ -304,11 +304,11 @@ export default function QuotePage() {
 
             {/* Extras */}
             <Card className="border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="text-2xl font-bold text-gray-900">3. Additional Services (Optional)</CardTitle>
+              <CardHeader className="px-4 sm:px-6 py-4 sm:py-5">
+                <CardTitle className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">3. Additional Services (Optional)</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-8">
+              <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
                   {Object.entries(PRICING.extras).map(([extra, price]) => {
                     const Icon = extraIconMap[extra];
                     const isSelected = extras.includes(extra);
@@ -318,15 +318,15 @@ export default function QuotePage() {
                       <button
                         key={extra}
                         onClick={() => toggleExtra(extra)}
-                        className="flex flex-col items-center gap-4 group cursor-pointer"
+                        className="flex flex-col items-center gap-2 sm:gap-3 lg:gap-4 group cursor-pointer"
                       >
-                        <div className={`relative w-24 h-24 rounded-full border bg-white flex items-center justify-center transition-all ${
+                        <div className={`relative w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-full border bg-white flex items-center justify-center transition-all active:scale-95 ${
                           isSelected 
                             ? 'border-primary bg-primary/5' 
                             : 'border-blue-600 hover:border-blue-700'
                         }`}>
                           <Icon 
-                            className={`h-10 w-10 transition-colors ${
+                            className={`h-7 w-7 sm:h-8 sm:w-8 lg:h-10 lg:w-10 transition-colors ${
                               isSelected 
                                 ? 'text-primary' 
                                 : 'text-blue-600 group-hover:text-blue-700'
@@ -334,14 +334,14 @@ export default function QuotePage() {
                             strokeWidth={1.5}
                           />
                           {isSelected && (
-                            <div className="absolute -top-1 -right-1 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
-                              <div className="w-3 h-3 bg-white rounded-full"></div>
+                            <div className="absolute -top-0.5 sm:-top-1 -right-0.5 sm:-right-1 w-5 h-5 sm:w-6 sm:h-6 bg-primary rounded-full flex items-center justify-center">
+                              <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-white rounded-full"></div>
                             </div>
                           )}
                         </div>
                         <div className="text-center">
                           {labelWords.map((word, index) => (
-                            <div key={index} className="text-sm font-medium text-gray-900 leading-tight">
+                            <div key={index} className="text-xs sm:text-sm font-medium text-gray-900 leading-tight">
                               {word}
                             </div>
                           ))}
@@ -356,10 +356,10 @@ export default function QuotePage() {
             {/* Contact Form (conditional) */}
             {showContactForm && (
               <Card className="border-0 shadow-lg">
-                <CardHeader>
-                  <CardTitle>4. Your Contact Information</CardTitle>
+                <CardHeader className="px-4 sm:px-6 py-4 sm:py-5">
+                  <CardTitle className="text-lg sm:text-xl">4. Your Contact Information</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
                   <form onSubmit={handleSubmitQuote} className="space-y-4">
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div>
@@ -430,11 +430,13 @@ export default function QuotePage() {
                       {isSubmitting ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Sending Quote...
+                          <span className="hidden sm:inline">Sending Quote...</span>
+                          <span className="sm:hidden">Sending...</span>
                         </>
                       ) : (
                         <>
-                          Confirm Quote & Continue to Booking
+                          <span className="hidden sm:inline">Confirm Quote & Continue to Booking</span>
+                          <span className="sm:hidden">Confirm & Continue</span>
                           <ArrowRight className="ml-2 h-4 w-4" />
                         </>
                       )}
@@ -448,19 +450,19 @@ export default function QuotePage() {
           {/* Quote Summary (Sticky) */}
           <div className="lg:sticky lg:top-6 lg:h-fit">
             <Card className="border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Receipt className="h-5 w-5" />
+              <CardHeader className="px-4 sm:px-6 py-4 sm:py-5">
+                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                  <Receipt className="h-4 w-4 sm:h-5 sm:w-5" />
                   Your Quote
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
+              <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+                <div className="space-y-4 sm:space-y-6">
                   {/* Service Summary */}
                   {service && (
                     <div>
-                      <h3 className="mb-2 text-sm font-semibold text-slate-700">Service</h3>
-                      <Badge variant="secondary" className="text-sm">
+                      <h3 className="mb-1.5 sm:mb-2 text-xs sm:text-sm font-semibold text-slate-700">Service</h3>
+                      <Badge variant="secondary" className="text-xs sm:text-sm">
                         {service}
                       </Badge>
                     </div>
@@ -468,8 +470,8 @@ export default function QuotePage() {
 
                   {/* Home Details */}
                   <div>
-                    <h3 className="mb-2 text-sm font-semibold text-slate-700">Home Details</h3>
-                    <div className="space-y-1 text-sm text-slate-600">
+                    <h3 className="mb-1.5 sm:mb-2 text-xs sm:text-sm font-semibold text-slate-700">Home Details</h3>
+                    <div className="space-y-1 text-xs sm:text-sm text-slate-600">
                       <p>{bedrooms} Bedroom{bedrooms !== 1 ? 's' : ''}</p>
                       <p>{bathrooms} Bathroom{bathrooms !== 1 ? 's' : ''}</p>
                     </div>
@@ -478,12 +480,12 @@ export default function QuotePage() {
                   {/* Extras */}
                   {extras.length > 0 && (
                     <div>
-                      <h3 className="mb-2 text-sm font-semibold text-slate-700">
+                      <h3 className="mb-1.5 sm:mb-2 text-xs sm:text-sm font-semibold text-slate-700">
                         Additional Services
                       </h3>
                       <div className="space-y-1">
                         {extras.map((extra) => (
-                          <div key={extra} className="flex items-center text-sm">
+                          <div key={extra} className="flex items-center text-xs sm:text-sm">
                             <span className="text-slate-600">• {extra}</span>
                           </div>
                         ))}
@@ -492,9 +494,9 @@ export default function QuotePage() {
                   )}
 
                   {/* Quote Notice */}
-                  <div className="border-t pt-4">
-                    <div className="rounded-lg bg-primary/5 p-4 text-center">
-                      <p className="text-sm font-medium text-slate-900 mb-1">
+                  <div className="border-t pt-3 sm:pt-4">
+                    <div className="rounded-lg bg-primary/5 p-3 sm:p-4 text-center">
+                      <p className="text-xs sm:text-sm font-medium text-slate-900 mb-1">
                         Custom Quote
                       </p>
                       <p className="text-xs text-slate-600">
@@ -511,13 +513,15 @@ export default function QuotePage() {
                       size="lg"
                       className="w-full bg-primary hover:bg-primary/90"
                     >
-                      Continue to Contact Details
+                      <span className="hidden sm:inline">Continue to Contact Details</span>
+                      <span className="sm:hidden">Continue</span>
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   ) : (
-                    <div className="rounded-lg bg-blue-50 p-4 text-center">
-                      <p className="text-sm font-medium text-blue-800">
-                        ✓ Fill in your contact details below to receive your quote
+                    <div className="rounded-lg bg-blue-50 p-3 sm:p-4 text-center">
+                      <p className="text-xs sm:text-sm font-medium text-blue-800">
+                        ✓ <span className="hidden sm:inline">Fill in your contact details below to receive your quote</span>
+                        <span className="sm:hidden">Fill details below</span>
                       </p>
                     </div>
                   )}
@@ -525,7 +529,8 @@ export default function QuotePage() {
                   {/* Alternative CTA */}
                   <Link href="/booking/service/select" className="block">
                     <Button variant="outline" size="lg" className="w-full">
-                      Skip to Full Booking
+                      <span className="hidden sm:inline">Skip to Full Booking</span>
+                      <span className="sm:hidden">Full Booking</span>
                     </Button>
                   </Link>
                 </div>

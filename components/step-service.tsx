@@ -89,8 +89,55 @@ export function StepService() {
         <CardDescription>Choose the type of cleaning service you need</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Horizontal scrollable services */}
-        <div className="overflow-x-auto pb-2">
+        {/* Service Cards - Grid on mobile, horizontal scroll on desktop */}
+        <div className="grid grid-cols-2 gap-3 sm:hidden">
+          {services.map((service) => {
+            const Icon = service.icon;
+            const isSelected = state.service === service.type;
+            return (
+              <div
+                key={service.type}
+                className={cn(
+                  'cursor-pointer rounded-xl border-2 bg-stone-50 p-4 text-center transition-all duration-150 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]',
+                  isSelected
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                )}
+                onClick={() => handleSelect(service.type)}
+              >
+                <div className="flex flex-col items-center gap-3">
+                  {/* Icon */}
+                  <div className={`relative rounded-full p-3 ${service.fillColor} border border-gray-800`}>
+                    <Icon className="h-6 w-6 text-gray-900" strokeWidth={1.5} />
+                    {service.type === 'Airbnb' && !isSelected && (
+                      <div className="absolute -top-1 -right-1 flex gap-0.5">
+                        <Sparkles className="h-2 w-2 text-gray-600" strokeWidth={1.5} />
+                        <Sparkles className="h-2 w-2 text-gray-600" strokeWidth={1.5} />
+                      </div>
+                    )}
+                    {isSelected && (
+                      <div className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-white">
+                        <div className="h-1.5 w-1.5 rounded-full bg-white"></div>
+                      </div>
+                    )}
+                  </div>
+                  {/* Service name */}
+                  <div className="space-y-0.5 text-center">
+                    <div className="text-xs font-medium text-gray-900 leading-tight">
+                      {service.label}
+                    </div>
+                    <div className="text-xs font-medium text-gray-900 leading-tight">
+                      {service.subLabel}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Desktop: Horizontal scrollable services */}
+        <div className="hidden sm:block overflow-x-auto pb-2">
           <div className="flex gap-4 min-w-max">
             {services.map((service) => {
               const Icon = service.icon;
@@ -146,7 +193,8 @@ export function StepService() {
             className="transition-all duration-150 bg-blue-600 hover:bg-blue-700 text-white"
             type="button"
           >
-            Next: Home Details
+            <span className="sm:hidden">Next</span>
+            <span className="hidden sm:inline">Next: Home Details</span>
           </Button>
         </div>
       </CardContent>

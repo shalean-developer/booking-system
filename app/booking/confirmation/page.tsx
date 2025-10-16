@@ -23,19 +23,19 @@ export default function ConfirmationPage() {
       >
         <Card className="border-0 shadow-2xl">
           <CardHeader className="text-center pb-4">
-            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
-              <CheckCircle2 className="h-12 w-12 text-green-600" />
+            <div className="mx-auto mb-6 flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-full bg-green-100">
+              <CheckCircle2 className="h-10 w-10 sm:h-12 sm:w-12 text-green-600" />
             </div>
-            <CardTitle className="text-4xl font-bold text-gray-900">
+            <CardTitle className="text-2xl sm:text-4xl font-bold text-gray-900">
               Booking Confirmed!
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            <p className="text-center text-lg text-slate-600">
+            <p className="text-center text-base sm:text-lg text-slate-600">
               Thank you for booking with Shalean Cleaning Services. We&apos;ve received your cleaning request and will send you a confirmation email shortly.
             </p>
 
-            <div className="rounded-xl bg-slate-50 p-6 border border-slate-200">
+            <div className="rounded-xl bg-slate-50 p-4 sm:p-6 border border-slate-200">
               <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                 <Calendar className="h-5 w-5 text-primary" />
                 What&apos;s Next?
@@ -56,7 +56,7 @@ export default function ConfirmationPage() {
               </ul>
             </div>
 
-            <div className="bg-primary/5 rounded-xl p-6 border border-primary/10">
+            <div className="bg-primary/5 rounded-xl p-4 sm:p-6 border border-primary/10">
               <p className="text-sm text-center text-slate-700">
                 <strong className="text-slate-900">Need to make changes?</strong>
                 <br />
@@ -67,17 +67,19 @@ export default function ConfirmationPage() {
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 pt-4">
-              <Button asChild variant="default" size="lg" className="flex-1">
+            <div className="flex flex-col sm:flex-row gap-3 pt-4 px-1">
+              <Button asChild variant="default" size="lg" className="w-full sm:flex-1">
                 <Link href="/">
-                  <Home className="mr-2 h-5 w-5" />
-                  Back to Home
+                  <Home className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+                  <span className="sm:hidden">Home</span>
+                  <span className="hidden sm:inline">Back to Home</span>
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="lg" className="flex-1">
+              <Button asChild variant="outline" size="lg" className="w-full sm:flex-1">
                 <Link href="/booking/service/select">
-                  <Calendar className="mr-2 h-5 w-5" />
-                  Book Another Service
+                  <Calendar className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+                  <span className="sm:hidden">Book Again</span>
+                  <span className="hidden sm:inline">Book Another Service</span>
                 </Link>
               </Button>
             </div>

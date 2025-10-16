@@ -54,7 +54,7 @@ export default function ServiceSelectPage() {
         </div>
 
         {/* Main Content */}
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid gap-6 lg:grid-cols-3 pb-24 lg:pb-0">
           {/* Left Column - Form */}
           <div className="lg:col-span-2">
             <StepService />

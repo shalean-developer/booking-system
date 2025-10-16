@@ -206,7 +206,7 @@ export function StepContact() {
           </div>
 
           {/* Navigation */}
-          <div className="flex justify-between gap-3">
+          <div className="flex justify-between gap-3 pb-20 lg:pb-0">
             <Button 
               type="button" 
               variant="outline" 
@@ -217,7 +217,8 @@ export function StepContact() {
               Back
             </Button>
             <Button type="submit" size="lg" className="transition-all duration-150">
-              Next: Review
+              <span className="sm:hidden">Next</span>
+              <span className="hidden sm:inline">Next: Review</span>
             </Button>
           </div>
         </form>
