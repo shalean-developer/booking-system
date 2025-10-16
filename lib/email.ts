@@ -131,7 +131,7 @@ export function generateBookingConfirmationEmail(booking: BookingState & { booki
         
         <p>If you have any questions or need to make changes to your booking, please contact us at:</p>
         <p>
-          <strong>Phone:</strong> +27 (Your Phone Number)<br>
+          <strong>Phone:</strong> +27 87 153 5250<br>
           <strong>Email:</strong> bookings@shalean.com
         </p>
       </div>
