@@ -151,18 +151,30 @@ export function StepReview() {
     currency: 'ZAR',
     channels: ['card'],
     metadata: {
-      service: state.service,
-      customer_name: `${state.firstName} ${state.lastName}`,
-      booking_reference: paymentReference,
+      custom_fields: [
+        {
+          display_name: 'Service Type',
+          variable_name: 'service',
+          value: state.service || '',
+        },
+        {
+          display_name: 'Customer Name',
+          variable_name: 'customer_name',
+          value: `${state.firstName} ${state.lastName}`,
+        },
+        {
+          display_name: 'Booking Reference',
+          variable_name: 'booking_reference',
+          value: paymentReference,
+        },
+      ],
     },
   };
 
-  // Wrapper component props for PaystackConsumer
-  const componentProps = {
+  // Simple wrapper for PaystackConsumer without problematic props
+  const paystackProps = {
     ...paystackConfig,
     text: 'Confirm & Pay',
-    onSuccess: onPaymentSuccess,
-    onClose: onPaymentClose,
   };
 
   const handleBack = useCallback(() => {
@@ -338,7 +350,7 @@ export function StepReview() {
             Back
           </Button>
           
-          <PaystackConsumer {...componentProps}>
+          <PaystackConsumer {...paystackProps}>
             {({initializePayment}) => (
               <Button 
                 onClick={() => {
@@ -357,7 +369,7 @@ export function StepReview() {
                   }
                   setPaymentError(null);
                   console.log('Calling initializePayment from PaystackConsumer');
-                  initializePayment();
+                  initializePayment(onPaymentSuccess, onPaymentClose);
                 }}
                 size="lg" 
                 disabled={isSubmitting} 
