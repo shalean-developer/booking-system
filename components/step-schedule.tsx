@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import type { ServiceType } from '@/types/booking';
 import { useBooking } from '@/lib/useBooking';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,8 +16,21 @@ import { generateTimeSlots } from '@/lib/pricing';
 
 const timeSlots = generateTimeSlots();
 
+// Helper function to convert ServiceType to URL slug
+function serviceTypeToSlug(serviceType: ServiceType): string {
+  if (serviceType === 'Move In/Out') {
+    return 'move-in-out';
+  }
+  
+  return serviceType
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '');
+}
+
 export function StepSchedule() {
-  const { state, updateField, next, back } = useBooking();
+  const router = useRouter();
+  const { state, updateField } = useBooking();
 
   const selectedDate = useMemo(() => 
     state.date ? new Date(state.date) : undefined, 
@@ -38,14 +53,20 @@ export function StepSchedule() {
   );
 
   const handleBack = useCallback(() => {
-    // Use new navigation system - just update step, main booking page will handle routing
-    back();
-  }, [back]);
+    if (state.service) {
+      const slug = serviceTypeToSlug(state.service);
+      // Navigate immediately - step will be updated by the target page's useEffect
+      router.push(`/booking/service/${slug}/details`);
+    }
+  }, [state.service, router]);
 
   const handleNext = useCallback(() => {
-    // Use new navigation system - just update step, main booking page will handle routing
-    next();
-  }, [next]);
+    if (state.service) {
+      const slug = serviceTypeToSlug(state.service);
+      // Navigate immediately - step will be updated by the target page's useEffect
+      router.push(`/booking/service/${slug}/contact`);
+    }
+  }, [state.service, router]);
 
   return (
     <Card className="border-0 shadow-lg">
@@ -120,11 +141,7 @@ export function StepSchedule() {
         <div className="flex justify-between gap-3">
           <Button 
             variant="outline" 
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              handleBack();
-            }} 
+            onClick={handleBack} 
             size="lg" 
             className="transition-all duration-150"
             type="button"
@@ -132,11 +149,7 @@ export function StepSchedule() {
             Back
           </Button>
           <Button 
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              handleNext();
-            }} 
+            onClick={handleNext} 
             disabled={!canProceed} 
             size="lg" 
             className="transition-all duration-150"

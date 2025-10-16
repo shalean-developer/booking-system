@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useBooking } from '@/lib/useBooking';
 import { Stepper } from '@/components/stepper';
 import { BookingSummary } from '@/components/booking-summary';
@@ -9,14 +10,17 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 
 export default function ServiceSelectPage() {
-  const { state, isLoaded, updateField } = useBooking();
+  const { state, isLoaded } = useBooking();
+  const router = useRouter();
 
-  // Set step to 1 when this page loads
+  // Ensure user is on step 1, or reset to step 1
   useEffect(() => {
     if (isLoaded && state.step !== 1) {
-      updateField('step', 1);
+      // If user somehow ends up here on a different step, reset to step 1
+      // This shouldn't happen with proper navigation, but provides a safeguard
+      router.push('/booking/service/select');
     }
-  }, [isLoaded, state.step, updateField]);
+  }, [isLoaded, state.step, router]);
 
   // Wait for localStorage to load
   if (!isLoaded) {
@@ -29,39 +33,38 @@ export default function ServiceSelectPage() {
     );
   }
 
-  // If not on step 1, don't render
+  // If not on step 1, don't render this page yet
   if (state.step !== 1) {
     return null;
   }
 
   return (
     <div className="min-h-screen bg-slate-50 py-6">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl px-4">
         {/* Header */}
         <div className="mb-6">
-          <Link 
-            href="/" 
-            className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Home
           </Link>
+          <h1 className="mt-4 text-3xl font-bold text-slate-900">Book Your Cleaning</h1>
         </div>
 
-        {/* Progress Stepper */}
-        <div className="mb-8">
-          <Stepper currentStep={state.step} />
-        </div>
+        {/* Stepper */}
+        <Stepper currentStep={state.step} />
 
         {/* Main Content */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Left Column - Form */}
-          <div className="lg:col-span-2">
+        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_380px]">
+          {/* Step Content */}
+          <div className="min-h-[420px]">
             <StepService />
           </div>
 
-          {/* Right Column - Summary */}
-          <div className="lg:col-span-1">
+          {/* Sticky Summary (Desktop) */}
+          <div className="hidden lg:block">
             <BookingSummary />
           </div>
         </div>
@@ -69,4 +72,3 @@ export default function ServiceSelectPage() {
     </div>
   );
 }
-

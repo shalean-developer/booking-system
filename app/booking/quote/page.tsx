@@ -94,7 +94,6 @@ export default function QuotePage() {
     'Inside Cabinets': Building,
     'Interior Windows': Users,
     'Interior Walls': Award,
-    'Water Plants': Sparkles,
     'Ironing': BarChart3,
     'Laundry': Plus,
   };
@@ -524,7 +523,7 @@ export default function QuotePage() {
                   )}
 
                   {/* Alternative CTA */}
-                  <Link href="/booking" className="block">
+                  <Link href="/booking/service/select" className="block">
                     <Button variant="outline" size="lg" className="w-full">
                       Skip to Full Booking
                     </Button>

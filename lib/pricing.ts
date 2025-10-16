@@ -1,24 +1,35 @@
-// Simple pricing model - edit values here
+// Service-specific pricing model
 
 import type { ServiceType } from '@/types/booking';
 
+// Service-specific pricing structure
 export const PRICING = {
-  base: 250, // base fee
-  perBedroom: 20, // per bedroom
-  perBathroom: 30, // per bathroom
+  services: {
+    'Standard': { base: 250, bedroom: 20, bathroom: 30 },
+    'Deep': { base: 1200, bedroom: 180, bathroom: 250 },
+    'Move In/Out': { base: 980, bedroom: 160, bathroom: 220 },
+    'Airbnb': { base: 230, bedroom: 18, bathroom: 26 },
+  },
   extras: {
-    'Inside Fridge': 60,
-    'Inside Oven': 80,
-    'Inside Cabinets': 70,
-    'Interior Windows': 100,
-    'Interior Walls': 120,
-    'Water Plants': 40,
-    'Ironing': 50,
-    'Laundry': 70,
+    'Inside Fridge': 30,
+    'Inside Oven': 30,
+    'Inside Cabinets': 30,
+    'Interior Windows': 40,
+    'Interior Walls': 35,
+    'Ironing': 35,
+    'Laundry': 40,
   },
 } as const;
 
 export type ExtraKey = keyof typeof PRICING.extras;
+
+/**
+ * Get service-specific pricing rates
+ */
+export function getServicePricing(service: ServiceType | null) {
+  if (!service) return null;
+  return PRICING.services[service];
+}
 
 /**
  * Calculate total booking price based on service type, home details, and extras
@@ -29,22 +40,14 @@ export function calcTotal(input: {
   bathrooms: number;
   extras: string[];
 }) {
-  // Apply service multiplier to base fee based on service types
-  const getServiceMultiplier = (service: ServiceType | null): number => {
-    switch (service) {
-      case 'Standard': return 1.0;
-      case 'Deep': return 1.4;
-      case 'Move In/Out': return 1.6;
-      case 'Airbnb': return 1.2;
-      default: return 1.0;
-    }
-  };
+  if (!input.service) return 0;
 
-  const baseMultiplier = getServiceMultiplier(input.service);
+  const servicePricing = PRICING.services[input.service];
+  if (!servicePricing) return 0;
 
-  const base = PRICING.base * baseMultiplier;
-  const beds = input.bedrooms * PRICING.perBedroom;
-  const baths = input.bathrooms * PRICING.perBathroom;
+  const base = servicePricing.base;
+  const beds = input.bedrooms * servicePricing.bedroom;
+  const baths = input.bathrooms * servicePricing.bathroom;
   const extras = input.extras.reduce(
     (sum, k) => sum + (PRICING.extras[k as ExtraKey] ?? 0),
     0

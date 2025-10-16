@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import type { ServiceType } from '@/types/booking';
 import { useBooking } from '@/lib/useBooking';
 import { calcTotal, PRICING } from '@/lib/pricing';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,9 +12,21 @@ import { Separator } from '@/components/ui/separator';
 import { Calendar, MapPin, Clock, Home, User, Mail, Phone, FileText, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 
+// Helper function to convert ServiceType to URL slug
+function serviceTypeToSlug(serviceType: ServiceType): string {
+  if (serviceType === 'Move In/Out') {
+    return 'move-in-out';
+  }
+  
+  return serviceType
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '');
+}
+
 export function StepReview() {
   const router = useRouter();
-  const { state, back, reset } = useBooking();
+  const { state, reset } = useBooking();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Memoize price calculation
@@ -55,9 +68,12 @@ export function StepReview() {
   }, [state, reset, router]);
 
   const handleBack = useCallback(() => {
-    // Use new navigation system - just update step, main booking page will handle routing
-    back();
-  }, [back]);
+    if (state.service) {
+      const slug = serviceTypeToSlug(state.service);
+      // Navigate immediately - step will be updated by the target page's useEffect
+      router.push(`/booking/service/${slug}/contact`);
+    }
+  }, [state.service, router]);
 
   return (
     <Card className="border-0 shadow-lg">
@@ -208,11 +224,7 @@ export function StepReview() {
         <div className="flex justify-between gap-3 pt-4">
           <Button 
             variant="outline" 
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              handleBack();
-            }} 
+            onClick={handleBack} 
             size="lg" 
             disabled={isSubmitting} 
             className="transition-all duration-150"

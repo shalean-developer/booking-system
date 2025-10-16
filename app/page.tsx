@@ -157,11 +157,11 @@ export default function HomePage() {
                 <BookOpen className="h-4 w-4" />
                 How It Works
               </Link>
-              <Link href="/booking/quote">
-                <Button className="bg-primary hover:bg-primary/90 text-white">
+              <Button className="bg-primary hover:bg-primary/90 text-white" asChild>
+                <Link href="/booking/quote">
                   Get Free Quote
-                </Button>
-              </Link>
+                </Link>
+              </Button>
               <Link href="/login">
                 <LoginButton />
               </Link>
@@ -189,14 +189,16 @@ export default function HomePage() {
               eco-friendly products, and guaranteed satisfaction for your home or office.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/booking/service/select">
-                <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-8 py-4 text-lg">
+              <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-8 py-4 text-lg" asChild>
+                <Link href="/booking/service/select">
                   Book a service
                   <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </Link>
-              <Button variant="outline" size="lg" className="border-primary text-primary hover:bg-primary/10 px-8 py-4 text-lg">
-                Apply to work
+                </Link>
+              </Button>
+              <Button variant="outline" size="lg" className="border-primary text-primary hover:bg-primary/10 px-8 py-4 text-lg" asChild>
+                <Link href="/booking/service/select">
+                  Get Free Quote
+                </Link>
               </Button>
             </div>
           </div>
@@ -714,11 +716,18 @@ export default function HomePage() {
           <p className="text-xl text-gray-600 mb-8">
             Join thousands of satisfied customers who have transformed their spaces with Shalean Cleaning.
           </p>
-          <Link href="/booking/service/select">
-            <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-8 py-4 text-lg">
-              Book a service
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-8 py-4 text-lg" asChild>
+              <Link href="/booking/service/select">
+                Book a service
+              </Link>
             </Button>
-          </Link>
+            <Button variant="outline" size="lg" className="border-primary text-primary hover:bg-primary/10 bg-white px-8 py-4 text-lg" asChild>
+              <Link href="/booking/service/select">
+                Get Free Quote
+              </Link>
+            </Button>
+          </div>
         </div>
       </section>
 
@@ -745,7 +754,7 @@ export default function HomePage() {
                   <Link href="/services/deep-specialty" className="block text-gray-400 hover:text-white">Deep Specialty Cleaning</Link>
                   <Link href="/services/home-maintenance" className="block text-gray-400 hover:text-white">Home Maintenance</Link>
                   <Link href="/services/move-turnover" className="block text-gray-400 hover:text-white">Move-in/Turnover</Link>
-                  <Link href="/booking" className="block text-gray-400 hover:text-white">Book Service</Link>
+                  <Link href="/booking/service/select" className="block text-gray-400 hover:text-white">Book Service</Link>
                 </div>
               </div>
               <div>

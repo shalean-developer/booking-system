@@ -4,56 +4,82 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle2, Home } from 'lucide-react';
+import { CheckCircle2, Home, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function ConfirmationPage() {
   useEffect(() => {
     // Clear booking state after successful submission
-    // Done in the StepReview component after navigation
+    // This is handled in the StepReview component before navigation
   }, []);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-blue-50 to-white px-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-primary/5 to-white px-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.3 }}
+        className="w-full max-w-2xl"
       >
-        <Card className="mx-auto w-full max-w-lg border-0 shadow-xl">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
-              <CheckCircle2 className="h-10 w-10 text-blue-600" />
+        <Card className="border-0 shadow-2xl">
+          <CardHeader className="text-center pb-4">
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
+              <CheckCircle2 className="h-12 w-12 text-green-600" />
             </div>
-            <CardTitle className="text-3xl">Booking Confirmed!</CardTitle>
+            <CardTitle className="text-4xl font-bold text-gray-900">
+              Booking Confirmed!
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6 text-center">
-            <p className="text-slate-600">
-              Thank you for booking with Shalean. We&apos;ve received your cleaning request and will send you
-              a confirmation email shortly with all the details.
+          <CardContent className="space-y-6">
+            <p className="text-center text-lg text-slate-600">
+              Thank you for booking with Shalean Cleaning Services. We&apos;ve received your cleaning request and will send you a confirmation email shortly.
             </p>
 
-            <div className="rounded-lg bg-slate-50 p-4">
-              <p className="text-sm text-slate-600">
-                <strong className="text-slate-900">What&apos;s next?</strong>
+            <div className="rounded-xl bg-slate-50 p-6 border border-slate-200">
+              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-primary" />
+                What&apos;s Next?
+              </h3>
+              <ul className="space-y-2 text-sm text-slate-600">
+                <li className="flex items-start gap-2">
+                  <span className="text-primary mt-0.5">✓</span>
+                  <span>You&apos;ll receive a confirmation email with your booking details and payment link</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary mt-0.5">✓</span>
+                  <span>Our team will contact you 24 hours before your scheduled cleaning</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary mt-0.5">✓</span>
+                  <span>If you have any questions, feel free to reach out to us anytime</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="bg-primary/5 rounded-xl p-6 border border-primary/10">
+              <p className="text-sm text-center text-slate-700">
+                <strong className="text-slate-900">Need to make changes?</strong>
                 <br />
-                You&apos;ll receive an email confirmation with your booking details and payment link.
-                Our team will contact you 24 hours before your scheduled cleaning.
+                Reply to your confirmation email or contact us at{' '}
+                <a href="mailto:hello@shalean.co.za" className="text-primary hover:underline font-medium">
+                  hello@shalean.co.za
+                </a>
               </p>
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-              <Link href="/">
-                <Button variant="default" size="lg" className="w-full sm:w-auto">
-                  <Home className="mr-2 h-4 w-4" />
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
+              <Button asChild variant="default" size="lg" className="flex-1">
+                <Link href="/">
+                  <Home className="mr-2 h-5 w-5" />
                   Back to Home
-                </Button>
-              </Link>
-              <Link href="/booking/service/select">
-                <Button variant="outline" size="lg" className="w-full sm:w-auto">
-                  Book Another
-                </Button>
-              </Link>
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="lg" className="flex-1">
+                <Link href="/booking/service/select">
+                  <Calendar className="mr-2 h-5 w-5" />
+                  Book Another Service
+                </Link>
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -61,3 +87,4 @@ export default function ConfirmationPage() {
     </div>
   );
 }
+

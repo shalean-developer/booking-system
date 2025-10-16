@@ -1,28 +1,14 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useBooking } from '@/lib/useBooking';
 import { Stepper } from '@/components/stepper';
 import { BookingSummary } from '@/components/booking-summary';
 import { StepDetails } from '@/components/step-details';
-import { AnimatePresence, motion } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import type { ServiceType } from '@/types/booking';
-
-// Helper function to convert ServiceType to URL slug
-function serviceTypeToSlug(serviceType: ServiceType): string {
-  // Handle "Move In/Out" special case first
-  if (serviceType === 'Move In/Out') {
-    return 'move-in-out';
-  }
-  
-  return serviceType
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '');
-}
 
 // Helper function to convert URL slug back to ServiceType
 function slugToServiceType(slug: string): ServiceType | null {
@@ -30,7 +16,7 @@ function slugToServiceType(slug: string): ServiceType | null {
     'standard': 'Standard',
     'deep': 'Deep',
     'move-inout': 'Move In/Out',
-    'move-in-out': 'Move In/Out', // Alternative format
+    'move-in-out': 'Move In/Out',
     'airbnb': 'Airbnb',
   };
   
@@ -39,42 +25,24 @@ function slugToServiceType(slug: string): ServiceType | null {
 
 export default function DetailsPage() {
   const { state, isLoaded, updateField } = useBooking();
-  const router = useRouter();
   const params = useParams();
   const slug = params.slug as string;
 
   // Derive service type from URL slug
   const serviceFromSlug = useMemo(() => slugToServiceType(slug), [slug]);
 
-  // Ensure we're on step 2 and have the correct service selected
+  // Sync service and step from URL
   useEffect(() => {
     if (!isLoaded || !serviceFromSlug) return;
 
-    // If no service is selected or wrong service is selected, update it
+    // Update service and step to match URL
     if (state.service !== serviceFromSlug) {
       updateField('service', serviceFromSlug);
     }
-
-    // If not on step 2, redirect to the correct step
     if (state.step !== 2) {
-      if (state.step === 1) {
-        // Redirect back to service select with the correct service
-        router.push('/booking/service/select');
-      } else if (state.step === 3) {
-        // Redirect to schedule page
-        router.push(`/booking/service/${slug}/schedule`);
-      } else if (state.step === 4) {
-        // Redirect to contact page
-        router.push(`/booking/service/${slug}/contact`);
-      } else if (state.step === 5) {
-        // Redirect to review page
-        router.push(`/booking/service/${slug}/review`);
-      } else {
-        // For other steps, redirect to service select
-        router.push('/booking/service/select');
-      }
+      updateField('step', 2);
     }
-  }, [isLoaded, serviceFromSlug, state.service, state.step, updateField, router, slug]);
+  }, [isLoaded, serviceFromSlug, state.service, state.step, updateField]);
 
   // Wait for localStorage to load
   if (!isLoaded) {
@@ -87,7 +55,7 @@ export default function DetailsPage() {
     );
   }
 
-  // If no valid service from slug or not on step 2, don't render yet (will redirect)
+  // If service is invalid or not on step 2, don't render
   if (!serviceFromSlug || state.step !== 2) {
     return null;
   }
@@ -97,43 +65,24 @@ export default function DetailsPage() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-6">
-          <Link
-            href="/booking/service/select"
-            className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900"
+          <Link 
+            href="/booking/service/select" 
+            className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Service Selection
           </Link>
-          <h1 className="mt-4 text-3xl font-bold text-slate-900">Book Your Cleaning</h1>
         </div>
 
-        {/* Stepper */}
-        <Stepper current={state.step} total={5} />
-
-        {/* Main Content */}
-        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_380px]">
-          {/* Step Content with Animation */}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={state.step}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2 }}
-              className="min-h-[420px]"
-            >
-              <StepDetails />
-            </motion.div>
-          </AnimatePresence>
-
-          {/* Sticky Summary (Desktop) */}
-          <div className="hidden lg:block">
-            <BookingSummary />
-          </div>
+        {/* Progress Stepper */}
+        <div className="mb-8">
+          <Stepper currentStep={state.step} />
         </div>
 
-        {/* Mobile Summary Sheet - triggered from BookingSummary component */}
+        {/* Main Content - StepDetails now includes its own layout with live preview */}
+        <StepDetails />
       </div>
     </div>
   );
 }
+

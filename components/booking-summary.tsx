@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { useBooking } from '@/lib/useBooking';
-import { calcTotal, PRICING } from '@/lib/pricing';
+import { calcTotal, PRICING, getServicePricing } from '@/lib/pricing';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,9 @@ export function BookingSummary() {
     extras: state.extras,
   }), [state.service, state.bedrooms, state.bathrooms, state.extras]);
 
+  // Get service-specific pricing
+  const servicePricing = useMemo(() => getServicePricing(state.service), [state.service]);
+
   const SummaryContent = () => (
     <div className="space-y-6">
       {/* Service */}
@@ -42,13 +45,27 @@ export function BookingSummary() {
         </div>
       )}
 
-      {/* Home Details */}
-      {(state.bedrooms > 0 || state.bathrooms > 0) && (
+      {/* Price Breakdown */}
+      {servicePricing && (
         <div>
-          <h3 className="mb-2 text-sm font-semibold text-slate-700">Home Details</h3>
-          <div className="space-y-1 text-sm text-slate-600">
-            <p>{state.bedrooms} Bedroom{state.bedrooms !== 1 ? 's' : ''}</p>
-            <p>{state.bathrooms} Bathroom{state.bathrooms !== 1 ? 's' : ''}</p>
+          <h3 className="mb-2 text-sm font-semibold text-slate-700">Price Breakdown</h3>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600">Base Price</span>
+              <span className="font-medium text-slate-900">R{servicePricing.base}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600">Bedrooms ({state.bedrooms})</span>
+              <span className="font-medium text-slate-900">
+                R{(state.bedrooms * servicePricing.bedroom).toFixed(2)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600">Bathrooms ({state.bathrooms})</span>
+              <span className="font-medium text-slate-900">
+                R{(state.bathrooms * servicePricing.bathroom).toFixed(2)}
+              </span>
+            </div>
           </div>
         </div>
       )}
@@ -56,7 +73,7 @@ export function BookingSummary() {
       {/* Extras */}
       {state.extras.length > 0 && (
         <div>
-          <h3 className="mb-2 text-sm font-semibold text-slate-700">Extras</h3>
+          <h3 className="mb-2 text-sm font-semibold text-slate-700">Additional Services</h3>
           <div className="space-y-1">
             {state.extras.map((extra) => (
               <div key={extra} className="flex items-center justify-between text-sm">

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { useBooking } from '@/lib/useBooking';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,6 @@ import type { ServiceType } from '@/types/booking';
 
 // Helper function to convert ServiceType to URL slug
 function serviceTypeToSlug(serviceType: ServiceType): string {
-  // Handle "Move In/Out" special case first
   if (serviceType === 'Move In/Out') {
     return 'move-in-out';
   }
@@ -64,12 +64,9 @@ const services: {
   },
 ];
 
-interface StepServiceProps {
-  onNext?: () => void;
-}
-
-export function StepService({ onNext }: StepServiceProps = {} as StepServiceProps) {
-  const { state, updateField, next } = useBooking();
+export function StepService() {
+  const router = useRouter();
+  const { state, updateField } = useBooking();
 
   const handleSelect = useCallback((serviceType: ServiceType) => {
     updateField('service', serviceType);
@@ -79,10 +76,11 @@ export function StepService({ onNext }: StepServiceProps = {} as StepServiceProp
 
   const handleNext = useCallback(() => {
     if (state.service) {
-      // Use new navigation system - just update step, main booking page will handle routing
-      next();
+      const slug = serviceTypeToSlug(state.service);
+      // Navigate immediately - step will be updated by the target page's useEffect
+      router.push(`/booking/service/${slug}/details`);
     }
-  }, [state.service, next]);
+  }, [state.service, router]);
 
   return (
     <Card className="border-0 shadow-lg">
@@ -142,15 +140,7 @@ export function StepService({ onNext }: StepServiceProps = {} as StepServiceProp
 
         <div className="flex justify-end gap-3">
           <Button 
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (onNext) {
-                onNext();
-              } else {
-                handleNext();
-              }
-            }}
+            onClick={handleNext}
             disabled={!canProceed} 
             size="lg"
             className="transition-all duration-150 bg-blue-600 hover:bg-blue-700 text-white"

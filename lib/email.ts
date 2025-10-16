@@ -19,9 +19,14 @@ export interface EmailData {
 export async function sendEmail({ to, subject, html }: EmailData) {
   try {
     const resend = getResendInstance();
+    
+    // Get sender email from environment variable or use default
+    const senderEmail = process.env.SENDER_EMAIL || 'onboarding@resend.dev';
+    const senderName = 'Shalean Cleaning';
+    const fromAddress = `${senderName} <${senderEmail}>`;
 
     const { data, error } = await resend.emails.send({
-      from: 'Shalean Cleaning <noreply@shalean.com>', // Using verified domain
+      from: fromAddress,
       to: [to],
       subject,
       html,
@@ -142,6 +147,113 @@ export function generateBookingConfirmationEmail(booking: BookingState & { booki
   return {
     to: booking.email,
     subject: `Booking Confirmation - ${booking.bookingId} | Shalean Cleaning`,
+    html,
+  };
+}
+
+export function generateAdminBookingNotificationEmail(booking: BookingState & { bookingId: string }): EmailData {
+  const totalPrice = calcTotal({
+    service: booking.service,
+    bedrooms: booking.bedrooms,
+    bathrooms: booking.bathrooms,
+    extras: booking.extras
+  });
+  
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>New Booking Received - Shalean Cleaning</title>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #0C53ED; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+        .booking-details { background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .contact-info { background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107; }
+        .order-summary { background-color: #e8f4fd; padding: 15px; border-radius: 8px; margin: 20px 0; }
+        .total { font-size: 18px; font-weight: bold; color: #0C53ED; }
+        .urgent { background-color: #ff4444; color: white; padding: 10px; border-radius: 4px; text-align: center; margin: 20px 0; }
+        .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>🔔 New Booking Received!</h1>
+        <p>Shalean Cleaning Services - Admin Notification</p>
+      </div>
+      
+      <div class="content">
+        <div class="urgent">
+          <strong>⚠️ ACTION REQUIRED</strong> - New booking needs confirmation
+        </div>
+        
+        <p>A new cleaning service has been booked and requires your attention.</p>
+        
+        <div class="contact-info">
+          <h3>Customer Contact Information</h3>
+          <p><strong>Name:</strong> ${booking.firstName} ${booking.lastName}</p>
+          <p><strong>Email:</strong> <a href="mailto:${booking.email}">${booking.email}</a></p>
+          <p><strong>Phone:</strong> <a href="tel:${booking.phone}">${booking.phone}</a></p>
+        </div>
+        
+        <div class="booking-details">
+          <h3>Booking Details</h3>
+          <p><strong>Booking ID:</strong> ${booking.bookingId}</p>
+          <p><strong>Service Type:</strong> ${booking.service}</p>
+          <p><strong>Date:</strong> ${booking.date ? new Date(booking.date).toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'Not specified'}</p>
+          <p><strong>Time:</strong> ${booking.time || 'Not specified'}</p>
+          
+          <h4>Service Address</h4>
+          <p>
+            ${booking.address.line1}<br>
+            ${booking.address.suburb}<br>
+            ${booking.address.city}
+          </p>
+          
+          <h4>Home Details</h4>
+          <p><strong>Bedrooms:</strong> ${booking.bedrooms}</p>
+          <p><strong>Bathrooms:</strong> ${booking.bathrooms}</p>
+          
+          ${booking.extras.length > 0 ? `
+            <h4>Additional Services</h4>
+            <ul>
+              ${booking.extras.map(extra => `<li>${extra}</li>`).join('')}
+            </ul>
+          ` : ''}
+          
+          ${booking.notes ? `<h4>Special Instructions</h4><p>${booking.notes}</p>` : ''}
+        </div>
+        
+        <div class="order-summary">
+          <h3>Pricing Summary</h3>
+          <p><strong>Total Amount: R${totalPrice}</strong></p>
+          <div class="total">Customer will pay: R${totalPrice}</div>
+        </div>
+        
+        <div class="urgent">
+          <strong>Next Steps:</strong><br>
+          1. Contact customer within 24 hours<br>
+          2. Confirm appointment and availability<br>
+          3. Send payment link/details<br>
+          4. Schedule team assignment
+        </div>
+      </div>
+      
+      <div class="footer">
+        <p>This is an automated notification from your Shalean Cleaning website.</p>
+        <p>Booking received at: ${new Date().toLocaleString('en-ZA')}</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@shalean.com';
+
+  return {
+    to: adminEmail,
+    subject: `🔔 New Booking: ${booking.bookingId} - ${booking.firstName} ${booking.lastName}`,
     html,
   };
 }

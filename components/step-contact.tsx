@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import type { ServiceType } from '@/types/booking';
 import { useBooking } from '@/lib/useBooking';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +11,18 @@ import { Input } from '@/components/ui/input';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+
+// Helper function to convert ServiceType to URL slug
+function serviceTypeToSlug(serviceType: ServiceType): string {
+  if (serviceType === 'Move In/Out') {
+    return 'move-in-out';
+  }
+  
+  return serviceType
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '');
+}
 
 const contactSchema = z.object({
   firstName: z.string().min(2, 'First name must be at least 2 characters'),
@@ -23,7 +37,8 @@ const contactSchema = z.object({
 type ContactForm = z.infer<typeof contactSchema>;
 
 export function StepContact() {
-  const { state, setState, next, back } = useBooking();
+  const router = useRouter();
+  const { state, setState } = useBooking();
 
   const defaultValues = useMemo(() => ({
     firstName: state.firstName,
@@ -45,9 +60,12 @@ export function StepContact() {
   });
 
   const handleBack = useCallback(() => {
-    // Use new navigation system - just update step, main booking page will handle routing
-    back();
-  }, [back]);
+    if (state.service) {
+      const slug = serviceTypeToSlug(state.service);
+      // Navigate immediately - step will be updated by the target page's useEffect
+      router.push(`/booking/service/${slug}/schedule`);
+    }
+  }, [state.service, router]);
 
   const onSubmit = useCallback((data: ContactForm) => {
     setState({
@@ -62,9 +80,13 @@ export function StepContact() {
         city: data.city,
       },
     });
-    // Use new navigation system - just update step, main booking page will handle routing
-    next();
-  }, [state, setState, next]);
+    
+    if (state.service) {
+      const slug = serviceTypeToSlug(state.service);
+      // Navigate immediately - step will be updated by the target page's useEffect
+      router.push(`/booking/service/${slug}/review`);
+    }
+  }, [state, setState, router]);
 
   return (
     <Card className="border-0 shadow-lg">
@@ -188,11 +210,7 @@ export function StepContact() {
             <Button 
               type="button" 
               variant="outline" 
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleBack();
-              }} 
+              onClick={handleBack} 
               size="lg" 
               className="transition-all duration-150"
             >

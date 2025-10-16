@@ -4,8 +4,7 @@ import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface StepperProps {
-  current: number;
-  total: number;
+  currentStep: number;
 }
 
 const stepLabels = [
@@ -16,7 +15,11 @@ const stepLabels = [
   'Review',
 ];
 
-export function Stepper({ current, total }: StepperProps) {
+const TOTAL_STEPS = 5;
+
+export function Stepper({ currentStep }: StepperProps) {
+  const current = currentStep;
+  const total = TOTAL_STEPS;
   return (
     <div className="w-full">
       <div className="flex items-center justify-between">

@@ -1,12 +1,11 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useBooking } from '@/lib/useBooking';
 import { Stepper } from '@/components/stepper';
 import { BookingSummary } from '@/components/booking-summary';
 import { StepReview } from '@/components/step-review';
-import { AnimatePresence, motion } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import type { ServiceType } from '@/types/booking';
@@ -17,7 +16,7 @@ function slugToServiceType(slug: string): ServiceType | null {
     'standard': 'Standard',
     'deep': 'Deep',
     'move-inout': 'Move In/Out',
-    'move-in-out': 'Move In/Out', // Alternative format
+    'move-in-out': 'Move In/Out',
     'airbnb': 'Airbnb',
   };
   
@@ -26,42 +25,24 @@ function slugToServiceType(slug: string): ServiceType | null {
 
 export default function ReviewPage() {
   const { state, isLoaded, updateField } = useBooking();
-  const router = useRouter();
   const params = useParams();
   const slug = params.slug as string;
 
   // Derive service type from URL slug
   const serviceFromSlug = useMemo(() => slugToServiceType(slug), [slug]);
 
-  // Ensure we're on step 5 and have the correct service selected
+  // Sync service and step from URL
   useEffect(() => {
     if (!isLoaded || !serviceFromSlug) return;
 
-    // If no service is selected or wrong service is selected, update it
+    // Update service and step to match URL
     if (state.service !== serviceFromSlug) {
       updateField('service', serviceFromSlug);
     }
-
-    // If not on step 5, redirect to the correct step
     if (state.step !== 5) {
-      if (state.step === 1) {
-        // Redirect back to service select
-        router.push('/booking/service/select');
-      } else if (state.step === 2) {
-        // Redirect to details page
-        router.push(`/booking/service/${slug}/details`);
-      } else if (state.step === 3) {
-        // Redirect to schedule page
-        router.push(`/booking/service/${slug}/schedule`);
-      } else if (state.step === 4) {
-        // Redirect to contact page
-        router.push(`/booking/service/${slug}/contact`);
-      } else {
-        // For other steps, redirect to service select
-        router.push('/booking/service/select');
-      }
+      updateField('step', 5);
     }
-  }, [isLoaded, serviceFromSlug, state.service, state.step, updateField, router, slug]);
+  }, [isLoaded, serviceFromSlug, state.service, state.step, updateField]);
 
   // Wait for localStorage to load
   if (!isLoaded) {
@@ -74,7 +55,7 @@ export default function ReviewPage() {
     );
   }
 
-  // If no valid service from slug or not on step 5, don't render yet (will redirect)
+  // If service is invalid or not on step 5, don't render
   if (!serviceFromSlug || state.step !== 5) {
     return null;
   }
@@ -84,43 +65,34 @@ export default function ReviewPage() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-6">
-          <Link
+          <Link 
             href={`/booking/service/${slug}/contact`}
-            className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900"
+            className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Contact
           </Link>
-          <h1 className="mt-4 text-3xl font-bold text-slate-900">Book Your Cleaning</h1>
         </div>
 
-        {/* Stepper */}
-        <Stepper current={state.step} total={5} />
+        {/* Progress Stepper */}
+        <div className="mb-8">
+          <Stepper currentStep={state.step} />
+        </div>
 
         {/* Main Content */}
-        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_380px]">
-          {/* Step Content with Animation */}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={state.step}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2 }}
-              className="min-h-[420px]"
-            >
-              <StepReview />
-            </motion.div>
-          </AnimatePresence>
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Left Column - Form */}
+          <div className="lg:col-span-2">
+            <StepReview />
+          </div>
 
-          {/* Sticky Summary (Desktop) */}
-          <div className="hidden lg:block">
+          {/* Right Column - Summary */}
+          <div className="lg:col-span-1">
             <BookingSummary />
           </div>
         </div>
-
-        {/* Mobile Summary Sheet - triggered from BookingSummary component */}
       </div>
     </div>
   );
 }
+

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { sendEmail, generateBookingConfirmationEmail } from '@/lib/email';
+import { sendEmail, generateBookingConfirmationEmail, generateAdminBookingNotificationEmail } from '@/lib/email';
 import { BookingState } from '@/types/booking';
 
 /**
@@ -22,15 +22,25 @@ export async function POST(req: Request) {
     // - Payment gateway (Paystack)
     // - Calendar system
 
-    // Send confirmation email
+    // Send confirmation emails to customer and admin
     try {
-      const emailData = generateBookingConfirmationEmail({
+      // Send confirmation email to customer
+      const customerEmailData = generateBookingConfirmationEmail({
         ...body,
         bookingId
       });
       
-      await sendEmail(emailData);
-      console.log('Confirmation email sent successfully');
+      await sendEmail(customerEmailData);
+      console.log('Customer confirmation email sent successfully');
+      
+      // Send notification email to admin
+      const adminEmailData = generateAdminBookingNotificationEmail({
+        ...body,
+        bookingId
+      });
+      
+      await sendEmail(adminEmailData);
+      console.log('Admin notification email sent successfully');
     } catch (emailError) {
       console.error('Failed to send confirmation email:', emailError);
       // Don't fail the entire request if email fails
