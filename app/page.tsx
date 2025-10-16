@@ -523,7 +523,7 @@ export default function HomePage() {
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Normatter</h3>
                 <div className="text-sm text-gray-600 mb-6">
                   <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-primary">
-                    <p className="italic mb-2">"Normatter's team transformed our office completely. The attention to detail and eco-friendly approach exceeded our expectations. Highly recommend!"</p>
+                    <p className="italic mb-2">&ldquo;Normatter&apos;s team transformed our office completely. The attention to detail and eco-friendly approach exceeded our expectations. Highly recommend!&rdquo;</p>
                     <p className="text-xs text-gray-500 font-medium">- Sarah M., Corporate Client</p>
                   </div>
                 </div>
@@ -543,7 +543,7 @@ export default function HomePage() {
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Lucia</h3>
                 <div className="text-sm text-gray-600 mb-6">
                   <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-primary">
-                    <p className="italic mb-2">"Lucia's commercial cleaning service is outstanding. Our restaurant has never looked cleaner. Professional, reliable, and thorough every time."</p>
+                    <p className="italic mb-2">&ldquo;Lucia&apos;s commercial cleaning service is outstanding. Our restaurant has never looked cleaner. Professional, reliable, and thorough every time.&rdquo;</p>
                     <p className="text-xs text-gray-500 font-medium">- David K., Restaurant Owner</p>
                   </div>
                 </div>
@@ -563,7 +563,7 @@ export default function HomePage() {
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Nyasha</h3>
                 <div className="text-sm text-gray-600 mb-6">
                   <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-primary">
-                    <p className="italic mb-2">"Nyasha's residential cleaning is exceptional. My home feels brand new after every visit. Trustworthy, efficient, and incredibly thorough."</p>
+                    <p className="italic mb-2">&ldquo;Nyasha&apos;s residential cleaning is exceptional. My home feels brand new after every visit. Trustworthy, efficient, and incredibly thorough.&rdquo;</p>
                     <p className="text-xs text-gray-500 font-medium">- Jennifer L., Homeowner</p>
                   </div>
                 </div>
