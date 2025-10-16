@@ -119,8 +119,8 @@ export default function DeepCleaningTipsPage() {
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
           <div className="prose prose-lg max-w-none">
             <p className="text-xl text-gray-600 mb-8">
-              Deep cleaning goes beyond your regular tidying routine. It's about tackling the areas
-              that don't get attention during weekly cleaning sessions. Whether you're preparing for
+              Deep cleaning goes beyond your regular tidying routine. It&apos;s about tackling the areas
+              that don&apos;t get attention during weekly cleaning sessions. Whether you&apos;re preparing for
               a special occasion, changing seasons, or just want a fresh start, these professional
               tips will help you achieve a thoroughly clean home.
             </p>
@@ -178,8 +178,8 @@ export default function DeepCleaningTipsPage() {
 
             <div className="bg-primary/5 border-l-4 border-primary p-6 rounded-r-lg mb-8">
               <p className="text-gray-700 italic">
-                "Regular deep cleaning not only keeps your home looking beautiful but also contributes
-                to better indoor air quality and a healthier living environment for your family."
+                &ldquo;Regular deep cleaning not only keeps your home looking beautiful but also contributes
+                to better indoor air quality and a healthier living environment for your family.&rdquo;
               </p>
               <p className="text-sm text-gray-600 mt-2">— Shalean Cleaning Experts</p>
             </div>

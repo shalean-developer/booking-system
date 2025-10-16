@@ -45,7 +45,7 @@ export default function BookingSuccessPage() {
               Thank You for Your Booking!
             </h1>
             <p className="text-xl text-gray-600">
-              Your cleaning service has been confirmed. We've sent a confirmation email with all the details.
+              Your cleaning service has been confirmed. We&apos;ve sent a confirmation email with all the details.
             </p>
           </div>
 
@@ -100,7 +100,7 @@ export default function BookingSuccessPage() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900">Check Your Email</h3>
-                    <p className="text-gray-600 text-sm">We've sent a detailed confirmation with all booking information</p>
+                    <p className="text-gray-600 text-sm">We&apos;ve sent a detailed confirmation with all booking information</p>
                   </div>
                 </div>
 
@@ -119,7 +119,7 @@ export default function BookingSuccessPage() {
                     3
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900">We'll Be There</h3>
+                    <h3 className="font-semibold text-gray-900">We&apos;ll Be There</h3>
                     <p className="text-gray-600 text-sm">Our professional cleaners will arrive on time, ready to work</p>
                   </div>
                 </div>

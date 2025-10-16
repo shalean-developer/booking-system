@@ -46,9 +46,9 @@ export default function EcoFriendlyProductsPage() {
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
           <div className="prose prose-lg max-w-none">
             <p className="text-xl text-gray-600 mb-8">
-              The shift towards eco-friendly cleaning products isn't just a trend—it's a necessary step towards healthier homes
+              The shift towards eco-friendly cleaning products isn&apos;t just a trend—it&apos;s a necessary step towards healthier homes
               and a sustainable planet. Traditional cleaning products often contain harsh chemicals that can impact both human
-              health and the environment. Here's why making the switch matters.
+              health and the environment. Here&apos;s why making the switch matters.
             </p>
 
             <h2 className="text-3xl font-bold text-gray-900 mt-12 mb-6">Health Benefits</h2>
@@ -88,8 +88,8 @@ export default function EcoFriendlyProductsPage() {
 
             <div className="bg-green-50 border-l-4 border-green-600 p-6 rounded-r-lg mb-8">
               <p className="text-gray-700 italic">
-                "At Shalean, we exclusively use eco-friendly, professional-grade cleaning products that are tough on dirt
-                but gentle on your home and the planet."
+                &ldquo;At Shalean, we exclusively use eco-friendly, professional-grade cleaning products that are tough on dirt
+                but gentle on your home and the planet.&rdquo;
               </p>
               <p className="text-sm text-gray-600 mt-2">— Shalean Cleaning Services</p>
             </div>

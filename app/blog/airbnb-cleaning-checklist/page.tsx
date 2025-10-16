@@ -88,8 +88,8 @@ export default function AirbnbChecklistPage() {
 
             <div className="bg-primary/5 border-l-4 border-primary p-6 rounded-r-lg">
               <p className="text-gray-700 italic">
-                "We understand the tight turnaround times Airbnb hosts face. Our professional team can handle your turnover
-                cleaning quickly and thoroughly, ensuring your property is always guest-ready."
+                &ldquo;We understand the tight turnaround times Airbnb hosts face. Our professional team can handle your turnover
+                cleaning quickly and thoroughly, ensuring your property is always guest-ready.&rdquo;
               </p>
               <p className="text-sm text-gray-600 mt-2">— Shalean Airbnb Cleaning Services</p>
             </div>
