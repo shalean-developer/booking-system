@@ -2,14 +2,8 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import dynamic from 'next/dynamic';
+import { usePaystackPayment } from 'react-paystack';
 import type { ServiceType, PaystackVerificationResponse } from '@/types/booking';
-
-// Dynamically import PaystackConsumer to avoid SSR issues
-const PaystackConsumer = dynamic(
-  () => import('react-paystack').then((mod) => mod.PaystackConsumer),
-  { ssr: false }
-);
 import { useBooking } from '@/lib/useBooking';
 import { calcTotal, PRICING } from '@/lib/pricing';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -169,7 +163,7 @@ export function StepReview() {
     setPaymentError('Payment was cancelled. Please try again to complete your booking.');
   }, []);
 
-  // Configure Paystack payment with callbacks
+  // Configure Paystack payment (callbacks passed separately to initializePayment)
   const paystackConfig = {
     reference: paymentReference,
     email: state.email,
@@ -196,15 +190,10 @@ export function StepReview() {
         },
       ],
     },
-    onSuccess: onPaymentSuccess,
-    onClose: onPaymentClose,
   };
 
-  // Simple wrapper for PaystackConsumer without problematic props
-  const paystackProps = {
-    ...paystackConfig,
-    text: 'Confirm & Pay',
-  };
+  // Initialize Paystack payment hook
+  const initializePayment = usePaystackPayment(paystackConfig);
 
   const handleBack = useCallback(() => {
     if (state.service) {
@@ -440,54 +429,53 @@ export function StepReview() {
             Back
           </Button>
           
-          <PaystackConsumer {...paystackProps}>
-            {({initializePayment}) => (
-              <Button 
-                onClick={() => {
-                  console.log('=== PAYSTACK BUTTON CLICKED ===');
-                  console.log('Config:', {
-                    ...paystackConfig,
-                    publicKey: paystackConfig.publicKey ? 'pk_***' : 'MISSING',
-                  });
-                  if (!process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY) {
-                    setPaymentError('Payment service is not configured. Please contact support.');
-                    return;
-                  }
-                  if (!state.email) {
-                    setPaymentError('Email is required for payment. Please go back and enter your email.');
-                    return;
-                  }
-                  setPaymentError(null);
-                  console.log('Calling initializePayment with callbacks from config...');
-                  console.log('Callbacks configured:', {
-                    onSuccess: typeof paystackConfig.onSuccess,
-                    onClose: typeof paystackConfig.onClose,
-                  });
-                  
-                  // Call initializePayment - callbacks are in the config object
-                  initializePayment();
-                }}
-                size="lg" 
-                disabled={isSubmitting} 
-                className="sm:min-w-[200px] transition-all duration-150 flex-1 sm:flex-none"
-                type="button"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    <span className="sm:hidden">Processing...</span>
-                    <span className="hidden sm:inline">Processing Payment...</span>
-                  </>
-                ) : (
-                  <>
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    <span className="sm:hidden">Pay R{total}</span>
-                    <span className="hidden sm:inline">Confirm & Pay R{total}</span>
-                  </>
-                )}
-              </Button>
+          <Button 
+            onClick={() => {
+              console.log('=== PAYSTACK BUTTON CLICKED ===');
+              console.log('Config:', {
+                ...paystackConfig,
+                publicKey: paystackConfig.publicKey ? 'pk_***' : 'MISSING',
+              });
+              if (!process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY) {
+                setPaymentError('Payment service is not configured. Please contact support.');
+                return;
+              }
+              if (!state.email) {
+                setPaymentError('Email is required for payment. Please go back and enter your email.');
+                return;
+              }
+              setPaymentError(null);
+              console.log('Calling initializePayment with callbacks...');
+              console.log('Callbacks configured:', {
+                onSuccess: typeof onPaymentSuccess,
+                onClose: typeof onPaymentClose,
+              });
+              
+              // Call initializePayment with config object containing callbacks
+              initializePayment({
+                onSuccess: onPaymentSuccess,
+                onClose: onPaymentClose,
+              });
+            }}
+            size="lg" 
+            disabled={isSubmitting} 
+            className="sm:min-w-[200px] transition-all duration-150 flex-1 sm:flex-none"
+            type="button"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <span className="sm:hidden">Processing...</span>
+                <span className="hidden sm:inline">Processing Payment...</span>
+              </>
+            ) : (
+              <>
+                <CreditCard className="mr-2 h-4 w-4" />
+                <span className="sm:hidden">Pay R{total}</span>
+                <span className="hidden sm:inline">Confirm & Pay R{total}</span>
+              </>
             )}
-          </PaystackConsumer>
+          </Button>
         </div>
       </CardContent>
     </Card>
