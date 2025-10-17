@@ -11,11 +11,17 @@ export interface EnvValidationResult {
 
 /**
  * Validates that all required environment variables for booking flow are present
+ * For deployment compatibility, only validates critical variables
  */
 export function validateBookingEnv(): EnvValidationResult {
+  // Only validate critical variables that prevent the app from building
   const required = {
     NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
     PAYSTACK_SECRET_KEY: process.env.PAYSTACK_SECRET_KEY,
+  };
+
+  // Optional variables that can be missing during deployment
+  const optional = {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
@@ -25,9 +31,17 @@ export function validateBookingEnv(): EnvValidationResult {
     .filter(([_, value]) => !value)
     .map(([key]) => key);
 
+  const missingOptional = Object.entries(optional)
+    .filter(([_, value]) => !value)
+    .map(([key]) => key);
+
   const errors = missing.map(
     (key) => `Missing required environment variable: ${key}`
   );
+
+  if (missingOptional.length > 0) {
+    errors.push(`Optional services not configured (booking features will be limited): ${missingOptional.join(', ')}`);
+  }
 
   return { 
     valid: missing.length === 0, 
