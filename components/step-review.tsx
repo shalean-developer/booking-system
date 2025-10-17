@@ -196,6 +196,8 @@ export function StepReview() {
         },
       ],
     },
+    onSuccess: onPaymentSuccess,
+    onClose: onPaymentClose,
   };
 
   // Simple wrapper for PaystackConsumer without problematic props
@@ -456,21 +458,14 @@ export function StepReview() {
                     return;
                   }
                   setPaymentError(null);
-                  console.log('Calling initializePayment from PaystackConsumer');
-                  console.log('Initializing payment with callbacks in config...');
+                  console.log('Calling initializePayment with callbacks from config...');
+                  console.log('Callbacks configured:', {
+                    onSuccess: typeof paystackConfig.onSuccess,
+                    onClose: typeof paystackConfig.onClose,
+                  });
                   
-                  // Call initializePayment with proper callback handling
-                  initializePayment(
-                    (reference: any) => {
-                      console.log('=== PAYMENT SUCCESS CALLBACK TRIGGERED ===');
-                      console.log('Reference received:', reference);
-                      onPaymentSuccess(reference);
-                    },
-                    () => {
-                      console.log('=== PAYMENT CLOSE CALLBACK TRIGGERED ===');
-                      onPaymentClose();
-                    }
-                  );
+                  // Call initializePayment - callbacks are in the config object
+                  initializePayment();
                 }}
                 size="lg" 
                 disabled={isSubmitting} 
