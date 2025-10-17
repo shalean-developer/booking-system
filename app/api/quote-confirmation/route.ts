@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sendEmail, generateQuoteConfirmationEmail, generateAdminQuoteNotificationEmail, QuoteRequest } from '@/lib/email';
+import { supabase } from '@/lib/supabase';
+import { calcTotal } from '@/lib/pricing';
 import type { ServiceType } from '@/types/booking';
 
 /**
@@ -48,6 +50,45 @@ export async function POST(req: Request) {
 
     // Generate unique quote ID
     const quoteId = `QT-${Date.now()}`;
+    
+    // Calculate estimated price (for internal use, not shown to customer)
+    const estimatedPrice = calcTotal({
+      service: body.service as ServiceType,
+      bedrooms: body.bedrooms || 0,
+      bathrooms: body.bathrooms || 1,
+      extras: body.extras || []
+    });
+    
+    // Save quote to database
+    let quoteSaved = false;
+    try {
+      const { data, error: dbError } = await supabase
+        .from('quotes')
+        .insert({
+          id: quoteId,
+          service_type: body.service,
+          bedrooms: body.bedrooms || 0,
+          bathrooms: body.bathrooms || 1,
+          extras: body.extras || [],
+          first_name: body.firstName,
+          last_name: body.lastName,
+          email: body.email,
+          phone: body.phone,
+          status: 'pending',
+          estimated_price: estimatedPrice
+        });
+      
+      if (dbError) {
+        console.error('Database error saving quote:', dbError);
+        // Don't fail the request if database save fails - continue with email
+      } else {
+        console.log('Quote saved to database successfully:', quoteId);
+        quoteSaved = true;
+      }
+    } catch (dbError) {
+      console.error('Failed to save quote to database:', dbError);
+      // Continue with email even if database save fails
+    }
     
     let emailSent = false;
     let emailError = null;
@@ -113,6 +154,7 @@ export async function POST(req: Request) {
       ok: true,
       quoteId,
       message: 'Quote confirmed successfully!',
+      quoteSaved,
       emailSent,
       emailError: emailSent ? null : emailError
     });

@@ -106,6 +106,56 @@ export interface Database {
           created_at?: string
         }
       }
+      quotes: {
+        Row: {
+          id: string  // TEXT primary key (QT-... format)
+          service_type: string
+          bedrooms: number
+          bathrooms: number
+          extras: string[]
+          first_name: string
+          last_name: string
+          email: string
+          phone: string
+          status: string
+          estimated_price: number | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string  // Required TEXT ID (QT-... format)
+          service_type: string
+          bedrooms?: number
+          bathrooms?: number
+          extras?: string[]
+          first_name: string
+          last_name: string
+          email: string
+          phone: string
+          status?: string
+          estimated_price?: number | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          service_type?: string
+          bedrooms?: number
+          bathrooms?: number
+          extras?: string[]
+          first_name?: string
+          last_name?: string
+          email?: string
+          phone?: string
+          status?: string
+          estimated_price?: number | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
   }
 }

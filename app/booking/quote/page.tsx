@@ -1,155 +1,502 @@
 'use client';
 
-import { useState } from 'react';
-import Link from 'next/link';
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import {
+  Home,
+  Star,
+  Building,
+  Calendar,
+  Mail,
+  Phone,
+  User,
+  ArrowLeft,
+  ArrowRight,
+  Loader2,
+  Refrigerator,
+  Flame,
+  Package,
+  Wind,
+  Paintbrush,
+  Shirt,
+  Plus,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { 
-  ArrowLeft, 
-  Home, 
-  Sparkles, 
-  TruckIcon, 
-  Calendar,
-  Receipt,
-  ArrowRight,
-  Mail,
-  Phone,
-  User,
-  Settings,
-  Building,
-  Key,
-  Star,
-  Users,
-  Award,
-  BarChart3,
-  Plus,
-  Loader2
-} from 'lucide-react';
-import { PRICING } from '@/lib/pricing';
 import type { ServiceType } from '@/types/booking';
+
+// Service options with Lucide icons
+const serviceOptions = [
+  {
+    id: 'Standard' as ServiceType,
+    label: 'Standard',
+    subLabel: 'Cleaning',
+    icon: Home,
+    description: 'Regular home cleaning',
+  },
+  {
+    id: 'Deep' as ServiceType,
+    label: 'Deep',
+    subLabel: 'Cleaning',
+    icon: Star,
+    description: 'Thorough deep cleaning',
+  },
+  {
+    id: 'Move In/Out' as ServiceType,
+    label: 'Moving',
+    subLabel: 'Cleaning',
+    icon: Building,
+    description: 'Moving transition cleaning',
+  },
+  {
+    id: 'Airbnb' as ServiceType,
+    label: 'Airbnb',
+    subLabel: 'Cleaning',
+    icon: Calendar,
+    description: 'Airbnb turnover cleaning',
+  },
+];
+
+// Extra services with Lucide icons
+const extrasList = [
+  { id: 'Inside Fridge', label: 'Inside Fridge', icon: Refrigerator },
+  { id: 'Inside Oven', label: 'Inside Oven', icon: Flame },
+  { id: 'Inside Cabinets', label: 'Inside Cabinets', icon: Package },
+  { id: 'Interior Windows', label: 'Interior Windows', icon: Wind },
+  { id: 'Interior Walls', label: 'Interior Walls', icon: Paintbrush },
+  { id: 'Ironing', label: 'Ironing', icon: Shirt },
+  { id: 'Laundry', label: 'Laundry', icon: Plus },
+];
+
+interface ContactCardProps {
+  contact: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+  };
+  setContact: (contact: any) => void;
+}
+
+function ContactCard({ contact, setContact }: ContactCardProps) {
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <Card className="border-0 shadow-lg">
+        <CardHeader className="px-4 sm:px-6 py-4 sm:py-5">
+          <CardTitle className="text-lg sm:text-xl">1. Your Contact Information</CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="firstName" className="text-sm text-gray-600 mb-2 block">
+                First name
+              </Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="firstName"
+                  value={contact.firstName}
+                  onChange={(e) => setContact({ ...contact, firstName: e.target.value })}
+                  className="pl-10"
+                  placeholder="John"
+                  aria-label="First name"
+                  required
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="lastName" className="text-sm text-gray-600 mb-2 block">
+                Last name
+              </Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="lastName"
+                  value={contact.lastName}
+                  onChange={(e) => setContact({ ...contact, lastName: e.target.value })}
+                  className="pl-10"
+                  placeholder="Doe"
+                  aria-label="Last name"
+                  required
+                />
+              </div>
+            </div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="email" className="text-sm text-gray-600 mb-2 block">
+                Email
+              </Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="email"
+                  type="email"
+                  value={contact.email}
+                  onChange={(e) => setContact({ ...contact, email: e.target.value })}
+                  className="pl-10"
+                  placeholder="john.doe@example.com"
+                  aria-label="Email"
+                  required
+                />
+              </div>
+            </div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="phone" className="text-sm text-gray-600 mb-2 block">
+                Phone Number
+              </Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="phone"
+                  type="tel"
+                  inputMode="tel"
+                  value={contact.phone}
+                  onChange={(e) => setContact({ ...contact, phone: e.target.value })}
+                  className="pl-10"
+                  placeholder="+27 12 345 6789"
+                  aria-label="Phone number"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
+interface ServiceGridProps {
+  selected: ServiceType | null;
+  setSelected: (service: ServiceType) => void;
+}
+
+function ServiceGrid({ selected, setSelected }: ServiceGridProps) {
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: 0.1 }}
+    >
+      <Card className="border-0 shadow-lg">
+        <CardHeader className="px-4 sm:px-6 py-4 sm:py-5">
+          <CardTitle className="text-lg sm:text-xl">2. Select Your Service</CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+            {serviceOptions.map((s) => {
+              const isSelected = selected === s.id;
+              const Icon = s.icon;
+              return (
+                <button
+                  key={s.id}
+                  role="radio"
+                  aria-checked={isSelected}
+                  onClick={() => setSelected(s.id)}
+                  className={`rounded-xl p-4 sm:p-5 text-center cursor-pointer transform transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+                    isSelected
+                      ? 'ring-2 ring-primary/60 bg-primary/5 border-2 border-primary'
+                      : 'border-2 border-gray-100 bg-white hover:border-gray-200'
+                  }`}
+                >
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                    <Icon className="h-6 w-6 sm:h-7 sm:w-7 text-primary" strokeWidth={1.5} />
+                  </div>
+                  <div className="text-sm font-medium text-gray-800">{s.label}</div>
+                  <div className="text-sm font-medium text-gray-800">{s.subLabel}</div>
+                </button>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
+interface HomeDetailsCardProps {
+  bedrooms: number;
+  setBedrooms: (bedrooms: number) => void;
+  bathrooms: number;
+  setBathrooms: (bathrooms: number) => void;
+}
+
+function HomeDetailsCard({ bedrooms, setBedrooms, bathrooms, setBathrooms }: HomeDetailsCardProps) {
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: 0.2 }}
+    >
+      <Card className="border-0 shadow-lg">
+        <CardHeader className="px-4 sm:px-6 py-4 sm:py-5">
+          <CardTitle className="text-lg sm:text-xl">3. Home Details</CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="bedrooms" className="text-sm text-gray-600 mb-2 block">
+                Bedrooms
+              </Label>
+              <Select value={bedrooms.toString()} onValueChange={(value) => setBedrooms(Number(value))}>
+                <SelectTrigger id="bedrooms">
+                  <SelectValue placeholder="Select bedrooms" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 7 }).map((_, i) => (
+                    <SelectItem key={i} value={i.toString()}>
+                      {i} {i === 1 ? 'Bedroom' : 'Bedrooms'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="bathrooms" className="text-sm text-gray-600 mb-2 block">
+                Bathrooms
+              </Label>
+              <Select value={bathrooms.toString()} onValueChange={(value) => setBathrooms(Number(value))}>
+                <SelectTrigger id="bathrooms">
+                  <SelectValue placeholder="Select bathrooms" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <SelectItem key={i} value={i.toString()}>
+                      {i} {i === 1 ? 'Bathroom' : 'Bathrooms'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-3">Bedrooms and bathrooms affect the base price.</p>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
+interface ExtrasGridProps {
+  selectedExtras: string[];
+  toggleExtra: (extra: string) => void;
+}
+
+function ExtrasGrid({ selectedExtras, toggleExtra }: ExtrasGridProps) {
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: 0.3 }}
+    >
+      <Card className="border-0 shadow-lg">
+        <CardHeader className="px-4 sm:px-6 py-4 sm:py-5">
+          <CardTitle className="text-lg sm:text-xl">4. Additional Services (Optional)</CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-3 sm:gap-4">
+            {extrasList.map((ex) => {
+              const isPressed = selectedExtras.includes(ex.id);
+              const Icon = ex.icon;
+              const labelWords = ex.label.split(' ');
+              return (
+                <button
+                  key={ex.id}
+                  aria-pressed={isPressed}
+                  onClick={() => toggleExtra(ex.id)}
+                  className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 cursor-pointer transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+                    isPressed
+                      ? 'bg-primary/5 shadow-md ring-2 ring-primary/40 border-primary'
+                      : 'bg-white border-gray-100 hover:border-gray-200'
+                  }`}
+                >
+                  <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center ${
+                    isPressed ? 'bg-primary/10' : 'bg-gray-50'
+                  }`}>
+                    <Icon className={`h-5 w-5 sm:h-6 sm:w-6 ${
+                      isPressed ? 'text-primary' : 'text-gray-600'
+                    }`} strokeWidth={1.5} />
+                  </div>
+                  <div className="text-center">
+                    {labelWords.map((word, index) => (
+                      <div key={index} className="text-xs font-medium text-gray-700 leading-tight">
+                        {word}
+                      </div>
+                    ))}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
+interface QuoteSummaryProps {
+  contact: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+  };
+  serviceId: ServiceType | null;
+  bedrooms: number;
+  bathrooms: number;
+  extras: string[];
+  onSubmit: () => void;
+  isSubmitting: boolean;
+}
+
+function QuoteSummary({ contact, serviceId, bedrooms, bathrooms, extras, onSubmit, isSubmitting }: QuoteSummaryProps) {
+  const isFormValid = contact.firstName && contact.lastName && contact.email && contact.phone && serviceId;
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: 0.4 }}
+      className="lg:sticky lg:top-6 lg:h-fit"
+    >
+      <Card className="border-0 shadow-lg">
+        <CardHeader className="px-4 sm:px-6 py-4 sm:py-5">
+          <CardTitle className="text-lg sm:text-xl">Your Quote</CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <div className="text-sm text-gray-600">Service</div>
+              <div className="text-sm font-medium text-gray-800">
+                {serviceId || <span className="text-gray-400">Not selected</span>}
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center">
+              <div className="text-sm text-gray-600">Home details</div>
+              <div className="text-sm font-medium text-gray-800">
+                {bedrooms} bd • {bathrooms} ba
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center">
+              <div className="text-sm text-gray-600">Extras</div>
+              <div className="text-sm font-medium text-gray-800">{extras.length}</div>
+            </div>
+
+            <hr className="border-t border-gray-200 my-2" />
+
+            {/* Custom Quote Notice - No Price Display */}
+            <div className="rounded-lg bg-primary/5 p-4 text-center">
+              <p className="text-sm font-semibold text-gray-900 mb-1">
+                Custom Quote
+              </p>
+              <p className="text-xs text-gray-600">
+                We&apos;ll provide a personalized quote based on your selections
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-3">
+            <Button
+              onClick={onSubmit}
+              disabled={!isFormValid || isSubmitting}
+              size="lg"
+              className="w-full bg-primary hover:bg-primary/90"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <span className="hidden sm:inline">Sending Quote...</span>
+                  <span className="sm:hidden">Sending...</span>
+                </>
+              ) : (
+                <>
+                  <span className="hidden sm:inline">Confirm Quote & Continue</span>
+                  <span className="sm:hidden">Confirm & Continue</span>
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </>
+              )}
+            </Button>
+
+            <Link href="/booking/service/select" className="block">
+              <Button variant="outline" size="lg" className="w-full">
+                <span className="hidden sm:inline">Skip to Full Booking</span>
+                <span className="sm:hidden">Full Booking</span>
+              </Button>
+            </Link>
+
+            <p className="text-xs text-gray-500 text-center mt-3">
+              We will email this quote to {contact.email || 'your email'}.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
 
 export default function QuotePage() {
   const router = useRouter();
-  const [service, setService] = useState<ServiceType | null>(null);
+  const [contact, setContact] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+  });
+  const [serviceId, setServiceId] = useState<ServiceType | null>(null);
   const [bedrooms, setBedrooms] = useState(0);
   const [bathrooms, setBathrooms] = useState(1);
   const [extras, setExtras] = useState<string[]>([]);
-  const [showContactForm, setShowContactForm] = useState(false);
-  
-  // Contact form fields
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const serviceOptions: { type: ServiceType; icon: any; label: string; subLabel: string; description: string; fillColor: string; iconColor: string }[] = [
-    {
-      type: 'Standard',
-      icon: Home,
-      label: 'Standard',
-      subLabel: 'Cleaning',
-      description: 'Regular home cleaning',
-      fillColor: 'bg-amber-50',
-      iconColor: 'text-amber-600',
-    },
-    {
-      type: 'Deep',
-      icon: Star,
-      label: 'Deep',
-      subLabel: 'Cleaning',
-      description: 'Thorough deep cleaning services',
-      fillColor: 'bg-teal-50',
-      iconColor: 'text-teal-600',
-    },
-    {
-      type: 'Move In/Out',
-      icon: Building,
-      label: 'Moving',
-      subLabel: 'Cleaning',
-      description: 'Moving transition cleaning',
-      fillColor: 'bg-orange-50',
-      iconColor: 'text-orange-500',
-    },
-    {
-      type: 'Airbnb',
-      icon: Calendar,
-      label: 'Airbnb',
-      subLabel: 'Cleaning',
-      description: 'Airbnb turnover cleaning',
-      fillColor: 'bg-teal-50',
-      iconColor: 'text-teal-600',
-    },
-  ];
+  function toggleExtra(id: string) {
+    setExtras((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
+  }
 
-  const extraIconMap: { [key: string]: any } = {
-    'Inside Fridge': Home,
-    'Inside Oven': Star,
-    'Inside Cabinets': Building,
-    'Interior Windows': Users,
-    'Interior Walls': Award,
-    'Ironing': BarChart3,
-    'Laundry': Plus,
-  };
+  const handleSubmit = async () => {
+    if (!serviceId) return;
 
-  const toggleExtra = (extra: string) => {
-    setExtras((prev) =>
-      prev.includes(extra) ? prev.filter((e) => e !== extra) : [...prev, extra]
-    );
-  };
-
-  const handleGetQuote = () => {
-    if (!service) return;
-    setShowContactForm(true);
-  };
-
-  const handleSubmitQuote = async (e: React.FormEvent) => {
-    e.preventDefault();
     setIsSubmitting(true);
-    
+
     try {
-      // Send quote confirmation request to backend
       const response = await fetch('/api/quote-confirmation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          service,
+          service: serviceId,
           bedrooms,
           bathrooms,
           extras,
-          firstName,
-          lastName,
-          email,
-          phone,
+          firstName: contact.firstName,
+          lastName: contact.lastName,
+          email: contact.email,
+          phone: contact.phone,
         }),
       });
 
-      // Check if response is ok before trying to parse JSON
       if (!response.ok) {
-        console.error('HTTP error:', response.status, response.statusText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      // Try to parse JSON response
-      let result;
-      try {
-        result = await response.json();
-      } catch (jsonError) {
-        console.error('Failed to parse JSON response:', jsonError);
-        throw new Error('Invalid response from server');
-      }
+      const result = await response.json();
 
       if (result.ok) {
-        console.log('Quote confirmation sent successfully:', result);
-        
         // Show success message even if email failed
         if (result.emailError) {
           if (result.emailError === 'Email service not configured') {
@@ -158,11 +505,10 @@ export default function QuotePage() {
             console.warn('Email sending failed but quote was recorded:', result.emailError);
           }
         }
-        
-        // Redirect to quote confirmation page after successful submission
+
+        // Redirect to quote confirmation page
         router.push('/booking/quote/confirmation');
       } else {
-        console.error('Quote confirmation failed:', result.error);
         alert(`Failed to send quote confirmation: ${result.error || 'Please try again.'}`);
       }
     } catch (error) {
@@ -194,352 +540,72 @@ export default function QuotePage() {
       </header>
 
       {/* Main Content */}
-      <div className="mx-auto max-w-6xl px-3 sm:px-4 lg:px-8 py-6 sm:py-8 lg:py-12">
-        <div className="mb-6 sm:mb-8 text-center">
+      <div className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-8 py-6 sm:py-8 lg:py-12">
+        <motion.header initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-6 sm:mb-8 text-center">
           <Badge className="mb-3 sm:mb-4 bg-primary/10 text-primary border-primary/20 text-xs sm:text-sm">
             Free Quote Request
           </Badge>
-          <h1 className="mb-3 sm:mb-4 text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 px-2">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 px-2">
             Get Your Free Cleaning Quote
           </h1>
-          <p className="text-sm sm:text-base lg:text-lg text-gray-600 px-4 sm:px-0">
+          <p className="mt-2 sm:mt-3 text-sm sm:text-base text-gray-600 px-4">
             Tell us about your cleaning needs and we&apos;ll get back to you with a personalized quote
           </p>
+        </motion.header>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-8 space-y-6">
+            <ContactCard contact={contact} setContact={setContact} />
+            <ServiceGrid selected={serviceId} setSelected={setServiceId} />
+            <HomeDetailsCard
+              bedrooms={bedrooms}
+              setBedrooms={setBedrooms}
+              bathrooms={bathrooms}
+              setBathrooms={setBathrooms}
+            />
+            <ExtrasGrid selectedExtras={extras} toggleExtra={toggleExtra} />
+          </div>
+
+          <div className="lg:col-span-4">
+            <QuoteSummary
+              contact={contact}
+              serviceId={serviceId}
+              bedrooms={bedrooms}
+              bathrooms={bathrooms}
+              extras={extras}
+              onSubmit={handleSubmit}
+              isSubmitting={isSubmitting}
+            />
+          </div>
         </div>
+      </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
-          {/* Quote Configuration */}
-          <div className="space-y-6">
-            {/* Service Type Selection */}
-            <Card className="border-0 shadow-lg">
-              <CardHeader className="px-4 sm:px-6 py-4 sm:py-5">
-                <CardTitle className="text-lg sm:text-xl">1. Select Your Service</CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
-                  {serviceOptions.map((option) => {
-                    const Icon = option.icon;
-                    const isSelected = service === option.type;
-                    return (
-                      <button
-                        key={option.type}
-                        onClick={() => setService(option.type)}
-                        className={`flex flex-col items-center gap-2 sm:gap-3 lg:gap-5 rounded-lg sm:rounded-xl border-2 p-3 sm:p-5 lg:p-8 text-center transition-all hover:shadow-md active:scale-95 ${
-                          isSelected
-                            ? 'border-primary bg-primary/5'
-                            : 'border-gray-200 hover:border-gray-300 bg-white'
-                        }`}
-                      >
-                        <div className={`relative rounded-full p-2 sm:p-3 lg:p-4 ${option.fillColor}`}>
-                          <Icon className={`h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 ${option.iconColor}`} strokeWidth={1.5} />
-                          {option.type === 'Airbnb' && (
-                            <div className="absolute -top-0.5 sm:-top-1 -right-0.5 sm:-right-1 flex gap-0.5">
-                              <Sparkles className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-gray-600" strokeWidth={1.5} />
-                              <Sparkles className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-gray-600" strokeWidth={1.5} />
-                            </div>
-                          )}
-                        </div>
-                        <div className="space-y-0.5">
-                          <div className="font-medium text-gray-900 text-xs sm:text-sm leading-tight">{option.label}</div>
-                          <div className="font-medium text-gray-900 text-xs sm:text-sm leading-tight">{option.subLabel}</div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Home Details */}
-            <Card className="border-0 shadow-lg">
-              <CardHeader className="px-4 sm:px-6 py-4 sm:py-5">
-                <CardTitle className="text-lg sm:text-xl">2. Home Details</CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
-                <div className="space-y-4 sm:space-y-6">
-                  {/* Bedrooms & Bathrooms */}
-                  <div className="grid gap-4 sm:gap-6 sm:grid-cols-2">
-                    {/* Bedrooms */}
-                    <div>
-                      <Label className="mb-3 block text-sm font-medium">
-                        Bedrooms
-                      </Label>
-                      <Select value={bedrooms.toString()} onValueChange={(value) => setBedrooms(parseInt(value))}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select bedrooms" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="0">0 Bedrooms</SelectItem>
-                          <SelectItem value="1">1 Bedroom</SelectItem>
-                          <SelectItem value="2">2 Bedrooms</SelectItem>
-                          <SelectItem value="3">3 Bedrooms</SelectItem>
-                          <SelectItem value="4">4 Bedrooms</SelectItem>
-                          <SelectItem value="5">5+ Bedrooms</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Bathrooms */}
-                    <div>
-                      <Label className="mb-3 block text-sm font-medium">
-                        Bathrooms
-                      </Label>
-                      <Select value={bathrooms.toString()} onValueChange={(value) => setBathrooms(parseInt(value))}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select bathrooms" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">1 Bathroom</SelectItem>
-                          <SelectItem value="2">2 Bathrooms</SelectItem>
-                          <SelectItem value="3">3 Bathrooms</SelectItem>
-                          <SelectItem value="4">4 Bathrooms</SelectItem>
-                          <SelectItem value="5">5+ Bathrooms</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Extras */}
-            <Card className="border-0 shadow-lg">
-              <CardHeader className="px-4 sm:px-6 py-4 sm:py-5">
-                <CardTitle className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">3. Additional Services (Optional)</CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
-                  {Object.entries(PRICING.extras).map(([extra, price]) => {
-                    const Icon = extraIconMap[extra];
-                    const isSelected = extras.includes(extra);
-                    const labelWords = extra.split(' ');
-                    
-                    return (
-                      <button
-                        key={extra}
-                        onClick={() => toggleExtra(extra)}
-                        className="flex flex-col items-center gap-2 sm:gap-3 lg:gap-4 group cursor-pointer"
-                      >
-                        <div className={`relative w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-full border bg-white flex items-center justify-center transition-all active:scale-95 ${
-                          isSelected 
-                            ? 'border-primary bg-primary/5' 
-                            : 'border-blue-600 hover:border-blue-700'
-                        }`}>
-                          <Icon 
-                            className={`h-7 w-7 sm:h-8 sm:w-8 lg:h-10 lg:w-10 transition-colors ${
-                              isSelected 
-                                ? 'text-primary' 
-                                : 'text-blue-600 group-hover:text-blue-700'
-                            }`} 
-                            strokeWidth={1.5}
-                          />
-                          {isSelected && (
-                            <div className="absolute -top-0.5 sm:-top-1 -right-0.5 sm:-right-1 w-5 h-5 sm:w-6 sm:h-6 bg-primary rounded-full flex items-center justify-center">
-                              <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-white rounded-full"></div>
-                            </div>
-                          )}
-                        </div>
-                        <div className="text-center">
-                          {labelWords.map((word, index) => (
-                            <div key={index} className="text-xs sm:text-sm font-medium text-gray-900 leading-tight">
-                              {word}
-                            </div>
-                          ))}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Contact Form (conditional) */}
-            {showContactForm && (
-              <Card className="border-0 shadow-lg">
-                <CardHeader className="px-4 sm:px-6 py-4 sm:py-5">
-                  <CardTitle className="text-lg sm:text-xl">4. Your Contact Information</CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
-                  <form onSubmit={handleSubmitQuote} className="space-y-4">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <Label htmlFor="firstName">First Name</Label>
-                        <div className="relative mt-2">
-                          <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                          <Input
-                            id="firstName"
-                            value={firstName}
-                            onChange={(e) => setFirstName(e.target.value)}
-                            placeholder="John"
-                            className="pl-10"
-                            required
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <Label htmlFor="lastName">Last Name</Label>
-                        <div className="relative mt-2">
-                          <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                          <Input
-                            id="lastName"
-                            value={lastName}
-                            onChange={(e) => setLastName(e.target.value)}
-                            placeholder="Doe"
-                            className="pl-10"
-                            required
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <Label htmlFor="email">Email</Label>
-                      <div className="relative mt-2">
-                        <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                        <Input
-                          id="email"
-                          type="email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          placeholder="john.doe@example.com"
-                          className="pl-10"
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <Label htmlFor="phone">Phone Number</Label>
-                      <div className="relative mt-2">
-                        <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                        <Input
-                          id="phone"
-                          type="tel"
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          placeholder="+27 12 345 6789"
-                          className="pl-10"
-                          required
-                        />
-                      </div>
-                    </div>
-                    <Button
-                      type="submit"
-                      size="lg"
-                      className="w-full bg-primary hover:bg-primary/90"
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          <span className="hidden sm:inline">Sending Quote...</span>
-                          <span className="sm:hidden">Sending...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="hidden sm:inline">Confirm Quote & Continue to Booking</span>
-                          <span className="sm:hidden">Confirm & Continue</span>
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </>
-                      )}
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
+      {/* Mobile condensed summary bar (visible below lg) - No Price Display */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 p-4 bg-gradient-to-t from-slate-50 via-slate-50 to-transparent">
+        <div className="bg-white rounded-xl shadow-lg p-4 border border-gray-100 flex items-center justify-between">
+          <div>
+            <div className="text-sm font-semibold text-gray-900">Custom Quote</div>
+            <div className="text-xs text-gray-600">Personalized pricing</div>
+          </div>
+          <Button
+            onClick={handleSubmit}
+            disabled={!contact.firstName || !contact.lastName || !contact.email || !contact.phone || !serviceId || isSubmitting}
+            className="bg-primary hover:bg-primary/90"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Sending...
+              </>
+            ) : (
+              <>
+                Confirm
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </>
             )}
-          </div>
-
-          {/* Quote Summary (Sticky) */}
-          <div className="lg:sticky lg:top-6 lg:h-fit">
-            <Card className="border-0 shadow-lg">
-              <CardHeader className="px-4 sm:px-6 py-4 sm:py-5">
-                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-                  <Receipt className="h-4 w-4 sm:h-5 sm:w-5" />
-                  Your Quote
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
-                <div className="space-y-4 sm:space-y-6">
-                  {/* Service Summary */}
-                  {service && (
-                    <div>
-                      <h3 className="mb-1.5 sm:mb-2 text-xs sm:text-sm font-semibold text-slate-700">Service</h3>
-                      <Badge variant="secondary" className="text-xs sm:text-sm">
-                        {service}
-                      </Badge>
-                    </div>
-                  )}
-
-                  {/* Home Details */}
-                  <div>
-                    <h3 className="mb-1.5 sm:mb-2 text-xs sm:text-sm font-semibold text-slate-700">Home Details</h3>
-                    <div className="space-y-1 text-xs sm:text-sm text-slate-600">
-                      <p>{bedrooms} Bedroom{bedrooms !== 1 ? 's' : ''}</p>
-                      <p>{bathrooms} Bathroom{bathrooms !== 1 ? 's' : ''}</p>
-                    </div>
-                  </div>
-
-                  {/* Extras */}
-                  {extras.length > 0 && (
-                    <div>
-                      <h3 className="mb-1.5 sm:mb-2 text-xs sm:text-sm font-semibold text-slate-700">
-                        Additional Services
-                      </h3>
-                      <div className="space-y-1">
-                        {extras.map((extra) => (
-                          <div key={extra} className="flex items-center text-xs sm:text-sm">
-                            <span className="text-slate-600">• {extra}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Quote Notice */}
-                  <div className="border-t pt-3 sm:pt-4">
-                    <div className="rounded-lg bg-primary/5 p-3 sm:p-4 text-center">
-                      <p className="text-xs sm:text-sm font-medium text-slate-900 mb-1">
-                        Custom Quote
-                      </p>
-                      <p className="text-xs text-slate-600">
-                        We&apos;ll provide a personalized quote based on your selections
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* CTA Button */}
-                  {!showContactForm ? (
-                    <Button
-                      onClick={handleGetQuote}
-                      disabled={!service}
-                      size="lg"
-                      className="w-full bg-primary hover:bg-primary/90"
-                    >
-                      <span className="hidden sm:inline">Continue to Contact Details</span>
-                      <span className="sm:hidden">Continue</span>
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  ) : (
-                    <div className="rounded-lg bg-blue-50 p-3 sm:p-4 text-center">
-                      <p className="text-xs sm:text-sm font-medium text-blue-800">
-                        ✓ <span className="hidden sm:inline">Fill in your contact details below to receive your quote</span>
-                        <span className="sm:hidden">Fill details below</span>
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Alternative CTA */}
-                  <Link href="/booking/service/select" className="block">
-                    <Button variant="outline" size="lg" className="w-full">
-                      <span className="hidden sm:inline">Skip to Full Booking</span>
-                      <span className="sm:hidden">Full Booking</span>
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          </Button>
         </div>
       </div>
     </div>
   );
 }
-
