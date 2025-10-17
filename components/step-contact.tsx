@@ -84,7 +84,7 @@ export function StepContact() {
     if (state.service) {
       const slug = serviceTypeToSlug(state.service);
       // Navigate immediately - step will be updated by the target page's useEffect
-      router.push(`/booking/service/${slug}/review`);
+      router.push(`/booking/service/${slug}/select-cleaner`);
     }
   }, [state, setState, router]);
 
@@ -218,7 +218,7 @@ export function StepContact() {
             </Button>
             <Button type="submit" size="lg" className="transition-all duration-150">
               <span className="sm:hidden">Next</span>
-              <span className="hidden sm:inline">Next: Review</span>
+              <span className="hidden sm:inline">Next: Select Cleaner</span>
             </Button>
           </div>
         </form>

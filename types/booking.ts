@@ -3,7 +3,7 @@
 export type ServiceType = 'Standard' | 'Deep' | 'Move In/Out' | 'Airbnb';
 
 export interface BookingState {
-  step: 1 | 2 | 3 | 4 | 5;
+  step: 1 | 2 | 3 | 4 | 5 | 6;
   service: ServiceType | null;
   bedrooms: number;
   bathrooms: number;
@@ -20,7 +20,31 @@ export interface BookingState {
     suburb: string;
     city: string;
   };
+  cleaner_id?: string; // Selected cleaner ID
   paymentReference?: string; // Paystack payment reference
+}
+
+// Cleaner data types
+export interface Cleaner {
+  id: string;
+  name: string;
+  photo_url: string | null;
+  rating: number;
+  areas: string[];
+  bio: string | null;
+  years_experience: number | null;
+  specialties: string[] | null;
+  phone: string | null;
+  email: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AvailableCleanersResponse {
+  ok: boolean;
+  cleaners: Cleaner[];
+  error?: string;
 }
 
 // Payment verification response types

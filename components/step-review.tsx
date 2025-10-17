@@ -2,8 +2,14 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { PaystackConsumer } from 'react-paystack';
+import dynamic from 'next/dynamic';
 import type { ServiceType, PaystackVerificationResponse } from '@/types/booking';
+
+// Dynamically import PaystackConsumer to avoid SSR issues
+const PaystackConsumer = dynamic(
+  () => import('react-paystack').then((mod) => mod.PaystackConsumer),
+  { ssr: false }
+);
 import { useBooking } from '@/lib/useBooking';
 import { calcTotal, PRICING } from '@/lib/pricing';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,6 +36,7 @@ export function StepReview() {
   const { state, reset } = useBooking();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string[]>([]);
 
   // Memoize price calculation
   const total = useMemo(() => calcTotal({
@@ -51,6 +58,7 @@ export function StepReview() {
     
     setIsSubmitting(true);
     setPaymentError(null);
+    setErrorDetails([]);
 
     try {
       console.log('Step 1: Starting payment verification...');
@@ -73,11 +81,19 @@ export function StepReview() {
       console.log('Step 3: Verification result parsed:', verifyResult);
 
       if (!verifyResult.ok) {
-        console.error('Verification failed:', verifyResult);
+        console.error('❌ Verification failed:', verifyResult);
+        
+        // Check for configuration errors
+        if (verifyResponse.status === 500) {
+          const details = (verifyResult as any).details || [];
+          setErrorDetails(details);
+          throw new Error('Server configuration error. Please contact support.');
+        }
+        
         throw new Error(verifyResult.error || verifyResult.message || 'Payment verification failed');
       }
 
-      console.log('Step 4: Payment verified successfully, submitting booking...');
+      console.log('✅ Step 4: Payment verified successfully, submitting booking...');
 
       // Submit booking with payment reference
       const bookingPayload = {
@@ -102,9 +118,9 @@ export function StepReview() {
       console.log('Step 6: Booking result parsed:', bookingResult);
 
       if (bookingResult.ok) {
-        console.log('Step 7: Booking successful! Redirecting...');
+        console.log('✅ Step 7: Booking successful! Redirecting...');
         console.log('Booking ID:', bookingResult.bookingId);
-        console.log('Email sent:', bookingResult.emailSent);
+        console.log('Message:', bookingResult.message);
         
         // Clear booking state
         reset();
@@ -113,8 +129,16 @@ export function StepReview() {
         console.log('Navigating to /booking/confirmation');
         router.push('/booking/confirmation');
       } else {
-        console.error('Booking submission failed:', bookingResult);
-        throw new Error(bookingResult.error || bookingResult.message || 'Failed to submit booking after payment');
+        console.error('❌ Booking submission failed:', bookingResult);
+        
+        // Check for configuration errors
+        if (bookingResponse.status === 500) {
+          const details = (bookingResult as any).details || [];
+          setErrorDetails(details);
+          throw new Error(bookingResult.error || 'Server configuration error. Please contact support.');
+        }
+        
+        throw new Error(bookingResult.error || bookingResult.message || 'Failed to complete booking');
       }
     } catch (error) {
       console.error('=== POST-PAYMENT ERROR ===');
@@ -123,15 +147,18 @@ export function StepReview() {
       console.error('Error message:', error instanceof Error ? error.message : String(error));
       console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       
-      const errorMessage = error instanceof Error 
+      let errorMessage = error instanceof Error 
         ? error.message 
-        : 'Failed to complete booking. Please contact support with your payment reference: ' + reference.reference;
+        : 'Failed to complete booking. Please contact support.';
+      
+      // Add payment reference to error message for support
+      if (reference.reference && !errorMessage.includes(reference.reference)) {
+        errorMessage += `\n\nPayment Reference: ${reference.reference}`;
+        errorMessage += '\nPlease save this reference for support.';
+      }
       
       setPaymentError(errorMessage);
       setIsSubmitting(false);
-      
-      // Show alert as backup
-      alert('Error: ' + errorMessage);
     }
   }, [state, reset, router]);
 
@@ -142,7 +169,7 @@ export function StepReview() {
     setPaymentError('Payment was cancelled. Please try again to complete your booking.');
   }, []);
 
-  // Configure Paystack payment - simple object with all properties
+  // Configure Paystack payment with callbacks
   const paystackConfig = {
     reference: paymentReference,
     email: state.email,
@@ -168,6 +195,16 @@ export function StepReview() {
           value: paymentReference,
         },
       ],
+    },
+    // Add callbacks to config - PaystackConsumer expects them here
+    onSuccess: (reference: any) => {
+      console.log('=== PAYMENT SUCCESS CALLBACK TRIGGERED ===');
+      console.log('Reference received:', reference);
+      onPaymentSuccess(reference);
+    },
+    onClose: () => {
+      console.log('=== PAYMENT CLOSE CALLBACK TRIGGERED ===');
+      onPaymentClose();
     },
   };
 
@@ -319,6 +356,39 @@ export function StepReview() {
 
         <Separator />
 
+        {/* Cleaner Assignment */}
+        {state.cleaner_id && (
+          <>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4 text-slate-600" />
+                <h3 className="text-sm font-semibold text-slate-700">Cleaner Assignment</h3>
+              </div>
+              {state.cleaner_id === 'manual' ? (
+                <div className="rounded-lg bg-amber-50 border border-amber-200 p-4">
+                  <p className="text-sm font-medium text-amber-900 mb-1">
+                    Manual Assignment Requested
+                  </p>
+                  <p className="text-xs text-amber-700">
+                    Our team will assign the best available cleaner for you and contact you within 24 hours to confirm.
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-lg bg-green-50 border border-green-200 p-4">
+                  <p className="text-sm font-medium text-green-900 mb-1">
+                    Cleaner Selected
+                  </p>
+                  <p className="text-xs text-green-700">
+                    Your professional cleaner has been assigned for this booking.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <Separator />
+          </>
+        )}
+
         {/* Total */}
         <div className="rounded-lg bg-slate-50 p-4">
           <div className="flex items-center justify-between">
@@ -333,7 +403,35 @@ export function StepReview() {
         {/* Payment Error */}
         {paymentError && (
           <div className="rounded-lg bg-red-50 border border-red-200 p-4">
-            <p className="text-sm text-red-800">{paymentError}</p>
+            <div className="flex items-start gap-2">
+              <div className="flex-shrink-0 mt-0.5">
+                <svg className="h-5 w-5 text-red-600" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-red-900 mb-1">Payment Error</h3>
+                <p className="text-sm text-red-800 whitespace-pre-line">{paymentError}</p>
+                {errorDetails.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-red-300">
+                    <p className="text-xs font-semibold text-red-900 mb-1">Technical Details:</p>
+                    <ul className="text-xs text-red-700 space-y-1">
+                      {errorDetails.map((detail, idx) => (
+                        <li key={idx} className="font-mono">{detail}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <div className="mt-3 pt-3 border-t border-red-300">
+                  <p className="text-xs text-red-700">
+                    If you need assistance, please contact us at{' '}
+                    <a href="mailto:hello@shalean.co.za" className="underline font-medium">
+                      hello@shalean.co.za
+                    </a>
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -369,7 +467,10 @@ export function StepReview() {
                   }
                   setPaymentError(null);
                   console.log('Calling initializePayment from PaystackConsumer');
-                  initializePayment(onPaymentSuccess, onPaymentClose);
+                  console.log('Initializing payment with callbacks in config...');
+                  
+                  // Call initializePayment - callbacks are now in the config
+                  initializePayment();
                 }}
                 size="lg" 
                 disabled={isSubmitting} 

@@ -13,7 +13,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { Calendar, MapPin, Clock, Home, Receipt } from 'lucide-react';
+import { Calendar, MapPin, Clock, Home, Receipt, User } from 'lucide-react';
 import { format } from 'date-fns';
 
 export function BookingSummary() {
@@ -108,6 +108,37 @@ export function BookingSummary() {
               </p>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Selected Cleaner */}
+      {state.cleaner_id && state.step >= 5 && (
+        <div>
+          <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <User className="h-4 w-4" />
+            Your Cleaner
+          </h3>
+          {state.cleaner_id === 'manual' ? (
+            <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                <User className="w-5 h-5 text-amber-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-slate-900">Manual Assignment</p>
+                <p className="text-xs text-slate-600">We'll assign the best cleaner for you</p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+              <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center">
+                <User className="w-5 h-5 text-slate-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-slate-900">Cleaner Selected</p>
+                <p className="text-xs text-slate-600">Professional cleaner assigned</p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

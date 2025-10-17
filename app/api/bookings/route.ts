@@ -1,16 +1,37 @@
 import { NextResponse } from 'next/server';
 import { sendEmail, generateBookingConfirmationEmail, generateAdminBookingNotificationEmail } from '@/lib/email';
 import { BookingState } from '@/types/booking';
+import { supabase } from '@/lib/supabase';
+import { validateBookingEnv } from '@/lib/env-validation';
 
 /**
  * API endpoint to handle booking submissions
  * Requires payment verification before confirming booking
+ * Database save and email sending are REQUIRED operations
  */
 export async function POST(req: Request) {
   console.log('=== BOOKING API CALLED ===');
   console.log('Timestamp:', new Date().toISOString());
   
   try {
+    // STEP 1: Validate environment variables
+    console.log('Step 1: Validating environment configuration...');
+    const envValidation = validateBookingEnv();
+    if (!envValidation.valid) {
+      console.error('❌ Environment validation failed:', envValidation.missing);
+      return NextResponse.json(
+        { 
+          ok: false, 
+          error: 'Server configuration error: Required services not configured',
+          details: envValidation.errors,
+        },
+        { status: 500 }
+      );
+    }
+    console.log('✅ Environment validation passed');
+
+    // STEP 2: Parse and validate booking data
+    console.log('Step 2: Parsing booking data...');
     const body: BookingState = await req.json();
     
     console.log('=== BOOKING SUBMISSION ===');
@@ -32,132 +53,159 @@ export async function POST(req: Request) {
 
     console.log('✅ Payment reference found:', body.paymentReference);
 
-    // Optional: Re-verify payment for extra security
-    if (process.env.PAYSTACK_SECRET_KEY) {
-      console.log('Re-verifying payment with Paystack...');
-      try {
-        const verifyUrl = `https://api.paystack.co/transaction/verify/${body.paymentReference}`;
-        console.log('Re-verification URL:', verifyUrl);
-        
-        const verifyResponse = await fetch(verifyUrl, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        console.log('Re-verification response status:', verifyResponse.status);
-        const verifyData = await verifyResponse.json();
-        console.log('Re-verification data:', verifyData);
-        
-        if (!verifyResponse.ok || verifyData.data.status !== 'success') {
-          console.error('❌ Payment re-verification failed on booking submission');
-          console.error('Response ok:', verifyResponse.ok);
-          console.error('Payment status:', verifyData.data?.status);
-          return NextResponse.json(
-            { ok: false, error: 'Payment verification failed' },
-            { status: 400 }
-          );
-        }
-
-        console.log('✅ Payment re-verified successfully:', body.paymentReference);
-      } catch (verifyError) {
-        console.error('⚠️ Payment re-verification error:', verifyError);
-        console.error('Continuing with booking despite re-verification error');
-        // Continue with booking even if re-verification fails
-        // since payment was already verified in the frontend
-      }
-    } else {
-      console.log('⚠️ PAYSTACK_SECRET_KEY not set, skipping re-verification');
-    }
-
-    // Generate unique booking ID
-    const bookingId = body.paymentReference || `BK-${Date.now()}`;
-    console.log('📝 Booking ID:', bookingId);
-    
-    // TODO: Integrate with:
-    // - Database (save booking)
-    // - Calendar system
-
-    // Check if RESEND_API_KEY is configured
-    if (!process.env.RESEND_API_KEY) {
-      console.warn('⚠️ RESEND_API_KEY not configured, skipping email sending');
-      const response = { 
-        ok: true,
-        bookingId,
-        message: 'Booking received successfully. Email service not configured.',
-        emailSent: false,
-        emailError: 'Email service not configured'
-      };
-      console.log('Returning response (no email):', response);
-      return NextResponse.json(response);
-    }
-
-    // Send confirmation emails to customer and admin
-    let emailSent = false;
-    let emailError = null;
-
+    // STEP 3: Re-verify payment for extra security (REQUIRED)
+    console.log('Step 3: Re-verifying payment with Paystack...');
     try {
-      console.log('=== EMAIL SENDING ATTEMPT ===');
-      console.log('RESEND_API_KEY configured:', !!process.env.RESEND_API_KEY);
+      const verifyUrl = `https://api.paystack.co/transaction/verify/${body.paymentReference}`;
+      console.log('Re-verification URL:', verifyUrl);
+      
+      const verifyResponse = await fetch(verifyUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('Re-verification response status:', verifyResponse.status);
+      const verifyData = await verifyResponse.json();
+      console.log('Re-verification data:', verifyData);
+      
+      if (!verifyResponse.ok || verifyData.data.status !== 'success') {
+        console.error('❌ Payment re-verification failed on booking submission');
+        console.error('Response ok:', verifyResponse.ok);
+        console.error('Payment status:', verifyData.data?.status);
+        return NextResponse.json(
+          { ok: false, error: 'Payment verification failed. Please contact support if you were charged.' },
+          { status: 400 }
+        );
+      }
+
+      console.log('✅ Payment re-verified successfully:', body.paymentReference);
+    } catch (verifyError) {
+      console.error('❌ Payment re-verification error:', verifyError);
+      return NextResponse.json(
+        { ok: false, error: 'Failed to verify payment. Please contact support.' },
+        { status: 500 }
+      );
+    }
+
+    // STEP 4: Generate unique booking ID
+    const bookingId = body.paymentReference || `BK-${Date.now()}`;
+    console.log('Step 4: Generated booking ID:', bookingId);
+    
+    // STEP 5: Save booking to database (REQUIRED)
+    console.log('Step 5: Saving booking to database...');
+    console.log('Cleaner ID:', body.cleaner_id);
+    
+    if (body.cleaner_id === 'manual') {
+      console.log('⚠️ MANUAL CLEANER ASSIGNMENT REQUESTED');
+      console.log('Admin will need to assign a cleaner for this booking');
+    }
+    
+    const { data: bookingData, error: bookingError } = await supabase
+      .from('bookings')
+      .insert({
+        id: bookingId,
+        cleaner_id: body.cleaner_id,
+        booking_date: body.date,
+        booking_time: body.time,
+        service_type: body.service,
+        customer_name: `${body.firstName} ${body.lastName}`,
+        customer_email: body.email,
+        customer_phone: body.phone,
+        address_line1: body.address.line1,
+        address_suburb: body.address.suburb,
+        address_city: body.address.city,
+        payment_reference: body.paymentReference,
+        status: 'confirmed',
+      })
+      .select();
+
+    if (bookingError) {
+      console.error('❌ Failed to save booking to database:', bookingError);
+      throw new Error(`Database error: ${bookingError.message}`);
+    }
+    
+    console.log('✅ Booking saved to database successfully');
+    console.log('Saved booking data:', bookingData);
+
+    // STEP 6: Send confirmation emails (REQUIRED - rollback on failure)
+    console.log('Step 6: Sending confirmation emails...');
+    try {
+      console.log('=== EMAIL SENDING ===');
       console.log('SENDER_EMAIL:', process.env.SENDER_EMAIL || 'onboarding@resend.dev');
       console.log('Customer email:', body.email);
       console.log('Admin email:', process.env.ADMIN_EMAIL || 'admin@shalean.com');
       console.log('Booking ID:', bookingId);
 
-      // Send confirmation email to customer
+      // Send confirmation email to customer (REQUIRED)
       console.log('📧 Generating customer email...');
       const customerEmailData = generateBookingConfirmationEmail({
         ...body,
         bookingId
       });
-      console.log('✅ Customer email generated successfully');
+      console.log('✅ Customer email generated');
       
       console.log('📤 Sending customer email...');
       await sendEmail(customerEmailData);
       console.log('✅ Customer confirmation email sent successfully');
       
-      // Send notification email to admin
+      // Send notification email to admin (REQUIRED)
       console.log('📧 Generating admin email...');
       const adminEmailData = generateAdminBookingNotificationEmail({
         ...body,
         bookingId
       });
-      console.log('✅ Admin email generated successfully');
+      console.log('✅ Admin email generated');
       
       console.log('📤 Sending admin email...');
       await sendEmail(adminEmailData);
       console.log('✅ Admin notification email sent successfully');
       
-      emailSent = true;
     } catch (emailErr) {
-      console.error('=== EMAIL SENDING ERROR ===');
-      console.error('Failed to send confirmation email:', emailErr);
+      console.error('=== EMAIL SENDING FAILED ===');
+      console.error('Failed to send emails:', emailErr);
       console.error('Email error details:', {
         message: emailErr instanceof Error ? emailErr.message : 'Unknown error',
         stack: emailErr instanceof Error ? emailErr.stack : undefined,
         name: emailErr instanceof Error ? emailErr.name : undefined
       });
-      emailError = emailErr instanceof Error ? emailErr.message : 'Unknown email error';
-      // Don't fail the entire request if email fails
-      // In production, you might want to queue this for retry
+      
+      // ROLLBACK: Delete the booking from database since emails failed
+      console.log('⚠️ Rolling back: Deleting booking from database...');
+      try {
+        const { error: deleteError } = await supabase
+          .from('bookings')
+          .delete()
+          .eq('id', bookingId);
+        
+        if (deleteError) {
+          console.error('❌ Failed to rollback booking:', deleteError);
+          console.error('CRITICAL: Booking exists but emails not sent. Manual intervention required.');
+        } else {
+          console.log('✅ Booking successfully rolled back');
+        }
+      } catch (rollbackErr) {
+        console.error('❌ Rollback failed:', rollbackErr);
+        console.error('CRITICAL: Booking may exist without emails. Manual intervention required.');
+      }
+      
+      // Return error to client
+      const errorMessage = emailErr instanceof Error ? emailErr.message : 'Unknown email error';
+      throw new Error(`Email delivery failed: ${errorMessage}`);
     }
 
-    console.log('Email sending completed. Success:', emailSent);
-
-    // Simulate processing delay
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
+    // STEP 7: Return success response
+    console.log('Step 7: Booking completed successfully');
+    
     const finalResponse = { 
       ok: true,
       bookingId,
-      message: emailSent ? 'Booking received successfully. Confirmation email sent!' : 'Booking received successfully.',
-      emailSent,
-      emailError: emailSent ? null : emailError
+      message: 'Booking confirmed! Confirmation emails sent successfully.',
     };
 
-    console.log('=== BOOKING API RESPONSE ===');
+    console.log('=== BOOKING API SUCCESS ===');
     console.log(JSON.stringify(finalResponse, null, 2));
     console.log('===========================');
 

@@ -119,6 +119,18 @@ export function generateBookingConfirmationEmail(booking: BookingState & { booki
           ` : ''}
           
           ${booking.notes ? `<h4>Special Instructions</h4><p>${booking.notes}</p>` : ''}
+
+          <h4>Cleaner Assignment</h4>
+          ${booking.cleaner_id === 'manual' ? `
+            <div style="background-color: #fff3cd; padding: 10px; border-radius: 4px; border-left: 4px solid #ffc107;">
+              <p style="margin: 0;"><strong>⚠️ Manual Assignment Requested</strong></p>
+              <p style="margin: 5px 0 0 0; font-size: 14px;">Our team will assign the best available cleaner for you and contact you within 24 hours to confirm.</p>
+            </div>
+          ` : booking.cleaner_id ? `
+            <p>✅ Professional cleaner has been assigned to your booking</p>
+          ` : `
+            <p>Cleaner will be assigned shortly</p>
+          `}
         </div>
         
         <div class="order-summary">
@@ -127,7 +139,7 @@ export function generateBookingConfirmationEmail(booking: BookingState & { booki
           <div class="total">Amount Due: R${totalPrice}</div>
         </div>
         
-        <p>Our team will contact you soon to confirm the appointment and provide payment details.</p>
+        <p>${booking.cleaner_id === 'manual' ? 'Our team will contact you within 24 hours to confirm your cleaner assignment and appointment details.' : 'Our team will contact you soon to confirm the appointment.'}</p>
         
         <p>If you have any questions or need to make changes to your booking, please contact us at:</p>
         <p>
@@ -224,6 +236,18 @@ export function generateAdminBookingNotificationEmail(booking: BookingState & { 
           ` : ''}
           
           ${booking.notes ? `<h4>Special Instructions</h4><p>${booking.notes}</p>` : ''}
+
+          <h4>Cleaner Assignment</h4>
+          ${booking.cleaner_id === 'manual' ? `
+            <div style="background-color: #ffebee; padding: 10px; border-radius: 4px; border-left: 4px solid #f44336;">
+              <p style="margin: 0;"><strong>⚠️ MANUAL CLEANER ASSIGNMENT REQUIRED</strong></p>
+              <p style="margin: 5px 0 0 0; font-size: 14px;">Customer requested manual assignment. Please assign a cleaner for this booking.</p>
+            </div>
+          ` : booking.cleaner_id ? `
+            <p>✅ Cleaner ID: ${booking.cleaner_id}</p>
+          ` : `
+            <p>⚠️ No cleaner assigned yet</p>
+          `}
         </div>
         
         <div class="order-summary">
@@ -234,10 +258,11 @@ export function generateAdminBookingNotificationEmail(booking: BookingState & { 
         
         <div class="urgent">
           <strong>Next Steps:</strong><br>
-          1. Contact customer within 24 hours<br>
-          2. Confirm appointment and availability<br>
-          3. Send payment link/details<br>
-          4. Schedule team assignment
+          ${booking.cleaner_id === 'manual' ? '⚠️ 1. ASSIGN CLEANER MANUALLY<br>' : ''}
+          ${booking.cleaner_id === 'manual' ? '2' : '1'}. Contact customer within 24 hours<br>
+          ${booking.cleaner_id === 'manual' ? '3' : '2'}. Confirm appointment and availability<br>
+          ${booking.cleaner_id === 'manual' ? '4' : '3'}. ${booking.paymentReference ? 'Payment already received' : 'Send payment link/details'}<br>
+          ${booking.cleaner_id === 'manual' ? '5' : '4'}. Schedule team assignment
         </div>
       </div>
       

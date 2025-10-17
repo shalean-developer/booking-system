@@ -62,6 +62,10 @@ Use these test cards:
 NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY=pk_test_abc123def456ghi789
 PAYSTACK_SECRET_KEY=sk_test_xyz987wvu654tsr321
 
+# Supabase Database Integration (for Cleaner Selection)
+NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
 # Email Service (Optional)
 RESEND_API_KEY=re_123456789
 SENDER_EMAIL=onboarding@resend.dev

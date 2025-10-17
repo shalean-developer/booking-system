@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { useBooking } from '@/lib/useBooking';
 import { Stepper } from '@/components/stepper';
 import { BookingSummary } from '@/components/booking-summary';
-import { StepReview } from '@/components/step-review';
+import { StepSelectCleaner } from '@/components/step-select-cleaner';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import type { ServiceType } from '@/types/booking';
@@ -23,7 +23,7 @@ function slugToServiceType(slug: string): ServiceType | null {
   return serviceMap[slug] || null;
 }
 
-export default function ReviewPage() {
+export default function SelectCleanerPage() {
   const { state, isLoaded, updateField } = useBooking();
   const params = useParams();
   const slug = params.slug as string;
@@ -39,8 +39,8 @@ export default function ReviewPage() {
     if (state.service !== serviceFromSlug) {
       updateField('service', serviceFromSlug);
     }
-    if (state.step !== 6) {
-      updateField('step', 6);
+    if (state.step !== 5) {
+      updateField('step', 5);
     }
   }, [isLoaded, serviceFromSlug, state.service, state.step, updateField]);
 
@@ -55,8 +55,8 @@ export default function ReviewPage() {
     );
   }
 
-  // If service is invalid or not on step 6, don't render
-  if (!serviceFromSlug || state.step !== 6) {
+  // If service is invalid or not on step 5, don't render
+  if (!serviceFromSlug || state.step !== 5) {
     return null;
   }
 
@@ -83,7 +83,7 @@ export default function ReviewPage() {
         <div className="grid gap-6 lg:grid-cols-3 pb-24 lg:pb-0">
           {/* Left Column - Form */}
           <div className="lg:col-span-2">
-            <StepReview />
+            <StepSelectCleaner />
           </div>
 
           {/* Right Column - Summary */}
@@ -95,4 +95,3 @@ export default function ReviewPage() {
     </div>
   );
 }
-

@@ -19,6 +19,7 @@ const initial: BookingState = {
   email: '',
   phone: '',
   address: { line1: '', suburb: '', city: '' },
+  cleaner_id: undefined,
 };
 
 /**
@@ -67,7 +68,7 @@ export function useBooking() {
 
   const next = useCallback(() => {
     // Immediate state update for responsive navigation
-    setState((s) => ({ ...s, step: Math.min(5, (s.step + 1)) as any }));
+    setState((s) => ({ ...s, step: Math.min(6, (s.step + 1)) as any }));
   }, []);
 
   const back = useCallback(() => {

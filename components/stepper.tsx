@@ -12,10 +12,11 @@ const stepLabels = [
   'Details',
   'Schedule',
   'Contact',
+  'Select Cleaner',
   'Review',
 ];
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
 
 export function Stepper({ currentStep }: StepperProps) {
   const current = currentStep;

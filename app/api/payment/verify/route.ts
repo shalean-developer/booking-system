@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { PaystackVerificationResponse } from '@/types/booking';
+import { validatePaymentEnv } from '@/lib/env-validation';
 
 /**
  * Verify Paystack payment transaction
@@ -7,34 +8,46 @@ import type { PaystackVerificationResponse } from '@/types/booking';
  */
 export async function POST(req: Request) {
   console.log('=== PAYMENT VERIFICATION API CALLED ===');
+  console.log('Timestamp:', new Date().toISOString());
   
   try {
+    // Validate environment configuration
+    console.log('Step 1: Validating payment environment...');
+    const envValidation = validatePaymentEnv();
+    if (!envValidation.valid) {
+      console.error('❌ Payment environment validation failed:', envValidation.missing);
+      return NextResponse.json(
+        { 
+          ok: false, 
+          error: 'Payment service not configured',
+          details: envValidation.errors,
+        },
+        { status: 500 }
+      );
+    }
+    console.log('✅ Payment environment validation passed');
+
+    // Parse request body
+    console.log('Step 2: Parsing request body...');
     const body = await req.json();
     console.log('Request body:', body);
     
     const { reference } = body;
 
     if (!reference) {
-      console.error('No reference provided in request');
+      console.error('❌ No reference provided in request');
       return NextResponse.json(
         { ok: false, error: 'Payment reference is required' },
         { status: 400 }
       );
     }
 
-    console.log('Verifying payment reference:', reference);
+    console.log('✅ Payment reference found:', reference);
 
-    // Check if Paystack secret key is configured
-    const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
-    if (!paystackSecretKey) {
-      console.error('PAYSTACK_SECRET_KEY not configured in environment');
-      return NextResponse.json(
-        { ok: false, error: 'Payment service not configured' },
-        { status: 500 }
-      );
-    }
-
-    console.log('Paystack secret key found, length:', paystackSecretKey.length);
+    // Verify with Paystack
+    console.log('Step 3: Verifying payment with Paystack...');
+    const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY!;
+    console.log('Paystack secret key configured, length:', paystackSecretKey.length);
 
     // Verify payment with Paystack API
     const verificationUrl = `https://api.paystack.co/transaction/verify/${reference}`;
