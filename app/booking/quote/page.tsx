@@ -566,7 +566,7 @@ export default function QuotePage() {
             <ExtrasGrid selectedExtras={extras} toggleExtra={toggleExtra} />
           </div>
 
-          <div className="lg:col-span-4">
+          <div className="hidden lg:block lg:col-span-4">
             <QuoteSummary
               contact={contact}
               serviceId={serviceId}
