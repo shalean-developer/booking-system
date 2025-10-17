@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Header } from "@/components/header";
 import { 
   Home, 
   Mail,
@@ -21,22 +22,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 to-white">
       {/* Header */}
-      <header className="bg-white border-b">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-4">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="text-2xl font-bold text-primary">Shalean</div>
-              <span className="text-sm text-gray-500">Cleaning Services</span>
-            </Link>
-            <Button variant="outline" asChild>
-              <Link href="/">
-                <Home className="mr-2 h-4 w-4" />
-                Back to Home
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </header>
+      <Header variant="minimal" />
 
       {/* Login Form */}
       <section className="py-20">

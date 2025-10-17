@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { LoginButton } from "@/components/login-button";
+import { Header } from "@/components/header";
 import { 
   Sparkles, 
   Home, 
@@ -26,13 +26,10 @@ import {
   Phone,
   MapPin,
   Building,
-  Menu,
-  X
+  ClipboardList
 } from "lucide-react";
-import { useState } from "react";
 
 export default function HomePage() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   // Structured data for SEO
   const structuredData = {
     "@context": "https://schema.org",
@@ -79,105 +76,7 @@ export default function HomePage() {
       />
 
       {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-50">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-4">
-            <div className="flex items-center gap-2">
-              <div className="text-2xl font-bold text-primary">Shalean</div>
-              <span className="text-sm text-gray-500">Cleaning Services</span>
-            </div>
-            
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-8">
-              <Link href="/" className="text-gray-700 hover:text-primary flex items-center gap-2">
-                <Home className="h-4 w-4" />
-                Home
-              </Link>
-              <Link href="/services" className="text-gray-700 hover:text-primary flex items-center gap-2">
-                <Sparkles className="h-4 w-4" />
-                Services
-              </Link>
-              <Link href="/location" className="text-gray-700 hover:text-primary flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                Location
-              </Link>
-              <Link href="/how-it-works" className="text-gray-700 hover:text-primary flex items-center gap-2">
-                <BookOpen className="h-4 w-4" />
-                How It Works
-              </Link>
-              <Button className="bg-primary hover:bg-primary/90 text-white" asChild>
-                <Link href="/booking/quote">
-                  Get Free Quote
-                </Link>
-              </Button>
-              <Link href="/login">
-                <LoginButton />
-              </Link>
-            </nav>
-
-            {/* Mobile Menu Button */}
-            <button
-              className="md:hidden p-2 text-gray-700 hover:text-primary"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label="Toggle menu"
-            >
-              {mobileMenuOpen ? (
-                <X className="h-6 w-6" />
-              ) : (
-                <Menu className="h-6 w-6" />
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile Navigation */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t bg-white">
-            <nav className="mx-auto max-w-7xl px-4 py-4 space-y-3">
-              <Link 
-                href="/" 
-                className="flex items-center gap-2 text-gray-700 hover:text-primary py-2"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <Home className="h-4 w-4" />
-                Home
-              </Link>
-              <Link 
-                href="/services" 
-                className="flex items-center gap-2 text-gray-700 hover:text-primary py-2"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <Sparkles className="h-4 w-4" />
-                Services
-              </Link>
-              <Link 
-                href="/location" 
-                className="flex items-center gap-2 text-gray-700 hover:text-primary py-2"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <MapPin className="h-4 w-4" />
-                Location
-              </Link>
-              <Link 
-                href="/how-it-works" 
-                className="flex items-center gap-2 text-gray-700 hover:text-primary py-2"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <BookOpen className="h-4 w-4" />
-                How It Works
-              </Link>
-              <Button className="w-full bg-primary hover:bg-primary/90 text-white" asChild>
-                <Link href="/booking/quote" onClick={() => setMobileMenuOpen(false)}>
-                  Get Free Quote
-                </Link>
-              </Button>
-              <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
-                <LoginButton />
-              </Link>
-            </nav>
-          </div>
-        )}
-      </header>
+      <Header />
 
       {/* Hero Section */}
       <section className="py-12 sm:py-16 lg:py-20">
@@ -189,22 +88,22 @@ export default function HomePage() {
               </Badge>
             </div>
             <h1 className="mb-4 sm:mb-6 text-3xl font-bold text-gray-900 sm:text-5xl lg:text-7xl">
-              Transform Your
+              Professional Cleaning
               <br />
-              <span className="text-primary">Living Space</span>
+              <span className="text-primary">Made Simple</span>
             </h1>
             <p className="mx-auto mb-6 sm:mb-8 max-w-3xl text-base sm:text-lg lg:text-xl text-gray-600">
-              Experience the ultimate in professional cleaning services. Expert cleaners, 
-              eco-friendly products, and guaranteed satisfaction for your home or office.
+              Book vetted, professional cleaners in minutes. Flexible scheduling, eco-friendly products, 
+              and 100% satisfaction guarantee—every single time.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
-              <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-6 py-3 sm:px-8 sm:py-4 text-base sm:text-lg" asChild>
+              <Button size="lg" className="bg-primary hover:bg-primary/90 text-white rounded-full px-6 py-3 sm:px-8 sm:py-4 text-base sm:text-lg" asChild>
                 <Link href="/booking/service/select">
                   Book a service
                   <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
                 </Link>
               </Button>
-              <Button variant="outline" size="lg" className="border-primary text-primary hover:bg-primary/10 px-6 py-3 sm:px-8 sm:py-4 text-base sm:text-lg" asChild>
+              <Button variant="outline" size="lg" className="border-primary text-primary hover:bg-primary/10 rounded-full px-6 py-3 sm:px-8 sm:py-4 text-base sm:text-lg" asChild>
                 <Link href="/booking/service/select">
                   Get Free Quote
                 </Link>
@@ -213,43 +112,42 @@ export default function HomePage() {
           </div>
           
           {/* Key Statistics */}
-          <div className="mt-12 sm:mt-16 lg:mt-20 grid grid-cols-2 gap-3 sm:gap-4 md:gap-6 md:grid-cols-4">
-            <Card className="text-center p-3 sm:p-4 md:p-6 border-0 shadow-lg">
-              <CardContent className="p-0">
-                <div className="mb-2 sm:mb-3 md:mb-4 mx-auto w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                  <Users className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                </div>
-                <div className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">2,500+</div>
-                <div className="text-xs sm:text-sm text-gray-600">Happy Customers</div>
-              </CardContent>
-            </Card>
-            <Card className="text-center p-3 sm:p-4 md:p-6 border-0 shadow-lg">
-              <CardContent className="p-0">
-                <div className="mb-2 sm:mb-3 md:mb-4 mx-auto w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                  <Award className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                </div>
-                <div className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">98%</div>
-                <div className="text-xs sm:text-sm text-gray-600">Satisfaction Rate</div>
-              </CardContent>
-            </Card>
-            <Card className="text-center p-3 sm:p-4 md:p-6 border-0 shadow-lg">
-              <CardContent className="p-0">
-                <div className="mb-2 sm:mb-3 md:mb-4 mx-auto w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                  <Star className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                </div>
-                <div className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">50+</div>
-                <div className="text-xs sm:text-sm text-gray-600">Expert Cleaners</div>
-              </CardContent>
-            </Card>
-            <Card className="text-center p-3 sm:p-4 md:p-6 border-0 shadow-lg">
-              <CardContent className="p-0">
-                <div className="mb-2 sm:mb-3 md:mb-4 mx-auto w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                  <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                </div>
-                <div className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">5000+</div>
-                <div className="text-xs sm:text-sm text-gray-600">Cleanings Done</div>
-              </CardContent>
-            </Card>
+          <div className="mt-12 sm:mt-16 lg:mt-20 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Card 1: Happy Customers */}
+            <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100 text-center">
+              <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-3">
+                <Users className="h-6 w-6 text-gray-700" />
+              </div>
+              <div className="text-3xl font-bold text-gray-900">500 +</div>
+              <div className="text-sm text-gray-600">Happy Customers</div>
+            </div>
+
+            {/* Card 2: Satisfaction Rate */}
+            <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100 text-center">
+              <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-3">
+                <CheckCircle className="h-6 w-6 text-gray-700" />
+              </div>
+              <div className="text-3xl font-bold text-gray-900">98%</div>
+              <div className="text-sm text-gray-600">Satisfaction Rate</div>
+            </div>
+
+            {/* Card 3: Expert Cleaners */}
+            <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100 text-center">
+              <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-3">
+                <ClipboardList className="h-6 w-6 text-gray-700" />
+              </div>
+              <div className="text-3xl font-bold text-gray-900">50 +</div>
+              <div className="text-sm text-gray-600">Expert Cleaners</div>
+            </div>
+
+            {/* Card 4: Service Types */}
+            <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100 text-center">
+              <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-3">
+                <BookOpen className="h-6 w-6 text-gray-700" />
+              </div>
+              <div className="text-3xl font-bold text-gray-900">100 +</div>
+              <div className="text-sm text-gray-600">Service Types</div>
+            </div>
           </div>
         </div>
       </section>
@@ -734,12 +632,12 @@ export default function HomePage() {
             Join thousands of satisfied customers who have transformed their spaces with Shalean Cleaning.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
-            <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-6 py-3 sm:px-8 sm:py-4 text-base sm:text-lg" asChild>
+            <Button size="lg" className="bg-primary hover:bg-primary/90 text-white rounded-full px-6 py-3 sm:px-8 sm:py-4 text-base sm:text-lg" asChild>
               <Link href="/booking/service/select">
                 Book a service
               </Link>
             </Button>
-            <Button variant="outline" size="lg" className="border-primary text-primary hover:bg-primary/10 bg-white px-6 py-3 sm:px-8 sm:py-4 text-base sm:text-lg" asChild>
+            <Button variant="outline" size="lg" className="border-primary text-primary hover:bg-primary/10 bg-white rounded-full px-6 py-3 sm:px-8 sm:py-4 text-base sm:text-lg" asChild>
               <Link href="/booking/service/select">
                 Get Free Quote
               </Link>
