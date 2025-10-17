@@ -5,6 +5,7 @@ import { Star, User, Award } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import Image from 'next/image';
 import type { Cleaner } from '@/types/booking';
 
 interface CleanerCardProps {
@@ -35,9 +36,11 @@ export function CleanerCard({ cleaner, onSelect, isSelected, isLoading }: Cleane
             {/* Avatar */}
             <div className="relative">
               {cleaner.photo_url ? (
-                <img
+                <Image
                   src={cleaner.photo_url}
                   alt={cleaner.name}
+                  width={80}
+                  height={80}
                   className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-lg"
                 />
               ) : (
