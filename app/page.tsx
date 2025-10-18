@@ -104,8 +104,8 @@ export default function HomePage() {
                 </Link>
               </Button>
               <Button variant="outline" size="lg" className="border-primary text-primary hover:bg-primary/10 rounded-full px-6 py-3 sm:px-8 sm:py-4 text-base sm:text-lg" asChild>
-                <Link href="/booking/service/select">
-                  Get Free Quote
+                <Link href="/careers">
+                  Apply to Work
                 </Link>
               </Button>
             </div>

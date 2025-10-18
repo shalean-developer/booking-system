@@ -3,6 +3,7 @@ import { sendEmail, generateBookingConfirmationEmail, generateAdminBookingNotifi
 import { BookingState } from '@/types/booking';
 import { supabase } from '@/lib/supabase';
 import { validateBookingEnv } from '@/lib/env-validation';
+import { getServerAuthUser } from '@/lib/supabase-server';
 
 /**
  * API endpoint to handle booking submissions
@@ -90,13 +91,140 @@ export async function POST(req: Request) {
       );
     }
 
-    // STEP 4: Generate unique booking ID
+    // STEP 4: Generate unique booking ID and handle customer profile
     const bookingId = body.paymentReference || `BK-${Date.now()}`;
     console.log('Step 4: Generated booking ID:', bookingId);
+    
+    let customerId = (body as any).customer_id || null;
+    
+    // STEP 4a: Create or get customer profile (with optional auth linking)
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.log('Step 4a: Managing customer profile...');
+      
+      // Check if user is authenticated - declare outside so available in all blocks
+      const authUser = await getServerAuthUser();
+      
+      if (authUser) {
+        console.log('🔐 Authenticated user detected:', authUser.email, '(ID:', authUser.id + ')');
+        
+        // First, try to find profile by auth_user_id
+        const { data: authProfile } = await supabase
+          .from('customers')
+          .select('id, email, total_bookings, auth_user_id')
+          .eq('auth_user_id', authUser.id)
+          .maybeSingle();
+        
+        if (authProfile) {
+          console.log('✅ Customer profile found by auth_user_id:', authProfile.id);
+          customerId = authProfile.id;
+          
+          // Update with latest info and increment bookings
+          const { error: updateError } = await supabase
+            .from('customers')
+            .update({
+              phone: body.phone,
+              first_name: body.firstName,
+              last_name: body.lastName,
+              address_line1: body.address.line1,
+              address_suburb: body.address.suburb,
+              address_city: body.address.city,
+              total_bookings: (authProfile.total_bookings || 0) + 1,
+            })
+            .eq('id', authProfile.id);
+          
+          if (!updateError) {
+            console.log('✅ Auth user profile updated');
+          }
+        } else {
+          console.log('ℹ️ No profile found by auth_user_id, will check by email...');
+        }
+      } else {
+        console.log('ℹ️ No authenticated user - guest checkout');
+      }
+      
+      // Only check email if we didn't find auth profile
+      if (!customerId) {
+      
+      // Fallback: Check if customer already exists by email (guest or new auth user)
+      const { data: existingCustomer } = await supabase
+        .from('customers')
+        .select('id, email, total_bookings, auth_user_id')
+        .ilike('email', body.email)
+        .maybeSingle();
+
+      if (existingCustomer) {
+        console.log('✅ Existing customer found by email:', existingCustomer.id);
+        customerId = existingCustomer.id;
+        
+        // Update customer profile with latest info and increment bookings
+        const updateData: any = {
+          phone: body.phone,
+          first_name: body.firstName,
+          last_name: body.lastName,
+          address_line1: body.address.line1,
+          address_suburb: body.address.suburb,
+          address_city: body.address.city,
+          total_bookings: (existingCustomer.total_bookings || 0) + 1,
+        };
+        
+        // If auth user and profile not linked, link it now
+        if (authUser && !existingCustomer.auth_user_id) {
+          console.log('🔗 Linking guest profile to auth user...');
+          updateData.auth_user_id = authUser.id;
+        }
+        
+        const { error: updateError } = await supabase
+          .from('customers')
+          .update(updateData)
+          .eq('id', existingCustomer.id);
+
+        if (updateError) {
+          console.error('⚠️ Failed to update customer profile:', updateError);
+          // Continue anyway - not critical
+        } else {
+          console.log('✅ Customer profile updated');
+          if (authUser && !existingCustomer.auth_user_id) {
+            console.log('✅ Guest profile successfully linked to auth user');
+          }
+        }
+      } else {
+        console.log('ℹ️ Creating new customer profile...');
+        
+        // Create new customer profile (with auth link if authenticated)
+        const { data: newCustomer, error: customerError } = await supabase
+          .from('customers')
+          .insert({
+            email: body.email.toLowerCase().trim(),
+            phone: body.phone,
+            first_name: body.firstName,
+            last_name: body.lastName,
+            address_line1: body.address.line1,
+            address_suburb: body.address.suburb,
+            address_city: body.address.city,
+            auth_user_id: authUser?.id || null,  // Link to auth if authenticated
+            total_bookings: 1,
+          })
+          .select()
+          .single();
+
+        if (customerError) {
+          console.error('⚠️ Failed to create customer profile:', customerError);
+          // Continue anyway - we'll still save booking with customer_* fields
+        } else {
+          customerId = newCustomer.id;
+          console.log('✅ New customer profile created:', customerId);
+          if (authUser) {
+            console.log('🔗 Profile linked to auth user:', authUser.id);
+          }
+        }
+      }
+      }  // Close if (!customerId) block
+    }
     
     // STEP 5: Save booking to database (REQUIRED if configured)
     console.log('Step 5: Saving booking to database...');
     console.log('Cleaner ID:', body.cleaner_id);
+    console.log('Customer ID:', customerId);
     
     if (body.cleaner_id === 'manual') {
       console.log('⚠️ MANUAL CLEANER ASSIGNMENT REQUESTED');
@@ -112,6 +240,7 @@ export async function POST(req: Request) {
         .from('bookings')
         .insert({
           id: bookingId,
+          customer_id: customerId,
           cleaner_id: body.cleaner_id,
           booking_date: body.date,
           booking_time: body.time,
@@ -123,6 +252,7 @@ export async function POST(req: Request) {
           address_suburb: body.address.suburb,
           address_city: body.address.city,
           payment_reference: body.paymentReference,
+          total_amount: body.totalAmount,
           status: 'confirmed',
         })
         .select();

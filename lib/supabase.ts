@@ -70,8 +70,10 @@ export interface Database {
           address_suburb: string | null
           address_city: string | null
           payment_reference: string | null
+          total_amount: number | null  // Total booking price in cents
           status: string
           created_at: string
+          customer_id: string | null  // Links to customer profile
         }
         Insert: {
           id: string  // Required TEXT ID (BK-... format)
@@ -86,8 +88,10 @@ export interface Database {
           address_suburb?: string | null
           address_city?: string | null
           payment_reference?: string | null
+          total_amount?: number | null  // Total booking price in cents
           status?: string
           created_at?: string
+          customer_id?: string | null  // Links to customer profile
         }
         Update: {
           id?: string
@@ -102,8 +106,10 @@ export interface Database {
           address_suburb?: string | null
           address_city?: string | null
           payment_reference?: string | null
+          total_amount?: number | null  // Total booking price in cents
           status?: string
           created_at?: string
+          customer_id?: string | null  // Links to customer profile
         }
       }
       quotes: {

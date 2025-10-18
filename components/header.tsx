@@ -2,16 +2,21 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { LoginButton } from '@/components/login-button';
+import { supabase } from '@/lib/supabase-client';
+import { clearClientAndStorage } from '@/lib/supabase-browser';
+import { AuthModal } from '@/components/auth-modal';
 import {
   Home,
   Wrench,
   Settings,
   MapPin,
   Droplets,
+  User,
+  LogOut,
+  Shield,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -47,6 +52,68 @@ const navigationItems = [
 
 export function Header({ variant = 'default' }: HeaderProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // Check auth state and admin role
+  useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      setUser(session?.user || null);
+      
+      // Check if user is admin
+      if (session?.user) {
+        const { data: customer } = await supabase
+          .from('customers')
+          .select('role')
+          .eq('auth_user_id', session.user.id)
+          .maybeSingle();
+        
+        setIsAdmin(customer?.role === 'admin');
+      } else {
+        setIsAdmin(false);
+      }
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setUser(session?.user || null);
+        
+        // Check if user is admin
+        if (session?.user) {
+          const { data: customer } = await supabase
+            .from('customers')
+            .select('role')
+            .eq('auth_user_id', session.user.id)
+            .maybeSingle();
+          
+          setIsAdmin(customer?.role === 'admin');
+        } else {
+          setIsAdmin(false);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Logout handler
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await supabase.auth.signOut();
+      clearClientAndStorage(); // Clear localStorage after logout
+      router.push('/');
+      router.refresh();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   // Determine current page based on pathname
   const getCurrentPage = () => {
@@ -159,9 +226,57 @@ export function Header({ variant = 'default' }: HeaderProps) {
                 Get Free Quote
               </Link>
             </Button>
-            <Link href="/login">
-              <LoginButton className="rounded-full text-xs sm:text-sm px-3 sm:px-4 h-9 sm:h-10" />
-            </Link>
+            
+            {user ? (
+              /* Logged In State */
+              <div className="flex items-center gap-2">
+                {isAdmin && (
+                  <Button
+                    variant="outline"
+                    asChild
+                    className="rounded-full text-xs sm:text-sm px-3 sm:px-4 h-9 sm:h-10 gap-1 border-purple-200 text-purple-700 hover:bg-purple-50"
+                  >
+                    <Link href="/admin">
+                      <Shield className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline">Admin</span>
+                    </Link>
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  asChild
+                  className="rounded-full text-xs sm:text-sm px-3 sm:px-4 h-9 sm:h-10 gap-1"
+                >
+                  <Link href="/dashboard">
+                    <User className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">
+                      {user.user_metadata?.first_name || user.email?.split('@')[0] || 'Account'}
+                    </span>
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="rounded-full text-xs sm:text-sm px-3 sm:px-4 h-9 sm:h-10 gap-1"
+                >
+                  {isLoggingOut ? (
+                    <>
+                      <LogOut className="h-3 w-3 sm:h-4 sm:w-4 animate-pulse" />
+                      <span className="hidden sm:inline">Logging out...</span>
+                    </>
+                  ) : (
+                    <>
+                      <LogOut className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline">Logout</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            ) : (
+              /* Logged Out State */
+              <AuthModal />
+            )}
           </div>
         </div>
       </div>

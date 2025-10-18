@@ -21,6 +21,7 @@ export interface BookingState {
     city: string;
   };
   cleaner_id?: string; // Selected cleaner ID
+  customer_id?: string; // Customer profile ID (UUID)
   paymentReference?: string; // Paystack payment reference
 }
 
@@ -44,6 +45,28 @@ export interface Cleaner {
 export interface AvailableCleanersResponse {
   ok: boolean;
   cleaners: Cleaner[];
+  error?: string;
+}
+
+// Customer profile types
+export interface Customer {
+  id: string;
+  email: string;
+  phone: string | null;
+  first_name: string;
+  last_name: string;
+  address_line1: string | null;
+  address_suburb: string | null;
+  address_city: string | null;
+  total_bookings: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomerCheckResponse {
+  ok: boolean;
+  exists: boolean;
+  customer: Customer | null;
   error?: string;
 }
 

@@ -1,17 +1,17 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { ServiceType } from '@/types/booking';
+import type { ServiceType, Customer, CustomerCheckResponse } from '@/types/booking';
 import { useBooking } from '@/lib/useBooking';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { User, MapPin, AlertCircle } from 'lucide-react';
+import { User, MapPin, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // Helper function to convert ServiceType to URL slug
@@ -40,7 +40,10 @@ type ContactForm = z.infer<typeof contactSchema>;
 
 export function StepContact() {
   const router = useRouter();
-  const { state, setState } = useBooking();
+  const { state, setState, updateField } = useBooking();
+  const [existingProfile, setExistingProfile] = useState<Customer | null>(null);
+  const [isCheckingProfile, setIsCheckingProfile] = useState(false);
+  const [showAutofillPrompt, setShowAutofillPrompt] = useState(false);
 
   const defaultValues = useMemo(() => ({
     firstName: state.firstName,
@@ -55,11 +58,63 @@ export function StepContact() {
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<ContactForm>({
     resolver: zodResolver(contactSchema),
     defaultValues,
   });
+
+  const emailValue = watch('email');
+
+  // Check for existing customer profile by email
+  const checkCustomerProfile = useCallback(async (email: string) => {
+    if (!email || email.length < 5) return;
+    
+    setIsCheckingProfile(true);
+    try {
+      const response = await fetch(`/api/customers?email=${encodeURIComponent(email)}`);
+      const data: CustomerCheckResponse = await response.json();
+      
+      if (data.ok && data.exists && data.customer) {
+        console.log('✅ Customer profile found:', data.customer);
+        setExistingProfile(data.customer);
+        setShowAutofillPrompt(true);
+        // Store customer_id in booking state
+        updateField('customer_id', data.customer.id);
+      } else {
+        setExistingProfile(null);
+        setShowAutofillPrompt(false);
+        updateField('customer_id', undefined);
+      }
+    } catch (error) {
+      console.error('Error checking customer profile:', error);
+      setExistingProfile(null);
+      setShowAutofillPrompt(false);
+    } finally {
+      setIsCheckingProfile(false);
+    }
+  }, [updateField]);
+
+  // Autofill form from existing profile
+  const handleAutofill = useCallback(() => {
+    if (!existingProfile) return;
+    
+    setValue('firstName', existingProfile.first_name);
+    setValue('lastName', existingProfile.last_name);
+    setValue('phone', existingProfile.phone || '');
+    setValue('line1', existingProfile.address_line1 || '');
+    setValue('suburb', existingProfile.address_suburb || '');
+    setValue('city', existingProfile.address_city || '');
+    
+    setShowAutofillPrompt(false);
+  }, [existingProfile, setValue]);
+
+  // Dismiss autofill prompt
+  const handleDismissAutofill = useCallback(() => {
+    setShowAutofillPrompt(false);
+  }, []);
 
   const handleBack = useCallback(() => {
     if (state.service) {
@@ -186,19 +241,27 @@ export function StepContact() {
               <Label htmlFor="email" className="text-sm font-semibold text-gray-900">
                 Email Address <span className="text-red-500">*</span>
               </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="e.g., thabo@example.com"
-                {...register('email')}
-                className={cn(
-                  'h-11 rounded-xl border-2 transition-all',
-                  'focus:ring-2 focus:ring-primary/30 focus:border-primary',
-                  'hover:border-gray-300',
-                  errors.email && 'border-red-500 ring-2 ring-red-500/20'
+              <div className="relative">
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="e.g., thabo@example.com"
+                  {...register('email')}
+                  onBlur={(e) => checkCustomerProfile(e.target.value)}
+                  className={cn(
+                    'h-11 rounded-xl border-2 transition-all',
+                    'focus:ring-2 focus:ring-primary/30 focus:border-primary',
+                    'hover:border-gray-300',
+                    errors.email && 'border-red-500 ring-2 ring-red-500/20'
+                  )}
+                  aria-describedby={errors.email ? 'email-error' : undefined}
+                />
+                {isCheckingProfile && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  </div>
                 )}
-                aria-describedby={errors.email ? 'email-error' : undefined}
-              />
+              </div>
               {errors.email && (
                 <motion.p
                   initial={{ opacity: 0, y: -4 }}
@@ -244,6 +307,60 @@ export function StepContact() {
             </div>
           </div>
         </div>
+
+        {/* Autofill Prompt */}
+        <AnimatePresence>
+          {showAutofillPrompt && existingProfile && (
+            <motion.div
+              initial={{ opacity: 0, y: -10, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              exit={{ opacity: 0, y: -10, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="rounded-2xl border-2 border-green-200 bg-green-50 p-5"
+            >
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-base font-bold text-green-900 mb-1">
+                    Welcome Back, {existingProfile.first_name}!
+                  </h3>
+                  <p className="text-sm text-green-700 mb-4">
+                    We found your previous information. Would you like to use it?
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Button
+                      type="button"
+                      onClick={handleAutofill}
+                      className={cn(
+                        "rounded-full px-5 py-2 text-sm font-semibold",
+                        "bg-green-600 hover:bg-green-700 text-white",
+                        "focus:ring-2 focus:ring-green-600/30 focus:outline-none"
+                      )}
+                    >
+                      Use Saved Information
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleDismissAutofill}
+                      className={cn(
+                        "rounded-full px-5 py-2 text-sm font-semibold",
+                        "border-green-300 text-green-700 hover:bg-green-100",
+                        "focus:ring-2 focus:ring-green-600/30 focus:outline-none"
+                      )}
+                    >
+                      Enter New Details
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Service Address Section */}
         <div className="space-y-4">

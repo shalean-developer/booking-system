@@ -437,3 +437,244 @@ export function generateAdminQuoteNotificationEmail(quote: QuoteRequest): EmailD
   };
 }
 
+// Application Email Templates
+
+export interface ApplicationData {
+  applicationId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  position: string;
+  coverLetter: string;
+  workExperience?: string;
+  certifications?: string;
+  availability?: string;
+  references?: string;
+  resumeUrl?: string;
+  transportationDetails?: string;
+  languagesSpoken?: string;
+  criminalBackgroundConsent: boolean;
+}
+
+export function generateApplicationConfirmationEmail(application: ApplicationData): EmailData {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Application Received - Shalean Cleaning</title>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #0C53ED; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+        .application-details { background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .next-steps { background-color: #e8f4fd; padding: 15px; border-radius: 8px; margin: 20px 0; }
+        .success-box { background-color: #d4edda; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745; margin: 20px 0; }
+        .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>✅ Application Received!</h1>
+        <p>Thank you for applying to Shalean Cleaning Services</p>
+      </div>
+      
+      <div class="content">
+        <p>Hi ${application.firstName} ${application.lastName},</p>
+        
+        <div class="success-box">
+          <strong>🎉 Your application has been successfully submitted!</strong><br>
+          We're excited that you're interested in joining our team.
+        </div>
+        
+        <p>We have received your application for the position of <strong>${application.position}</strong>.</p>
+        
+        <div class="application-details">
+          <h3>Application Details</h3>
+          <p><strong>Application ID:</strong> ${application.applicationId}</p>
+          <p><strong>Position:</strong> ${application.position}</p>
+          <p><strong>Submitted:</strong> ${new Date().toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <p><strong>Your Contact:</strong></p>
+          <ul>
+            <li>Email: ${application.email}</li>
+            <li>Phone: ${application.phone}</li>
+          </ul>
+        </div>
+        
+        <div class="next-steps">
+          <h3>What Happens Next?</h3>
+          <ol>
+            <li><strong>Application Review (1-3 days):</strong> Our HR team will carefully review your application and qualifications.</li>
+            <li><strong>Initial Screening:</strong> If your profile matches our requirements, we'll contact you for a phone screening.</li>
+            <li><strong>Interview:</strong> Qualified candidates will be invited for an in-person or virtual interview.</li>
+            <li><strong>Background Check:</strong> Final candidates will undergo a background verification process.</li>
+            <li><strong>Onboarding:</strong> Successful applicants will receive an offer and join our training program.</li>
+          </ol>
+        </div>
+        
+        <p><strong>Timeline:</strong> We aim to respond to all applications within 5 business days. If your application matches our current openings, we'll reach out via email or phone.</p>
+        
+        <p>In the meantime, feel free to learn more about us:</p>
+        <ul>
+          <li>Visit our website: <a href="https://shalean.co.za">shalean.co.za</a></li>
+          <li>Follow us on Instagram: @shaleancleaning</li>
+        </ul>
+        
+        <p>If you have any questions about your application, please contact us at:</p>
+        <p>
+          <strong>Email:</strong> careers@shalean.com<br>
+          <strong>Phone:</strong> +27 87 153 5250
+        </p>
+        
+        <p>Thank you for your interest in joining Shalean Cleaning Services. We look forward to reviewing your application!</p>
+      </div>
+      
+      <div class="footer">
+        <p>Best regards,<br>The Shalean Cleaning HR Team</p>
+        <p>This is an automated email. Please do not reply to this message.</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return {
+    to: application.email,
+    subject: `Application Received - ${application.position} | Shalean Cleaning`,
+    html,
+  };
+}
+
+export function generateAdminApplicationNotificationEmail(application: ApplicationData): EmailData {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>New Job Application - Shalean Cleaning</title>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #0C53ED; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+        .application-details { background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .contact-info { background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107; }
+        .urgent { background-color: #ff4444; color: white; padding: 10px; border-radius: 4px; text-align: center; margin: 20px 0; }
+        .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
+        .info-section { margin: 15px 0; padding: 10px; background-color: #f8f9fa; border-radius: 4px; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>🔔 New Job Application</h1>
+        <p>Shalean Cleaning Services - HR Notification</p>
+      </div>
+      
+      <div class="content">
+        <div class="urgent">
+          <strong>⚠️ NEW APPLICATION</strong> - Review Required
+        </div>
+        
+        <p>A new job application has been submitted and requires review.</p>
+        
+        <div class="contact-info">
+          <h3>Applicant Contact Information</h3>
+          <p><strong>Name:</strong> ${application.firstName} ${application.lastName}</p>
+          <p><strong>Email:</strong> <a href="mailto:${application.email}">${application.email}</a></p>
+          <p><strong>Phone:</strong> <a href="tel:${application.phone}">${application.phone}</a></p>
+        </div>
+        
+        <div class="application-details">
+          <h3>Application Details</h3>
+          <p><strong>Application ID:</strong> ${application.applicationId}</p>
+          <p><strong>Position Applied For:</strong> ${application.position}</p>
+          <p><strong>Submitted:</strong> ${new Date().toLocaleString('en-ZA')}</p>
+          
+          <div class="info-section">
+            <h4>Cover Letter / Motivation</h4>
+            <p>${application.coverLetter}</p>
+          </div>
+          
+          ${application.workExperience ? `
+          <div class="info-section">
+            <h4>Work Experience</h4>
+            <p>${application.workExperience}</p>
+          </div>
+          ` : ''}
+          
+          ${application.certifications ? `
+          <div class="info-section">
+            <h4>Certifications</h4>
+            <p>${application.certifications}</p>
+          </div>
+          ` : ''}
+          
+          ${application.availability ? `
+          <div class="info-section">
+            <h4>Availability</h4>
+            <p>${application.availability}</p>
+          </div>
+          ` : ''}
+          
+          ${application.languagesSpoken ? `
+          <div class="info-section">
+            <h4>Languages Spoken</h4>
+            <p>${application.languagesSpoken}</p>
+          </div>
+          ` : ''}
+          
+          ${application.transportationDetails ? `
+          <div class="info-section">
+            <h4>Transportation</h4>
+            <p>${application.transportationDetails}</p>
+          </div>
+          ` : ''}
+          
+          ${application.references ? `
+          <div class="info-section">
+            <h4>References</h4>
+            <p>${application.references}</p>
+          </div>
+          ` : ''}
+          
+          ${application.resumeUrl ? `
+          <div class="info-section">
+            <h4>Resume</h4>
+            <p><a href="${application.resumeUrl}">Download Resume</a></p>
+          </div>
+          ` : '<p><em>No resume uploaded</em></p>'}
+          
+          <div class="info-section">
+            <h4>Background Check Consent</h4>
+            <p>${application.criminalBackgroundConsent ? '✅ Applicant has consented to background check' : '❌ No consent provided'}</p>
+          </div>
+        </div>
+        
+        <div class="urgent">
+          <strong>Next Steps:</strong><br>
+          1. Review application and qualifications<br>
+          2. Check references if provided<br>
+          3. Contact applicant within 5 business days<br>
+          4. Schedule initial screening call if qualified<br>
+          5. Update application status in database
+        </div>
+      </div>
+      
+      <div class="footer">
+        <p>This is an automated notification from your Shalean Cleaning website.</p>
+        <p>Application received at: ${new Date().toLocaleString('en-ZA')}</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const adminEmail = process.env.ADMIN_EMAIL || 'careers@shalean.com';
+
+  return {
+    to: adminEmail,
+    subject: `🔔 New Application: ${application.position} - ${application.firstName} ${application.lastName}`,
+    html,
+  };
+}
+
