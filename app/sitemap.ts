@@ -14,6 +14,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     changeFrequency: 'weekly',
     priority: 0.7,
   }))
+
+  // Cape Town suburbs
+  const capeTownSuburbs = [
+    'camps-bay', 'sea-point', 'green-point', 'claremont', 'newlands', 'rondebosch',
+    'constantia', 'muizenberg', 'table-view', 'hout-bay', 'observatory', 'woodstock',
+    'bellville', 'city-centre', 'gardens', 'clifton', 'bantry-bay', 'fresnaye',
+    'tamboerskloof', 'oranjezicht', 'bloubergstrand', 'milnerton', 'durbanville',
+    'parow', 'brackenfell', 'wynberg', 'kenilworth', 'plumstead', 'bishopscourt',
+    'tokai', 'bergvliet', 'fish-hoek', 'kalk-bay', 'simons-town', 'lakeside',
+    'noordhoek', 'kommetjie', 'scarborough', 'somerset-west', 'strand', 'stellenbosch'
+  ];
+
+  // Generate Cape Town suburb entries
+  const capeTownEntries: MetadataRoute.Sitemap = capeTownSuburbs.map((suburb) => ({
+    url: `${baseUrl}/location/cape-town/${suburb}`,
+    lastModified: new Date(),
+    changeFrequency: 'monthly',
+    priority: 0.6,
+  }))
   
   return [
     {
@@ -76,8 +95,40 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'weekly',
       priority: 0.8,
     },
+    {
+      url: `${baseUrl}/location`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/location/cape-town`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/location/johannesburg`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/location/pretoria`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/location/durban`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.7,
+    },
     // Add all blog posts
     ...blogEntries,
+    // Add all Cape Town suburb pages
+    ...capeTownEntries,
   ]
 }
 

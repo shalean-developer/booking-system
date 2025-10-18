@@ -29,17 +29,17 @@ export default function LocationPage() {
     {
       region: "Johannesburg",
       areas: ["Sandton", "Rosebank", "Midrand", "Randburg", "Fourways"],
-      available: true
+      available: false
     },
     {
       region: "Pretoria",
       areas: ["Centurion", "Hatfield", "Menlyn", "Brooklyn", "Waterkloof"],
-      available: true
+      available: false
     },
     {
       region: "Durban",
       areas: ["Umhlanga", "Morningside", "Berea", "Westville", "Durban North"],
-      available: true
+      available: false
     }
   ];
 
@@ -71,22 +71,30 @@ export default function LocationPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 gap-8 mb-16">
             {serviceAreas.map((area) => (
-              <Card key={area.region} className="border-0 shadow-lg">
+              <Card key={area.region} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
                 <CardContent className="p-8">
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                      <MapPin className="h-6 w-6 text-primary" />
+                  <Link href={`/location/${area.region.toLowerCase().replace(' ', '-')}`}>
+                    <div className="flex items-center gap-4 mb-6 cursor-pointer group">
+                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                        <MapPin className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-bold text-gray-900 group-hover:text-primary transition-colors">
+                          {area.region}
+                        </h2>
+                        {area.available ? (
+                          <span className="text-sm text-green-600 flex items-center gap-1">
+                            <CheckCircle className="h-4 w-4" />
+                            Now Servicing
+                          </span>
+                        ) : (
+                          <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/20">
+                            Coming Soon
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <h2 className="text-2xl font-bold text-gray-900">{area.region}</h2>
-                      {area.available && (
-                        <span className="text-sm text-green-600 flex items-center gap-1">
-                          <CheckCircle className="h-4 w-4" />
-                          Now Servicing
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                  </Link>
                   <div className="space-y-2">
                     <h3 className="text-sm font-semibold text-gray-700">Areas Covered:</h3>
                     <div className="grid grid-cols-2 gap-2">
@@ -97,6 +105,14 @@ export default function LocationPage() {
                         </div>
                       ))}
                     </div>
+                  </div>
+                  <div className="mt-6">
+                    <Link href={`/location/${area.region.toLowerCase().replace(' ', '-')}`}>
+                      <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10">
+                        View All Suburbs
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
                   </div>
                 </CardContent>
               </Card>
@@ -129,7 +145,7 @@ export default function LocationPage() {
                     <Mail className="h-8 w-8 text-primary" />
                   </div>
                   <h3 className="font-semibold text-gray-900 mb-2">Email</h3>
-                  <p className="text-gray-600">farai@shalean.com</p>
+                  <p className="text-gray-600">support@shalean.com</p>
                   <p className="text-sm text-gray-500 mt-1">24/7 support</p>
                 </div>
 

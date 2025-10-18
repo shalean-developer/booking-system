@@ -178,7 +178,7 @@ export default function BookingSuccessPage() {
                 📞 +27 87 153 5250
               </span>
               <span className="text-gray-600">
-                ✉️ farai@shalean.com
+                ✉️ support@shalean.com
               </span>
             </div>
           </div>
