@@ -6,6 +6,7 @@ import { useBooking } from '@/lib/useBooking';
 import { Stepper } from '@/components/stepper';
 import { BookingSummary } from '@/components/booking-summary';
 import { StepDetails } from '@/components/step-details';
+import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import type { ServiceType } from '@/types/booking';
@@ -61,10 +62,15 @@ export default function DetailsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 py-6">
+    <div className="min-h-screen bg-slate-50 py-6 lg:py-10">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-6">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+          className="mb-6"
+        >
           <Link 
             href="/booking/service/select" 
             className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
@@ -72,16 +78,26 @@ export default function DetailsPage() {
             <ArrowLeft className="h-4 w-4" />
             Back to Service Selection
           </Link>
+        </motion.div>
+
+        {/* Progress Stepper - Centered */}
+        <div className="flex justify-center w-full mb-6 lg:mb-8">
+          <div className="max-w-4xl w-full">
+            <Stepper currentStep={state.step} />
+          </div>
         </div>
 
-        {/* Progress Stepper */}
-        <div className="mb-8">
-          <Stepper currentStep={state.step} />
-        </div>
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-12 gap-6 pb-24 lg:pb-8">
+          {/* Main Column - Home Details Form */}
+          <div className="col-span-12 lg:col-span-8">
+            <StepDetails />
+          </div>
 
-        {/* Main Content - StepDetails now includes its own layout with live preview */}
-        <div className="pb-24 lg:pb-0">
-          <StepDetails />
+          {/* Right Column - Booking Summary (Desktop Only) */}
+          <div className="col-span-12 lg:col-span-4">
+            <BookingSummary />
+          </div>
         </div>
       </div>
     </div>

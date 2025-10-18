@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Loader2, UserX } from 'lucide-react';
+import { ArrowLeft, Loader2, UserX, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useBooking } from '@/lib/useBooking';
 import { CleanerCard } from '@/components/cleaner-card';
+import { cn } from '@/lib/utils';
 import type { Cleaner, AvailableCleanersResponse, ServiceType } from '@/types/booking';
 
 // Helper function to convert ServiceType to URL slug
@@ -96,52 +96,91 @@ export function StepSelectCleaner() {
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Select Your Cleaner</CardTitle>
-          <p className="text-slate-600">
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35 }}
+        className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100"
+      >
+        {/* Header */}
+        <div className="mb-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+            Select Your Cleaner
+          </h2>
+          <p className="text-sm md:text-base text-gray-600">
             Finding available cleaners in {state.address.city} for {state.date}
           </p>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="animate-pulse">
-                <div className="bg-slate-200 h-64 rounded-lg"></div>
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-center mt-8">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            <span className="ml-2 text-slate-600">Loading available cleaners...</span>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Loading Skeletons */}
+        <div className="grid gap-4 md:gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="animate-pulse">
+              <div className="bg-slate-200 h-64 rounded-2xl"></div>
+            </div>
+          ))}
+        </div>
+
+        {/* Loading Message */}
+        <div className="flex items-center justify-center gap-3 py-4">
+          <Loader2 className="w-5 h-5 animate-spin text-primary" />
+          <span className="text-sm font-medium text-slate-600">Loading available cleaners...</span>
+        </div>
+      </motion.div>
     );
   }
 
   if (error) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Select Your Cleaner</CardTitle>
-          <p className="text-slate-600">
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35 }}
+        className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100"
+      >
+        {/* Header */}
+        <div className="mb-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+            Select Your Cleaner
+          </h2>
+          <p className="text-sm md:text-base text-gray-600">
             Available cleaners in {state.address.city} for {state.date}
           </p>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-12">
-            <div className="text-red-500 mb-4">
-              <UserX className="w-16 h-16 mx-auto" />
-            </div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Unable to Load Cleaners</h3>
-            <p className="text-slate-600 mb-6">{error}</p>
-            <Button onClick={() => window.location.reload()} variant="outline">
+        </div>
+
+        {/* Error State */}
+        <div className="text-center py-12 px-4">
+          <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-red-500" />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Unable to Load Cleaners</h3>
+          <p className="text-gray-600 mb-8 max-w-md mx-auto">{error}</p>
+          
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button 
+              onClick={() => window.location.reload()} 
+              className={cn(
+                "rounded-full px-6 font-semibold",
+                "bg-primary hover:bg-primary/90 text-white",
+                "focus:ring-2 focus:ring-primary/30 focus:outline-none"
+              )}
+            >
               Try Again
             </Button>
+            <Button 
+              onClick={handleBack}
+              variant="outline"
+              className={cn(
+                "rounded-full px-6 font-semibold",
+                "focus:ring-2 focus:ring-primary/30 focus:outline-none"
+              )}
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Contact
+            </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </motion.div>
     );
   }
 
@@ -166,125 +205,159 @@ export function StepSelectCleaner() {
 
   if (cleaners.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Let Us Choose for You</CardTitle>
-          <p className="text-slate-600">
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35 }}
+        className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100"
+      >
+        {/* Header */}
+        <div className="mb-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+            Let Us Choose for You
+          </h2>
+          <p className="text-sm md:text-base text-gray-600">
             Available cleaners in {state.address.city} for {state.date}
           </p>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-12 px-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="max-w-md mx-auto"
-            >
-              <div className="bg-primary/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-                <UserX className="w-10 h-10 text-primary" />
-              </div>
-              
-              <h3 className="text-xl font-semibold text-slate-900 mb-3">
-                No Available Cleaners in Our System
-              </h3>
-              
-              <p className="text-slate-600 mb-8 leading-relaxed">
-                We don't have cleaners available in our system for your selected date and area. 
-                Don't worry! Our team will manually assign the best cleaner for you and confirm your booking.
-              </p>
+        </div>
 
-              <div className="space-y-3">
-                <Button 
-                  onClick={handleManualAssignment}
-                  disabled={isSubmitting}
-                  size="lg"
-                  className="w-full"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    'Choose for Me'
-                  )}
-                </Button>
-                
-                <Button 
-                  onClick={handleBack} 
-                  variant="outline"
-                  size="lg"
-                  className="w-full"
-                  disabled={isSubmitting}
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Contact
-                </Button>
-              </div>
+        {/* No Cleaners State */}
+        <div className="text-center py-12 px-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
+            className="max-w-md mx-auto"
+          >
+            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
+              <UserX className="w-10 h-10 text-primary" />
+            </div>
+            
+            <h3 className="text-xl font-bold text-gray-900 mb-3">
+              No Available Cleaners in Our System
+            </h3>
+            
+            <p className="text-gray-600 mb-8 leading-relaxed">
+              We don't have cleaners available in our system for your selected date and area. 
+              Don't worry! Our team will manually assign the best cleaner for you and confirm your booking.
+            </p>
 
-              <p className="text-xs text-slate-500 mt-6">
-                Our team will contact you within 24 hours to confirm your cleaner assignment
-              </p>
-            </motion.div>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="space-y-3">
+              <Button 
+                onClick={handleManualAssignment}
+                disabled={isSubmitting}
+                size="lg"
+                className={cn(
+                  "w-full rounded-full px-8 py-3 font-semibold shadow-lg",
+                  "bg-primary hover:bg-primary/90 text-white",
+                  "focus:ring-2 focus:ring-primary/30 focus:outline-none",
+                  "transition-all duration-200",
+                  "disabled:opacity-50 disabled:cursor-not-allowed"
+                )}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  'Choose for Me'
+                )}
+              </Button>
+              
+              <Button 
+                onClick={handleBack} 
+                variant="outline"
+                size="lg"
+                disabled={isSubmitting}
+                className={cn(
+                  "w-full rounded-full px-6 font-semibold",
+                  "focus:ring-2 focus:ring-primary/30 focus:outline-none",
+                  "transition-all duration-200"
+                )}
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Contact
+              </Button>
+            </div>
+
+            <p className="text-xs text-gray-500 mt-6">
+              Our team will contact you within 24 hours to confirm your cleaner assignment
+            </p>
+          </motion.div>
+        </div>
+      </motion.div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-xl">Select Your Cleaner</CardTitle>
-        <p className="text-slate-600">
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100"
+    >
+      {/* Header */}
+      <div className="mb-6">
+        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+          Select Your Cleaner
+        </h2>
+        <p className="text-sm md:text-base text-gray-600">
           Choose from {cleaners.length} available cleaner{cleaners.length !== 1 ? 's' : ''} in {state.address.city} for {state.date}
         </p>
-      </CardHeader>
-      <CardContent>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
-        >
-          {cleaners.map((cleaner, index) => (
-            <motion.div
-              key={cleaner.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <CleanerCard
-                cleaner={cleaner}
-                onSelect={handleSelectCleaner}
-                isSelected={selectedCleanerId === cleaner.id}
-                isLoading={isSubmitting && selectedCleanerId === cleaner.id}
-              />
-            </motion.div>
-          ))}
-        </motion.div>
+      </div>
 
-        <div className="flex justify-between gap-3 pt-6">
-            <Button
-              variant="outline"
-              onClick={handleBack}
-              disabled={isSubmitting}
-              className="transition-all duration-150"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Contact
-            </Button>
-          
-          {selectedCleanerId && (
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-center text-green-600"
-            >
-              <span className="text-sm font-medium">Cleaner selected! Proceeding...</span>
-            </motion.div>
+      {/* Cleaners Grid */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="grid gap-4 md:gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8"
+      >
+        {cleaners.map((cleaner, index) => (
+          <motion.div
+            key={cleaner.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+          >
+            <CleanerCard
+              cleaner={cleaner}
+              onSelect={handleSelectCleaner}
+              isSelected={selectedCleanerId === cleaner.id}
+              isLoading={isSubmitting && selectedCleanerId === cleaner.id}
+            />
+          </motion.div>
+        ))}
+      </motion.div>
+
+      {/* Navigation */}
+      <div className="flex justify-between items-center gap-3 pt-6 border-t">
+        <Button
+          variant="outline"
+          onClick={handleBack}
+          disabled={isSubmitting}
+          className={cn(
+            "rounded-full px-6 font-semibold",
+            "focus:ring-2 focus:ring-primary/30 focus:outline-none",
+            "transition-all duration-200"
           )}
-        </div>
-      </CardContent>
-    </Card>
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          <span className="hidden sm:inline">Back to Contact</span>
+          <span className="sm:hidden">Back</span>
+        </Button>
+        
+        {selectedCleanerId && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex items-center gap-2 text-green-600"
+          >
+            <div className="w-2 h-2 rounded-full bg-green-600 animate-pulse"></div>
+            <span className="text-sm font-medium">Cleaner selected! Proceeding...</span>
+          </motion.div>
+        )}
+      </div>
+    </motion.div>
   );
 }

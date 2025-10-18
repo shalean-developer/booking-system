@@ -1,23 +1,19 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useBooking } from '@/lib/useBooking';
 import { calcTotal, PRICING, getServicePricing } from '@/lib/pricing';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
-import { Calendar, MapPin, Clock, Home, Receipt, User } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Calendar, MapPin, Clock, Home, Receipt, User, X, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 export function BookingSummary() {
   const { state } = useBooking();
+  const [isSlideOverOpen, setIsSlideOverOpen] = useState(false);
+  const chipButtonRef = useRef<HTMLButtonElement>(null);
 
   // Memoize price calculation - only recalculate when relevant fields change
   const total = useMemo(() => calcTotal({
@@ -29,6 +25,33 @@ export function BookingSummary() {
 
   // Get service-specific pricing
   const servicePricing = useMemo(() => getServicePricing(state.service), [state.service]);
+
+  // Focus management - return focus to chip when slide-over closes
+  useEffect(() => {
+    if (!isSlideOverOpen && chipButtonRef.current) {
+      chipButtonRef.current.focus();
+    }
+  }, [isSlideOverOpen]);
+
+  // Handle ESC key to close slide-over
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isSlideOverOpen) {
+        setIsSlideOverOpen(false);
+      }
+    };
+    
+    if (isSlideOverOpen) {
+      document.addEventListener('keydown', handleEsc);
+      // Prevent body scroll when slide-over is open
+      document.body.style.overflow = 'hidden';
+    }
+    
+    return () => {
+      document.removeEventListener('keydown', handleEsc);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isSlideOverOpen]);
 
   const SummaryContent = () => (
     <div className="space-y-6">
@@ -164,7 +187,17 @@ export function BookingSummary() {
             <Receipt className="h-5 w-5 text-slate-600" />
             <span className="text-lg font-semibold text-slate-900">Total</span>
           </div>
-          <span className="text-2xl font-bold text-primary">R{total}</span>
+          <motion.span 
+            key={total}
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="text-2xl font-bold text-primary"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            R{total}
+          </motion.span>
         </div>
         <p className="mt-1 text-xs text-slate-500">Estimated cost based on your selections</p>
       </div>
@@ -186,25 +219,90 @@ export function BookingSummary() {
         </CardContent>
       </Card>
 
-      {/* Mobile: Sheet Trigger Button */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-white p-4 shadow-lg lg:hidden">
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button className="w-full text-sm sm:text-base" size="lg">
-              <span className="sm:hidden">Summary · R{total}</span>
-              <span className="hidden sm:inline">View Summary · R{total}</span>
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="bottom" className="h-[80vh] overflow-y-auto">
-            <SheetHeader>
-              <SheetTitle>Booking Summary</SheetTitle>
-            </SheetHeader>
-            <div className="mt-6">
-              <SummaryContent />
-            </div>
-          </SheetContent>
-        </Sheet>
-      </div>
+      {/* Mobile: Price Chip */}
+      <motion.button
+        ref={chipButtonRef}
+        onClick={() => setIsSlideOverOpen(true)}
+        className={cn(
+          "fixed bottom-4 right-4 z-50 lg:hidden",
+          "inline-flex items-center gap-3 px-4 py-3 min-h-[44px]",
+          "rounded-full bg-white shadow-lg border border-gray-100",
+          "focus:outline-none focus:ring-2 focus:ring-primary/30",
+          "transition-all hover:shadow-xl hover:scale-105"
+        )}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        aria-expanded={isSlideOverOpen}
+        aria-controls="booking-summary-panel"
+        aria-label="View booking summary"
+      >
+        <Receipt className="h-5 w-5 text-primary" />
+        <span className="text-lg font-bold text-slate-900">R{total}</span>
+        <ChevronRight className="h-4 w-4 text-slate-400" />
+      </motion.button>
+
+      {/* Mobile: Slide-Over Panel */}
+      <AnimatePresence>
+        {isSlideOverOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 bg-black/40 z-50 lg:hidden"
+              onClick={() => setIsSlideOverOpen(false)}
+              aria-hidden="true"
+            />
+
+            {/* Slide-Over Content */}
+            <motion.div
+              id="booking-summary-panel"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className={cn(
+                "fixed inset-y-0 right-0 w-full max-w-md z-50 lg:hidden",
+                "bg-white shadow-xl overflow-y-auto"
+              )}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="slide-over-title"
+            >
+              {/* Header */}
+              <div className="sticky top-0 z-10 bg-white border-b px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <h2 
+                    id="slide-over-title"
+                    className="text-xl font-bold text-slate-900 flex items-center gap-2"
+                  >
+                    <Receipt className="h-5 w-5 text-primary" />
+                    Booking Summary
+                  </h2>
+                  <button
+                    onClick={() => setIsSlideOverOpen(false)}
+                    className={cn(
+                      "rounded-full p-2 hover:bg-slate-100",
+                      "focus:outline-none focus:ring-2 focus:ring-primary/30",
+                      "transition-colors"
+                    )}
+                    aria-label="Close booking summary"
+                  >
+                    <X className="h-5 w-5 text-slate-600" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="p-6">
+                <SummaryContent />
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </>
   );
 }

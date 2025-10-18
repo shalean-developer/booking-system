@@ -1,17 +1,17 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ServiceType } from '@/types/booking';
 import { useBooking } from '@/lib/useBooking';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PRICING, getServicePricing, calcTotal } from '@/lib/pricing';
-import { Receipt } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { PRICING } from '@/lib/pricing';
+import { Check, Plus } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const extrasList = Object.keys(PRICING.extras) as Array<keyof typeof PRICING.extras>;
 
@@ -30,17 +30,6 @@ function serviceTypeToSlug(serviceType: ServiceType): string {
 export function StepDetails() {
   const router = useRouter();
   const { state, updateField } = useBooking();
-
-  // Get service-specific pricing
-  const servicePricing = useMemo(() => getServicePricing(state.service), [state.service]);
-
-  // Calculate total price
-  const total = useMemo(() => calcTotal({
-    service: state.service,
-    bedrooms: state.bedrooms,
-    bathrooms: state.bathrooms,
-    extras: state.extras,
-  }), [state.service, state.bedrooms, state.bathrooms, state.extras]);
 
   const handleBack = useCallback(() => {
     // Navigate immediately - step will be updated by the target page's useEffect
@@ -74,207 +63,193 @@ export function StepDetails() {
   }, [state.extras, updateField]);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
-      {/* Left Column - Form */}
-      <div className="space-y-6">
-        <Card className="border-0 shadow-lg">
-          <CardHeader>
-            <CardTitle>Home Details</CardTitle>
-            <CardDescription>Tell us about your space and any extras you need</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Bedrooms & Bathrooms */}
-            <div className="grid gap-6 sm:grid-cols-2">
-              {/* Bedrooms */}
-              <div className="space-y-2">
-                <Label>Bedrooms</Label>
-                <Select value={state.bedrooms.toString()} onValueChange={handleBedroomChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select bedrooms" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">0 Bedrooms</SelectItem>
-                    <SelectItem value="1">1 Bedroom</SelectItem>
-                    <SelectItem value="2">2 Bedrooms</SelectItem>
-                    <SelectItem value="3">3 Bedrooms</SelectItem>
-                    <SelectItem value="4">4 Bedrooms</SelectItem>
-                    <SelectItem value="5">5+ Bedrooms</SelectItem>
-                  </SelectContent>
-                </Select>
-                {servicePricing && (
-                  <p className="text-xs text-slate-600">
-                    Price per bedroom: R{servicePricing.bedroom}
-                  </p>
-                )}
-              </div>
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100"
+    >
+      {/* Header */}
+      <div className="mb-6">
+        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+          Home Details
+        </h2>
+        <p className="text-sm md:text-base text-gray-600">
+          Tell us about your space and any extras you need
+        </p>
+      </div>
 
-              {/* Bathrooms */}
-              <div className="space-y-2">
-                <Label>Bathrooms</Label>
-                <Select value={state.bathrooms.toString()} onValueChange={handleBathroomChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select bathrooms" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">1 Bathroom</SelectItem>
-                    <SelectItem value="2">2 Bathrooms</SelectItem>
-                    <SelectItem value="3">3 Bathrooms</SelectItem>
-                    <SelectItem value="4">4 Bathrooms</SelectItem>
-                    <SelectItem value="5">5+ Bathrooms</SelectItem>
-                  </SelectContent>
-                </Select>
-                {servicePricing && (
-                  <p className="text-xs text-slate-600">
-                    Price per bathroom: R{servicePricing.bathroom}
-                  </p>
-                )}
-              </div>
-            </div>
+      {/* Form Content */}
+      <div className="space-y-8">
+        {/* Bedrooms & Bathrooms */}
+        <div className="grid gap-6 sm:grid-cols-2">
+          {/* Bedrooms */}
+          <div className="space-y-2">
+            <Label htmlFor="bedrooms" className="text-sm font-semibold text-gray-900">
+              Bedrooms
+            </Label>
+            <Select value={state.bedrooms.toString()} onValueChange={handleBedroomChange}>
+              <SelectTrigger id="bedrooms" className="h-11">
+                <SelectValue placeholder="Select bedrooms" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">Studio / 0 Bedrooms</SelectItem>
+                <SelectItem value="1">1 Bedroom</SelectItem>
+                <SelectItem value="2">2 Bedrooms</SelectItem>
+                <SelectItem value="3">3 Bedrooms</SelectItem>
+                <SelectItem value="4">4 Bedrooms</SelectItem>
+                <SelectItem value="5">5+ Bedrooms</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-            {/* Extras */}
-            <div className="space-y-3">
-              <Label>Additional Services (Optional)</Label>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                {extrasList.map((extra) => {
-                  const isSelected = state.extras.includes(extra);
-                  return (
-                    <button
-                      key={extra}
-                      onClick={() => toggleExtra(extra)}
-                      type="button"
-                      className={`flex flex-col items-center gap-2 sm:gap-3 rounded-lg border-2 p-3 sm:p-4 text-center transition-all min-h-[100px] ${
-                        isSelected
-                          ? 'border-primary bg-primary/5'
-                          : 'border-gray-200 hover:border-gray-300 bg-white'
-                      }`}
+          {/* Bathrooms */}
+          <div className="space-y-2">
+            <Label htmlFor="bathrooms" className="text-sm font-semibold text-gray-900">
+              Bathrooms
+            </Label>
+            <Select value={state.bathrooms.toString()} onValueChange={handleBathroomChange}>
+              <SelectTrigger id="bathrooms" className="h-11">
+                <SelectValue placeholder="Select bathrooms" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">1 Bathroom</SelectItem>
+                <SelectItem value="2">2 Bathrooms</SelectItem>
+                <SelectItem value="3">3 Bathrooms</SelectItem>
+                <SelectItem value="4">4 Bathrooms</SelectItem>
+                <SelectItem value="5">5+ Bathrooms</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Extras */}
+        <div className="space-y-4">
+          <div>
+            <Label className="text-sm font-semibold text-gray-900">
+              Additional Services
+            </Label>
+            <p className="text-sm text-gray-600 mt-1">
+              Select any extras to enhance your cleaning service
+            </p>
+          </div>
+          
+          <div 
+            className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6"
+            role="group"
+            aria-label="Additional services"
+          >
+            {extrasList.map((extra) => {
+              const isSelected = state.extras.includes(extra);
+              return (
+                <motion.button
+                  key={extra}
+                  onClick={() => toggleExtra(extra)}
+                  type="button"
+                  className={cn(
+                    'relative rounded-2xl border p-5 flex flex-col items-center gap-3 cursor-pointer transition-all',
+                    'focus:outline-none focus:ring-2 focus:ring-primary/30 min-h-[120px]',
+                    isSelected
+                      ? 'bg-primary/6 ring-2 ring-primary shadow-md'
+                      : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-md'
+                  )}
+                  whileHover={{ scale: 1.02, y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ duration: 0.2 }}
+                  role="checkbox"
+                  aria-checked={isSelected}
+                  aria-labelledby={`extra-${extra}-label`}
+                >
+                  {/* Icon Container */}
+                  <div className={cn(
+                    "w-12 h-12 rounded-full flex items-center justify-center transition-colors",
+                    isSelected ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'
+                  )}>
+                    {isSelected ? (
+                      <Check className="h-5 w-5" strokeWidth={2.5} />
+                    ) : (
+                      <Plus className="h-5 w-5" strokeWidth={2} />
+                    )}
+                  </div>
+
+                  {/* Extra Details */}
+                  <div className="text-center space-y-1">
+                    <div 
+                      id={`extra-${extra}-label`}
+                      className="text-sm font-semibold text-gray-900 leading-tight"
                     >
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          isSelected ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'
-                        }`}
-                      >
-                        {isSelected ? '✓' : '+'}
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{extra}</div>
-                        <div className="text-xs text-gray-600 mt-1">R{PRICING.extras[extra]}</div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+                      {extra}
+                    </div>
+                    <div className="text-xs font-medium text-gray-600">
+                      +R{PRICING.extras[extra]}
+                    </div>
+                  </div>
 
-            {/* Special Instructions */}
-            <div className="space-y-2">
-              <Label htmlFor="notes">Special Instructions (Optional)</Label>
-              <Textarea
-                id="notes"
-                placeholder="Any specific requirements or areas of focus..."
-                value={state.notes}
-                onChange={(e) => updateField('notes', e.target.value)}
-                rows={4}
-              />
-            </div>
-          </CardContent>
-        </Card>
+                  {/* Selected Check Mark Badge */}
+                  {isSelected && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute top-3 right-3 w-5 h-5 rounded-full bg-primary flex items-center justify-center"
+                    >
+                      <Check className="h-3 w-3 text-white" strokeWidth={3} />
+                    </motion.div>
+                  )}
+                </motion.button>
+              );
+            })}
+          </div>
+        </div>
 
-        {/* Navigation */}
-        <div className="flex justify-between gap-3 pb-20 lg:pb-0">
-          <Button 
-            variant="outline" 
-            onClick={handleBack} 
-            size="lg" 
-            className="transition-all duration-150"
-            type="button"
-          >
-            Back
-          </Button>
-          <Button 
-            onClick={handleNext} 
-            size="lg" 
-            className="transition-all duration-150"
-            type="button"
-          >
-            <span className="sm:hidden">Next</span>
-            <span className="hidden sm:inline">Next: Schedule</span>
-          </Button>
+        {/* Special Instructions */}
+        <div className="space-y-2">
+          <Label htmlFor="notes" className="text-sm font-semibold text-gray-900">
+            Special Instructions
+            <span className="text-gray-500 font-normal ml-2">(Optional)</span>
+          </Label>
+          <Textarea
+            id="notes"
+            placeholder="Any specific requirements, areas of focus, or special considerations..."
+            value={state.notes}
+            onChange={(e) => updateField('notes', e.target.value)}
+            rows={4}
+            className="resize-none focus:ring-2 focus:ring-primary/30"
+          />
         </div>
       </div>
 
-      {/* Right Column - Live Price Preview */}
-      <div className="lg:sticky lg:top-6 lg:h-fit">
-        <Card className="border-0 shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Receipt className="h-5 w-5 text-primary" />
-              Live Price Preview
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {/* Service Summary */}
-              {state.service && (
-                <div>
-                  <h3 className="mb-2 text-sm font-semibold text-slate-700">Service</h3>
-                  <Badge variant="secondary" className="text-sm">
-                    {state.service}
-                  </Badge>
-                </div>
-              )}
-
-              {/* Price Breakdown */}
-              {servicePricing && (
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-600">Base Price</span>
-                    <span className="font-medium">R{servicePricing.base}</span>
-                  </div>
-
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-600">Bedrooms ({state.bedrooms})</span>
-                    <span className="font-medium">R{(state.bedrooms * servicePricing.bedroom).toFixed(2)}</span>
-                  </div>
-
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-600">Bathrooms ({state.bathrooms})</span>
-                    <span className="font-medium">R{(state.bathrooms * servicePricing.bathroom).toFixed(2)}</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Extras */}
-              {state.extras.length > 0 && (
-                <div className="border-t pt-3">
-                  <h3 className="mb-2 text-sm font-semibold text-slate-700">
-                    Additional Services
-                  </h3>
-                  <div className="space-y-2">
-                    {state.extras.map((extra) => (
-                      <div key={extra} className="flex justify-between text-sm">
-                        <span className="text-slate-600">{extra}</span>
-                        <span className="font-medium">R{PRICING.extras[extra as keyof typeof PRICING.extras]}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Total */}
-              <div className="border-t pt-4">
-                <div className="flex items-baseline justify-between">
-                  <div className="text-sm font-semibold text-slate-700">Total Price</div>
-                  <div className="text-3xl font-bold text-primary">R{total.toFixed(2)}</div>
-                </div>
-                <p className="mt-2 text-xs text-slate-500">
-                  💡 This is an estimate. Final price may vary based on specific requirements.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Navigation */}
+      <div className="flex justify-between gap-3 mt-8 pt-6 border-t">
+        <Button 
+          variant="outline" 
+          onClick={handleBack} 
+          size="lg" 
+          className={cn(
+            "rounded-full px-6 font-semibold",
+            "focus:ring-2 focus:ring-primary/30 focus:outline-none",
+            "transition-all duration-200"
+          )}
+          type="button"
+        >
+          <span className="sm:hidden">Back</span>
+          <span className="hidden sm:inline">Back to Service</span>
+        </Button>
+        <Button 
+          onClick={handleNext} 
+          size="lg" 
+          className={cn(
+            "rounded-full px-8 py-3 font-semibold shadow-lg",
+            "bg-primary hover:bg-primary/90 text-white",
+            "focus:ring-2 focus:ring-primary/30 focus:outline-none",
+            "transition-all duration-200"
+          )}
+          type="button"
+        >
+          <span className="sm:hidden">Continue</span>
+          <span className="hidden sm:inline">Continue to Schedule</span>
+        </Button>
       </div>
-    </div>
+    </motion.div>
   );
 }
 

@@ -3,14 +3,14 @@
 import { useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useBooking } from '@/lib/useBooking';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { motion } from 'framer-motion';
 import { 
   Home, 
   Building, 
   Star, 
   Calendar, 
-  Sparkles
+  Check
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ServiceType } from '@/types/booking';
@@ -32,35 +32,35 @@ const services: {
   label: string;
   subLabel: string;
   icon: any;
-  fillColor: string;
+  iconColor: string;
 }[] = [
   {
     type: 'Standard',
     label: 'Standard',
     subLabel: 'Cleaning',
     icon: Home,
-    fillColor: 'bg-amber-50',
+    iconColor: 'text-amber-600',
   },
   {
     type: 'Deep',
     label: 'Deep',
     subLabel: 'Cleaning',
     icon: Star,
-    fillColor: 'bg-teal-50',
+    iconColor: 'text-teal-600',
   },
   {
     type: 'Move In/Out',
     label: 'Moving',
     subLabel: 'Cleaning',
     icon: Building,
-    fillColor: 'bg-orange-50',
+    iconColor: 'text-orange-600',
   },
   {
     type: 'Airbnb',
     label: 'Airbnb',
     subLabel: 'Cleaning',
     icon: Calendar,
-    fillColor: 'bg-teal-50',
+    iconColor: 'text-blue-600',
   },
 ];
 
@@ -83,122 +83,102 @@ export function StepService() {
   }, [state.service, router]);
 
   return (
-    <Card className="border-0 shadow-lg">
-      <CardHeader>
-        <CardTitle className="text-2xl font-bold text-gray-800">Book a service</CardTitle>
-        <CardDescription>Choose the type of cleaning service you need</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Service Cards - Grid on mobile, horizontal scroll on desktop */}
-        <div className="grid grid-cols-2 gap-3 sm:hidden">
-          {services.map((service) => {
-            const Icon = service.icon;
-            const isSelected = state.service === service.type;
-            return (
-              <div
-                key={service.type}
-                className={cn(
-                  'cursor-pointer rounded-xl border-2 bg-stone-50 p-4 text-center transition-all duration-150 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]',
-                  isSelected
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                )}
-                onClick={() => handleSelect(service.type)}
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100"
+    >
+      {/* Header */}
+      <div className="mb-6">
+        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+          Choose Your Service
+        </h2>
+        <p className="text-sm md:text-base text-gray-600">
+          Select the type of cleaning service you need
+        </p>
+      </div>
+
+      {/* Service Cards Grid */}
+      <div 
+        className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6 mb-8"
+        role="radiogroup"
+        aria-label="Service type selection"
+      >
+        {services.map((service) => {
+          const Icon = service.icon;
+          const isSelected = state.service === service.type;
+          return (
+            <motion.button
+              key={service.type}
+              onClick={() => handleSelect(service.type)}
+              className={cn(
+                'relative rounded-2xl border p-5 md:p-6 flex flex-col items-center gap-3 cursor-pointer transition-all',
+                'focus:outline-none focus:ring-2 focus:ring-primary/30',
+                isSelected
+                  ? 'bg-primary/6 ring-2 ring-primary shadow-md'
+                  : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-md'
+              )}
+              whileHover={{ scale: 1.02, y: -2 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ duration: 0.2 }}
+              role="radio"
+              aria-checked={isSelected}
+              aria-labelledby={`service-${service.type}-label`}
+            >
+              {/* Icon Container */}
+              <div className="w-14 h-14 rounded-full bg-white shadow-sm flex items-center justify-center">
+                <Icon className={cn('h-7 w-7', service.iconColor)} strokeWidth={1.5} />
+              </div>
+
+              {/* Service Label */}
+              <div 
+                id={`service-${service.type}-label`}
+                className="text-center space-y-0.5"
               >
-                <div className="flex flex-col items-center gap-3">
-                  {/* Icon */}
-                  <div className={`relative rounded-full p-3 ${service.fillColor} border border-gray-800`}>
-                    <Icon className="h-6 w-6 text-gray-900" strokeWidth={1.5} />
-                    {service.type === 'Airbnb' && !isSelected && (
-                      <div className="absolute -top-1 -right-1 flex gap-0.5">
-                        <Sparkles className="h-2 w-2 text-gray-600" strokeWidth={1.5} />
-                        <Sparkles className="h-2 w-2 text-gray-600" strokeWidth={1.5} />
-                      </div>
-                    )}
-                    {isSelected && (
-                      <div className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-white">
-                        <div className="h-1.5 w-1.5 rounded-full bg-white"></div>
-                      </div>
-                    )}
-                  </div>
-                  {/* Service name */}
-                  <div className="space-y-0.5 text-center">
-                    <div className="text-xs font-medium text-gray-900 leading-tight">
-                      {service.label}
-                    </div>
-                    <div className="text-xs font-medium text-gray-900 leading-tight">
-                      {service.subLabel}
-                    </div>
-                  </div>
+                <div className="text-sm font-semibold text-gray-900 leading-tight">
+                  {service.label}
+                </div>
+                <div className="text-xs font-medium text-gray-600 leading-tight">
+                  {service.subLabel}
                 </div>
               </div>
-            );
-          })}
-        </div>
 
-        {/* Desktop: Horizontal scrollable services */}
-        <div className="hidden sm:block overflow-x-auto pb-2">
-          <div className="flex gap-4 min-w-max">
-            {services.map((service) => {
-              const Icon = service.icon;
-              const isSelected = state.service === service.type;
-              return (
-                <div
-                  key={service.type}
-                  className={cn(
-                    'flex-shrink-0 cursor-pointer rounded-xl border-2 bg-stone-50 p-6 text-center transition-all duration-150 hover:shadow-md hover:scale-[1.02] active:scale-[0.98] min-w-[140px]',
-                    isSelected
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  )}
-                  onClick={() => handleSelect(service.type)}
+              {/* Selected Check Mark */}
+              {isSelected && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="absolute top-3 right-3 w-6 h-6 rounded-full bg-primary flex items-center justify-center"
                 >
-                  <div className="flex flex-col items-center gap-4">
-                    {/* Icon */}
-                    <div className={`relative rounded-full p-4 ${service.fillColor} border border-gray-800`}>
-                      <Icon className="h-8 w-8 text-gray-900" strokeWidth={1.5} />
-                      {service.type === 'Airbnb' && !isSelected && (
-                        <div className="absolute -top-1 -right-1 flex gap-0.5">
-                          <Sparkles className="h-2.5 w-2.5 text-gray-600" strokeWidth={1.5} />
-                          <Sparkles className="h-2.5 w-2.5 text-gray-600" strokeWidth={1.5} />
-                        </div>
-                      )}
-                      {isSelected && (
-                        <div className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-500 text-white">
-                          <div className="h-2 w-2 rounded-full bg-white"></div>
-                        </div>
-                      )}
-                    </div>
-                    {/* Service name */}
-                    <div className="space-y-0.5 text-center">
-                      <div className="text-sm font-medium text-gray-900 leading-tight">
-                        {service.label}
-                      </div>
-                      <div className="text-sm font-medium text-gray-900 leading-tight">
-                        {service.subLabel}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+                  <Check className="h-4 w-4 text-white" strokeWidth={2.5} />
+                </motion.div>
+              )}
+            </motion.button>
+          );
+        })}
+      </div>
 
-        <div className="flex justify-end gap-3">
-          <Button 
-            onClick={handleNext}
-            disabled={!canProceed} 
-            size="lg"
-            className="transition-all duration-150 bg-blue-600 hover:bg-blue-700 text-white"
-            type="button"
-          >
-            <span className="sm:hidden">Next</span>
-            <span className="hidden sm:inline">Next: Home Details</span>
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      {/* CTA - Bottom Right */}
+      <div className="flex justify-end">
+        <Button 
+          onClick={handleNext}
+          disabled={!canProceed} 
+          size="lg"
+          className={cn(
+            "rounded-full px-8 py-3 font-semibold shadow-lg",
+            "bg-primary hover:bg-primary/90 text-white",
+            "focus:ring-2 focus:ring-primary/30 focus:outline-none",
+            "transition-all duration-200",
+            "disabled:opacity-50 disabled:cursor-not-allowed"
+          )}
+          type="button"
+        >
+          <span className="sm:hidden">Continue</span>
+          <span className="hidden sm:inline">Continue to Details</span>
+        </Button>
+      </div>
+    </motion.div>
   );
 }
 

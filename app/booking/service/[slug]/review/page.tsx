@@ -6,6 +6,7 @@ import { useBooking } from '@/lib/useBooking';
 import { Stepper } from '@/components/stepper';
 import { BookingSummary } from '@/components/booking-summary';
 import { StepReview } from '@/components/step-review';
+import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import type { ServiceType } from '@/types/booking';
@@ -61,10 +62,15 @@ export default function ReviewPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 py-6">
+    <div className="min-h-screen bg-slate-50 py-6 lg:py-10">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-6">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+          className="mb-6"
+        >
           <Link 
             href={`/booking/service/${slug}/contact`}
             className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
@@ -72,22 +78,24 @@ export default function ReviewPage() {
             <ArrowLeft className="h-4 w-4" />
             Back to Contact
           </Link>
+        </motion.div>
+
+        {/* Progress Stepper - Centered */}
+        <div className="flex justify-center w-full mb-6 lg:mb-8">
+          <div className="max-w-4xl w-full">
+            <Stepper currentStep={state.step} />
+          </div>
         </div>
 
-        {/* Progress Stepper */}
-        <div className="mb-8">
-          <Stepper currentStep={state.step} />
-        </div>
-
-        {/* Main Content */}
-        <div className="grid gap-6 lg:grid-cols-3 pb-24 lg:pb-0">
-          {/* Left Column - Form */}
-          <div className="lg:col-span-2">
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-12 gap-6 pb-24 lg:pb-8">
+          {/* Main Column - Review Content */}
+          <div className="col-span-12 lg:col-span-8">
             <StepReview />
           </div>
 
-          {/* Right Column - Summary */}
-          <div className="lg:col-span-1">
+          {/* Right Column - Booking Summary (Desktop Only) */}
+          <div className="col-span-12 lg:col-span-4">
             <BookingSummary />
           </div>
         </div>

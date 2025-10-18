@@ -1,17 +1,16 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { usePaystackPayment } from 'react-paystack';
 import type { ServiceType, PaystackVerificationResponse } from '@/types/booking';
 import { useBooking } from '@/lib/useBooking';
 import { calcTotal, PRICING } from '@/lib/pricing';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Calendar, MapPin, Clock, Home, User, Mail, Phone, FileText, Loader2, CreditCard } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Calendar, MapPin, Clock, Home, User, Mail, Phone, FileText, Loader2, CreditCard, AlertCircle, Shield } from 'lucide-react';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 // Helper function to convert ServiceType to URL slug
 function serviceTypeToSlug(serviceType: ServiceType): string {
@@ -31,6 +30,14 @@ export function StepReview() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<string[]>([]);
+  const [PaystackHook, setPaystackHook] = useState<any>(null);
+
+  // Dynamically import react-paystack on client side only
+  useEffect(() => {
+    import('react-paystack').then((module) => {
+      setPaystackHook(() => module.usePaystackPayment);
+    });
+  }, []);
 
   // Memoize price calculation
   const total = useMemo(() => calcTotal({
@@ -164,7 +171,7 @@ export function StepReview() {
   }, []);
 
   // Configure Paystack payment (callbacks passed separately to initializePayment)
-  const paystackConfig = {
+  const paystackConfig = useMemo(() => ({
     reference: paymentReference,
     email: state.email,
     amount: total * 100, // Paystack uses kobo/cents
@@ -190,10 +197,10 @@ export function StepReview() {
         },
       ],
     },
-  };
+  }), [paymentReference, state.email, total, state.service, state.firstName, state.lastName]);
 
-  // Initialize Paystack payment hook
-  const initializePayment = usePaystackPayment(paystackConfig);
+  // Initialize Paystack payment hook (only when loaded on client side)
+  const initializePayment = PaystackHook ? PaystackHook(paystackConfig) : () => {};
 
   const handleBack = useCallback(() => {
     if (state.service) {
@@ -204,281 +211,320 @@ export function StepReview() {
   }, [state.service, router]);
 
   return (
-    <Card className="border-0 shadow-lg">
-      <CardHeader>
-        <CardTitle>Review & Confirm</CardTitle>
-        <CardDescription>Please review your booking details before confirming</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Service Type */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Home className="h-4 w-4 text-slate-600" />
-            <h3 className="text-sm font-semibold text-slate-700">Service</h3>
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100"
+    >
+      {/* Header */}
+      <div className="mb-6">
+        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+          Review & Confirm
+        </h2>
+        <p className="text-sm md:text-base text-gray-600">
+          Please review your booking details before confirming payment
+        </p>
+      </div>
+
+      {/* Review Content */}
+      <div className="space-y-4 mb-8">
+        {/* Service Type Section */}
+        <div className="rounded-xl bg-slate-50/50 p-5 border border-slate-200">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <Home className="h-4 w-4 text-primary" />
+            </div>
+            <h3 className="text-base font-bold text-gray-900">Service Type</h3>
           </div>
           <Badge variant="secondary" className="text-sm">
             {state.service}
           </Badge>
         </div>
 
-        <Separator />
-
-        {/* Home Details */}
-        <div className="space-y-2">
-          <h3 className="text-sm font-semibold text-slate-700">Home Details</h3>
-          <div className="grid gap-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-slate-600">Bedrooms</span>
-              <span className="font-medium">{state.bedrooms}</span>
+        {/* Home Details Section */}
+        <div className="rounded-xl bg-slate-50/50 p-5 border border-slate-200">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <Home className="h-4 w-4 text-primary" />
             </div>
-            <div className="flex justify-between">
+            <h3 className="text-base font-bold text-gray-900">Home Details</h3>
+          </div>
+          <div className="grid gap-2 text-sm">
+            <div className="flex justify-between items-center">
+              <span className="text-slate-600">Bedrooms</span>
+              <span className="font-semibold text-gray-900">{state.bedrooms}</span>
+            </div>
+            <div className="flex justify-between items-center">
               <span className="text-slate-600">Bathrooms</span>
-              <span className="font-medium">{state.bathrooms}</span>
+              <span className="font-semibold text-gray-900">{state.bathrooms}</span>
             </div>
           </div>
         </div>
 
-        {/* Extras */}
+        {/* Additional Services Section */}
         {state.extras.length > 0 && (
-          <>
-            <Separator />
+          <div className="rounded-xl bg-slate-50/50 p-5 border border-slate-200">
+            <h3 className="text-base font-bold text-gray-900 mb-3">Additional Services</h3>
             <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-slate-700">Additional Services</h3>
-              <div className="space-y-2">
-                {state.extras.map((extra) => (
-                  <div key={extra} className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">{extra}</span>
-                    <span className="font-medium">
-                      +R{PRICING.extras[extra as keyof typeof PRICING.extras]}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              {state.extras.map((extra) => (
+                <div key={extra} className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600">{extra}</span>
+                  <span className="font-semibold text-gray-900">
+                    +R{PRICING.extras[extra as keyof typeof PRICING.extras]}
+                  </span>
+                </div>
+              ))}
             </div>
-          </>
+          </div>
         )}
 
-        {/* Special Instructions */}
+        {/* Special Instructions Section */}
         {state.notes && (
-          <>
-            <Separator />
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-slate-600" />
-                <h3 className="text-sm font-semibold text-slate-700">Special Instructions</h3>
+          <div className="rounded-xl bg-slate-50/50 p-5 border border-slate-200">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <FileText className="h-4 w-4 text-primary" />
               </div>
-              <p className="text-sm text-slate-600">{state.notes}</p>
+              <h3 className="text-base font-bold text-gray-900">Special Instructions</h3>
             </div>
-          </>
+            <p className="text-sm text-slate-700 leading-relaxed">{state.notes}</p>
+          </div>
         )}
 
-        <Separator />
-
-        {/* Schedule */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-slate-600" />
-            <h3 className="text-sm font-semibold text-slate-700">Schedule</h3>
+        {/* Schedule Section */}
+        <div className="rounded-xl bg-slate-50/50 p-5 border border-slate-200">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <Calendar className="h-4 w-4 text-primary" />
+            </div>
+            <h3 className="text-base font-bold text-gray-900">Schedule</h3>
           </div>
           <div className="grid gap-2 text-sm">
             <div className="flex items-center gap-2">
-              <Calendar className="h-3 w-3 text-slate-500" />
-              <span className="text-slate-600">
-                {state.date && format(new Date(state.date), 'PPPP')}
+              <Calendar className="h-4 w-4 text-slate-500" />
+              <span className="text-slate-700">
+                {state.date && format(new Date(state.date), 'EEEE, MMMM d, yyyy')}
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <Clock className="h-3 w-3 text-slate-500" />
-              <span className="text-slate-600">{state.time}</span>
+              <Clock className="h-4 w-4 text-slate-500" />
+              <span className="text-slate-700 font-medium">{state.time}</span>
             </div>
           </div>
         </div>
 
-        <Separator />
-
-        {/* Contact */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <User className="h-4 w-4 text-slate-600" />
-            <h3 className="text-sm font-semibold text-slate-700">Contact Information</h3>
+        {/* Contact Information Section */}
+        <div className="rounded-xl bg-slate-50/50 p-5 border border-slate-200">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <User className="h-4 w-4 text-primary" />
+            </div>
+            <h3 className="text-base font-bold text-gray-900">Contact Information</h3>
           </div>
           <div className="grid gap-2 text-sm">
             <div className="flex items-center gap-2">
-              <User className="h-3 w-3 text-slate-500" />
-              <span className="text-slate-600">
+              <User className="h-4 w-4 text-slate-500" />
+              <span className="text-slate-700">
                 {state.firstName} {state.lastName}
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <Mail className="h-3 w-3 text-slate-500" />
-              <span className="text-slate-600">{state.email}</span>
+              <Mail className="h-4 w-4 text-slate-500" />
+              <span className="text-slate-700">{state.email}</span>
             </div>
             <div className="flex items-center gap-2">
-              <Phone className="h-3 w-3 text-slate-500" />
-              <span className="text-slate-600">{state.phone}</span>
+              <Phone className="h-4 w-4 text-slate-500" />
+              <span className="text-slate-700">{state.phone}</span>
             </div>
           </div>
         </div>
 
-        <Separator />
-
-        {/* Address */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-slate-600" />
-            <h3 className="text-sm font-semibold text-slate-700">Service Address</h3>
+        {/* Service Address Section */}
+        <div className="rounded-xl bg-slate-50/50 p-5 border border-slate-200">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <MapPin className="h-4 w-4 text-primary" />
+            </div>
+            <h3 className="text-base font-bold text-gray-900">Service Address</h3>
           </div>
-          <div className="text-sm text-slate-600">
+          <div className="text-sm text-slate-700 space-y-1">
             <p>{state.address.line1}</p>
             <p>{state.address.suburb}</p>
             <p>{state.address.city}</p>
           </div>
         </div>
 
-        <Separator />
-
-        {/* Cleaner Assignment */}
+        {/* Cleaner Assignment Section */}
         {state.cleaner_id && (
-          <>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-slate-600" />
-                <h3 className="text-sm font-semibold text-slate-700">Cleaner Assignment</h3>
+          <div className="rounded-xl bg-slate-50/50 p-5 border border-slate-200">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <User className="h-4 w-4 text-primary" />
               </div>
-              {state.cleaner_id === 'manual' ? (
-                <div className="rounded-lg bg-amber-50 border border-amber-200 p-4">
-                  <p className="text-sm font-medium text-amber-900 mb-1">
-                    Manual Assignment Requested
-                  </p>
-                  <p className="text-xs text-amber-700">
-                    Our team will assign the best available cleaner for you and contact you within 24 hours to confirm.
-                  </p>
-                </div>
-              ) : (
-                <div className="rounded-lg bg-green-50 border border-green-200 p-4">
-                  <p className="text-sm font-medium text-green-900 mb-1">
-                    Cleaner Selected
-                  </p>
-                  <p className="text-xs text-green-700">
-                    Your professional cleaner has been assigned for this booking.
-                  </p>
-                </div>
-              )}
+              <h3 className="text-base font-bold text-gray-900">Cleaner Assignment</h3>
             </div>
-
-            <Separator />
-          </>
-        )}
-
-        {/* Total */}
-        <div className="rounded-lg bg-slate-50 p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-lg font-semibold text-slate-900">Total Amount</span>
-            <span className="text-3xl font-bold text-primary">R{total}</span>
+            {state.cleaner_id === 'manual' ? (
+              <div className="rounded-xl bg-amber-50 border-2 border-amber-200 p-4">
+                <p className="text-sm font-semibold text-amber-900 mb-1">
+                  Manual Assignment Requested
+                </p>
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  Our team will assign the best available cleaner for you and contact you within 24 hours to confirm.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-xl bg-green-50 border-2 border-green-200 p-4">
+                <p className="text-sm font-semibold text-green-900 mb-1">
+                  Cleaner Selected
+                </p>
+                <p className="text-xs text-green-700 leading-relaxed">
+                  Your professional cleaner has been assigned for this booking.
+                </p>
+              </div>
+            )}
           </div>
-          <p className="mt-2 text-xs text-slate-500">
-            Secure payment powered by Paystack
-          </p>
-        </div>
+        )}
+      </div>
 
-        {/* Payment Error */}
+      {/* Total Amount Section */}
+      <div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-6">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-lg font-bold text-gray-900">Total Amount</span>
+          <span className="text-3xl font-bold text-primary">R{total}</span>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-slate-600">
+          <Shield className="h-4 w-4 text-primary" />
+          <span>Secure payment powered by Paystack</span>
+        </div>
+      </div>
+
+      {/* Payment Error */}
+      <AnimatePresence>
         {paymentError && (
-          <div className="rounded-lg bg-red-50 border border-red-200 p-4">
-            <div className="flex items-start gap-2">
-              <div className="flex-shrink-0 mt-0.5">
-                <svg className="h-5 w-5 text-red-600" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                </svg>
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="rounded-2xl bg-red-50 border-2 border-red-200 p-5"
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                  <AlertCircle className="h-5 w-5 text-red-600" />
+                </div>
               </div>
               <div className="flex-1">
-                <h3 className="text-sm font-semibold text-red-900 mb-1">Payment Error</h3>
-                <p className="text-sm text-red-800 whitespace-pre-line">{paymentError}</p>
+                <h3 className="text-base font-bold text-red-900 mb-2">Payment Error</h3>
+                <p className="text-sm text-red-800 whitespace-pre-line leading-relaxed mb-3">
+                  {paymentError}
+                </p>
                 {errorDetails.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-red-300">
-                    <p className="text-xs font-semibold text-red-900 mb-1">Technical Details:</p>
+                    <p className="text-xs font-semibold text-red-900 mb-2">Technical Details:</p>
                     <ul className="text-xs text-red-700 space-y-1">
                       {errorDetails.map((detail, idx) => (
-                        <li key={idx} className="font-mono">{detail}</li>
+                        <li key={idx} className="font-mono bg-red-100/50 px-2 py-1 rounded">
+                          {detail}
+                        </li>
                       ))}
                     </ul>
                   </div>
                 )}
                 <div className="mt-3 pt-3 border-t border-red-300">
-                  <p className="text-xs text-red-700">
-                    If you need assistance, please contact us at{' '}
-                    <a href="mailto:hello@shalean.co.za" className="underline font-medium">
+                  <p className="text-xs text-red-800">
+                    Need help? Contact us at{' '}
+                    <a href="mailto:hello@shalean.co.za" className="underline font-semibold hover:text-red-900">
                       hello@shalean.co.za
                     </a>
                   </p>
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
+      </AnimatePresence>
 
-        {/* Navigation */}
-        <div className="flex justify-between gap-3 pt-4 pb-20 lg:pb-0">
-          <Button 
-            variant="outline" 
-            onClick={handleBack} 
-            size="lg" 
-            disabled={isSubmitting} 
-            className="transition-all duration-150"
-            type="button"
-          >
-            Back
-          </Button>
-          
-          <Button 
-            onClick={() => {
-              console.log('=== PAYSTACK BUTTON CLICKED ===');
-              console.log('Config:', {
-                ...paystackConfig,
-                publicKey: paystackConfig.publicKey ? 'pk_***' : 'MISSING',
-              });
-              if (!process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY) {
-                setPaymentError('Payment service is not configured. Please contact support.');
-                return;
-              }
-              if (!state.email) {
-                setPaymentError('Email is required for payment. Please go back and enter your email.');
-                return;
-              }
-              setPaymentError(null);
-              console.log('Calling initializePayment with callbacks...');
-              console.log('Callbacks configured:', {
-                onSuccess: typeof onPaymentSuccess,
-                onClose: typeof onPaymentClose,
-              });
-              
-              // Call initializePayment with config object containing callbacks
-              initializePayment({
-                onSuccess: onPaymentSuccess,
-                onClose: onPaymentClose,
-              });
-            }}
-            size="lg" 
-            disabled={isSubmitting} 
-            className="sm:min-w-[200px] transition-all duration-150 flex-1 sm:flex-none"
-            type="button"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                <span className="sm:hidden">Processing...</span>
-                <span className="hidden sm:inline">Processing Payment...</span>
-              </>
-            ) : (
-              <>
-                <CreditCard className="mr-2 h-4 w-4" />
-                <span className="sm:hidden">Pay R{total}</span>
-                <span className="hidden sm:inline">Confirm & Pay R{total}</span>
-              </>
-            )}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      {/* Navigation */}
+      <div className="flex justify-between gap-3 mt-8 pt-6 border-t">
+        <Button 
+          variant="outline" 
+          onClick={handleBack} 
+          size="lg" 
+          disabled={isSubmitting} 
+          className={cn(
+            "rounded-full px-6 font-semibold",
+            "focus:ring-2 focus:ring-primary/30 focus:outline-none",
+            "transition-all duration-200"
+          )}
+          type="button"
+        >
+          <span className="sm:hidden">Back</span>
+          <span className="hidden sm:inline">Back to Contact</span>
+        </Button>
+        
+        <Button 
+          onClick={() => {
+            console.log('=== PAYSTACK BUTTON CLICKED ===');
+            console.log('Config:', {
+              ...paystackConfig,
+              publicKey: paystackConfig.publicKey ? 'pk_***' : 'MISSING',
+            });
+            
+            // Check if Paystack is loaded
+            if (!PaystackHook) {
+              setPaymentError('Payment system is still loading. Please wait a moment and try again.');
+              return;
+            }
+            
+            if (!process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY) {
+              setPaymentError('Payment service is not configured. Please contact support.');
+              return;
+            }
+            if (!state.email) {
+              setPaymentError('Email is required for payment. Please go back and enter your email.');
+              return;
+            }
+            setPaymentError(null);
+            console.log('Calling initializePayment with callbacks...');
+            console.log('Callbacks configured:', {
+              onSuccess: typeof onPaymentSuccess,
+              onClose: typeof onPaymentClose,
+            });
+            
+            // Call initializePayment with config object containing callbacks
+            initializePayment({
+              onSuccess: onPaymentSuccess,
+              onClose: onPaymentClose,
+            });
+          }}
+          size="lg" 
+          disabled={isSubmitting} 
+          className={cn(
+            "rounded-full px-8 py-3 font-semibold shadow-lg flex-1 sm:flex-none sm:min-w-[220px]",
+            "bg-primary hover:bg-primary/90 text-white",
+            "focus:ring-2 focus:ring-primary/30 focus:outline-none",
+            "transition-all duration-200",
+            "disabled:opacity-50 disabled:cursor-not-allowed"
+          )}
+          type="button"
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <span className="sm:hidden">Processing...</span>
+              <span className="hidden sm:inline">Processing Payment...</span>
+            </>
+          ) : (
+            <>
+              <CreditCard className="mr-2 h-4 w-4" />
+              <span className="sm:hidden">Pay R{total}</span>
+              <span className="hidden sm:inline">Confirm & Pay R{total}</span>
+            </>
+          )}
+        </Button>
+      </div>
+    </motion.div>
   );
 }
 

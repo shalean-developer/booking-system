@@ -4,13 +4,15 @@ import { useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ServiceType } from '@/types/booking';
 import { useBooking } from '@/lib/useBooking';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { User, MapPin, AlertCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 // Helper function to convert ServiceType to URL slug
 function serviceTypeToSlug(serviceType: ServiceType): string {
@@ -89,141 +91,294 @@ export function StepContact() {
   }, [state, setState, router]);
 
   return (
-    <Card className="border-0 shadow-lg">
-      <CardHeader>
-        <CardTitle>Contact & Address</CardTitle>
-        <CardDescription>Where should we send confirmation and arrive for cleaning?</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {/* Contact Info */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-slate-700">Contact Information</h3>
-            
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">First Name *</Label>
-                <Input
-                  id="firstName"
-                  placeholder="John"
-                  {...register('firstName')}
-                  className={errors.firstName ? 'border-red-500' : ''}
-                />
-                {errors.firstName && (
-                  <p className="text-xs text-red-500">{errors.firstName.message}</p>
-                )}
-              </div>
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100"
+    >
+      {/* Header */}
+      <div className="mb-6">
+        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+          Contact & Address
+        </h2>
+        <p className="text-sm md:text-base text-gray-600">
+          Where should we send confirmation and arrive for cleaning?
+        </p>
+      </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name *</Label>
-                <Input
-                  id="lastName"
-                  placeholder="Doe"
-                  {...register('lastName')}
-                  className={errors.lastName ? 'border-red-500' : ''}
-                />
-                {errors.lastName && (
-                  <p className="text-xs text-red-500">{errors.lastName.message}</p>
-                )}
-              </div>
+      {/* Form */}
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+        {/* Contact Information Section */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <User className="h-4 w-4 text-primary" />
             </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="john@example.com"
-                  {...register('email')}
-                  className={errors.email ? 'border-red-500' : ''}
-                />
-                {errors.email && (
-                  <p className="text-xs text-red-500">{errors.email.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number *</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="0123456789"
-                  {...register('phone')}
-                  className={errors.phone ? 'border-red-500' : ''}
-                />
-                {errors.phone && (
-                  <p className="text-xs text-red-500">{errors.phone.message}</p>
-                )}
-              </div>
-            </div>
+            <h3 className="text-base font-bold text-gray-900">Contact Information</h3>
           </div>
-
-          {/* Address */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-slate-700">Service Address</h3>
-
+          
+          <div className="grid gap-4 sm:grid-cols-2">
+            {/* First Name */}
             <div className="space-y-2">
-              <Label htmlFor="line1">Street Address *</Label>
+              <Label htmlFor="firstName" className="text-sm font-semibold text-gray-900">
+                First Name <span className="text-red-500">*</span>
+              </Label>
               <Input
-                id="line1"
-                placeholder="123 Main Street"
-                {...register('line1')}
-                className={errors.line1 ? 'border-red-500' : ''}
+                id="firstName"
+                placeholder="e.g., Thabo"
+                {...register('firstName')}
+                className={cn(
+                  'h-11 rounded-xl border-2 transition-all',
+                  'focus:ring-2 focus:ring-primary/30 focus:border-primary',
+                  'hover:border-gray-300',
+                  errors.firstName && 'border-red-500 ring-2 ring-red-500/20'
+                )}
+                aria-describedby={errors.firstName ? 'firstName-error' : undefined}
               />
-              {errors.line1 && (
-                <p className="text-xs text-red-500">{errors.line1.message}</p>
+              {errors.firstName && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  id="firstName-error"
+                  className="text-xs text-red-500 flex items-center gap-1"
+                >
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.firstName.message}
+                </motion.p>
               )}
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="suburb">Suburb *</Label>
-                <Input
-                  id="suburb"
-                  placeholder="Sandton"
-                  {...register('suburb')}
-                  className={errors.suburb ? 'border-red-500' : ''}
-                />
-                {errors.suburb && (
-                  <p className="text-xs text-red-500">{errors.suburb.message}</p>
+            {/* Last Name */}
+            <div className="space-y-2">
+              <Label htmlFor="lastName" className="text-sm font-semibold text-gray-900">
+                Last Name <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="lastName"
+                placeholder="e.g., Mokoena"
+                {...register('lastName')}
+                className={cn(
+                  'h-11 rounded-xl border-2 transition-all',
+                  'focus:ring-2 focus:ring-primary/30 focus:border-primary',
+                  'hover:border-gray-300',
+                  errors.lastName && 'border-red-500 ring-2 ring-red-500/20'
                 )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="city">City *</Label>
-                <Input
-                  id="city"
-                  placeholder="Johannesburg"
-                  {...register('city')}
-                  className={errors.city ? 'border-red-500' : ''}
-                />
-                {errors.city && (
-                  <p className="text-xs text-red-500">{errors.city.message}</p>
-                )}
-              </div>
+                aria-describedby={errors.lastName ? 'lastName-error' : undefined}
+              />
+              {errors.lastName && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  id="lastName-error"
+                  className="text-xs text-red-500 flex items-center gap-1"
+                >
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.lastName.message}
+                </motion.p>
+              )}
             </div>
           </div>
 
-          {/* Navigation */}
-          <div className="flex justify-between gap-3 pb-20 lg:pb-0">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={handleBack} 
-              size="lg" 
-              className="transition-all duration-150"
-            >
-              Back
-            </Button>
-            <Button type="submit" size="lg" className="transition-all duration-150">
-              <span className="sm:hidden">Next</span>
-              <span className="hidden sm:inline">Next: Select Cleaner</span>
-            </Button>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {/* Email */}
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-sm font-semibold text-gray-900">
+                Email Address <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="e.g., thabo@example.com"
+                {...register('email')}
+                className={cn(
+                  'h-11 rounded-xl border-2 transition-all',
+                  'focus:ring-2 focus:ring-primary/30 focus:border-primary',
+                  'hover:border-gray-300',
+                  errors.email && 'border-red-500 ring-2 ring-red-500/20'
+                )}
+                aria-describedby={errors.email ? 'email-error' : undefined}
+              />
+              {errors.email && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  id="email-error"
+                  className="text-xs text-red-500 flex items-center gap-1"
+                >
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.email.message}
+                </motion.p>
+              )}
+            </div>
+
+            {/* Phone */}
+            <div className="space-y-2">
+              <Label htmlFor="phone" className="text-sm font-semibold text-gray-900">
+                Phone Number <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="e.g., 0821234567"
+                {...register('phone')}
+                className={cn(
+                  'h-11 rounded-xl border-2 transition-all',
+                  'focus:ring-2 focus:ring-primary/30 focus:border-primary',
+                  'hover:border-gray-300',
+                  errors.phone && 'border-red-500 ring-2 ring-red-500/20'
+                )}
+                aria-describedby={errors.phone ? 'phone-error' : undefined}
+              />
+              {errors.phone && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  id="phone-error"
+                  className="text-xs text-red-500 flex items-center gap-1"
+                >
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.phone.message}
+                </motion.p>
+              )}
+            </div>
           </div>
-        </form>
-      </CardContent>
-    </Card>
+        </div>
+
+        {/* Service Address Section */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <MapPin className="h-4 w-4 text-primary" />
+            </div>
+            <h3 className="text-base font-bold text-gray-900">Service Address</h3>
+          </div>
+
+          {/* Street Address */}
+          <div className="space-y-2">
+            <Label htmlFor="line1" className="text-sm font-semibold text-gray-900">
+              Street Address <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="line1"
+              placeholder="e.g., 123 Nelson Mandela Avenue"
+              {...register('line1')}
+              className={cn(
+                'h-11 rounded-xl border-2 transition-all',
+                'focus:ring-2 focus:ring-primary/30 focus:border-primary',
+                'hover:border-gray-300',
+                errors.line1 && 'border-red-500 ring-2 ring-red-500/20'
+              )}
+              aria-describedby={errors.line1 ? 'line1-error' : undefined}
+            />
+            {errors.line1 && (
+              <motion.p
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                id="line1-error"
+                className="text-xs text-red-500 flex items-center gap-1"
+              >
+                <AlertCircle className="h-3 w-3" />
+                {errors.line1.message}
+              </motion.p>
+            )}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {/* Suburb */}
+            <div className="space-y-2">
+              <Label htmlFor="suburb" className="text-sm font-semibold text-gray-900">
+                Suburb <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="suburb"
+                placeholder="e.g., Sandton"
+                {...register('suburb')}
+                className={cn(
+                  'h-11 rounded-xl border-2 transition-all',
+                  'focus:ring-2 focus:ring-primary/30 focus:border-primary',
+                  'hover:border-gray-300',
+                  errors.suburb && 'border-red-500 ring-2 ring-red-500/20'
+                )}
+                aria-describedby={errors.suburb ? 'suburb-error' : undefined}
+              />
+              {errors.suburb && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  id="suburb-error"
+                  className="text-xs text-red-500 flex items-center gap-1"
+                >
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.suburb.message}
+                </motion.p>
+              )}
+            </div>
+
+            {/* City */}
+            <div className="space-y-2">
+              <Label htmlFor="city" className="text-sm font-semibold text-gray-900">
+                City <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="city"
+                placeholder="e.g., Johannesburg"
+                {...register('city')}
+                className={cn(
+                  'h-11 rounded-xl border-2 transition-all',
+                  'focus:ring-2 focus:ring-primary/30 focus:border-primary',
+                  'hover:border-gray-300',
+                  errors.city && 'border-red-500 ring-2 ring-red-500/20'
+                )}
+                aria-describedby={errors.city ? 'city-error' : undefined}
+              />
+              {errors.city && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  id="city-error"
+                  className="text-xs text-red-500 flex items-center gap-1"
+                >
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.city.message}
+                </motion.p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <div className="flex justify-between gap-3 mt-8 pt-6 border-t">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={handleBack} 
+            size="lg" 
+            className={cn(
+              "rounded-full px-6 font-semibold",
+              "focus:ring-2 focus:ring-primary/30 focus:outline-none",
+              "transition-all duration-200"
+            )}
+          >
+            <span className="sm:hidden">Back</span>
+            <span className="hidden sm:inline">Back to Schedule</span>
+          </Button>
+          <Button 
+            type="submit" 
+            size="lg" 
+            className={cn(
+              "rounded-full px-8 py-3 font-semibold shadow-lg",
+              "bg-primary hover:bg-primary/90 text-white",
+              "focus:ring-2 focus:ring-primary/30 focus:outline-none",
+              "transition-all duration-200"
+            )}
+          >
+            <span className="sm:hidden">Continue</span>
+            <span className="hidden sm:inline">Continue to Cleaner</span>
+          </Button>
+        </div>
+      </form>
+    </motion.div>
   );
 }
 
