@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase-client';
 import { AuthModal } from '@/components/auth-modal';
+import { safeLogout, cleanupCorruptedSession, safeGetSession } from '@/lib/logout-utils';
 import {
   Home,
   Wrench,
@@ -58,8 +59,11 @@ export function Header({ variant = 'default' }: HeaderProps) {
 
   // Check auth state and admin role
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    // Clean up any corrupted session data on component mount
+    cleanupCorruptedSession();
+    
+    // Get initial session using safe session check
+    safeGetSession(supabase).then(async (session) => {
       setUser(session?.user || null);
       
       // Check if user is admin
@@ -78,18 +82,32 @@ export function Header({ variant = 'default' }: HeaderProps) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
+        console.log('🔄 Auth state change:', event, session?.user?.id ? 'user present' : 'no user');
+        
+        // Handle sign out events or missing sessions
+        if (event === 'SIGNED_OUT' || !session) {
+          setUser(null);
+          setIsAdmin(false);
+          return;
+        }
+        
         setUser(session?.user || null);
         
         // Check if user is admin
         if (session?.user) {
-          const { data: customer } = await supabase
-            .from('customers')
-            .select('role')
-            .eq('auth_user_id', session.user.id)
-            .maybeSingle();
-          
-          setIsAdmin(customer?.role === 'admin');
+          try {
+            const { data: customer } = await supabase
+              .from('customers')
+              .select('role')
+              .eq('auth_user_id', session.user.id)
+              .maybeSingle();
+            
+            setIsAdmin(customer?.role === 'admin');
+          } catch (error) {
+            console.error('❌ Error checking admin role:', error);
+            setIsAdmin(false);
+          }
         } else {
           setIsAdmin(false);
         }
@@ -99,18 +117,20 @@ export function Header({ variant = 'default' }: HeaderProps) {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Logout handler
+  // Logout handler using centralized safe logout utility
   const handleLogout = async () => {
     setIsLoggingOut(true);
-    try {
-      await supabase.auth.signOut();
-      router.push('/');
-      router.refresh();
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      setIsLoggingOut(false);
-    }
+    
+    await safeLogout(supabase, router, {
+      onSuccess: () => {
+        console.log('🏁 Header logout completed successfully');
+      },
+      onError: (error) => {
+        console.error('❌ Header logout failed:', error);
+      }
+    });
+    
+    setIsLoggingOut(false);
   };
 
   // Determine current page based on pathname

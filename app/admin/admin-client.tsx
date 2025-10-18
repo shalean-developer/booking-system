@@ -8,8 +8,9 @@ import { CustomersSection } from '@/components/admin/customers-section';
 import { CleanersSection } from '@/components/admin/cleaners-section';
 import { ApplicationsSection } from '@/components/admin/applications-section';
 import { PricingSection } from '@/components/admin/pricing-section';
+import { BlogSection } from '@/components/admin/blog-section';
 
-type TabType = 'dashboard' | 'bookings' | 'customers' | 'cleaners' | 'applications' | 'pricing';
+type TabType = 'dashboard' | 'bookings' | 'customers' | 'cleaners' | 'applications' | 'pricing' | 'blog';
 
 export function AdminDashboardClient() {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
@@ -38,6 +39,7 @@ export function AdminDashboardClient() {
               { id: 'customers', label: 'Customers' },
               { id: 'cleaners', label: 'Cleaners' },
               { id: 'pricing', label: 'Pricing' },
+              { id: 'blog', label: 'Blog' },
               { id: 'applications', label: 'Applications' },
             ].map((tab) => (
               <button
@@ -67,6 +69,7 @@ export function AdminDashboardClient() {
           {activeTab === 'customers' && <CustomersSection />}
           {activeTab === 'cleaners' && <CleanersSection />}
           {activeTab === 'pricing' && <PricingSection />}
+          {activeTab === 'blog' && <BlogSection />}
           {activeTab === 'applications' && <ApplicationsSection />}
         </div>
       </div>

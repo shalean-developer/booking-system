@@ -71,9 +71,41 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Organization structured data for consistent brand name display
+  const organizationSchema = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": "https://shalean.co.za/#organization",
+    "name": "Shalean Cleaning Services",
+    "alternateName": "Shalean",
+    "url": "https://shalean.co.za",
+    "logo": "https://shalean.co.za/icon-512.png",
+    "description": "Professional cleaning services for homes and businesses. Expert cleaners, eco-friendly products, 98% satisfaction rate.",
+    "telephone": "+27 87 153 5250",
+    "address": {
+      "@type": "PostalAddress",
+      "addressCountry": "ZA"
+    },
+    "sameAs": [
+      "https://instagram.com/shaleancleaning"
+    ],
+    "foundingDate": "2020",
+    "numberOfEmployees": "50+",
+    "serviceArea": {
+      "@type": "Country",
+      "name": "South Africa"
+    }
+  };
+
   return (
     <html lang="en">
       <head>
+        {/* Organization Schema for Brand Name Display */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+        />
+        
         {/* Google Tag Manager */}
         <Script
           id="gtm-script"

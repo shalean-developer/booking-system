@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Header } from '@/components/header';
 import { supabase } from '@/lib/supabase-client';
+import { safeLogout, safeGetSession } from '@/lib/logout-utils';
 import { 
   User, 
   Calendar,
@@ -58,14 +59,16 @@ export default function DashboardPage() {
   useEffect(() => {
     const checkAuthAndFetchData = async () => {
       try {
-        // Check authentication
-        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+        // Check authentication using safe session check
+        const session = await safeGetSession(supabase);
         
-        if (authError || !authUser) {
+        if (!session || !session.user) {
           console.log('Not authenticated, redirecting to login...');
           router.push('/login');
           return;
         }
+        
+        const authUser = session.user;
 
         console.log('User authenticated:', authUser.email);
         setUser(authUser);
@@ -73,15 +76,15 @@ export default function DashboardPage() {
         // Fetch bookings and customer data
         console.log('Fetching dashboard bookings from API...');
 
-        // Get session token
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
+        // Get session token for API call
+        const { data: { session: apiSession } } = await supabase.auth.getSession();
+        if (!apiSession) {
           throw new Error('No active session');
         }
 
         const response = await fetch('/api/dashboard/bookings', {
           headers: {
-            'Authorization': `Bearer ${session.access_token}`,
+            'Authorization': `Bearer ${apiSession.access_token}`,
           },
         });
         console.log('API Response status:', response.status);
@@ -110,8 +113,14 @@ export default function DashboardPage() {
   }, [router]);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
+    await safeLogout(supabase, router, {
+      onSuccess: () => {
+        console.log('🏁 Dashboard logout completed successfully');
+      },
+      onError: (error) => {
+        console.error('❌ Dashboard logout failed:', error);
+      }
+    });
   };
 
   // Calculate stats

@@ -1,7 +1,19 @@
 import { MetadataRoute } from 'next'
+import { getPublishedPosts } from '@/lib/blog-server'
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://shalean.co.za'
+  
+  // Get all published blog posts
+  const blogPosts = await getPublishedPosts()
+  
+  // Generate blog post entries
+  const blogEntries: MetadataRoute.Sitemap = blogPosts.map((post) => ({
+    url: `${baseUrl}/blog/${post.slug}`,
+    lastModified: post.updated_at ? new Date(post.updated_at) : new Date(),
+    changeFrequency: 'weekly',
+    priority: 0.7,
+  }))
   
   return [
     {
@@ -64,6 +76,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'weekly',
       priority: 0.8,
     },
+    // Add all blog posts
+    ...blogEntries,
   ]
 }
 
