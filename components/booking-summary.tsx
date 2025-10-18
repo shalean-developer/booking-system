@@ -2,11 +2,11 @@
 
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { useBooking } from '@/lib/useBooking';
-import { calcTotal, PRICING, getServicePricing } from '@/lib/pricing';
+import { calcTotal, calcTotalAsync, PRICING, getServicePricing, getCurrentPricing } from '@/lib/pricing';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, MapPin, Clock, Home, Receipt, User, X, ChevronRight } from 'lucide-react';
+import { Calendar, MapPin, Clock, Home, Receipt, User, X, ChevronRight, Percent } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -14,17 +14,60 @@ export function BookingSummary() {
   const { state } = useBooking();
   const [isSlideOverOpen, setIsSlideOverOpen] = useState(false);
   const chipButtonRef = useRef<HTMLButtonElement>(null);
+  const [pricingDetails, setPricingDetails] = useState<{
+    subtotal: number;
+    serviceFee: number;
+    frequencyDiscount: number;
+    frequencyDiscountPercent: number;
+    total: number;
+  } | null>(null);
+  const [extraPrices, setExtraPrices] = useState<{ [key: string]: number }>({});
 
-  // Memoize price calculation - only recalculate when relevant fields change
-  const total = useMemo(() => calcTotal({
-    service: state.service,
-    bedrooms: state.bedrooms,
-    bathrooms: state.bathrooms,
-    extras: state.extras,
-  }), [state.service, state.bedrooms, state.bathrooms, state.extras]);
-
-  // Get service-specific pricing
+  // Get service-specific pricing (sync for display)
   const servicePricing = useMemo(() => getServicePricing(state.service), [state.service]);
+
+  // Fetch detailed pricing with fees and discounts
+  useEffect(() => {
+    const fetchPricing = async () => {
+      try {
+        // Get current pricing for extras
+        const pricing = await getCurrentPricing();
+        setExtraPrices(pricing.extras);
+
+        // Calculate total with service fee and frequency discount
+        const details = await calcTotalAsync(
+          {
+            service: state.service,
+            bedrooms: state.bedrooms,
+            bathrooms: state.bathrooms,
+            extras: state.extras,
+          },
+          state.frequency
+        );
+        setPricingDetails(details);
+      } catch (error) {
+        console.error('Failed to fetch pricing:', error);
+        // Fallback to simple calculation
+        const total = calcTotal({
+          service: state.service,
+          bedrooms: state.bedrooms,
+          bathrooms: state.bathrooms,
+          extras: state.extras,
+        });
+        setPricingDetails({
+          subtotal: total,
+          serviceFee: 0,
+          frequencyDiscount: 0,
+          frequencyDiscountPercent: 0,
+          total,
+        });
+      }
+    };
+
+    fetchPricing();
+  }, [state.service, state.bedrooms, state.bathrooms, state.extras, state.frequency]);
+
+  const total = pricingDetails?.total || 0;
 
   // Focus management - return focus to chip when slide-over closes
   useEffect(() => {
@@ -102,7 +145,7 @@ export function BookingSummary() {
               <div key={extra} className="flex items-center justify-between text-sm">
                 <span className="text-slate-600">{extra}</span>
                 <span className="font-medium text-slate-900">
-                  R{PRICING.extras[extra as keyof typeof PRICING.extras]}
+                  R{extraPrices[extra] || PRICING.extras[extra as keyof typeof PRICING.extras] || 0}
                 </span>
               </div>
             ))}
@@ -180,9 +223,52 @@ export function BookingSummary() {
         </div>
       )}
 
-      {/* Total */}
-      <div className="border-t pt-4">
-        <div className="flex items-center justify-between">
+      {/* Frequency */}
+      {state.frequency && state.frequency !== 'one-time' && (
+        <div>
+          <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <Calendar className="h-4 w-4" />
+            Frequency
+          </h3>
+          <Badge variant="secondary" className="capitalize">
+            {state.frequency === 'bi-weekly' ? 'Bi-Weekly' : state.frequency}
+          </Badge>
+        </div>
+      )}
+
+      {/* Total with Breakdown */}
+      <div className="border-t pt-4 space-y-2">
+        {pricingDetails && (
+          <>
+            {/* Subtotal */}
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600">Subtotal</span>
+              <span className="font-medium text-slate-900">R{pricingDetails.subtotal}</span>
+            </div>
+
+            {/* Service Fee */}
+            {pricingDetails.serviceFee > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-600">Service Fee</span>
+                <span className="font-medium text-slate-900">R{pricingDetails.serviceFee}</span>
+              </div>
+            )}
+
+            {/* Frequency Discount */}
+            {pricingDetails.frequencyDiscount > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-green-600 flex items-center gap-1">
+                  <Percent className="h-3 w-3" />
+                  {state.frequency === 'bi-weekly' ? 'Bi-Weekly' : state.frequency.charAt(0).toUpperCase() + state.frequency.slice(1)} Discount ({pricingDetails.frequencyDiscountPercent}%)
+                </span>
+                <span className="font-medium text-green-600">-R{pricingDetails.frequencyDiscount}</span>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Total */}
+        <div className="flex items-center justify-between pt-2 border-t">
           <div className="flex items-center gap-2">
             <Receipt className="h-5 w-5 text-slate-600" />
             <span className="text-lg font-semibold text-slate-900">Total</span>
@@ -199,7 +285,7 @@ export function BookingSummary() {
             R{total}
           </motion.span>
         </div>
-        <p className="mt-1 text-xs text-slate-500">Estimated cost based on your selections</p>
+        <p className="text-xs text-slate-500">Estimated cost based on your selections</p>
       </div>
     </div>
   );

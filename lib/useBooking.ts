@@ -14,6 +14,7 @@ const initial: BookingState = {
   notes: '',
   date: null,
   time: null,
+  frequency: 'one-time',
   firstName: '',
   lastName: '',
   email: '',

@@ -7,8 +7,9 @@ import { BookingsSection } from '@/components/admin/bookings-section';
 import { CustomersSection } from '@/components/admin/customers-section';
 import { CleanersSection } from '@/components/admin/cleaners-section';
 import { ApplicationsSection } from '@/components/admin/applications-section';
+import { PricingSection } from '@/components/admin/pricing-section';
 
-type TabType = 'dashboard' | 'bookings' | 'customers' | 'cleaners' | 'applications';
+type TabType = 'dashboard' | 'bookings' | 'customers' | 'cleaners' | 'applications' | 'pricing';
 
 export function AdminDashboardClient() {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
@@ -30,18 +31,19 @@ export function AdminDashboardClient() {
 
         {/* Navigation Tabs */}
         <div className="mb-8">
-          <nav className="flex space-x-8 border-b border-gray-200">
+          <nav className="flex space-x-8 border-b border-gray-200 overflow-x-auto">
             {[
               { id: 'dashboard', label: 'Dashboard' },
               { id: 'bookings', label: 'Bookings' },
               { id: 'customers', label: 'Customers' },
               { id: 'cleaners', label: 'Cleaners' },
+              { id: 'pricing', label: 'Pricing' },
               { id: 'applications', label: 'Applications' },
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as TabType)}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                   activeTab === tab.id
                     ? 'border-primary text-primary'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -64,6 +66,7 @@ export function AdminDashboardClient() {
           {activeTab === 'bookings' && <BookingsSection />}
           {activeTab === 'customers' && <CustomersSection />}
           {activeTab === 'cleaners' && <CleanersSection />}
+          {activeTab === 'pricing' && <PricingSection />}
           {activeTab === 'applications' && <ApplicationsSection />}
         </div>
       </div>

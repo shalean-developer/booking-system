@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Header } from '@/components/header';
-import { createClient } from '@/lib/supabase-browser';
+import { supabase } from '@/lib/supabase-client';
 import { 
   User, 
   Calendar,
@@ -58,8 +58,6 @@ export default function DashboardPage() {
   useEffect(() => {
     const checkAuthAndFetchData = async () => {
       try {
-        const supabase = createClient();
-        
         // Check authentication
         const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
         
@@ -112,7 +110,6 @@ export default function DashboardPage() {
   }, [router]);
 
   const handleSignOut = async () => {
-    const supabase = createClient();
     await supabase.auth.signOut();
     router.push('/');
   };

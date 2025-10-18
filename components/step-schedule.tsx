@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ServiceType } from '@/types/booking';
 import { useBooking } from '@/lib/useBooking';
@@ -12,7 +12,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon, Check, Clock } from 'lucide-react';
-import { generateTimeSlots } from '@/lib/pricing';
+import { generateTimeSlots, getCurrentPricing } from '@/lib/pricing';
+import { FrequencySelector } from '@/components/frequency-selector';
 
 const timeSlots = generateTimeSlots();
 
@@ -31,11 +32,21 @@ function serviceTypeToSlug(serviceType: ServiceType): string {
 export function StepSchedule() {
   const router = useRouter();
   const { state, updateField } = useBooking();
+  const [discounts, setDiscounts] = useState<{ [key: string]: number }>({});
 
   const selectedDate = useMemo(() => 
     state.date ? new Date(state.date) : undefined, 
     [state.date]
   );
+
+  // Fetch frequency discounts
+  useEffect(() => {
+    getCurrentPricing().then((pricing) => {
+      setDiscounts(pricing.frequencyDiscounts);
+    }).catch((error) => {
+      console.error('Failed to fetch frequency discounts:', error);
+    });
+  }, []);
 
   const handleDateSelect = useCallback((date: Date | undefined) => {
     if (date) {
@@ -173,6 +184,13 @@ export function StepSchedule() {
             })}
           </div>
         </div>
+
+        {/* Frequency Selector */}
+        <FrequencySelector
+          value={state.frequency}
+          onChange={(frequency) => updateField('frequency', frequency)}
+          discounts={discounts}
+        />
 
         {/* Confirmation Box */}
         <AnimatePresence>

@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Header } from '@/components/header';
-import { createClient } from '@/lib/supabase-browser';
+import { supabase } from '@/lib/supabase-client';
 import { 
   User, 
   Mail, 
@@ -57,8 +57,6 @@ export default function SignupPage() {
     setSuccessMessage(null);
 
     try {
-      const supabase = createClient();
-      
       console.log('=== SIGN UP ATTEMPT ===');
       console.log('Email:', data.email);
 

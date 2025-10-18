@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Header } from '@/components/header';
-import { createClient } from '@/lib/supabase-browser';
+import { supabase } from '@/lib/supabase-client';
 import { 
   Mail, 
   Lock, 
@@ -55,9 +55,7 @@ export default function SignupTestPage() {
     addLog(`📧 Email: ${email}`);
 
     try {
-      const supabase = createClient();
-      
-      addLog('🔌 Creating Supabase client...');
+      addLog('🔌 Using Supabase client...');
       addLog('📡 Calling supabase.auth.signUp()...');
       addLog('⚠️ NO METADATA - Testing without first_name/last_name');
 

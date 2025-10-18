@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ServiceType, PaystackVerificationResponse } from '@/types/booking';
 import { useBooking } from '@/lib/useBooking';
-import { calcTotal, PRICING } from '@/lib/pricing';
+import { calcTotal, calcTotalAsync, PRICING } from '@/lib/pricing';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -31,6 +31,13 @@ export function StepReview() {
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<string[]>([]);
   const [PaystackHook, setPaystackHook] = useState<any>(null);
+  const [pricingDetails, setPricingDetails] = useState<{
+    subtotal: number;
+    serviceFee: number;
+    frequencyDiscount: number;
+    frequencyDiscountPercent: number;
+    total: number;
+  } | null>(null);
 
   // Dynamically import react-paystack on client side only
   useEffect(() => {
@@ -39,13 +46,43 @@ export function StepReview() {
     });
   }, []);
 
-  // Memoize price calculation
-  const total = useMemo(() => calcTotal({
-    service: state.service,
-    bedrooms: state.bedrooms,
-    bathrooms: state.bathrooms,
-    extras: state.extras,
-  }), [state.service, state.bedrooms, state.bathrooms, state.extras]);
+  // Calculate total with service fee and frequency discount
+  useEffect(() => {
+    const fetchPricing = async () => {
+      try {
+        const details = await calcTotalAsync(
+          {
+            service: state.service,
+            bedrooms: state.bedrooms,
+            bathrooms: state.bathrooms,
+            extras: state.extras,
+          },
+          state.frequency
+        );
+        setPricingDetails(details);
+      } catch (error) {
+        console.error('Failed to fetch pricing:', error);
+        // Fallback to simple calculation
+        const total = calcTotal({
+          service: state.service,
+          bedrooms: state.bedrooms,
+          bathrooms: state.bathrooms,
+          extras: state.extras,
+        });
+        setPricingDetails({
+          subtotal: total,
+          serviceFee: 0,
+          frequencyDiscount: 0,
+          frequencyDiscountPercent: 0,
+          total,
+        });
+      }
+    };
+
+    fetchPricing();
+  }, [state.service, state.bedrooms, state.bathrooms, state.extras, state.frequency]);
+
+  const total = pricingDetails?.total || 0;
 
   // Generate unique payment reference for each render
   const [paymentReference] = useState(
@@ -96,10 +133,12 @@ export function StepReview() {
 
       console.log('✅ Step 4: Payment verified successfully, submitting booking...');
 
-      // Submit booking with payment reference
+      // Submit booking with payment reference and pricing details
       const bookingPayload = {
         ...state,
         paymentReference: reference.reference,
+        serviceFee: pricingDetails?.serviceFee || 0,
+        frequencyDiscount: pricingDetails?.frequencyDiscount || 0,
       };
       console.log('Booking payload:', bookingPayload);
 

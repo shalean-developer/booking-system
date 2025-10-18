@@ -6,7 +6,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase-client';
-import { clearClientAndStorage } from '@/lib/supabase-browser';
 import { AuthModal } from '@/components/auth-modal';
 import {
   Home,
@@ -105,7 +104,6 @@ export function Header({ variant = 'default' }: HeaderProps) {
     setIsLoggingOut(true);
     try {
       await supabase.auth.signOut();
-      clearClientAndStorage(); // Clear localStorage after logout
       router.push('/');
       router.refresh();
     } catch (error) {

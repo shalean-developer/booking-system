@@ -11,6 +11,7 @@ export interface BookingState {
   notes: string;
   date: string | null; // ISO yyyy-mm-dd
   time: string | null; // "07:00", "07:30", ..., "13:00"
+  frequency: 'one-time' | 'weekly' | 'bi-weekly' | 'monthly'; // NEW: Booking frequency
   firstName: string;
   lastName: string;
   email: string;
@@ -24,6 +25,8 @@ export interface BookingState {
   customer_id?: string; // Customer profile ID (UUID)
   paymentReference?: string; // Paystack payment reference
   totalAmount?: number; // Total amount paid (in kobo for Paystack)
+  serviceFee?: number; // NEW: Service fee amount
+  frequencyDiscount?: number; // NEW: Discount amount based on frequency
 }
 
 // Cleaner data types

@@ -69,6 +69,11 @@ function LoginForm() {
       const redirectUrl = returnTo || '/dashboard'; // Use returnTo if provided, else dashboard
       console.log('Redirecting to:', redirectUrl);
 
+      // Small delay to ensure session is fully established
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Force a refresh to pick up the new session, then redirect
+      router.refresh();
       router.push(redirectUrl);
 
     } catch (err) {

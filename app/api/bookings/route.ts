@@ -236,6 +236,22 @@ export async function POST(req: Request) {
     
     // Check if Supabase is configured
     if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      // Create price snapshot for historical record
+      const priceSnapshot = {
+        service: {
+          type: body.service,
+          bedrooms: body.bedrooms,
+          bathrooms: body.bathrooms,
+        },
+        extras: body.extras || [],
+        frequency: body.frequency || 'one-time',
+        service_fee: body.serviceFee || 0,
+        frequency_discount: body.frequencyDiscount || 0,
+        subtotal: body.totalAmount ? body.totalAmount - (body.serviceFee || 0) + (body.frequencyDiscount || 0) : 0,
+        total: body.totalAmount || 0,
+        snapshot_date: new Date().toISOString(),
+      };
+
       const { data, error: bookingError } = await supabase
         .from('bookings')
         .insert({
@@ -253,6 +269,10 @@ export async function POST(req: Request) {
           address_city: body.address.city,
           payment_reference: body.paymentReference,
           total_amount: body.totalAmount,
+          frequency: body.frequency || 'one-time',
+          service_fee: body.serviceFee || 0,
+          frequency_discount: body.frequencyDiscount || 0,
+          price_snapshot: priceSnapshot,
           status: 'confirmed',
         })
         .select();
