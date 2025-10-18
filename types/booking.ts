@@ -23,6 +23,7 @@ export interface BookingState {
   cleaner_id?: string; // Selected cleaner ID
   customer_id?: string; // Customer profile ID (UUID)
   paymentReference?: string; // Paystack payment reference
+  totalAmount?: number; // Total amount paid (in kobo for Paystack)
 }
 
 // Cleaner data types

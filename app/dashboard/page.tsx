@@ -31,7 +31,7 @@ interface Booking {
   booking_time: string;
   service_type: string;
   status: string;
-  total_price: number;
+  total_amount: number;
   created_at: string;
   address_line1: string;
   address_suburb: string;

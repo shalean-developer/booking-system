@@ -71,7 +71,7 @@ export async function GET(request: Request) {
     console.log('✅ Customer profile found:', customer.id);
 
     // Get limit from query params (default: 10)
-    const url = new URL(req.url);
+    const url = new URL(request.url);
     const limit = parseInt(url.searchParams.get('limit') || '10', 10);
 
     // Fetch bookings for this customer

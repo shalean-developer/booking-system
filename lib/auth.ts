@@ -23,7 +23,7 @@ export async function getAuthUser() {
       return null;
     }
     
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     
     // Try all possible Supabase cookie names
     // @supabase/ssr uses different naming patterns

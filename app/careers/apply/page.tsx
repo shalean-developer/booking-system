@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from "next/link";
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Header } from "@/components/header";
 import { Home, Send, CheckCircle, Briefcase, FileText, Clock, MapPin, Languages, Car } from "lucide-react";
 
-export default function ApplyPage() {
+function ApplyFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const positionFromUrl = searchParams.get('position');
@@ -567,6 +567,21 @@ export default function ApplyPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+export default function ApplyPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-b from-primary/5 to-white">
+        <Header />
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    }>
+      <ApplyFormContent />
+    </Suspense>
   );
 }
 

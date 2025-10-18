@@ -2,6 +2,9 @@ import { redirect } from 'next/navigation';
 import { isAdmin } from '@/lib/supabase-server';
 import { AdminDashboardClient } from './admin-client';
 
+// Mark as dynamic since we use cookies for auth
+export const dynamic = 'force-dynamic';
+
 export default async function AdminPage() {
   // Server-side auth check - no client-side complexity!
   const userIsAdmin = await isAdmin();
