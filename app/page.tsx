@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -26,8 +27,90 @@ import {
   Phone,
   MapPin,
   Building,
-  ClipboardList
+  ClipboardList,
+  Droplets
 } from "lucide-react";
+
+// Logo component with smart detection and cache busting
+function Logo() {
+  const [useFallback, setUseFallback] = useState(false);
+  const [logoSrc, setLogoSrc] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Version for cache busting - update when logo changes
+  const LOGO_VERSION = '1.0.0';
+
+  // Client-side file detection to find available logo format
+  useEffect(() => {
+    const checkLogo = async () => {
+      setIsLoading(true);
+      
+      // Try SVG first
+      try {
+        const svgResponse = await fetch('/logo.svg', { method: 'HEAD' });
+        if (svgResponse.ok) {
+          setLogoSrc(`/logo.svg?v=${LOGO_VERSION}`);
+          setIsLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.log('SVG logo not found, trying PNG');
+      }
+      
+      // Try PNG
+      try {
+        const pngResponse = await fetch('/logo.png', { method: 'HEAD' });
+        if (pngResponse.ok) {
+          setLogoSrc(`/logo.png?v=${LOGO_VERSION}`);
+          setIsLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.log('PNG logo not found, using fallback');
+      }
+      
+      // No logo found, use fallback
+      setUseFallback(true);
+      setIsLoading(false);
+    };
+    
+    checkLogo();
+  }, [LOGO_VERSION]);
+
+  const handleError = () => {
+    console.warn('Logo failed to load:', logoSrc);
+    // If current logo fails, try the other format
+    if (logoSrc?.includes('logo.svg')) {
+      setLogoSrc(`/logo.png?v=${LOGO_VERSION}`);
+    } else {
+      // Both formats failed, use fallback
+      setUseFallback(true);
+    }
+  };
+
+  if (useFallback || !logoSrc) {
+    return (
+      <div className="w-7 h-7 sm:w-8 sm:h-8 bg-primary rounded flex items-center justify-center">
+        <Droplets className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded overflow-hidden bg-primary flex items-center justify-center">
+      <Image 
+        src={logoSrc}
+        alt="Shalean Logo"
+        width={32}
+        height={32}
+        className="w-7 h-7 sm:w-8 sm:h-8 object-cover"
+        unoptimized={true}
+        priority={false}
+        onError={handleError}
+      />
+    </div>
+  );
+}
 
 export default function HomePage() {
   // Structured data for SEO
@@ -629,7 +712,7 @@ export default function HomePage() {
             Ready to Experience Spotless Living?
           </h2>
           <p className="text-base sm:text-lg lg:text-xl text-gray-600 mb-6 sm:mb-8">
-            Join thousands of satisfied customers who have transformed their spaces with Shalean Cleaning.
+            Join thousands of satisfied customers who have transformed their spaces with Shalean.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
             <Button size="lg" className="bg-primary hover:bg-primary/90 text-white rounded-full px-6 py-3 sm:px-8 sm:py-4 text-base sm:text-lg" asChild>
@@ -652,10 +735,8 @@ export default function HomePage() {
           <div className="grid md:grid-cols-2 gap-8 sm:gap-12 mb-8 sm:mb-12">
             <div>
               <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-primary rounded flex items-center justify-center">
-                  <span className="text-white font-bold text-base sm:text-lg">S</span>
-                </div>
-                <span className="text-lg sm:text-xl font-bold">Shalean Cleaning</span>
+                <Logo />
+                <span className="text-lg sm:text-xl font-bold">Shalean</span>
               </div>
               <p className="text-sm sm:text-base text-gray-400 max-w-md">
                 Professional cleaning services and solutions helping homeowners and businesses 

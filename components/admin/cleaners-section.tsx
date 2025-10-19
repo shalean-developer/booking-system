@@ -19,6 +19,8 @@ import {
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { getExperienceLevel, getCommissionRatePercentage } from '@/lib/cleaner-earnings';
+import { DayScheduleEditor } from '@/components/admin/day-schedule-editor';
+import { DayAvailabilityDisplay } from '@/components/admin/day-availability-display';
 
 interface Cleaner {
   id: string;
@@ -36,6 +38,13 @@ interface Cleaner {
   created_at: string;
   auth_provider?: string;
   password_hash?: string;
+  available_monday?: boolean;
+  available_tuesday?: boolean;
+  available_wednesday?: boolean;
+  available_thursday?: boolean;
+  available_friday?: boolean;
+  available_saturday?: boolean;
+  available_sunday?: boolean;
 }
 
 export function CleanersSection() {
@@ -344,6 +353,7 @@ export function CleanersSection() {
                     <TableHead>Name</TableHead>
                     <TableHead>Contact</TableHead>
                     <TableHead>Experience</TableHead>
+                    <TableHead>Weekly Schedule</TableHead>
                     <TableHead>Areas</TableHead>
                     <TableHead>Auth</TableHead>
                     <TableHead>Status</TableHead>
@@ -374,6 +384,12 @@ export function CleanersSection() {
                             {getCommissionRatePercentage(cleaner.hire_date)}%
                           </span>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <DayAvailabilityDisplay 
+                          schedule={cleaner} 
+                          compact={true}
+                        />
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
@@ -598,6 +614,17 @@ export function CleanersSection() {
               />
               <Label htmlFor="is_active">Active</Label>
             </div>
+            
+            {/* Day Schedule Editor - Only show when editing existing cleaner */}
+            {editingCleaner && (
+              <div className="border-t pt-4 mt-4">
+                <h3 className="text-sm font-semibold mb-3">Weekly Schedule</h3>
+                <DayScheduleEditor 
+                  cleaner={editingCleaner}
+                  onUpdate={fetchCleaners}
+                />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button 

@@ -240,36 +240,72 @@ export interface Database {
 // Helper function to get available cleaners
 export async function getAvailableCleaners(date: string, city: string) {
   try {
-    // Get cleaners in the area
+    // Determine day of week from date
+    const dateObj = new Date(date + 'T00:00:00'); // Force consistent parsing
+    const dayOfWeek = dateObj.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const dayColumns = [
+      'available_sunday',
+      'available_monday',
+      'available_tuesday',
+      'available_wednesday',
+      'available_thursday',
+      'available_friday',
+      'available_saturday'
+    ];
+    const dayColumn = dayColumns[dayOfWeek];
+
+    console.log(`🗓️ Fetching cleaners for ${date} (${dayColumns[dayOfWeek]}) in ${city}`);
+
+    // Get cleaners who:
+    // 1. Work in the area
+    // 2. Are active
+    // 3. Have master toggle ON (is_available = true)
+    // 4. Work on this day of week
     const { data: cleaners, error: cleanersError } = await supabase
       .from('cleaners')
       .select('*')
       .contains('areas', [city])
       .eq('is_active', true)
+      .eq('is_available', true)  // Master toggle must be ON
+      .eq(dayColumn, true);       // Must work on this day
 
     if (cleanersError) {
-      console.error('Error fetching cleaners:', cleanersError)
-      return []
+      console.error('Error fetching cleaners:', cleanersError);
+      return [];
     }
 
-    // Get bookings for the date
-    const { data: bookings, error: bookingsError } = await supabase
-      .from('bookings')
-      .select('cleaner_id')
-      .eq('booking_date', date)
+    console.log(`✅ Found ${cleaners?.length || 0} cleaners available on ${dayColumn}`);
 
-    if (bookingsError) {
-      console.error('Error fetching bookings:', bookingsError)
-      return cleaners || []
+    // Get booked time slots for this date
+    const { data: bookedSlots, error: slotsError } = await supabase
+      .from('cleaner_time_slots')
+      .select('cleaner_id, time_slot')
+      .eq('date', date)
+      .eq('status', 'booked');
+
+    if (slotsError) {
+      console.error('Error fetching time slots:', slotsError);
+      return cleaners || [];
     }
 
-    // Filter out booked cleaners
-    const bookedCleanerIds = bookings?.map(b => b.cleaner_id) || []
-    const available = cleaners?.filter(c => !bookedCleanerIds.includes(c.id)) || []
+    // Add availability info to each cleaner
+    const cleanersWithSlots = cleaners?.map(cleaner => {
+      const bookedTimes = bookedSlots
+        ?.filter(slot => slot.cleaner_id === cleaner.id)
+        .map(slot => slot.time_slot) || [];
+      
+      return {
+        ...cleaner,
+        booked_times: bookedTimes,
+        has_availability: true // They're in the list, so they work this day
+      };
+    }) || [];
 
-    return available
+    console.log(`📋 Returning ${cleanersWithSlots.length} cleaners with time slot info`);
+
+    return cleanersWithSlots;
   } catch (error) {
-    console.error('Error in getAvailableCleaners:', error)
-    return []
+    console.error('Error in getAvailableCleaners:', error);
+    return [];
   }
 }

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,9 +16,91 @@ import {
   AlertCircle,
   Loader2,
   MessageSquare,
-  Check
+  Check,
+  Droplets
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// Logo component with smart detection and cache busting
+function Logo() {
+  const [useFallback, setUseFallback] = useState(false);
+  const [logoSrc, setLogoSrc] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Version for cache busting - update when logo changes
+  const LOGO_VERSION = '1.0.0';
+
+  // Client-side file detection to find available logo format
+  useEffect(() => {
+    const checkLogo = async () => {
+      setIsLoading(true);
+      
+      // Try SVG first
+      try {
+        const svgResponse = await fetch('/logo.svg', { method: 'HEAD' });
+        if (svgResponse.ok) {
+          setLogoSrc(`/logo.svg?v=${LOGO_VERSION}`);
+          setIsLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.log('SVG logo not found, trying PNG');
+      }
+      
+      // Try PNG
+      try {
+        const pngResponse = await fetch('/logo.png', { method: 'HEAD' });
+        if (pngResponse.ok) {
+          setLogoSrc(`/logo.png?v=${LOGO_VERSION}`);
+          setIsLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.log('PNG logo not found, using fallback');
+      }
+      
+      // No logo found, use fallback
+      setUseFallback(true);
+      setIsLoading(false);
+    };
+    
+    checkLogo();
+  }, [LOGO_VERSION]);
+
+  const handleError = () => {
+    console.warn('Logo failed to load:', logoSrc);
+    // If current logo fails, try the other format
+    if (logoSrc?.includes('logo.svg')) {
+      setLogoSrc(`/logo.png?v=${LOGO_VERSION}`);
+    } else {
+      // Both formats failed, use fallback
+      setUseFallback(true);
+    }
+  };
+
+  if (useFallback || !logoSrc) {
+    return (
+      <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center">
+        <Droplets className="h-5 w-5 text-white" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-10 w-10 rounded-full overflow-hidden bg-primary flex items-center justify-center">
+      <Image 
+        src={logoSrc}
+        alt="Shalean Logo"
+        width={40}
+        height={40}
+        className="h-10 w-10 object-cover"
+        unoptimized={true}
+        priority={true}
+        onError={handleError}
+      />
+    </div>
+  );
+}
 
 export default function CleanerLoginPage() {
   const router = useRouter();
@@ -145,10 +228,8 @@ export default function CleanerLoginPage() {
       <div className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur-sm">
         <div className="mx-auto max-w-7xl px-4 py-4">
           <div className="flex items-center gap-2">
-            <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center">
-              <span className="text-white font-bold text-lg">S</span>
-            </div>
-            <span className="text-xl font-bold">Shalean Cleaning</span>
+            <Logo />
+            <span className="text-xl font-bold">Shalean</span>
           </div>
         </div>
       </div>

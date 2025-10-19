@@ -16,6 +16,13 @@ export interface CleanerSession {
   areas: string[];
   is_available: boolean;
   rating: number;
+  available_monday?: boolean;
+  available_tuesday?: boolean;
+  available_wednesday?: boolean;
+  available_thursday?: boolean;
+  available_friday?: boolean;
+  available_saturday?: boolean;
+  available_sunday?: boolean;
 }
 
 const CLEANER_SESSION_COOKIE = 'cleaner_session';
@@ -106,7 +113,7 @@ export async function verifyCleanerPassword(phone: string, password: string): Pr
     // Find cleaner by phone
     const { data: cleaner, error } = await supabase
       .from('cleaners')
-      .select('*')
+      .select('id, name, phone, photo_url, areas, is_available, is_active, rating, available_monday, available_tuesday, available_wednesday, available_thursday, available_friday, available_saturday, available_sunday, password_hash, auth_provider')
       .eq('phone', normalizedPhone)
       .eq('is_active', true)
       .maybeSingle();
@@ -156,6 +163,13 @@ export async function verifyCleanerPassword(phone: string, password: string): Pr
       areas: cleaner.areas,
       is_available: cleaner.is_available,
       rating: cleaner.rating,
+      available_monday: cleaner.available_monday,
+      available_tuesday: cleaner.available_tuesday,
+      available_wednesday: cleaner.available_wednesday,
+      available_thursday: cleaner.available_thursday,
+      available_friday: cleaner.available_friday,
+      available_saturday: cleaner.available_saturday,
+      available_sunday: cleaner.available_sunday,
     };
     
     return session;
@@ -215,7 +229,7 @@ export async function verifyOTP(phone: string, otp: string): Promise<CleanerSess
     // Find cleaner by phone
     const { data: cleaner, error } = await supabase
       .from('cleaners')
-      .select('*')
+      .select('id, name, phone, photo_url, areas, is_available, is_active, rating, available_monday, available_tuesday, available_wednesday, available_thursday, available_friday, available_saturday, available_sunday, otp_code, otp_expires_at, otp_attempts, auth_provider')
       .eq('phone', phone)
       .eq('is_active', true)
       .maybeSingle();
@@ -276,6 +290,13 @@ export async function verifyOTP(phone: string, otp: string): Promise<CleanerSess
       areas: cleaner.areas,
       is_available: cleaner.is_available,
       rating: cleaner.rating,
+      available_monday: cleaner.available_monday,
+      available_tuesday: cleaner.available_tuesday,
+      available_wednesday: cleaner.available_wednesday,
+      available_thursday: cleaner.available_thursday,
+      available_friday: cleaner.available_friday,
+      available_saturday: cleaner.available_saturday,
+      available_sunday: cleaner.available_sunday,
     };
     
     return session;

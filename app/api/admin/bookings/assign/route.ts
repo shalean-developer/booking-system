@@ -30,11 +30,32 @@ export async function GET(req: Request) {
       );
     }
     
-    // Fetch all active cleaners
+    // Determine day of week from date
+    const dateObj = new Date(date + 'T00:00:00');
+    const dayOfWeek = dateObj.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const dayColumns = [
+      'available_sunday',
+      'available_monday',
+      'available_tuesday',
+      'available_wednesday',
+      'available_thursday',
+      'available_friday',
+      'available_saturday'
+    ];
+    const dayColumn = dayColumns[dayOfWeek];
+    
+    console.log(`📅 Filtering cleaners for ${date} (${dayColumn})`);
+    
+    // Fetch cleaners who:
+    // 1. Are active
+    // 2. Have master toggle ON
+    // 3. Work on this day of week
     const { data: cleaners, error: cleanersError } = await supabase
       .from('cleaners')
       .select('*')
       .eq('is_active', true)
+      .eq('is_available', true)  // Master toggle must be ON
+      .eq(dayColumn, true)        // Must work on this day
       .order('name');
     
     if (cleanersError) throw cleanersError;

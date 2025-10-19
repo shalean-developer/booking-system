@@ -8,6 +8,7 @@ import { AvailableBookings } from '@/components/cleaner/available-bookings';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { DayAvailabilityDisplay } from '@/components/admin/day-availability-display';
 import {
   Calendar,
   CheckCircle2,
@@ -24,6 +25,13 @@ interface CleanerSession {
   areas: string[];
   is_available: boolean;
   rating: number;
+  available_monday?: boolean;
+  available_tuesday?: boolean;
+  available_wednesday?: boolean;
+  available_thursday?: boolean;
+  available_friday?: boolean;
+  available_saturday?: boolean;
+  available_sunday?: boolean;
 }
 
 interface CleanerDashboardClientProps {
@@ -175,6 +183,29 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
             Manage your bookings and find new jobs in your area
           </p>
         </div>
+
+        {/* My Weekly Schedule Card */}
+        <Card className="mb-6">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                My Weekly Schedule
+              </h3>
+              <Badge variant="outline" className="text-xs">
+                {Object.entries(cleaner).filter(([key, val]) => 
+                  key.startsWith('available_') && val === true
+                ).length} days/week
+              </Badge>
+            </div>
+            <DayAvailabilityDisplay 
+              schedule={cleaner} 
+              compact={false}
+            />
+            <p className="text-sm text-gray-500 mt-3">
+              Your schedule is set by your manager. Contact admin to request changes.
+            </p>
+          </CardContent>
+        </Card>
 
         {/* Location Tracker */}
         <div className="mb-6">

@@ -38,7 +38,14 @@ export function LocationTracker() {
               setStatus('idle');
               return;
             }
-            throw new Error('Failed to update location');
+            
+            // Try to get error message from response
+            try {
+              const errorData = await response.json();
+              throw new Error(errorData.error || 'Failed to update location');
+            } catch {
+              throw new Error(`Failed to update location (${response.status})`);
+            }
           }
 
           const data = await response.json();
@@ -53,7 +60,8 @@ export function LocationTracker() {
         } catch (error) {
           console.error('Error updating location:', error);
           setStatus('error');
-          setErrorMessage('Failed to update location');
+          const errorMsg = error instanceof Error ? error.message : 'Failed to update location';
+          setErrorMessage(errorMsg);
         }
       },
       (error) => {
@@ -83,8 +91,10 @@ export function LocationTracker() {
   };
 
   useEffect(() => {
-    // Initial update
-    updateLocation();
+    // Delay initial update by 2 seconds to ensure session is loaded
+    const initialTimeout = setTimeout(() => {
+      updateLocation();
+    }, 2000);
 
     // Update every 2 minutes
     intervalRef.current = setInterval(() => {
@@ -92,6 +102,7 @@ export function LocationTracker() {
     }, 2 * 60 * 1000);
 
     return () => {
+      clearTimeout(initialTimeout);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
