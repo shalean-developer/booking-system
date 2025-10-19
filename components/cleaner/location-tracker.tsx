@@ -27,8 +27,19 @@ export function LocationTracker() {
           const response = await fetch('/api/cleaner/location', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include', // Include cookies for authentication
             body: JSON.stringify({ latitude, longitude }),
           });
+
+          if (!response.ok) {
+            // If unauthorized, silently fail and retry later
+            if (response.status === 401) {
+              console.log('Not authenticated yet, will retry later');
+              setStatus('idle');
+              return;
+            }
+            throw new Error('Failed to update location');
+          }
 
           const data = await response.json();
 
