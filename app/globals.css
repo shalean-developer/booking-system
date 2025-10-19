@@ -58,3 +58,150 @@
   }
 }
 
+@layer components {
+  /* Enhanced Blog Typography */
+  .blog-prose {
+    @apply prose prose-lg max-w-none;
+    font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+    line-height: 1.75;
+  }
+
+  .blog-prose p {
+    @apply mb-6 leading-relaxed;
+  }
+
+  .blog-prose h1 {
+    @apply text-4xl font-bold text-gray-900 mb-8 mt-0 leading-tight;
+  }
+
+  .blog-prose h2 {
+    @apply text-3xl font-bold text-gray-900 mb-6 mt-12 leading-tight;
+  }
+
+  .blog-prose h3 {
+    @apply text-2xl font-semibold text-gray-900 mb-4 mt-10 leading-tight;
+  }
+
+  .blog-prose h4 {
+    @apply text-xl font-semibold text-gray-900 mb-3 mt-8 leading-tight;
+  }
+
+  .blog-prose h5 {
+    @apply text-lg font-semibold text-gray-900 mb-2 mt-6 leading-tight;
+  }
+
+  .blog-prose h6 {
+    @apply text-base font-semibold text-gray-900 mb-2 mt-4 leading-tight;
+  }
+
+  .blog-prose ul {
+    @apply mb-6 space-y-2 pl-6;
+  }
+
+  .blog-prose ol {
+    @apply mb-6 space-y-2 pl-6;
+  }
+
+  .blog-prose li {
+    @apply leading-relaxed;
+  }
+
+  .blog-prose ul li::marker {
+    @apply text-primary;
+  }
+
+  .blog-prose ol li::marker {
+    @apply text-primary font-semibold;
+  }
+
+  .blog-prose blockquote {
+    @apply border-l-4 border-primary bg-gray-50 p-6 my-8 rounded-r-lg;
+  }
+
+  .blog-prose blockquote p {
+    @apply mb-0 text-gray-700 italic;
+  }
+
+  .blog-prose blockquote p:last-child {
+    @apply mb-0;
+  }
+
+  .blog-prose code {
+    @apply bg-gray-100 text-gray-900 px-2 py-1 rounded text-sm font-mono;
+  }
+
+  .blog-prose pre {
+    @apply bg-gray-900 text-gray-100 p-6 rounded-lg overflow-x-auto my-8;
+  }
+
+  .blog-prose pre code {
+    @apply bg-transparent p-0 text-gray-100;
+  }
+
+  .blog-prose a {
+    @apply text-primary hover:text-primary/80 transition-colors duration-200;
+  }
+
+  .blog-prose strong {
+    @apply font-semibold text-gray-900;
+  }
+
+  .blog-prose em {
+    @apply italic;
+  }
+
+  .blog-prose hr {
+    @apply border-gray-200 my-12;
+  }
+
+  .blog-prose img {
+    @apply rounded-lg shadow-md my-8;
+  }
+
+  .blog-prose table {
+    @apply w-full border-collapse border border-gray-200 my-8;
+  }
+
+  .blog-prose th {
+    @apply border border-gray-200 bg-gray-50 px-4 py-2 text-left font-semibold;
+  }
+
+  .blog-prose td {
+    @apply border border-gray-200 px-4 py-2;
+  }
+
+  /* Tip Cards and Special Content */
+  .tip-card {
+    @apply bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-lg p-6 my-6;
+  }
+
+  .pro-tip {
+    @apply bg-gradient-to-r from-green-50 to-green-100 border-l-4 border-green-500 p-4 my-6 rounded-r-lg;
+  }
+
+  .bonus-tip {
+    @apply bg-gradient-to-r from-blue-50 to-blue-100 border-l-4 border-blue-500 p-4 my-6 rounded-r-lg;
+  }
+
+  .warning-tip {
+    @apply bg-gradient-to-r from-yellow-50 to-yellow-100 border-l-4 border-yellow-500 p-4 my-6 rounded-r-lg;
+  }
+
+  /* Numbered List Cards */
+  .numbered-tip {
+    @apply border border-gray-200 shadow-sm p-6 rounded-lg my-4;
+  }
+
+  .numbered-tip .tip-number {
+    @apply flex-shrink-0 w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold text-lg mr-4;
+  }
+
+  .numbered-tip .tip-content h3 {
+    @apply text-xl font-bold text-gray-900 mb-2 mt-0;
+  }
+
+  .numbered-tip .tip-content p {
+    @apply text-gray-600 mb-0;
+  }
+}
+

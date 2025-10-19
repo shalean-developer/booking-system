@@ -90,7 +90,19 @@ const BlogSection = dynamic(
   }
 );
 
-type TabType = 'dashboard' | 'bookings' | 'customers' | 'cleaners' | 'applications' | 'pricing' | 'blog';
+const QuotesSection = dynamic(
+  () => import('@/components/admin/quotes-section').then(m => ({ default: m.QuotesSection })),
+  { 
+    loading: () => (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    ),
+    ssr: false 
+  }
+);
+
+type TabType = 'dashboard' | 'bookings' | 'customers' | 'cleaners' | 'applications' | 'pricing' | 'blog' | 'quotes';
 
 export function AdminDashboardClient() {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
@@ -112,6 +124,7 @@ export function AdminDashboardClient() {
             {[
               { id: 'dashboard', label: 'Dashboard' },
               { id: 'bookings', label: 'Bookings' },
+              { id: 'quotes', label: 'Quotes' },
               { id: 'customers', label: 'Customers' },
               { id: 'cleaners', label: 'Cleaners' },
               { id: 'pricing', label: 'Pricing' },
@@ -137,6 +150,7 @@ export function AdminDashboardClient() {
         <div className="bg-white rounded-lg shadow p-6">
           {activeTab === 'dashboard' && <StatsSection />}
           {activeTab === 'bookings' && <BookingsSection />}
+          {activeTab === 'quotes' && <QuotesSection />}
           {activeTab === 'customers' && <CustomersSection />}
           {activeTab === 'cleaners' && <CleanersSection />}
           {activeTab === 'pricing' && <PricingSection />}

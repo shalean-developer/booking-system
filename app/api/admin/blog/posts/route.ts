@@ -32,31 +32,58 @@ export async function GET() {
 // POST create new post
 export async function POST(request: NextRequest) {
   try {
+    console.log('=== BLOG POST CREATE API CALLED ===');
+    
     const userIsAdmin = await isAdmin();
     if (!userIsAdmin) {
+      console.log('❌ Admin access denied');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    console.log('✅ Admin access granted');
+    
     const supabase = await createClient();
     const body = await request.json();
+    
+    console.log('📝 Request body:', JSON.stringify(body, null, 2));
 
-    const { data: userData } = await supabase.auth.getUser();
+    const { data: userData, error: authError } = await supabase.auth.getUser();
+    if (authError) {
+      console.error('❌ Auth error:', authError);
+      throw new Error(`Auth error: ${authError.message}`);
+    }
+    
     const authorId = userData?.user?.id;
+    console.log('👤 Author ID:', authorId);
+    
+    if (!authorId) {
+      throw new Error('No authenticated user found');
+    }
+
+    const insertData = {
+      ...body,
+      author_id: authorId,
+    };
+    
+    console.log('💾 Insert data:', JSON.stringify(insertData, null, 2));
 
     const { data, error } = await supabase
       .from('blog_posts')
-      .insert({
-        ...body,
-        author_id: authorId,
-      })
+      .insert(insertData)
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Database error:', error);
+      console.error('❌ Error details:', JSON.stringify(error, null, 2));
+      throw error;
+    }
 
+    console.log('✅ Post created successfully:', data);
     return NextResponse.json({ post: data }, { status: 201 });
   } catch (error) {
-    console.error('Error creating post:', error);
+    console.error('💥 Error creating post:', error);
+    console.error('💥 Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json(
       { error: 'Failed to create post' },
       { status: 500 }

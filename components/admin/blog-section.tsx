@@ -19,10 +19,11 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Plus, Edit2, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Plus, Edit2, Trash2, Eye, EyeOff, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { BlogPostWithDetails, BlogCategory, BlogTag } from '@/lib/blog-client';
 import { generateSlug, calculateReadTime } from '@/lib/blog-client';
+import { RichTextEditor } from './rich-text-editor';
 
 type PostFormData = {
   title: string;
@@ -44,6 +45,7 @@ export function BlogSection() {
   const [categories, setCategories] = useState<BlogCategory[]>([]);
   const [tags, setTags] = useState<BlogTag[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isUploadingFeatured, setIsUploadingFeatured] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<BlogPostWithDetails | null>(null);
   const [formData, setFormData] = useState<PostFormData>({
@@ -107,6 +109,58 @@ export function BlogSection() {
       read_time: calculateReadTime(content),
     }));
   }
+
+  const handleFeaturedImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Invalid file type. Only JPEG, PNG, WebP, and GIF files are allowed.');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      toast.error('File too large. Maximum size is 5MB.');
+      return;
+    }
+
+    setIsUploadingFeatured(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/admin/blog/upload-image', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+
+      const result = await response.json();
+      setFormData(prev => ({
+        ...prev,
+        featured_image: result.imageUrl,
+      }));
+      toast.success('Featured image uploaded successfully!');
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Failed to upload featured image');
+    } finally {
+      setIsUploadingFeatured(false);
+      // Reset file input
+      if (event.target) {
+        event.target.value = '';
+      }
+    }
+  };
 
   function openNewPostForm() {
     setEditingPost(null);
@@ -348,13 +402,11 @@ export function BlogSection() {
 
             {/* Content */}
             <div>
-              <Label htmlFor="content">Content (HTML) *</Label>
-              <textarea
-                id="content"
-                className="w-full min-h-[300px] px-3 py-2 border border-gray-300 rounded-md font-mono text-sm"
-                value={formData.content}
-                onChange={(e) => handleContentChange(e.target.value)}
-                required
+              <Label htmlFor="content">Content *</Label>
+              <RichTextEditor
+                content={formData.content}
+                onChange={handleContentChange}
+                placeholder="Write your blog post content here..."
               />
               <p className="text-sm text-gray-500 mt-1">
                 Read time: {formData.read_time} min
@@ -362,17 +414,42 @@ export function BlogSection() {
             </div>
 
             {/* Featured Image */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-4">
               <div>
-                <Label htmlFor="featured_image">Featured Image URL</Label>
-                <Input
-                  id="featured_image"
-                  value={formData.featured_image}
-                  onChange={(e) =>
-                    setFormData({ ...formData, featured_image: e.target.value })
-                  }
-                  placeholder="/images/..."
-                />
+                <Label>Featured Image</Label>
+                <div className="flex gap-4 items-start">
+                  <div className="flex-1">
+                    <Input
+                      value={formData.featured_image}
+                      onChange={(e) =>
+                        setFormData({ ...formData, featured_image: e.target.value })
+                      }
+                      placeholder="/images/blog/..."
+                    />
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFeaturedImageUpload}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      disabled={isUploadingFeatured}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={isUploadingFeatured}
+                      className="whitespace-nowrap"
+                    >
+                      {isUploadingFeatured ? (
+                        <Upload className="h-4 w-4 animate-pulse mr-2" />
+                      ) : (
+                        <Upload className="h-4 w-4 mr-2" />
+                      )}
+                      Upload
+                    </Button>
+                  </div>
+                </div>
               </div>
               <div>
                 <Label htmlFor="featured_image_alt">Image Alt Text</Label>
@@ -382,8 +459,32 @@ export function BlogSection() {
                   onChange={(e) =>
                     setFormData({ ...formData, featured_image_alt: e.target.value })
                   }
+                  placeholder="Describe the image for SEO..."
                 />
               </div>
+              {formData.featured_image && (
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-600 mb-2">Preview:</p>
+                      <img 
+                        src={formData.featured_image} 
+                        alt={formData.featured_image_alt || 'Featured image'}
+                        className="max-w-full h-32 object-cover rounded-lg"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFormData({ ...formData, featured_image: '' })}
+                      className="ml-4"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Category and Status */}

@@ -61,7 +61,8 @@ export async function GET(request: Request) {
       recentBookingStats,
       customerCount,
       cleanerCounts,
-      applicationCounts
+      applicationCounts,
+      quoteCounts
     ] = await Promise.all([
       // Total bookings by status (single query with counts)
       Promise.all([
@@ -89,6 +90,13 @@ export async function GET(request: Request) {
         supabase.from('applications').select('id', { count: 'exact', head: true }),
         supabase.from('applications').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
       ]),
+      // Quotes by status
+      Promise.all([
+        supabase.from('quotes').select('id', { count: 'exact', head: true }),
+        supabase.from('quotes').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('quotes').select('id', { count: 'exact', head: true }).eq('status', 'contacted'),
+        supabase.from('quotes').select('id', { count: 'exact', head: true }).eq('status', 'converted'),
+      ]),
     ]);
     
     // Process results
@@ -99,6 +107,7 @@ export async function GET(request: Request) {
     
     const [totalCleanersResult, activeCleanersResult] = cleanerCounts;
     const [totalApplicationsResult, pendingApplicationsResult] = applicationCounts;
+    const [totalQuotesResult, pendingQuotesResult, contactedQuotesResult, convertedQuotesResult] = quoteCounts;
     
     console.log('✅ Stats fetched successfully');
     
@@ -126,6 +135,12 @@ export async function GET(request: Request) {
         applications: {
           total: totalApplicationsResult.count || 0,
           pending: pendingApplicationsResult.count || 0,
+        },
+        quotes: {
+          total: totalQuotesResult.count || 0,
+          pending: pendingQuotesResult.count || 0,
+          contacted: contactedQuotesResult.count || 0,
+          converted: convertedQuotesResult.count || 0,
         },
       },
     });

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, DollarSign, Users, Calendar, Briefcase, CheckCircle } from 'lucide-react';
+import { Loader2, DollarSign, Users, Calendar, Briefcase, CheckCircle, FileText } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
 
 interface Stats {
@@ -27,6 +27,12 @@ interface Stats {
   applications: {
     total: number;
     pending: number;
+  };
+  quotes: {
+    total: number;
+    pending: number;
+    contacted: number;
+    converted: number;
   };
 }
 
@@ -206,6 +212,36 @@ export function StatsSection() {
           <p className="text-sm text-muted-foreground mt-2">
             {stats.applications.total} total applications received
           </p>
+        </CardContent>
+      </Card>
+
+      {/* Quotes Overview */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Quote Requests
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Total</p>
+              <div className="text-2xl font-bold">{stats.quotes.total}</div>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Pending</p>
+              <div className="text-2xl font-bold text-yellow-600">{stats.quotes.pending}</div>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Contacted</p>
+              <div className="text-2xl font-bold text-blue-600">{stats.quotes.contacted}</div>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Converted</p>
+              <div className="text-2xl font-bold text-green-600">{stats.quotes.converted}</div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
