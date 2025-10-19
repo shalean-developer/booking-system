@@ -69,6 +69,8 @@ export async function POST(req: Request) {
     }
     
     const body = await req.json();
+    console.log('📥 Received body:', body);
+    
     const supabase = await createClient();
     
     const { data: cleaner, error } = await supabase
@@ -77,7 +79,13 @@ export async function POST(req: Request) {
       .select()
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Database error:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      console.error('Error details:', error.details);
+      throw error;
+    }
     
     console.log('✅ Cleaner created:', cleaner.id);
     
@@ -86,10 +94,14 @@ export async function POST(req: Request) {
       cleaner,
     });
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('=== ADMIN CLEANERS POST ERROR ===', error);
+    const errorMessage = error?.message || 'Failed to create cleaner';
+    const errorDetails = error?.details || '';
+    const fullError = errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage;
+    
     return NextResponse.json(
-      { ok: false, error: 'Failed to create cleaner' },
+      { ok: false, error: fullError },
       { status: 500 }
     );
   }
