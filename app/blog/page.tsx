@@ -12,12 +12,12 @@ import {
   Clock
 } from "lucide-react";
 import type { Metadata } from "next";
+import { createMetadata } from "@/lib/metadata";
+import { getSeoConfig } from "@/lib/seo-config";
 import { getPublishedPosts } from "@/lib/blog-server";
 
-export const metadata: Metadata = {
-  title: "Blog | Shalean Cleaning Services",
-  description: "Expert cleaning tips, guides, and industry insights from professional cleaners. Learn how to maintain a spotless home.",
-};
+// Blog page metadata
+export const metadata: Metadata = createMetadata(getSeoConfig("blog"));
 
 // Revalidate every hour to show new posts
 export const revalidate = 3600;

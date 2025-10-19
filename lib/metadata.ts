@@ -1,0 +1,210 @@
+import type { Metadata } from "next";
+
+// Base URL for the site
+export const SITE_URL = "https://shalean.co.za";
+
+// Default OG image dimensions
+export const OG_IMAGE_WIDTH = 1200;
+export const OG_IMAGE_HEIGHT = 630;
+
+// Validation limits
+export const TITLE_MAX_LENGTH = 60;
+export const DESCRIPTION_MAX_LENGTH = 160;
+
+// Default site metadata
+export const DEFAULT_SITE_METADATA = {
+  siteName: "Shalean Cleaning Services",
+  locale: "en_ZA",
+  twitterCard: "summary_large_image" as const,
+  defaultOgType: "website" as const,
+} as const;
+
+// Type definitions for page metadata
+export interface PageMetadata {
+  title: string;
+  description: string;
+  canonical?: string;
+  ogImage?: {
+    url: string;
+    alt: string;
+  };
+  ogType?: "website" | "article";
+  twitterCard?: "summary" | "summary_large_image";
+  robots?: string;
+  generatedMeta?: boolean;
+}
+
+// Type definitions for blog post metadata
+export interface BlogPostMetadata extends PageMetadata {
+  publishedTime?: string;
+  author?: string;
+  ogType: "article";
+}
+
+/**
+ * Validates metadata length and logs warnings
+ */
+export function validateMetadata(metadata: Partial<PageMetadata>): {
+  isValid: boolean;
+  warnings: string[];
+} {
+  const warnings: string[] = [];
+  let isValid = true;
+
+  if (metadata.title) {
+    if (metadata.title.length > TITLE_MAX_LENGTH) {
+      warnings.push(`Title is ${metadata.title.length} characters (max: ${TITLE_MAX_LENGTH})`);
+      isValid = false;
+    } else if (metadata.title.length > 55) {
+      warnings.push(`Title is ${metadata.title.length} characters (recommended: ≤55)`);
+    }
+  }
+
+  if (metadata.description) {
+    if (metadata.description.length > DESCRIPTION_MAX_LENGTH) {
+      warnings.push(`Description is ${metadata.description.length} characters (max: ${DESCRIPTION_MAX_LENGTH})`);
+      isValid = false;
+    } else if (metadata.description.length > 150) {
+      warnings.push(`Description is ${metadata.description.length} characters (recommended: ≤150)`);
+    }
+  }
+
+  if (metadata.generatedMeta) {
+    warnings.push("Metadata was auto-generated - please review and customize");
+  }
+
+  return { isValid, warnings };
+}
+
+/**
+ * Truncates text to specified length with ellipsis
+ */
+export function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength - 3) + "...";
+}
+
+/**
+ * Generates canonical URL from path
+ */
+export function generateCanonical(path: string = ""): string {
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  return `${SITE_URL}${cleanPath}`;
+}
+
+/**
+ * Generates fallback metadata from page content
+ */
+export function generateFallbackMetadata(
+  title: string,
+  description: string,
+  path: string = ""
+): PageMetadata {
+  return {
+    title: truncateText(title, TITLE_MAX_LENGTH),
+    description: truncateText(description, DESCRIPTION_MAX_LENGTH),
+    canonical: generateCanonical(path),
+    ogType: "website",
+    twitterCard: "summary_large_image",
+    generatedMeta: true,
+  };
+}
+
+/**
+ * Creates Next.js Metadata object from page metadata
+ */
+export function createMetadata(metadata: PageMetadata): Metadata {
+  const canonical = metadata.canonical || generateCanonical();
+  
+  return {
+    title: metadata.title,
+    description: metadata.description,
+    alternates: {
+      canonical,
+    },
+    robots: metadata.robots || "index,follow",
+    openGraph: {
+      locale: DEFAULT_SITE_METADATA.locale,
+      siteName: DEFAULT_SITE_METADATA.siteName,
+      type: metadata.ogType || DEFAULT_SITE_METADATA.defaultOgType,
+      title: metadata.title,
+      description: metadata.description,
+      url: canonical,
+      ...(metadata.ogImage && {
+        images: [
+          {
+            url: metadata.ogImage.url,
+            alt: metadata.ogImage.alt,
+            width: OG_IMAGE_WIDTH,
+            height: OG_IMAGE_HEIGHT,
+          },
+        ],
+      }),
+    },
+    twitter: {
+      card: metadata.twitterCard || DEFAULT_SITE_METADATA.twitterCard,
+      title: metadata.title,
+      description: metadata.description,
+      ...(metadata.ogImage && {
+        images: [metadata.ogImage.url],
+      }),
+    },
+  };
+}
+
+/**
+ * Creates blog post metadata with article-specific fields
+ */
+export function createBlogPostMetadata(metadata: BlogPostMetadata): Metadata {
+  const baseMetadata = createMetadata(metadata);
+  
+  return {
+    ...baseMetadata,
+    openGraph: {
+      ...baseMetadata.openGraph,
+      type: "article",
+      ...(metadata.publishedTime && {
+        publishedTime: metadata.publishedTime,
+      }),
+      ...(metadata.author && {
+        authors: [metadata.author],
+      }),
+    },
+  };
+}
+
+/**
+ * Generates OG image URL for different page types
+ */
+export function generateOgImageUrl(pageType: string): string {
+  return `${SITE_URL}/assets/og/${pageType}-1200x630.jpg`;
+}
+
+/**
+ * Logs metadata validation results for debugging
+ */
+export function logMetadataValidation(
+  path: string,
+  metadata: PageMetadata,
+  validation: { isValid: boolean; warnings: string[] }
+): void {
+  if (process.env.NODE_ENV === "development") {
+    console.log(`\n📄 Metadata for ${path}:`);
+    console.log(`Title: "${metadata.title}" (${metadata.title.length} chars)`);
+    console.log(`Description: "${metadata.description}" (${metadata.description.length} chars)`);
+    console.log(`Canonical: ${metadata.canonical}`);
+    console.log(`Generated: ${metadata.generatedMeta ? "Yes" : "No"}`);
+    
+    if (validation.warnings.length > 0) {
+      console.warn("⚠️  Warnings:");
+      validation.warnings.forEach(warning => console.warn(`  - ${warning}`));
+    }
+    
+    if (!validation.isValid) {
+      console.error("❌ Metadata validation failed");
+    } else {
+      console.log("✅ Metadata validation passed");
+    }
+    console.log("---");
+  }
+}

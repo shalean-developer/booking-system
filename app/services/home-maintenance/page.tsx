@@ -3,11 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Home, ArrowLeft, CheckCircle } from "lucide-react";
+import type { Metadata } from "next";
+import { createMetadata } from "@/lib/metadata";
+import { getSeoConfig } from "@/lib/seo-config";
 
-export const metadata = {
-  title: "Home Maintenance | Shalean Cleaning Services",
-  description: "Regular home cleaning for ongoing upkeep. Ideal for one-off or recurring visits.",
-};
+// Home maintenance page metadata
+export const metadata: Metadata = createMetadata(getSeoConfig("home-maintenance"));
 
 export default function HomeMaintenancePage() {
   return (

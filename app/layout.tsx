@@ -10,13 +10,13 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   metadataBase: new URL('https://shalean.co.za'),
   title: {
-    default: "Shalean Cleaning Services | Professional Home & Office Cleaning",
+    default: "Shalean Cleaning Services — Professional Home Cleaning",
     template: "%s | Shalean Cleaning Services"
   },
-  description: "Book professional cleaning services online. Standard, deep cleaning, move in/out, and Airbnb services. Expert cleaners, eco-friendly products, 98% satisfaction rate.",
+  description: "Reliable home & apartment cleaning in Cape Town. Book deep cleans, move-outs, and regular cleaning with Shalean.",
   applicationName: "Shalean Cleaning Services",
   referrer: "origin-when-cross-origin",
-  keywords: ["cleaning services", "professional cleaning", "home cleaning", "office cleaning", "deep cleaning", "Airbnb cleaning"],
+  keywords: ["cleaning services", "professional cleaning", "home cleaning", "office cleaning", "deep cleaning", "Airbnb cleaning", "Cape Town cleaning"],
   authors: [{ name: "Shalean Cleaning Services" }],
   creator: "Shalean Cleaning Services",
   publisher: "Shalean Cleaning Services",
@@ -43,13 +43,22 @@ export const metadata: Metadata = {
     locale: "en_ZA",
     url: "https://shalean.co.za",
     siteName: "Shalean Cleaning Services",
-    title: "Shalean Cleaning Services | Professional Home & Office Cleaning",
-    description: "Book professional cleaning services online. Expert cleaners, eco-friendly products, 98% satisfaction rate.",
+    title: "Shalean Cleaning Services — Professional Home Cleaning",
+    description: "Reliable home & apartment cleaning in Cape Town. Book deep cleans, move-outs, and regular cleaning with Shalean.",
+    images: [
+      {
+        url: "https://shalean.co.za/assets/og/home-1200x630.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Shalean Cleaning Services team cleaning a living room"
+      }
+    ]
   },
   twitter: {
     card: "summary_large_image",
-    title: "Shalean Cleaning Services | Professional Home & Office Cleaning",
-    description: "Book professional cleaning services online. Expert cleaners, eco-friendly products, 98% satisfaction rate.",
+    title: "Shalean Cleaning Services — Professional Home Cleaning",
+    description: "Reliable home & apartment cleaning in Cape Town. Book deep cleans, move-outs, and regular cleaning with Shalean.",
+    images: ["https://shalean.co.za/assets/og/home-1200x630.jpg"]
   },
   robots: {
     index: true,

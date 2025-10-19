@@ -19,7 +19,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Plus, Edit2, Trash2, Eye, EyeOff, Upload, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, Eye, EyeOff, Upload, X, AlertTriangle, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import type { BlogPostWithDetails, BlogCategory, BlogTag } from '@/lib/blog-client';
 import { generateSlug, calculateReadTime } from '@/lib/blog-client';
@@ -542,10 +542,29 @@ export function BlogSection() {
                       setFormData({ ...formData, meta_title: e.target.value })
                     }
                     maxLength={60}
+                    className={formData.meta_title.length > 60 ? 'border-red-500' : formData.meta_title.length > 55 ? 'border-yellow-500' : ''}
                   />
-                  <p className="text-sm text-gray-500 mt-1">
-                    {formData.meta_title.length}/60 characters
-                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className={`text-sm ${formData.meta_title.length > 60 ? 'text-red-600' : formData.meta_title.length > 55 ? 'text-yellow-600' : 'text-gray-500'}`}>
+                      {formData.meta_title.length}/60 characters
+                    </p>
+                    {formData.meta_title.length > 60 ? (
+                      <div className="flex items-center gap-1 text-red-600">
+                        <AlertTriangle className="h-3 w-3" />
+                        <span className="text-xs">Too long</span>
+                      </div>
+                    ) : formData.meta_title.length > 55 ? (
+                      <div className="flex items-center gap-1 text-yellow-600">
+                        <AlertTriangle className="h-3 w-3" />
+                        <span className="text-xs">Getting long</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 text-green-600">
+                        <CheckCircle className="h-3 w-3" />
+                        <span className="text-xs">Good length</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div>
@@ -554,16 +573,55 @@ export function BlogSection() {
                   </Label>
                   <textarea
                     id="meta_description"
-                    className="w-full min-h-[60px] px-3 py-2 border border-gray-300 rounded-md"
+                    className={`w-full min-h-[60px] px-3 py-2 border rounded-md ${formData.meta_description.length > 160 ? 'border-red-500' : formData.meta_description.length > 150 ? 'border-yellow-500' : 'border-gray-300'}`}
                     value={formData.meta_description}
                     onChange={(e) =>
                       setFormData({ ...formData, meta_description: e.target.value })
                     }
                     maxLength={160}
                   />
-                  <p className="text-sm text-gray-500 mt-1">
-                    {formData.meta_description.length}/160 characters
-                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className={`text-sm ${formData.meta_description.length > 160 ? 'text-red-600' : formData.meta_description.length > 150 ? 'text-yellow-600' : 'text-gray-500'}`}>
+                      {formData.meta_description.length}/160 characters
+                    </p>
+                    {formData.meta_description.length > 160 ? (
+                      <div className="flex items-center gap-1 text-red-600">
+                        <AlertTriangle className="h-3 w-3" />
+                        <span className="text-xs">Too long</span>
+                      </div>
+                    ) : formData.meta_description.length > 150 ? (
+                      <div className="flex items-center gap-1 text-yellow-600">
+                        <AlertTriangle className="h-3 w-3" />
+                        <span className="text-xs">Getting long</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 text-green-600">
+                        <CheckCircle className="h-3 w-3" />
+                        <span className="text-xs">Good length</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* SEO Preview */}
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  <h4 className="font-medium text-sm text-gray-700 mb-3">Search Engine Preview</h4>
+                  <div className="bg-white border rounded p-3">
+                    <div className="text-blue-600 text-lg leading-tight mb-1">
+                      {formData.meta_title || formData.title || 'Untitled Post'}
+                    </div>
+                    <div className="text-green-700 text-sm mb-2">
+                      https://shalean.co.za/blog/{formData.slug || 'post-slug'}
+                    </div>
+                    <div className="text-gray-600 text-sm">
+                      {formData.meta_description || formData.excerpt || 'No description available'}
+                    </div>
+                  </div>
+                  {(!formData.meta_title || !formData.meta_description) && (
+                    <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                      ⚠️ Using auto-generated metadata. Consider customizing for better SEO.
+                    </div>
+                  )}
                 </div>
 
                 <div>

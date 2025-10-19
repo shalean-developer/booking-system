@@ -3,11 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, ArrowLeft, CheckCircle } from "lucide-react";
+import type { Metadata } from "next";
+import { createMetadata } from "@/lib/metadata";
+import { getSeoConfig } from "@/lib/seo-config";
 
-export const metadata = {
-  title: "Move & Turnover | Shalean Cleaning Services",
-  description: "Move-in/out and Airbnb turnover cleans for transitions and guest changeovers.",
-};
+// Move turnover page metadata
+export const metadata: Metadata = createMetadata(getSeoConfig("move-turnover"));
 
 export default function MoveTurnoverPage() {
   return (

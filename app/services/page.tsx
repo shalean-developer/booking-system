@@ -13,11 +13,11 @@ import {
   Sparkles
 } from "lucide-react";
 import type { Metadata } from "next";
+import { createMetadata } from "@/lib/metadata";
+import { getSeoConfig } from "@/lib/seo-config";
 
-export const metadata: Metadata = {
-  title: "Our Services | Shalean Cleaning Services",
-  description: "Professional cleaning services including Standard Cleaning, Deep Cleaning, Move In/Out Cleaning, and Airbnb Turnover. Expert service, eco-friendly products, satisfaction guaranteed.",
-};
+// Services page metadata
+export const metadata: Metadata = createMetadata(getSeoConfig("services"));
 
 export default function ServicesPage() {
   const services = [

@@ -11,6 +11,7 @@ import {
   Clock
 } from "lucide-react";
 import type { Metadata } from "next";
+import { createBlogPostMetadata, generateOgImageUrl, validateMetadata, logMetadataValidation } from "@/lib/metadata";
 import { getPublishedPostBySlug, getRelatedPosts, generateBlogPostSchema } from "@/lib/blog-server";
 
 type Props = {
@@ -24,34 +25,31 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!post) {
     return {
-      title: 'Post Not Found',
+      title: 'Post Not Found | Shalean Blog',
+      description: 'The requested blog post could not be found.',
     };
   }
 
-  return {
-    title: post.meta_title || `${post.title} | Shalean Blog`,
+  // Create blog post metadata
+  const blogMetadata = {
+    title: post.meta_title || post.title,
     description: post.meta_description || post.excerpt,
-    openGraph: {
-      title: post.meta_title || post.title,
-      description: post.meta_description || post.excerpt,
-      type: 'article',
-      publishedTime: post.published_at || undefined,
-      modifiedTime: post.updated_at,
-      authors: ['Shalean Cleaning Services'],
-      images: post.featured_image ? [
-        {
-          url: post.featured_image,
-          alt: post.featured_image_alt || post.title,
-        },
-      ] : [],
+    canonical: `https://shalean.co.za/blog/${post.slug}`,
+    ogImage: {
+      url: post.featured_image || generateOgImageUrl("blog-default"),
+      alt: post.featured_image_alt || post.title,
     },
-    twitter: {
-      card: 'summary_large_image',
-      title: post.meta_title || post.title,
-      description: post.meta_description || post.excerpt,
-      images: post.featured_image ? [post.featured_image] : [],
-    },
+    ogType: "article" as const,
+    publishedTime: post.published_at || undefined,
+    author: "Shalean Cleaning Services",
+    generatedMeta: !post.meta_title || !post.meta_description,
   };
+
+  // Validate metadata
+  const validation = validateMetadata(blogMetadata);
+  logMetadataValidation(`/blog/${post.slug}`, blogMetadata, validation);
+
+  return createBlogPostMetadata(blogMetadata);
 }
 
 // Revalidate every hour

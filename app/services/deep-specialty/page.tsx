@@ -3,11 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building, ArrowLeft, CheckCircle } from "lucide-react";
+import type { Metadata } from "next";
+import { createMetadata } from "@/lib/metadata";
+import { getSeoConfig } from "@/lib/seo-config";
 
-export const metadata = {
-  title: "Deep & Specialty | Shalean Cleaning Services",
-  description: "Intensive or focused cleaning such as deep cleans, carpets & upholstery, and other specialty tasks.",
-};
+// Deep specialty page metadata
+export const metadata: Metadata = createMetadata(getSeoConfig("deep-specialty"));
 
 export default function DeepSpecialtyPage() {
   return (

@@ -5,11 +5,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Home, Users, Award, Shield, Heart, ArrowRight, Target, Star } from "lucide-react";
 import type { Metadata } from "next";
+import { createMetadata } from "@/lib/metadata";
+import { getSeoConfig } from "@/lib/seo-config";
 
-export const metadata: Metadata = {
-  title: "About Us | Shalean Cleaning Services",
-  description: "Learn about Shalean's mission to provide exceptional cleaning services. 2,500+ happy customers, 98% satisfaction rate, eco-friendly approach.",
-};
+// About page metadata
+export const metadata: Metadata = createMetadata(getSeoConfig("about"));
 
 export default function AboutPage() {
   const values = [
