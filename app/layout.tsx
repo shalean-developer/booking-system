@@ -130,6 +130,34 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
           />
         </noscript>
         <Toaster position="top-center" richColors />
+        
+        {/* Chunk Error Handler */}
+        <Script
+          id="chunk-error-handler"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.addEventListener('error', function(e) {
+                if (e.message && e.message.includes('Loading chunk') && e.message.includes('failed')) {
+                  console.log('Chunk loading error detected, reloading page...');
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 1000);
+                }
+              });
+              
+              window.addEventListener('unhandledrejection', function(e) {
+                if (e.reason && e.reason.name === 'ChunkLoadError') {
+                  console.log('Chunk loading promise rejection detected, reloading page...');
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 1000);
+                }
+              });
+            `,
+          }}
+        />
+        
         <main className="min-h-screen">{children}</main>
       </body>
     </html>
