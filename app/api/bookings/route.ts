@@ -4,6 +4,8 @@ import { BookingState } from '@/types/booking';
 import { supabase } from '@/lib/supabase';
 import { validateBookingEnv } from '@/lib/env-validation';
 import { getServerAuthUser } from '@/lib/supabase-server';
+import { calculateCleanerEarnings } from '@/lib/cleaner-earnings';
+import { generateUniqueBookingId } from '@/lib/booking-id';
 
 /**
  * API endpoint to handle booking submissions
@@ -92,7 +94,7 @@ export async function POST(req: Request) {
     }
 
     // STEP 4: Generate unique booking ID and handle customer profile
-    const bookingId = body.paymentReference || `BK-${Date.now()}`;
+    const bookingId = body.paymentReference || generateUniqueBookingId();
     console.log('Step 4: Generated booking ID:', bookingId);
     
     let customerId = (body as any).customer_id || null;
@@ -252,12 +254,30 @@ export async function POST(req: Request) {
         snapshot_date: new Date().toISOString(),
       };
 
+      // Calculate cleaner earnings based on experience
+      let cleanerHireDate = null;
+      if (body.cleaner_id && body.cleaner_id !== 'manual') {
+        const { data: cleanerData } = await supabase
+          .from('cleaners')
+          .select('hire_date')
+          .eq('id', body.cleaner_id)
+          .single();
+        
+        cleanerHireDate = cleanerData?.hire_date || null;
+      }
+
+      const cleanerEarnings = calculateCleanerEarnings(
+        body.totalAmount ?? null,
+        body.serviceFee ?? null,
+        cleanerHireDate
+      );
+
       const { data, error: bookingError } = await supabase
         .from('bookings')
         .insert({
           id: bookingId,
           customer_id: customerId,
-          cleaner_id: body.cleaner_id,
+          cleaner_id: body.cleaner_id === 'manual' ? null : body.cleaner_id,
           booking_date: body.date,
           booking_time: body.time,
           service_type: body.service,
@@ -269,11 +289,12 @@ export async function POST(req: Request) {
           address_city: body.address.city,
           payment_reference: body.paymentReference,
           total_amount: body.totalAmount,
+          cleaner_earnings: cleanerEarnings,
           frequency: body.frequency || 'one-time',
           service_fee: body.serviceFee || 0,
           frequency_discount: body.frequencyDiscount || 0,
           price_snapshot: priceSnapshot,
-          status: 'confirmed',
+          status: body.cleaner_id === 'manual' ? 'pending' : 'confirmed',
         })
         .select();
 

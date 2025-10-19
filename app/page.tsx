@@ -679,6 +679,7 @@ export default function HomePage() {
                   <Link href="/team" className="block text-sm sm:text-base text-gray-400 hover:text-white">Our Team</Link>
                   <Link href="/contact" className="block text-sm sm:text-base text-gray-400 hover:text-white">Contact Us</Link>
                   <Link href="/careers" className="block text-sm sm:text-base text-gray-400 hover:text-white">Careers</Link>
+                  <Link href="/blog" className="block text-sm sm:text-base text-gray-400 hover:text-white">Blog</Link>
                 </div>
               </div>
               <div>

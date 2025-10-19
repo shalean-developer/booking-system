@@ -48,6 +48,8 @@ export async function GET(req: Request) {
         address_city,
         status,
         total_amount,
+        service_fee,
+        cleaner_earnings,
         payment_reference,
         cleaner_id,
         customer_id,
@@ -74,11 +76,55 @@ export async function GET(req: Request) {
     
     if (error) throw error;
     
+    // Fetch cleaner names for bookings
+    const cleanerIds = bookings
+      ?.filter(b => b.cleaner_id && b.cleaner_id !== 'manual')
+      .map(b => b.cleaner_id) || [];
+    
+    let cleanerNames: Record<string, string> = {};
+    
+    if (cleanerIds.length > 0) {
+      const { data: cleaners } = await supabase
+        .from('cleaners')
+        .select('id, name')
+        .in('id', cleanerIds);
+      
+      cleanerNames = (cleaners || []).reduce((acc, c) => {
+        acc[c.id] = c.name;
+        return acc;
+      }, {} as Record<string, string>);
+    }
+    
+    // Fetch notes count for bookings
+    const bookingIds = bookings?.map(b => b.id) || [];
+    let notesCounts: Record<string, number> = {};
+    
+    if (bookingIds.length > 0) {
+      const { data: notes } = await supabase
+        .from('booking_notes')
+        .select('booking_id')
+        .in('booking_id', bookingIds);
+      
+      notesCounts = (notes || []).reduce((acc, note) => {
+        acc[note.booking_id] = (acc[note.booking_id] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+    }
+    
+    // Add cleaner names and notes count to bookings
+    const bookingsWithExtras = bookings?.map(b => ({
+      ...b,
+      cleaner_name: b.cleaner_id === 'manual' 
+        ? 'Manual Assignment'
+        : cleanerNames[b.cleaner_id || ''] || null,
+      notes_count: notesCounts[b.id] || 0,
+    }));
+    
     console.log(`✅ Fetched ${bookings?.length || 0} bookings`);
     
     return NextResponse.json({
       ok: true,
-      bookings: bookings || [],
+      bookings: bookingsWithExtras || [],
       pagination: {
         page,
         limit,

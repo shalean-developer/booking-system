@@ -1,23 +1,99 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Header } from '@/components/header';
-import { StatsSection } from '@/components/admin/stats-section';
-import { BookingsSection } from '@/components/admin/bookings-section';
-import { CustomersSection } from '@/components/admin/customers-section';
-import { CleanersSection } from '@/components/admin/cleaners-section';
-import { ApplicationsSection } from '@/components/admin/applications-section';
-import { PricingSection } from '@/components/admin/pricing-section';
-import { BlogSection } from '@/components/admin/blog-section';
+import { Loader2 } from 'lucide-react';
+
+// Lazy load sections for better performance
+const StatsSection = dynamic(
+  () => import('@/components/admin/stats-section').then(m => ({ default: m.StatsSection })),
+  { 
+    loading: () => (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    ),
+    ssr: false 
+  }
+);
+
+const BookingsSection = dynamic(
+  () => import('@/components/admin/bookings-section').then(m => ({ default: m.BookingsSection })),
+  { 
+    loading: () => (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    ),
+    ssr: false 
+  }
+);
+
+const CustomersSection = dynamic(
+  () => import('@/components/admin/customers-section').then(m => ({ default: m.CustomersSection })),
+  { 
+    loading: () => (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    ),
+    ssr: false 
+  }
+);
+
+const CleanersSection = dynamic(
+  () => import('@/components/admin/cleaners-section').then(m => ({ default: m.CleanersSection })),
+  { 
+    loading: () => (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    ),
+    ssr: false 
+  }
+);
+
+const ApplicationsSection = dynamic(
+  () => import('@/components/admin/applications-section').then(m => ({ default: m.ApplicationsSection })),
+  { 
+    loading: () => (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    ),
+    ssr: false 
+  }
+);
+
+const PricingSection = dynamic(
+  () => import('@/components/admin/pricing-section').then(m => ({ default: m.PricingSection })),
+  { 
+    loading: () => (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    ),
+    ssr: false 
+  }
+);
+
+const BlogSection = dynamic(
+  () => import('@/components/admin/blog-section').then(m => ({ default: m.BlogSection })),
+  { 
+    loading: () => (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    ),
+    ssr: false 
+  }
+);
 
 type TabType = 'dashboard' | 'bookings' | 'customers' | 'cleaners' | 'applications' | 'pricing' | 'blog';
 
 export function AdminDashboardClient() {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
-
-  console.log('=== ADMIN CLIENT DEBUG ===');
-  console.log('Active tab:', activeTab);
-  console.log('StatsSection component:', StatsSection);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 to-white">
@@ -45,7 +121,7 @@ export function AdminDashboardClient() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as TabType)}
-                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${
                   activeTab === tab.id
                     ? 'border-primary text-primary'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -57,14 +133,9 @@ export function AdminDashboardClient() {
           </nav>
         </div>
 
-        {/* Tab Content */}
-        <div className="bg-white rounded-lg shadow">
-          {activeTab === 'dashboard' && (
-            <>
-              {console.log('Rendering StatsSection...')}
-              <StatsSection />
-            </>
-          )}
+        {/* Tab Content - Only render active tab */}
+        <div className="bg-white rounded-lg shadow p-6">
+          {activeTab === 'dashboard' && <StatsSection />}
           {activeTab === 'bookings' && <BookingsSection />}
           {activeTab === 'customers' && <CustomersSection />}
           {activeTab === 'cleaners' && <CleanersSection />}

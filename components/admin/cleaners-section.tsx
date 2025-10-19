@@ -18,6 +18,7 @@ import {
   DialogFooter
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { getExperienceLevel, getCommissionRatePercentage } from '@/lib/cleaner-earnings';
 
 interface Cleaner {
   id: string;
@@ -31,6 +32,7 @@ interface Cleaner {
   areas: string[];
   specialties: string[];
   is_active: boolean;
+  hire_date: string;
   created_at: string;
 }
 
@@ -51,6 +53,7 @@ export function CleanersSection() {
     years_experience: 0,
     areas: '',
     specialties: '',
+    hire_date: '',
     is_active: true,
   });
 
@@ -92,6 +95,7 @@ export function CleanersSection() {
       years_experience: 0,
       areas: '',
       specialties: '',
+      hire_date: '',
       is_active: true,
     });
   };
@@ -111,6 +115,7 @@ export function CleanersSection() {
       years_experience: cleaner.years_experience || 0,
       areas: cleaner.areas?.join(', ') || '',
       specialties: cleaner.specialties?.join(', ') || '',
+      hire_date: cleaner.hire_date || '',
       is_active: cleaner.is_active,
     });
     setEditingCleaner(cleaner);
@@ -231,7 +236,20 @@ export function CleanersSection() {
                         <div className="text-sm">{cleaner.email}</div>
                         <div className="text-sm text-gray-500">{cleaner.phone}</div>
                       </TableCell>
-                      <TableCell>{cleaner.years_experience} years</TableCell>
+                      <TableCell>
+                        <div className="text-sm">{cleaner.years_experience} years</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge 
+                            variant={getExperienceLevel(cleaner.hire_date) === 'experienced' ? 'default' : 'secondary'}
+                            className="text-xs"
+                          >
+                            {getExperienceLevel(cleaner.hire_date) === 'experienced' ? 'Experienced' : 'New'}
+                          </Badge>
+                          <span className="text-xs text-gray-500">
+                            {getCommissionRatePercentage(cleaner.hire_date)}%
+                          </span>
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <div className="text-sm">
                           {cleaner.areas?.slice(0, 2).join(', ')}
@@ -341,6 +359,18 @@ export function CleanersSection() {
                 value={formData.years_experience}
                 onChange={(e) => setFormData({ ...formData, years_experience: parseInt(e.target.value) || 0 })}
               />
+            </div>
+            <div>
+              <Label htmlFor="hire_date">Hire Date</Label>
+              <Input
+                id="hire_date"
+                type="date"
+                value={formData.hire_date}
+                onChange={(e) => setFormData({ ...formData, hire_date: e.target.value })}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Used to calculate commission rate (60% for &lt;4 months, 70% for 4+ months)
+              </p>
             </div>
             <div>
               <Label htmlFor="areas">Areas (comma-separated)</Label>

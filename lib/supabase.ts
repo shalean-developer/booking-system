@@ -24,6 +24,16 @@ export interface Database {
           is_active: boolean
           created_at: string
           updated_at: string
+          password_hash: string | null
+          auth_provider: string
+          is_available: boolean
+          last_location_lat: number | null
+          last_location_lng: number | null
+          last_location_updated: string | null
+          otp_code: string | null
+          otp_expires_at: string | null
+          otp_attempts: number
+          otp_last_sent: string | null
         }
         Insert: {
           id?: string
@@ -39,6 +49,16 @@ export interface Database {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+          password_hash?: string | null
+          auth_provider?: string
+          is_available?: boolean
+          last_location_lat?: number | null
+          last_location_lng?: number | null
+          last_location_updated?: string | null
+          otp_code?: string | null
+          otp_expires_at?: string | null
+          otp_attempts?: number
+          otp_last_sent?: string | null
         }
         Update: {
           id?: string
@@ -54,6 +74,16 @@ export interface Database {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+          password_hash?: string | null
+          auth_provider?: string
+          is_available?: boolean
+          last_location_lat?: number | null
+          last_location_lng?: number | null
+          last_location_updated?: string | null
+          otp_code?: string | null
+          otp_expires_at?: string | null
+          otp_attempts?: number
+          otp_last_sent?: string | null
         }
       }
       bookings: {
@@ -74,6 +104,10 @@ export interface Database {
           status: string
           created_at: string
           customer_id: string | null  // Links to customer profile
+          cleaner_claimed_at: string | null
+          cleaner_started_at: string | null
+          cleaner_completed_at: string | null
+          customer_rating_id: string | null
         }
         Insert: {
           id: string  // Required TEXT ID (BK-... format)
@@ -92,6 +126,10 @@ export interface Database {
           status?: string
           created_at?: string
           customer_id?: string | null  // Links to customer profile
+          cleaner_claimed_at?: string | null
+          cleaner_started_at?: string | null
+          cleaner_completed_at?: string | null
+          customer_rating_id?: string | null
         }
         Update: {
           id?: string
@@ -110,6 +148,39 @@ export interface Database {
           status?: string
           created_at?: string
           customer_id?: string | null  // Links to customer profile
+          cleaner_claimed_at?: string | null
+          cleaner_started_at?: string | null
+          cleaner_completed_at?: string | null
+          customer_rating_id?: string | null
+        }
+      }
+      customer_ratings: {
+        Row: {
+          id: string
+          cleaner_id: string
+          booking_id: string
+          customer_phone: string | null
+          rating: number
+          comment: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          cleaner_id: string
+          booking_id: string
+          customer_phone?: string | null
+          rating: number
+          comment?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          cleaner_id?: string
+          booking_id?: string
+          customer_phone?: string | null
+          rating?: number
+          comment?: string | null
+          created_at?: string
         }
       }
       quotes: {

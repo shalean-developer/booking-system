@@ -50,57 +50,55 @@ export async function GET(request: Request) {
     
     console.log('✅ Admin authenticated:', user.email);
     
-    // Fetch total bookings and revenue
-    const { data: bookings, error: bookingsError } = await supabase
-      .from('bookings')
-      .select('total_amount, status, created_at');
-    
-    if (bookingsError) throw bookingsError;
-    
-    const totalBookings = bookings?.length || 0;
-    const totalRevenue = bookings?.reduce((sum, b) => sum + (b.total_amount || 0), 0) || 0;
-    const pendingBookings = bookings?.filter(b => b.status === 'pending').length || 0;
-    const confirmedBookings = bookings?.filter(b => b.status === 'confirmed').length || 0;
-    const completedBookings = bookings?.filter(b => b.status === 'completed').length || 0;
-    
-    // Fetch total customers
-    const { count: totalCustomers, error: customersError } = await supabase
-      .from('customers')
-      .select('*', { count: 'exact', head: true });
-    
-    if (customersError) throw customersError;
-    
-    // Fetch total cleaners
-    const { data: cleaners, error: cleanersError } = await supabase
-      .from('cleaners')
-      .select('is_active');
-    
-    if (cleanersError) throw cleanersError;
-    
-    const totalCleaners = cleaners?.length || 0;
-    const activeCleaners = cleaners?.filter(c => c.is_active).length || 0;
-    
-    // Fetch applications
-    const { data: applications, error: applicationsError } = await supabase
-      .from('applications')
-      .select('status');
-    
-    if (applicationsError) throw applicationsError;
-    
-    const totalApplications = applications?.length || 0;
-    const pendingApplications = applications?.filter(a => a.status === 'pending').length || 0;
-    
-    // Recent activity (last 30 days)
+    // Calculate date for recent stats (last 30 days)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
     
-    const recentBookings = bookings?.filter(b => 
-      new Date(b.created_at) >= thirtyDaysAgo
-    ).length || 0;
+    // Fetch all stats in parallel for better performance
+    const [
+      bookingCounts,
+      recentBookingStats,
+      customerCount,
+      cleanerCounts,
+      applicationCounts
+    ] = await Promise.all([
+      // Total bookings by status (single query with counts)
+      Promise.all([
+        supabase.from('bookings').select('id, total_amount', { count: 'exact', head: false }),
+        supabase.from('bookings').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('bookings').select('id', { count: 'exact', head: true }).eq('status', 'confirmed'),
+        supabase.from('bookings').select('id', { count: 'exact', head: true }).eq('status', 'completed'),
+      ]),
+      // Recent bookings and revenue (last 30 days)
+      supabase
+        .from('bookings')
+        .select('id, total_amount', { count: 'exact', head: false })
+        .gte('created_at', thirtyDaysAgoISO),
+      // Total customers
+      supabase
+        .from('customers')
+        .select('id', { count: 'exact', head: true }),
+      // Cleaners by active status
+      Promise.all([
+        supabase.from('cleaners').select('id', { count: 'exact', head: true }),
+        supabase.from('cleaners').select('id', { count: 'exact', head: true }).eq('is_active', true),
+      ]),
+      // Applications by status
+      Promise.all([
+        supabase.from('applications').select('id', { count: 'exact', head: true }),
+        supabase.from('applications').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      ]),
+    ]);
     
-    const recentRevenue = bookings?.filter(b => 
-      new Date(b.created_at) >= thirtyDaysAgo
-    ).reduce((sum, b) => sum + (b.total_amount || 0), 0) || 0;
+    // Process results
+    const [allBookings, pendingCount, confirmedCount, completedCount] = bookingCounts;
+    const totalRevenue = allBookings.data?.reduce((sum, b) => sum + (b.total_amount || 0), 0) || 0;
+    
+    const recentRevenue = recentBookingStats.data?.reduce((sum, b) => sum + (b.total_amount || 0), 0) || 0;
+    
+    const [totalCleanersResult, activeCleanersResult] = cleanerCounts;
+    const [totalApplicationsResult, pendingApplicationsResult] = applicationCounts;
     
     console.log('✅ Stats fetched successfully');
     
@@ -108,26 +106,26 @@ export async function GET(request: Request) {
       ok: true,
       stats: {
         bookings: {
-          total: totalBookings,
-          pending: pendingBookings,
-          confirmed: confirmedBookings,
-          completed: completedBookings,
-          recent: recentBookings,
+          total: allBookings.count || 0,
+          pending: pendingCount.count || 0,
+          confirmed: confirmedCount.count || 0,
+          completed: completedCount.count || 0,
+          recent: recentBookingStats.count || 0,
         },
         revenue: {
           total: totalRevenue,
           recent: recentRevenue,
         },
         customers: {
-          total: totalCustomers || 0,
+          total: customerCount.count || 0,
         },
         cleaners: {
-          total: totalCleaners,
-          active: activeCleaners,
+          total: totalCleanersResult.count || 0,
+          active: activeCleanersResult.count || 0,
         },
         applications: {
-          total: totalApplications,
-          pending: pendingApplications,
+          total: totalApplicationsResult.count || 0,
+          pending: pendingApplicationsResult.count || 0,
         },
       },
     });
