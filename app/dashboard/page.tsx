@@ -114,11 +114,19 @@ export default function DashboardPage() {
 
   const handleSignOut = async () => {
     await safeLogout(supabase, router, {
+      timeout: 10000, // 10 seconds timeout
       onSuccess: () => {
         console.log('🏁 Dashboard logout completed successfully');
       },
       onError: (error) => {
         console.error('❌ Dashboard logout failed:', error);
+        // Show user-friendly error message
+        alert('Logout completed with some issues, but you have been signed out.');
+      },
+      onTimeout: () => {
+        console.warn('⏰ Dashboard logout timed out - user will be redirected anyway');
+        // Show user-friendly timeout message
+        alert('Logout is taking longer than expected, but you will be redirected shortly.');
       }
     });
   };

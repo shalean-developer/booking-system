@@ -4,10 +4,11 @@
  */
 
 export interface LogoutOptions {
-  timeout?: number; // milliseconds, default 5000
+  timeout?: number; // milliseconds, default 10000
   redirectPath?: string; // default '/'
   onSuccess?: () => void;
   onError?: (error: Error) => void;
+  onTimeout?: () => void;
 }
 
 /**
@@ -19,10 +20,11 @@ export async function safeLogout(
   options: LogoutOptions = {}
 ): Promise<void> {
   const {
-    timeout = 5000,
+    timeout = 10000,
     redirectPath = '/',
     onSuccess,
-    onError
+    onError,
+    onTimeout
   } = options;
 
   try {
@@ -34,7 +36,11 @@ export async function safeLogout(
     
     // Create a timeout promise to prevent hanging
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error(`Logout timeout after ${timeout}ms`)), timeout);
+      setTimeout(() => {
+        console.warn(`⏰ Logout timeout after ${timeout}ms - proceeding with forced logout`);
+        onTimeout?.();
+        reject(new Error(`Logout timeout after ${timeout}ms`));
+      }, timeout);
     });
     
     // Try to sign out (this might fail if refresh token is invalid, but that's okay)
@@ -45,13 +51,25 @@ export async function safeLogout(
       ]);
       console.log('✅ Supabase signOut completed');
     } catch (signOutError: any) {
+      // Check if it's a timeout error
+      if (signOutError?.message?.includes('Logout timeout')) {
+        console.log('⏰ Logout timed out - proceeding with forced logout');
+        // Don't re-throw timeout errors, continue with forced logout
+      }
       // Check if it's a refresh token error - this is expected and okay
-      if (signOutError?.message?.includes('Invalid Refresh Token') || 
+      else if (signOutError?.message?.includes('Invalid Refresh Token') || 
           signOutError?.message?.includes('Refresh Token Not Found') ||
           signOutError?.message?.includes('refresh_token_not_found')) {
         console.log('ℹ️ Refresh token error during signOut (expected) - continuing with logout');
-      } else {
-        // Re-throw if it's not a refresh token error
+      } 
+      // Check for network errors
+      else if (signOutError?.message?.includes('fetch') || 
+               signOutError?.message?.includes('network') ||
+               signOutError?.code === 'NETWORK_ERROR') {
+        console.log('🌐 Network error during signOut - proceeding with forced logout');
+      }
+      else {
+        // Re-throw if it's an unexpected error
         throw signOutError;
       }
     }

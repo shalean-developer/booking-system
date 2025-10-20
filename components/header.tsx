@@ -122,11 +122,19 @@ export function Header({ variant = 'default' }: HeaderProps) {
     setIsLoggingOut(true);
     
     await safeLogout(supabase, router, {
+      timeout: 10000, // 10 seconds timeout
       onSuccess: () => {
         console.log('🏁 Header logout completed successfully');
       },
       onError: (error) => {
         console.error('❌ Header logout failed:', error);
+        // Show user-friendly error message
+        alert('Logout completed with some issues, but you have been signed out.');
+      },
+      onTimeout: () => {
+        console.warn('⏰ Header logout timed out - user will be redirected anyway');
+        // Show user-friendly timeout message
+        alert('Logout is taking longer than expected, but you will be redirected shortly.');
       }
     });
     
