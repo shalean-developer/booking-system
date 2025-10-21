@@ -92,7 +92,9 @@ export async function GET(request: Request) {
         customer_name,
         customer_email,
         customer_phone,
-        payment_reference
+        payment_reference,
+        customer_reviewed,
+        customer_review_id
       `)
       .eq('customer_id', customer.id)
       .order('booking_date', { ascending: false })

@@ -28,7 +28,7 @@ interface Application {
   work_experience: string;
   certifications: string;
   availability: string;
-  references: string;
+  reference_contacts: string;
   resume_url: string;
   transportation_details: string;
   languages_spoken: string;
@@ -331,11 +331,11 @@ export function ApplicationsSection() {
                 </div>
               )}
 
-              {viewingApplication.references && (
+              {viewingApplication.reference_contacts && (
                 <div>
                   <p className="text-sm font-medium text-gray-500 mb-2">References</p>
                   <p className="text-sm whitespace-pre-wrap bg-gray-50 p-3 rounded">
-                    {viewingApplication.references}
+                    {viewingApplication.reference_contacts}
                   </p>
                 </div>
               )}

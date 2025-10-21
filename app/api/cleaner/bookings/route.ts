@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCleanerSession, createCleanerSupabaseClient } from '@/lib/cleaner-auth';
+import { getCleanerSession, createCleanerSupabaseClient, cleanerIdToUuid } from '@/lib/cleaner-auth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('bookings')
       .select('*')
-      .eq('cleaner_id', session.id)
+      .eq('cleaner_id', cleanerIdToUuid(session.id))
       .order('booking_date', { ascending: true })
       .order('booking_time', { ascending: true });
 

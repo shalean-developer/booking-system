@@ -5,6 +5,7 @@ import { CleanerHeader } from '@/components/cleaner/cleaner-header';
 import { LocationTracker } from '@/components/cleaner/location-tracker';
 import { MyBookings } from '@/components/cleaner/my-bookings';
 import { AvailableBookings } from '@/components/cleaner/available-bookings';
+import { CleanerReviews } from '@/components/cleaner/cleaner-reviews';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +16,7 @@ import {
   DollarSign,
   Briefcase,
   TrendingUp,
+  Star,
 } from 'lucide-react';
 
 interface CleanerSession {
@@ -48,7 +50,7 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
     monthlyCompleted: 0,
     monthlyEarnings: 0,
   });
-  const [activeTab, setActiveTab] = useState<'my-bookings' | 'available'>('my-bookings');
+  const [activeTab, setActiveTab] = useState<'my-bookings' | 'available' | 'reviews'>('my-bookings');
 
   // Fetch today's and monthly stats
   useEffect(() => {
@@ -97,6 +99,20 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
           completedBookings: completedData.bookings
         });
 
+        // Enhanced debugging for earnings calculation
+        console.log('💰 Earnings Debug Details:', {
+          todayBookings: todayData.bookings,
+          todayCompleted: todayData.bookings.filter((b: any) => b.status === 'completed'),
+          todayEarningsRaw: todayData.bookings
+            .filter((b: any) => b.status === 'completed')
+            .map((b: any) => ({ id: b.id, cleaner_earnings: b.cleaner_earnings, total_amount: b.total_amount })),
+          monthlyBookings: monthData.bookings,
+          monthlyCompleted: monthData.bookings.filter((b: any) => b.status === 'completed'),
+          monthlyEarningsRaw: monthData.bookings
+            .filter((b: any) => b.status === 'completed')
+            .map((b: any) => ({ id: b.id, cleaner_earnings: b.cleaner_earnings, total_amount: b.total_amount }))
+        });
+
         if (todayData.ok && monthData.ok) {
           // Calculate today's stats
           const todayBookings = todayData.bookings.length;
@@ -105,10 +121,10 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
             .filter((b: any) => b.status === 'completed')
             .reduce((sum: number, b: any) => sum + (b.cleaner_earnings || 0), 0);
 
-          // Calculate monthly stats from ALL bookings, not just the filtered monthly API
-          const monthlyBookings = allBookingsData.bookings.length;
-          const monthlyCompleted = allBookingsData.bookings.filter((b: any) => b.status === 'completed').length;
-          const monthlyEarnings = allBookingsData.bookings
+          // Calculate monthly stats from the filtered monthly bookings
+          const monthlyBookings = monthData.bookings.length;
+          const monthlyCompleted = monthData.bookings.filter((b: any) => b.status === 'completed').length;
+          const monthlyEarnings = monthData.bookings
             .filter((b: any) => b.status === 'completed')
             .reduce((sum: number, b: any) => sum + (b.cleaner_earnings || 0), 0);
 
@@ -116,7 +132,7 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
             monthlyBookings,
             monthlyCompleted,
             monthlyEarnings,
-            allBookings: monthData.bookings,
+            monthlyBookingsData: monthData.bookings,
             completedBookings: monthData.bookings.filter((b: any) => b.status === 'completed'),
             bookingDetails: monthData.bookings.map((b: any) => ({
               id: b.id,
@@ -161,7 +177,28 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
   };
 
   const formatCurrency = (cents: number) => {
+    if (cents === 0) {
+      return 'R0.00';
+    }
     return `R${(cents / 100).toFixed(2)}`;
+  };
+
+  const getEarningsDisplay = (earnings: number, label: string) => {
+    if (earnings === 0) {
+      return (
+        <div>
+          <div className="text-2xl font-bold text-gray-900">R0.00</div>
+          <div className="text-sm text-gray-500">{label}</div>
+          <div className="text-xs text-gray-400 mt-1">No completed bookings yet</div>
+        </div>
+      );
+    }
+    return (
+      <div>
+        <div className="text-2xl font-bold text-gray-900">{formatCurrency(earnings)}</div>
+        <div className="text-sm text-gray-500">{label}</div>
+      </div>
+    );
   };
 
   return (
@@ -257,12 +294,7 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
                 <div className="p-3 rounded-full bg-primary/10">
                   <DollarSign className="h-6 w-6 text-primary" />
                 </div>
-                <div>
-                  <div className="text-2xl font-bold text-gray-900">
-                    {formatCurrency(stats.totalEarnings)}
-                  </div>
-                  <div className="text-sm text-gray-500">Today's Earnings</div>
-                </div>
+                {getEarningsDisplay(stats.totalEarnings, "Today's Earnings")}
               </div>
             </CardContent>
           </Card>
@@ -313,12 +345,7 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
                 <div className="p-3 rounded-full bg-purple-50">
                   <TrendingUp className="h-6 w-6 text-purple-600" />
                 </div>
-                <div>
-                  <div className="text-2xl font-bold text-gray-900">
-                    {formatCurrency(stats.monthlyEarnings)}
-                  </div>
-                  <div className="text-sm text-gray-500">This Month's Earnings</div>
-                </div>
+                {getEarningsDisplay(stats.monthlyEarnings, "This Month's Earnings")}
               </div>
             </CardContent>
           </Card>
@@ -338,7 +365,7 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-          <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="my-bookings" className="text-sm sm:text-base">
               <Calendar className="h-4 w-4 mr-2" />
               My Bookings
@@ -346,6 +373,10 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
             <TabsTrigger value="available" className="text-sm sm:text-base">
               <Briefcase className="h-4 w-4 mr-2" />
               Available Jobs
+            </TabsTrigger>
+            <TabsTrigger value="reviews" className="text-sm sm:text-base">
+              <Star className="h-4 w-4 mr-2" />
+              Reviews
             </TabsTrigger>
           </TabsList>
 
@@ -361,6 +392,14 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
             <Card className="border-2">
               <CardContent className="p-4 sm:p-6">
                 <AvailableBookings />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="reviews">
+            <Card className="border-2">
+              <CardContent className="p-4 sm:p-6">
+                <CleanerReviews />
               </CardContent>
             </Card>
           </TabsContent>

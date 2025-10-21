@@ -272,12 +272,25 @@ export async function POST(req: Request) {
         cleanerHireDate
       );
 
+      // Prepare cleaner_id with proper UUID handling
+      let cleanerIdForInsert = null;
+      if (body.cleaner_id && body.cleaner_id !== 'manual') {
+        // Validate UUID format
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (uuidRegex.test(body.cleaner_id)) {
+          cleanerIdForInsert = body.cleaner_id;
+        } else {
+          console.error('❌ Invalid UUID format for cleaner_id:', body.cleaner_id);
+          throw new Error('Invalid cleaner ID format');
+        }
+      }
+
       const { data, error: bookingError } = await supabase
         .from('bookings')
         .insert({
           id: bookingId,
           customer_id: customerId,
-          cleaner_id: body.cleaner_id === 'manual' ? null : body.cleaner_id,
+          cleaner_id: cleanerIdForInsert,
           booking_date: body.date,
           booking_time: body.time,
           service_type: body.service,

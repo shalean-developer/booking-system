@@ -5,6 +5,14 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { LogOut, Menu, X, Droplets } from 'lucide-react';
 import { AvailabilityToggle } from './availability-toggle';
 
@@ -146,17 +154,40 @@ export function CleanerHeader({ cleaner, onAvailabilityChange }: CleanerHeaderPr
             />
           </div>
 
-          {/* Right: Avatar & Menu */}
+          {/* Right: Avatar Dropdown & Mobile Menu */}
           <div className="flex items-center gap-2">
-            <Avatar className="h-10 w-10 border-2 border-primary/20">
-              {cleaner.photo_url && (
-                <AvatarImage src={cleaner.photo_url} alt={cleaner.name} />
-              )}
-              <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
+            {/* Desktop Avatar Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="hidden md:flex">
+                  <Avatar className="h-10 w-10 border-2 border-primary/20">
+                    {cleaner.photo_url && (
+                      <AvatarImage src={cleaner.photo_url} alt={cleaner.name} />
+                    )}
+                    <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>{cleaner.name}</DropdownMenuLabel>
+                <DropdownMenuItem disabled className="text-sm text-gray-500">
+                  Rating: {cleaner.rating.toFixed(1)} ⭐
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="text-red-600 focus:text-red-600"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  {isLoggingOut ? 'Logging out...' : 'Logout'}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
+            {/* Mobile Menu Button */}
             <Button
               variant="ghost"
               size="sm"
@@ -164,17 +195,6 @@ export function CleanerHeader({ cleaner, onAvailabilityChange }: CleanerHeaderPr
               className="md:hidden"
             >
               {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="hidden md:flex"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
             </Button>
           </div>
         </div>

@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Header } from '@/components/header';
 import { supabase } from '@/lib/supabase-client';
 import { safeLogout, safeGetSession } from '@/lib/logout-utils';
+import { toast } from 'sonner';
 import { 
   User, 
   Calendar,
@@ -22,9 +23,13 @@ import {
   Home,
   Mail,
   ArrowRight,
-  AlertCircle
+  AlertCircle,
+  Star,
+  MessageSquare
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CustomerReviewDialog } from '@/components/review/customer-review-dialog';
+import { CustomerRatings } from '@/components/dashboard/customer-ratings';
 
 interface Booking {
   id: string;
@@ -38,6 +43,8 @@ interface Booking {
   address_suburb: string;
   address_city: string;
   cleaner_id: string;
+  customer_reviewed?: boolean;
+  customer_review_id?: string | null;
 }
 
 interface CustomerData {
@@ -55,6 +62,8 @@ export default function DashboardPage() {
   const [customer, setCustomer] = useState<CustomerData | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
   useEffect(() => {
     const checkAuthAndFetchData = async () => {
@@ -114,21 +123,48 @@ export default function DashboardPage() {
 
   const handleSignOut = async () => {
     await safeLogout(supabase, router, {
-      timeout: 10000, // 10 seconds timeout
+      timeout: 5000, // 5 seconds timeout (reduced from 10s)
       onSuccess: () => {
         console.log('🏁 Dashboard logout completed successfully');
+        toast.success('Successfully signed out');
       },
       onError: (error) => {
         console.error('❌ Dashboard logout failed:', error);
-        // Show user-friendly error message
-        alert('Logout completed with some issues, but you have been signed out.');
+        // Show user-friendly error message with toast
+        toast.warning('Logout completed with some issues, but you have been signed out.');
       },
       onTimeout: () => {
         console.warn('⏰ Dashboard logout timed out - user will be redirected anyway');
-        // Show user-friendly timeout message
-        alert('Logout is taking longer than expected, but you will be redirected shortly.');
+        // Show user-friendly timeout message with toast
+        toast.info('Logout is taking longer than expected, but you will be redirected shortly.');
       }
     });
+  };
+
+  const handleOpenReviewDialog = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setReviewDialogOpen(true);
+  };
+
+  const handleReviewSuccess = async () => {
+    // Refresh bookings after successful review
+    try {
+      const { data: { session: apiSession } } = await supabase.auth.getSession();
+      if (!apiSession) return;
+
+      const response = await fetch('/api/dashboard/bookings', {
+        headers: {
+          'Authorization': `Bearer ${apiSession.access_token}`,
+        },
+      });
+
+      const data = await response.json();
+      if (response.ok && data.ok) {
+        setBookings(data.bookings);
+      }
+    } catch (err) {
+      console.error('Error refreshing bookings:', err);
+    }
   };
 
   // Calculate stats
@@ -138,6 +174,14 @@ export default function DashboardPage() {
   }).length;
 
   const completedBookings = bookings.filter(b => b.status === 'completed').length;
+
+  // Get pending reviews (completed bookings not yet reviewed)
+  const pendingReviews = bookings.filter(
+    b => b.status === 'completed' && 
+         !b.customer_reviewed && 
+         b.cleaner_id && 
+         b.cleaner_id !== 'manual'
+  );
 
   if (isLoading) {
     return (
@@ -256,8 +300,66 @@ export default function DashboardPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.2 }}
-              className="lg:col-span-2"
+              className="lg:col-span-2 space-y-6"
             >
+              {/* My Ratings Section */}
+              <Card className="border-0 shadow-lg">
+                <CardContent className="p-6">
+                  <CustomerRatings />
+                </CardContent>
+              </Card>
+
+              {/* Pending Reviews Section */}
+              {pendingReviews.length > 0 && (
+                <Card className="border-0 shadow-lg bg-gradient-to-r from-amber-50 to-yellow-50 border-l-4 border-l-amber-500">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-amber-100 rounded-lg">
+                        <Star className="h-5 w-5 text-amber-600" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-gray-900">Pending Reviews</h2>
+                        <p className="text-sm text-gray-600">Share your experience with these completed services</p>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {pendingReviews.map((booking) => (
+                        <div
+                          key={booking.id}
+                          className="bg-white border border-amber-200 rounded-lg p-4"
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-gray-900 mb-2">{booking.service_type}</h3>
+                              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="h-4 w-4" />
+                                  <span>{new Date(booking.booking_date).toLocaleDateString('en-ZA', { month: 'short', day: 'numeric' })}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Clock className="h-4 w-4" />
+                                  <span>{booking.booking_time}</span>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <Button
+                              onClick={() => handleOpenReviewDialog(booking)}
+                              className="bg-amber-600 hover:bg-amber-700 w-full sm:w-auto"
+                            >
+                              <Star className="mr-2 h-4 w-4" />
+                              Leave Review
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              
+              {/* Recent Bookings */}
               <Card className="border-0 shadow-lg">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-6">
@@ -333,6 +435,23 @@ export default function DashboardPage() {
                               <p className="text-xs text-gray-500 mt-1">
                                 Booked {new Date(booking.created_at).toLocaleDateString()}
                               </p>
+                              {booking.status === 'completed' && !booking.customer_reviewed && booking.cleaner_id && booking.cleaner_id !== 'manual' && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleOpenReviewDialog(booking)}
+                                  className="mt-2 text-xs w-full sm:w-auto"
+                                >
+                                  <Star className="mr-1 h-3 w-3" />
+                                  Leave Review
+                                </Button>
+                              )}
+                              {booking.status === 'completed' && booking.customer_reviewed && (
+                                <Badge variant="outline" className="mt-2 bg-green-50 text-green-700 border-green-200">
+                                  <CheckCircle className="mr-1 h-3 w-3" />
+                                  Reviewed
+                                </Badge>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -406,6 +525,17 @@ export default function DashboardPage() {
           </div>
         </div>
       </section>
+
+      {/* Review Dialog */}
+      <CustomerReviewDialog
+        booking={selectedBooking}
+        open={reviewDialogOpen}
+        onClose={() => {
+          setReviewDialogOpen(false);
+          setSelectedBooking(null);
+        }}
+        onSuccess={handleReviewSuccess}
+      />
     </div>
   );
 }

@@ -186,7 +186,7 @@ export function MyBookings() {
   };
 
   const upcomingBookings = bookings.filter(
-    (b) => b.status === 'pending' || b.status === 'in-progress'
+    (b) => ['pending', 'accepted', 'on_my_way', 'in-progress'].includes(b.status)
   );
 
   const completedBookings = bookings.filter((b) => b.status === 'completed');

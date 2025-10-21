@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCleanerSession, createCleanerSupabaseClient } from '@/lib/cleaner-auth';
+import { getCleanerSession, createCleanerSupabaseClient, cleanerIdToUuid } from '@/lib/cleaner-auth';
 
 export async function POST(
   request: NextRequest,
@@ -34,7 +34,7 @@ export async function POST(
       .from('bookings')
       .select('*')
       .eq('id', bookingId)
-      .eq('cleaner_id', session.id)
+      .eq('cleaner_id', cleanerIdToUuid(session.id))
       .maybeSingle();
 
     if (fetchError || !booking) {
@@ -64,7 +64,7 @@ export async function POST(
     const { data: customerRating, error: ratingError } = await supabase
       .from('customer_ratings')
       .insert({
-        cleaner_id: session.id,
+        cleaner_id: cleanerIdToUuid(session.id),
         booking_id: bookingId,
         customer_phone: booking.customer_phone,
         rating,

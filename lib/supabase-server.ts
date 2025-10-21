@@ -25,6 +25,31 @@ export async function createClient() {
 }
 
 /**
+ * Create Supabase client with service role key (bypasses RLS)
+ * Use this in API routes where you need to bypass Row Level Security
+ * and perform operations that require elevated permissions
+ */
+export function createServiceClient() {
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      cookies: {
+        get() {
+          return undefined; // Service role doesn't need cookies
+        },
+        set() {
+          // Service role doesn't need to set cookies
+        },
+        remove() {
+          // Service role doesn't need to remove cookies
+        },
+      },
+    }
+  );
+}
+
+/**
  * Get authenticated user in API route
  * Returns user object if authenticated, null otherwise
  */

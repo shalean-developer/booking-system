@@ -108,6 +108,8 @@ export interface Database {
           cleaner_started_at: string | null
           cleaner_completed_at: string | null
           customer_rating_id: string | null
+          customer_reviewed: boolean
+          customer_review_id: string | null
         }
         Insert: {
           id: string  // Required TEXT ID (BK-... format)
@@ -130,6 +132,8 @@ export interface Database {
           cleaner_started_at?: string | null
           cleaner_completed_at?: string | null
           customer_rating_id?: string | null
+          customer_reviewed?: boolean
+          customer_review_id?: string | null
         }
         Update: {
           id?: string
@@ -152,6 +156,8 @@ export interface Database {
           cleaner_started_at?: string | null
           cleaner_completed_at?: string | null
           customer_rating_id?: string | null
+          customer_reviewed?: boolean
+          customer_review_id?: string | null
         }
       }
       customer_ratings: {
@@ -181,6 +187,50 @@ export interface Database {
           rating?: number
           comment?: string | null
           created_at?: string
+        }
+      }
+      cleaner_reviews: {
+        Row: {
+          id: string
+          booking_id: string
+          cleaner_id: string
+          customer_id: string
+          overall_rating: number
+          quality_rating: number
+          punctuality_rating: number
+          professionalism_rating: number
+          review_text: string | null
+          photos: string[]
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          booking_id: string
+          cleaner_id: string
+          customer_id: string
+          overall_rating: number
+          quality_rating: number
+          punctuality_rating: number
+          professionalism_rating: number
+          review_text?: string | null
+          photos?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          booking_id?: string
+          cleaner_id?: string
+          customer_id?: string
+          overall_rating?: number
+          quality_rating?: number
+          punctuality_rating?: number
+          professionalism_rating?: number
+          review_text?: string | null
+          photos?: string[]
+          created_at?: string
+          updated_at?: string
         }
       }
       quotes: {

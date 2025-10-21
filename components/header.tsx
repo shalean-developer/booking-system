@@ -5,9 +5,17 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { supabase } from '@/lib/supabase-client';
 import { AuthModal } from '@/components/auth-modal';
 import { safeLogout, cleanupCorruptedSession, safeGetSession } from '@/lib/logout-utils';
+import { toast } from 'sonner';
 import {
   Home,
   Wrench,
@@ -17,6 +25,7 @@ import {
   User,
   LogOut,
   Shield,
+  ChevronDown,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -122,19 +131,20 @@ export function Header({ variant = 'default' }: HeaderProps) {
     setIsLoggingOut(true);
     
     await safeLogout(supabase, router, {
-      timeout: 10000, // 10 seconds timeout
+      timeout: 5000, // 5 seconds timeout (reduced from 10s)
       onSuccess: () => {
         console.log('🏁 Header logout completed successfully');
+        toast.success('Successfully signed out');
       },
       onError: (error) => {
         console.error('❌ Header logout failed:', error);
-        // Show user-friendly error message
-        alert('Logout completed with some issues, but you have been signed out.');
+        // Show user-friendly error message with toast
+        toast.warning('Logout completed with some issues, but you have been signed out.');
       },
       onTimeout: () => {
         console.warn('⏰ Header logout timed out - user will be redirected anyway');
-        // Show user-friendly timeout message
-        alert('Logout is taking longer than expected, but you will be redirected shortly.');
+        // Show user-friendly timeout message with toast
+        toast.info('Logout is taking longer than expected, but you will be redirected shortly.');
       }
     });
     
@@ -300,51 +310,49 @@ export function Header({ variant = 'default' }: HeaderProps) {
             </Button>
             
             {user ? (
-              /* Logged In State */
-              <div className="flex items-center gap-2">
-                {isAdmin && (
+              /* Logged In State - User Dropdown */
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    asChild
-                    className="rounded-full text-xs sm:text-sm px-3 sm:px-4 h-9 sm:h-10 gap-1 border-purple-200 text-purple-700 hover:bg-purple-50"
+                    className="rounded-full text-xs sm:text-sm px-3 sm:px-4 h-9 sm:h-10 gap-1"
                   >
-                    <Link href="/admin">
-                      <Shield className="h-3 w-3 sm:h-4 sm:w-4" />
-                      <span className="hidden sm:inline">Admin</span>
-                    </Link>
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  asChild
-                  className="rounded-full text-xs sm:text-sm px-3 sm:px-4 h-9 sm:h-10 gap-1"
-                >
-                  <Link href="/dashboard">
                     <User className="h-3 w-3 sm:h-4 sm:w-4" />
                     <span className="hidden sm:inline">
                       {user.user_metadata?.first_name || user.email?.split('@')[0] || 'Account'}
                     </span>
-                  </Link>
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleLogout}
-                  disabled={isLoggingOut}
-                  className="rounded-full text-xs sm:text-sm px-3 sm:px-4 h-9 sm:h-10 gap-1"
-                >
-                  {isLoggingOut ? (
+                    <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {isAdmin && (
                     <>
-                      <LogOut className="h-3 w-3 sm:h-4 sm:w-4 animate-pulse" />
-                      <span className="hidden sm:inline">Logging out...</span>
-                    </>
-                  ) : (
-                    <>
-                      <LogOut className="h-3 w-3 sm:h-4 sm:w-4" />
-                      <span className="hidden sm:inline">Logout</span>
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin" className="flex items-center gap-2">
+                          <Shield className="h-4 w-4" />
+                          Admin Dashboard
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
                     </>
                   )}
-                </Button>
-              </div>
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard" className="flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      My Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
+                    className="text-red-600 focus:text-red-600"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    {isLoggingOut ? 'Logging out...' : 'Logout'}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
               /* Logged Out State */
               <AuthModal />

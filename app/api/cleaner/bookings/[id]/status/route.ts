@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCleanerSession, createCleanerSupabaseClient } from '@/lib/cleaner-auth';
+import { getCleanerSession, createCleanerSupabaseClient, cleanerIdToUuid } from '@/lib/cleaner-auth';
+import { generateReviewRequestEmail, sendEmail } from '@/lib/email';
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   pending: ['accepted'],
@@ -41,7 +42,7 @@ export async function PATCH(
       .from('bookings')
       .select('*')
       .eq('id', bookingId)
-      .eq('cleaner_id', session.id)
+      .eq('cleaner_id', cleanerIdToUuid(session.id))
       .maybeSingle();
 
     if (fetchError || !booking) {
@@ -84,7 +85,7 @@ export async function PATCH(
       .from('bookings')
       .update(updateData)
       .eq('id', bookingId)
-      .eq('cleaner_id', session.id)
+      .eq('cleaner_id', cleanerIdToUuid(session.id))
       .select()
       .single();
 
@@ -97,6 +98,36 @@ export async function PATCH(
     }
 
     console.log('✅ Booking status updated:', bookingId, '→', newStatus);
+
+    // Send review request email if booking is completed
+    if (newStatus === 'completed' && process.env.RESEND_API_KEY) {
+      try {
+        console.log('📧 Sending review request email to customer...');
+        
+        // Get cleaner name for the email
+        const { data: cleaner } = await supabase
+          .from('cleaners')
+          .select('name')
+          .eq('id', session.id)
+          .single();
+
+        const emailData = generateReviewRequestEmail({
+          customerEmail: updatedBooking.customer_email,
+          customerName: updatedBooking.customer_name,
+          bookingId: updatedBooking.id,
+          bookingDate: updatedBooking.booking_date,
+          bookingTime: updatedBooking.booking_time,
+          serviceType: updatedBooking.service_type || 'Cleaning Service',
+          cleanerName: cleaner?.name,
+        });
+
+        await sendEmail(emailData);
+        console.log('✅ Review request email sent successfully');
+      } catch (emailError) {
+        // Log error but don't fail the status update
+        console.error('⚠️ Failed to send review request email:', emailError);
+      }
+    }
 
     return NextResponse.json({
       ok: true,

@@ -75,7 +75,7 @@ export async function POST(req: Request) {
       work_experience: body.workExperience || null,
       certifications: body.certifications || null,
       availability: body.availability || null,
-      references: body.references || null,
+      reference_contacts: body.references || null,
       resume_url: body.resumeUrl || null,
       transportation_details: body.transportationDetails || null,
       languages_spoken: body.languagesSpoken || null,

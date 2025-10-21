@@ -7,9 +7,10 @@
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import bcrypt from 'bcryptjs';
+import { Database } from '@/types/database';
 
 export interface CleanerSession {
-  id: string;
+  id: string; // UUID
   name: string;
   phone: string;
   photo_url: string | null;
@@ -30,13 +31,22 @@ const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 /**
  * Create a Supabase server client for cleaner operations
+ * Note: Cleaners use cookie-based auth, not Supabase Auth
+ * Permissions are enforced through API route session checks
  */
 export async function createCleanerSupabaseClient() {
   const cookieStore = await cookies();
 
+  // Check if service role key is available for cleaner operations
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  // Use service role key if available (bypasses RLS, but we do auth checks in routes)
+  // Otherwise use anon key (requires proper RLS policies)
+  const apiKey = serviceRoleKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    apiKey,
     {
       cookies: {
         get(name: string) {
@@ -389,5 +399,13 @@ export function normalizePhoneNumber(phone: string): string {
   }
   
   return normalized;
+}
+
+/**
+ * Helper to ensure cleaner ID is properly typed for UUID columns
+ * Supabase handles the casting, but this makes it explicit
+ */
+export function cleanerIdToUuid(cleanerId: string): string {
+  return cleanerId; // Already a valid UUID string
 }
 

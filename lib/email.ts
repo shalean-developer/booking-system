@@ -678,3 +678,174 @@ export function generateAdminApplicationNotificationEmail(application: Applicati
   };
 }
 
+/**
+ * Generate review request email for customers after booking completion
+ */
+export function generateReviewRequestEmail(data: {
+  customerEmail: string;
+  customerName: string;
+  bookingId: string;
+  bookingDate: string;
+  bookingTime: string;
+  serviceType: string;
+  cleanerName?: string;
+}): EmailData {
+  const dashboardUrl = process.env.NEXT_PUBLIC_SITE_URL 
+    ? `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard`
+    : 'https://shalean.com/dashboard';
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>How Was Your Cleaning Service? - Shalean</title>
+      <style>
+        body { 
+          font-family: Arial, sans-serif; 
+          line-height: 1.6; 
+          color: #333; 
+          max-width: 600px; 
+          margin: 0 auto; 
+          padding: 20px; 
+          background-color: #f5f5f5;
+        }
+        .container {
+          background-color: white;
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .header { 
+          background: linear-gradient(135deg, #0C53ED 0%, #0842c4 100%);
+          color: white; 
+          padding: 40px 30px; 
+          text-align: center; 
+        }
+        .header h1 {
+          margin: 0 0 10px 0;
+          font-size: 28px;
+        }
+        .content { 
+          padding: 40px 30px; 
+        }
+        .service-details { 
+          background-color: #f9fafb; 
+          padding: 20px; 
+          border-radius: 8px; 
+          margin: 25px 0;
+          border-left: 4px solid #0C53ED;
+        }
+        .service-details p {
+          margin: 8px 0;
+        }
+        .cta-button { 
+          display: inline-block;
+          background-color: #0C53ED; 
+          color: white; 
+          padding: 16px 40px; 
+          text-decoration: none; 
+          border-radius: 8px; 
+          font-weight: bold;
+          font-size: 16px;
+          margin: 20px 0;
+          text-align: center;
+          transition: background-color 0.3s;
+        }
+        .cta-button:hover {
+          background-color: #0842c4;
+        }
+        .stars {
+          font-size: 32px;
+          color: #fbbf24;
+          text-align: center;
+          margin: 20px 0;
+        }
+        .footer { 
+          text-align: center; 
+          padding: 30px; 
+          color: #666; 
+          font-size: 14px;
+          background-color: #f9fafb;
+          border-top: 1px solid #e5e7eb;
+        }
+        .highlight {
+          color: #0C53ED;
+          font-weight: bold;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🌟 How Was Your Experience?</h1>
+          <p>We'd love to hear your feedback!</p>
+        </div>
+        
+        <div class="content">
+          <p>Hi ${data.customerName},</p>
+          
+          <p>Thank you for choosing Shalean Cleaning Services! We hope you're enjoying your sparkling clean space.</p>
+          
+          <p>Your cleaning service has been completed, and we'd greatly appreciate it if you could take a moment to share your experience.</p>
+          
+          <div class="service-details">
+            <p><strong>Booking ID:</strong> ${data.bookingId}</p>
+            <p><strong>Service:</strong> ${data.serviceType}</p>
+            <p><strong>Date:</strong> ${new Date(data.bookingDate).toLocaleDateString('en-ZA', { 
+              weekday: 'long', 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            })}</p>
+            <p><strong>Time:</strong> ${data.bookingTime}</p>
+            ${data.cleanerName ? `<p><strong>Cleaner:</strong> ${data.cleanerName}</p>` : ''}
+          </div>
+
+          <div class="stars">
+            ⭐ ⭐ ⭐ ⭐ ⭐
+          </div>
+          
+          <p style="text-align: center; margin: 30px 0;">
+            <a href="${dashboardUrl}" class="cta-button">
+              Leave a Review
+            </a>
+          </p>
+          
+          <p>Your feedback helps us:</p>
+          <ul>
+            <li>Maintain our high standards of service</li>
+            <li>Recognize and reward our excellent cleaners</li>
+            <li>Continuously improve our offerings</li>
+            <li>Help other customers make informed decisions</li>
+          </ul>
+          
+          <p>The review will only take a minute, and your honest feedback is invaluable to us.</p>
+          
+          <p>Thank you for being a valued customer!</p>
+          
+          <p>Best regards,<br>
+          <strong>The Shalean Team</strong></p>
+        </div>
+        
+        <div class="footer">
+          <p>Questions? Contact us anytime</p>
+          <p>📧 <a href="mailto:hello@shalean.com" style="color: #0C53ED;">hello@shalean.com</a></p>
+          <p style="margin-top: 20px; color: #999; font-size: 12px;">
+            This email was sent because your cleaning service was completed.<br>
+            Booking ID: ${data.bookingId}
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return {
+    to: data.customerEmail,
+    subject: `⭐ How was your cleaning service? We'd love your feedback!`,
+    html,
+  };
+}
+

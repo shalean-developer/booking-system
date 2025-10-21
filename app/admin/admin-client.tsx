@@ -102,7 +102,31 @@ const QuotesSection = dynamic(
   }
 );
 
-type TabType = 'dashboard' | 'bookings' | 'customers' | 'cleaners' | 'applications' | 'pricing' | 'blog' | 'quotes';
+const ReviewsSection = dynamic(
+  () => import('@/components/admin/reviews-section'),
+  { 
+    loading: () => (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    ),
+    ssr: false 
+  }
+);
+
+const UsersSection = dynamic(
+  () => import('@/components/admin/users-section').then(m => ({ default: m.UsersSection })),
+  { 
+    loading: () => (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    ),
+    ssr: false 
+  }
+);
+
+type TabType = 'dashboard' | 'bookings' | 'customers' | 'cleaners' | 'applications' | 'pricing' | 'blog' | 'quotes' | 'reviews' | 'users';
 
 export function AdminDashboardClient() {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
@@ -126,7 +150,9 @@ export function AdminDashboardClient() {
               { id: 'bookings', label: 'Bookings' },
               { id: 'quotes', label: 'Quotes' },
               { id: 'customers', label: 'Customers' },
+              { id: 'users', label: 'Users' },
               { id: 'cleaners', label: 'Cleaners' },
+              { id: 'reviews', label: 'Reviews' },
               { id: 'pricing', label: 'Pricing' },
               { id: 'blog', label: 'Blog' },
               { id: 'applications', label: 'Applications' },
@@ -152,7 +178,9 @@ export function AdminDashboardClient() {
           {activeTab === 'bookings' && <BookingsSection />}
           {activeTab === 'quotes' && <QuotesSection />}
           {activeTab === 'customers' && <CustomersSection />}
+          {activeTab === 'users' && <UsersSection />}
           {activeTab === 'cleaners' && <CleanersSection />}
+          {activeTab === 'reviews' && <ReviewsSection />}
           {activeTab === 'pricing' && <PricingSection />}
           {activeTab === 'blog' && <BlogSection />}
           {activeTab === 'applications' && <ApplicationsSection />}

@@ -4,7 +4,7 @@
  */
 
 export interface LogoutOptions {
-  timeout?: number; // milliseconds, default 10000
+  timeout?: number; // milliseconds, default 5000
   redirectPath?: string; // default '/'
   onSuccess?: () => void;
   onError?: (error: Error) => void;
@@ -20,7 +20,7 @@ export async function safeLogout(
   options: LogoutOptions = {}
 ): Promise<void> {
   const {
-    timeout = 10000,
+    timeout = 5000,
     redirectPath = '/',
     onSuccess,
     onError,
