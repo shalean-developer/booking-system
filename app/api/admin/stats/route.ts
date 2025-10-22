@@ -77,6 +77,54 @@ export async function GET(request: Request) {
     const totalRevenue = allBookings.data?.reduce((sum, b) => sum + (b.total_amount || 0), 0) || 0;
     
     const recentRevenue = recentBookingStats.data?.reduce((sum, b) => sum + (b.total_amount || 0), 0) || 0;
+
+    // Financial metrics
+    const totalCleanerEarnings = allBookings.data?.reduce((sum, b) => 
+      sum + (b.cleaner_earnings || 0), 0) || 0;
+    const totalServiceFees = allBookings.data?.reduce((sum, b) => 
+      sum + (b.service_fee || 0), 0) || 0;
+    const companyEarnings = totalRevenue - totalCleanerEarnings;
+    const profitMargin = totalRevenue > 0 
+      ? Math.round((companyEarnings / totalRevenue) * 100) 
+      : 0;
+
+    // Recent period (last 30 days)
+    const recentCleanerEarnings = recentBookingStats.data?.reduce((sum, b) => 
+      sum + (b.cleaner_earnings || 0), 0) || 0;
+    const recentServiceFees = recentBookingStats.data?.reduce((sum, b) => 
+      sum + (b.service_fee || 0), 0) || 0;
+    const recentCompanyEarnings = recentRevenue - recentCleanerEarnings;
+    const recentProfitMargin = recentRevenue > 0 
+      ? Math.round((recentCompanyEarnings / recentRevenue) * 100) 
+      : 0;
+
+    // Operational metrics
+    const totalBookings = allBookings.count || 0;
+    const recentBookings = recentBookingStats.count || 0;
+    const activeCleaners = activeCleanersResult.count || 0;
+    const cleanerUtilization = activeCleaners > 0 
+      ? Math.round(recentBookings / activeCleaners) 
+      : 0;
+
+    // Growth metrics
+    const avgBookingValue = totalBookings > 0 
+      ? Math.round(totalRevenue / totalBookings) 
+      : 0;
+    const recentAvgBookingValue = recentBookings > 0 
+      ? Math.round(recentRevenue / recentBookings) 
+      : 0;
+
+    // Customer retention
+    const repeatCustomersResult = await supabase
+      .from('customers')
+      .select('id', { count: 'exact', head: true })
+      .gte('total_bookings', 2);
+
+    const totalCustomers = customerCount.count || 0;
+    const repeatCustomers = repeatCustomersResult.count || 0;
+    const retentionRate = totalCustomers > 0 
+      ? Math.round((repeatCustomers / totalCustomers) * 100) 
+      : 0;
     
     const [totalCleanersResult, activeCleanersResult] = cleanerCounts;
     const [totalApplicationsResult, pendingApplicationsResult] = applicationCounts;
@@ -88,22 +136,35 @@ export async function GET(request: Request) {
       ok: true,
       stats: {
         bookings: {
-          total: allBookings.count || 0,
+          total: totalBookings,
+          recent: recentBookings,
           pending: pendingCount.count || 0,
           confirmed: confirmedCount.count || 0,
           completed: completedCount.count || 0,
-          recent: recentBookingStats.count || 0,
         },
         revenue: {
           total: totalRevenue,
           recent: recentRevenue,
+          cleanerEarnings: totalCleanerEarnings,
+          recentCleanerEarnings: recentCleanerEarnings,
+          companyEarnings: companyEarnings,
+          recentCompanyEarnings: recentCompanyEarnings,
+          serviceFees: totalServiceFees,
+          recentServiceFees: recentServiceFees,
+          profitMargin: profitMargin,
+          recentProfitMargin: recentProfitMargin,
+          avgBookingValue: avgBookingValue,
+          recentAvgBookingValue: recentAvgBookingValue,
         },
         customers: {
-          total: customerCount.count || 0,
+          total: totalCustomers,
+          repeat: repeatCustomers,
+          retentionRate: retentionRate,
         },
         cleaners: {
           total: totalCleanersResult.count || 0,
-          active: activeCleanersResult.count || 0,
+          active: activeCleaners,
+          utilization: cleanerUtilization,
         },
         applications: {
           total: totalApplicationsResult.count || 0,

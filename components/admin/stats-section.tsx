@@ -2,26 +2,39 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, DollarSign, Users, Calendar, Briefcase, CheckCircle, FileText } from 'lucide-react';
+import { Loader2, DollarSign, Users, Calendar, Briefcase, CheckCircle, FileText, TrendingUp, Percent, Receipt, Activity, Repeat, UserPlus } from 'lucide-react';
 
 interface Stats {
   bookings: {
     total: number;
+    recent: number;
     pending: number;
     confirmed: number;
     completed: number;
-    recent: number;
   };
   revenue: {
     total: number;
     recent: number;
+    cleanerEarnings: number;
+    recentCleanerEarnings: number;
+    companyEarnings: number;
+    recentCompanyEarnings: number;
+    serviceFees: number;
+    recentServiceFees: number;
+    profitMargin: number;
+    recentProfitMargin: number;
+    avgBookingValue: number;
+    recentAvgBookingValue: number;
   };
   customers: {
     total: number;
+    repeat: number;
+    retentionRate: number;
   };
   cleaners: {
     total: number;
     active: number;
+    utilization: number;
   };
   applications: {
     total: number;
@@ -85,7 +98,7 @@ export function StatsSection() {
 
   return (
     <div className="space-y-6">
-      {/* Key Metrics */}
+      {/* Row 1: Financial Health */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -104,6 +117,54 @@ export function StatsSection() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Company Earnings</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              R{(stats.revenue.companyEarnings / 100).toFixed(2)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              R{(stats.revenue.recentCompanyEarnings / 100).toFixed(2)} last 30 days
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Profit Margin</CardTitle>
+            <Percent className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {stats.revenue.profitMargin}%
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {stats.revenue.recentProfitMargin}% last 30 days
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Service Fees</CardTitle>
+            <Receipt className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              R{(stats.revenue.serviceFees / 100).toFixed(2)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              R{(stats.revenue.recentServiceFees / 100).toFixed(2)} last 30 days
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Row 2: Operational Capacity */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -117,6 +178,52 @@ export function StatsSection() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Cleaners</CardTitle>
+            <Briefcase className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.cleaners.active}</div>
+            <p className="text-xs text-muted-foreground">
+              {stats.cleaners.total} total cleaners
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Cleaner Utilization</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {stats.cleaners.utilization}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              bookings per cleaner (last 30 days)
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Cleaner Earnings</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              R{(stats.revenue.cleanerEarnings / 100).toFixed(2)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              R{(stats.revenue.recentCleanerEarnings / 100).toFixed(2)} last 30 days
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Row 3: Growth Indicators */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -128,13 +235,45 @@ export function StatsSection() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Cleaners</CardTitle>
-            <Briefcase className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Customer Retention</CardTitle>
+            <Repeat className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.cleaners.active}</div>
+            <div className="text-2xl font-bold">
+              {stats.customers.retentionRate}%
+            </div>
             <p className="text-xs text-muted-foreground">
-              {stats.cleaners.total} total
+              {stats.customers.repeat} repeat customers
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Avg Booking Value</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              R{(stats.revenue.avgBookingValue / 100).toFixed(2)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              R{(stats.revenue.recentAvgBookingValue / 100).toFixed(2)} recent
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Cleaner Pipeline</CardTitle>
+            <UserPlus className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {stats.applications.pending}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              pending applications
             </p>
           </CardContent>
         </Card>
