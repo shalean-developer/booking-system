@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
 import { isAdmin } from '@/lib/supabase-server';
+import { createClient } from '@supabase/supabase-js';
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,42 +37,54 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    // Initialize Supabase client
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Generate unique filename
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(2, 8);
     const fileExtension = file.name.split('.').pop();
     const fileName = `blog-${timestamp}-${randomString}.${fileExtension}`;
+    const filePath = `blog-images/${fileName}`;
 
-    // Ensure upload directory exists
-    const uploadDir = join(process.cwd(), 'public', 'images', 'blog');
-    try {
-      await mkdir(uploadDir, { recursive: true });
-    } catch (error) {
-      console.log('Directory already exists or created');
+    console.log('📤 Uploading to Supabase Storage:', filePath);
+
+    // Upload to Supabase Storage
+    const { data, error } = await supabase.storage
+      .from('blog-images')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+      });
+
+    if (error) {
+      console.error('💥 Supabase upload error:', error);
+      return NextResponse.json(
+        { error: `Failed to upload image: ${error.message}` },
+        { status: 500 }
+      );
     }
 
-    // Save file
-    const filePath = join(uploadDir, fileName);
-    await writeFile(filePath, buffer);
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('blog-images')
+      .getPublicUrl(filePath);
 
-    // Return the public URL
-    const imageUrl = `/images/blog/${fileName}`;
-    
-    console.log('✅ Image uploaded successfully:', imageUrl);
+    console.log('✅ Image uploaded successfully:', publicUrl);
     
     return NextResponse.json({ 
       success: true, 
-      imageUrl,
-      fileName 
+      imageUrl: publicUrl,
+      fileName: fileName,
+      filePath: filePath
     }, { status: 200 });
 
   } catch (error) {
     console.error('💥 Error uploading image:', error);
     return NextResponse.json(
-      { error: 'Failed to upload image' },
+      { error: `Failed to upload image: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     );
   }
