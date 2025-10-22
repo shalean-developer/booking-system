@@ -98,7 +98,7 @@ export const SEO_CONFIG = {
   },
 
   about: {
-    title: "About Shalean Cleaning Services — Professional Cleaners",
+    title: "About Shalean — Professional Cleaners",
     description: "Learn about Shalean's mission to provide exceptional cleaning services. Meet our team of professional cleaners serving Cape Town.",
     canonical: generateCanonical("/about"),
     ogImage: {
