@@ -5,7 +5,12 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ 
+  subsets: ["latin"],
+  display: 'swap',
+  preload: true,
+  fallback: ['system-ui', 'arial']
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://shalean.co.za'),
@@ -109,6 +114,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* Font Preloading */}
+        <link
+          rel="preload"
+          href="/_next/static/media/inter-latin.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+        
         {/* Organization Schema for Brand Name Display */}
         <script
           type="application/ld+json"

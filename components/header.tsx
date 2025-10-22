@@ -13,9 +13,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/lib/supabase-client';
-import { AuthModal } from '@/components/auth-modal';
 import { safeLogout, cleanupCorruptedSession, safeGetSession } from '@/lib/logout-utils';
 import { toast } from 'sonner';
+import dynamic from 'next/dynamic';
 import {
   Home,
   Wrench,
@@ -27,6 +27,12 @@ import {
   Shield,
   ChevronDown,
 } from 'lucide-react';
+
+// Lazy load AuthModal to reduce initial bundle size
+const AuthModal = dynamic(() => import('@/components/auth-modal').then(mod => ({ default: mod.AuthModal })), {
+  ssr: false,
+  loading: () => <div className="w-20 h-9 bg-gray-200 rounded animate-pulse"></div>
+});
 
 interface HeaderProps {
   variant?: 'default' | 'minimal';
@@ -162,82 +168,17 @@ export function Header({ variant = 'default' }: HeaderProps) {
 
   const currentPage = getCurrentPage();
 
-  // Logo component with smart detection and cache busting
+  // Optimized Logo component - static import, no client-side detection
   const Logo = () => {
-    const [useFallback, setUseFallback] = useState(false);
-    const [logoSrc, setLogoSrc] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    
-    // Version for cache busting - update when logo changes
-    const LOGO_VERSION = '1.0.0';
-
-    // Client-side file detection to find available logo format
-    useEffect(() => {
-      const checkLogo = async () => {
-        setIsLoading(true);
-        
-        // Try SVG first
-        try {
-          const svgResponse = await fetch('/logo.svg', { method: 'HEAD' });
-          if (svgResponse.ok) {
-            setLogoSrc(`/logo.svg?v=${LOGO_VERSION}`);
-            setIsLoading(false);
-            return;
-          }
-        } catch (error) {
-          console.log('SVG logo not found, trying PNG');
-        }
-        
-        // Try PNG
-        try {
-          const pngResponse = await fetch('/logo.png', { method: 'HEAD' });
-          if (pngResponse.ok) {
-            setLogoSrc(`/logo.png?v=${LOGO_VERSION}`);
-            setIsLoading(false);
-            return;
-          }
-        } catch (error) {
-          console.log('PNG logo not found, using fallback');
-        }
-        
-        // No logo found, use fallback
-        setUseFallback(true);
-        setIsLoading(false);
-      };
-      
-      checkLogo();
-    }, [LOGO_VERSION]);
-
-    const handleError = () => {
-      console.warn('Logo failed to load:', logoSrc);
-      // If current logo fails, try the other format
-      if (logoSrc?.includes('logo.svg')) {
-        setLogoSrc(`/logo.png?v=${LOGO_VERSION}`);
-      } else {
-        // Both formats failed, use fallback
-        setUseFallback(true);
-      }
-    };
-
-    if (useFallback || !logoSrc) {
-      return (
-        <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-100 rounded-full flex items-center justify-center">
-          <Droplets className="h-4 w-4 md:h-5 md:w-5 text-blue-600" />
-        </div>
-      );
-    }
-
     return (
       <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden bg-blue-100 flex items-center justify-center">
         <Image 
-          src={logoSrc}
+          src="/logo.svg"
           alt="Shalean Logo"
           width={40}
           height={40}
           className="w-8 h-8 md:w-10 md:h-10 object-cover"
-          unoptimized={true}
           priority={true}
-          onError={handleError}
         />
       </div>
     );
