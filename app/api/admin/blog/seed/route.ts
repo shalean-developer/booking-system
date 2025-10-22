@@ -5,7 +5,7 @@ import { isAdmin } from '@/lib/supabase-server';
 // Existing blog posts to migrate
 const existingPosts = [
   {
-    title: '10 Essential Deep Cleaning Tips for Every Home',
+    title: '10 Essential Deep Cleaning Tips',
     slug: 'deep-cleaning-tips',
     excerpt: 'Discover professional techniques to deep clean your home like an expert, from kitchen to bathroom. Transform your space with these proven methods.',
     category: 'Cleaning Tips',
@@ -182,7 +182,7 @@ const existingPosts = [
         <p class="text-sm text-gray-600 mt-2">— Shalean Cleaning Experts</p>
       </div>
     `,
-    meta_title: '10 Essential Deep Cleaning Tips for Every Home | Shalean Blog',
+    meta_title: '10 Essential Deep Cleaning Tips | Shalean Blog',
     meta_description: 'Professional deep cleaning techniques to transform your home. Expert tips for kitchen, bathroom, and every room from Shalean\'s cleaning professionals.',
   },
   {

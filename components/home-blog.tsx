@@ -39,7 +39,7 @@ export function HomeBlog() {
                 <span className="text-xs text-gray-500">5 min read</span>
               </div>
               <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 mb-2 sm:mb-3">
-                10 Essential Deep Cleaning Tips for Every Home
+                10 Essential Deep Cleaning Tips
               </h3>
               <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">
                 Discover professional techniques to deep clean your home like an expert, from kitchen to bathroom.
