@@ -57,7 +57,7 @@ const johannesburgSuburbs = [
   { name: "Braamfontein", slug: "braamfontein", area: "Inner City" },
   { name: "Parktown", slug: "parktown", area: "Inner City" },
   { name: "Houghton", slug: "houghton", area: "Inner City" },
-  { name: "Westcliff", slug: "westcliff", area: "Inner City" },
+  { name: "Westcliff", slug: "westcliff", area: "Inner City" }
 ];
 
 export default function JohannesburgPage() {
