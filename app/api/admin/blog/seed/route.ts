@@ -5,8 +5,8 @@ import { isAdmin } from '@/lib/supabase-server';
 // Existing blog posts to migrate
 const existingPosts = [
   {
-    title: '10 Essential Deep Cleaning Tips',
-    slug: 'deep-cleaning-tips',
+    title: '10 Essential Deep Cleaning Tips for Every Home',
+    slug: '10-essential-deep-cleaning-tips-for-every-home',
     excerpt: 'Discover professional techniques to deep clean your home like an expert, from kitchen to bathroom. Transform your space with these proven methods.',
     category: 'Cleaning Tips',
     readTime: 5,
@@ -182,12 +182,12 @@ const existingPosts = [
         <p class="text-sm text-gray-600 mt-2">— Shalean Cleaning Experts</p>
       </div>
     `,
-    meta_title: '10 Essential Deep Cleaning Tips | Shalean Blog',
+    meta_title: '10 Essential Deep Cleaning Tips | Shalean',
     meta_description: 'Professional deep cleaning techniques to transform your home. Expert tips for kitchen, bathroom, and every room from Shalean\'s cleaning professionals.',
   },
   {
     title: 'The Benefits of Eco-Friendly Cleaning Products',
-    slug: 'eco-friendly-products',
+    slug: 'the-benefits-of-eco-friendly-cleaning-products',
     excerpt: 'Learn why switching to eco-friendly cleaning products is better for your health and the environment. Discover safe, effective alternatives.',
     category: 'Sustainability',
     readTime: 4,
@@ -266,7 +266,7 @@ const existingPosts = [
   },
   {
     title: 'Complete Airbnb Turnover Cleaning Checklist',
-    slug: 'airbnb-cleaning-checklist',
+    slug: 'complete-airbnb-turnover-cleaning-checklist',
     excerpt: 'Master the art of Airbnb turnover with our comprehensive cleaning checklist for 5-star reviews. Ensure guest satisfaction every time.',
     category: 'Airbnb Hosts',
     readTime: 6,
