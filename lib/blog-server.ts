@@ -46,58 +46,73 @@ export interface BlogPostWithDetails extends BlogPost {
 
 // Server-side functions (for use in Server Components and API routes)
 export async function getPublishedPosts(): Promise<BlogPostWithDetails[]> {
-  const supabase = await createClient();
-  
-  const { data, error } = await supabase
-    .from('blog_posts_with_details')
-    .select('*')
-    .eq('status', 'published')
-    .order('published_at', { ascending: false });
+  try {
+    const supabase = await createClient();
+    
+    const { data, error } = await supabase
+      .from('blog_posts_with_details')
+      .select('*')
+      .eq('status', 'published')
+      .order('published_at', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching blog posts:', error);
+    if (error) {
+      console.error('Error fetching blog posts:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Database connection error in getPublishedPosts:', error);
     return [];
   }
-
-  return data || [];
 }
 
 export async function getPublishedPostBySlug(slug: string): Promise<BlogPostWithDetails | null> {
-  const supabase = await createClient();
-  
-  const { data, error } = await supabase
-    .from('blog_posts_with_details')
-    .select('*')
-    .eq('slug', slug)
-    .eq('status', 'published')
-    .single();
+  try {
+    const supabase = await createClient();
+    
+    const { data, error } = await supabase
+      .from('blog_posts_with_details')
+      .select('*')
+      .eq('slug', slug)
+      .eq('status', 'published')
+      .single();
 
-  if (error) {
-    console.error('Error fetching blog post:', error);
+    if (error) {
+      console.error('Error fetching blog post:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Database connection error in getPublishedPostBySlug:', error);
     return null;
   }
-
-  return data;
 }
 
 export async function getRelatedPosts(categoryId: string, currentPostId: string, limit: number = 3): Promise<BlogPostWithDetails[]> {
-  const supabase = await createClient();
-  
-  const { data, error } = await supabase
-    .from('blog_posts_with_details')
-    .select('*')
-    .eq('category_id', categoryId)
-    .eq('status', 'published')
-    .neq('id', currentPostId)
-    .order('published_at', { ascending: false })
-    .limit(limit);
+  try {
+    const supabase = await createClient();
+    
+    const { data, error } = await supabase
+      .from('blog_posts_with_details')
+      .select('*')
+      .eq('category_id', categoryId)
+      .eq('status', 'published')
+      .neq('id', currentPostId)
+      .order('published_at', { ascending: false })
+      .limit(limit);
 
-  if (error) {
-    console.error('Error fetching related posts:', error);
+    if (error) {
+      console.error('Error fetching related posts:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Database connection error in getRelatedPosts:', error);
     return [];
   }
-
-  return data || [];
 }
 
 export async function getCategories(): Promise<BlogCategory[]> {
