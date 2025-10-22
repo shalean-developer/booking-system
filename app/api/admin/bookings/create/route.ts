@@ -37,8 +37,17 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('=== ADMIN CREATE BOOKING ERROR ===', error);
+    console.error('Error details:', error);
+    console.error('Error message:', error instanceof Error ? error.message : 'Unknown error');
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    
     return NextResponse.json(
-      { ok: false, error: 'Failed to create booking' },
+      { 
+        ok: false, 
+        error: 'Failed to create booking',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        debug: process.env.NODE_ENV === 'development' ? error : undefined
+      },
       { status: 500 }
     );
   }
@@ -162,8 +171,14 @@ async function createRecurringBooking(supabase: any, data: CreateBookingFormData
 
   if (scheduleError) {
     console.error('Error creating recurring schedule:', scheduleError);
+    console.error('Schedule error details:', JSON.stringify(scheduleError, null, 2));
     return NextResponse.json(
-      { ok: false, error: 'Failed to create recurring schedule', details: scheduleError.message },
+      { 
+        ok: false, 
+        error: 'Failed to create recurring schedule', 
+        details: scheduleError.message,
+        debug: process.env.NODE_ENV === 'development' ? scheduleError : undefined
+      },
       { status: 500 }
     );
   }
@@ -239,8 +254,14 @@ async function createRecurringBooking(supabase: any, data: CreateBookingFormData
 
       if (bookingsError) {
         console.error('Error creating recurring bookings:', bookingsError);
+        console.error('Bookings error details:', JSON.stringify(bookingsError, null, 2));
         return NextResponse.json(
-          { ok: false, error: 'Failed to create recurring bookings', details: bookingsError.message },
+          { 
+            ok: false, 
+            error: 'Failed to create recurring bookings', 
+            details: bookingsError.message,
+            debug: process.env.NODE_ENV === 'development' ? bookingsError : undefined
+          },
           { status: 500 }
         );
       }
