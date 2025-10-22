@@ -77,7 +77,7 @@ export const SEO_CONFIG = {
   },
 
   "booking-quote": {
-    title: "Get Cleaning Quote — Instant Pricing | Shalean",
+    title: "Instant Cleaning Quote & Pricing | Shalean Cleaning Services",
     description: "Get an instant quote for professional cleaning services. Transparent pricing for deep clean, regular cleaning, and specialty services.",
     canonical: generateCanonical("/booking/quote"),
     ogImage: {
