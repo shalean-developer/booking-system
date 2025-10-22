@@ -278,6 +278,121 @@ export function SuburbPageTemplate({
         </div>
       </section>
 
+      {/* Related Services Section */}
+      <section className="py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              Popular Services in {suburb}
+            </h2>
+            <p className="text-xl text-gray-600">
+              Choose from our most requested cleaning services
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <CardContent className="p-6 text-center">
+                <Home className="h-12 w-12 text-primary mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-gray-900 mb-3">Regular Cleaning</h3>
+                <p className="text-gray-600 mb-4">
+                  Weekly or bi-weekly maintenance cleaning
+                </p>
+                <Button variant="outline" className="w-full" asChild>
+                  <Link href="/services/regular-cleaning">
+                    Learn More
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <CardContent className="p-6 text-center">
+                <Shield className="h-12 w-12 text-primary mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-gray-900 mb-3">Deep Cleaning</h3>
+                <p className="text-gray-600 mb-4">
+                  Comprehensive cleaning for every corner
+                </p>
+                <Button variant="outline" className="w-full" asChild>
+                  <Link href="/services/deep-specialty">
+                    Learn More
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <CardContent className="p-6 text-center">
+                <Users className="h-12 w-12 text-primary mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-gray-900 mb-3">Move In/Out</h3>
+                <p className="text-gray-600 mb-4">
+                  Complete cleaning for property transitions
+                </p>
+                <Button variant="outline" className="w-full" asChild>
+                  <Link href="/services/move-turnover">
+                    Learn More
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Nearby Areas Section */}
+      <section className="py-20 bg-gray-50">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              We Also Serve Nearby Areas
+            </h2>
+            <p className="text-xl text-gray-600">
+              Professional cleaning services in surrounding neighborhoods
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {/* This would be dynamically populated based on the suburb */}
+            <Link
+              href={`/location/${city.toLowerCase().replace(/\s+/g, '-')}`}
+              className="flex items-center gap-2 p-4 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all group"
+            >
+              <MapPin className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+              <span className="text-gray-700 group-hover:text-primary font-medium">
+                All {city} Areas
+              </span>
+            </Link>
+            <Link
+              href="/location"
+              className="flex items-center gap-2 p-4 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all group"
+            >
+              <MapPin className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+              <span className="text-gray-700 group-hover:text-primary font-medium">
+                All Locations
+              </span>
+            </Link>
+            <Link
+              href="/services"
+              className="flex items-center gap-2 p-4 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all group"
+            >
+              <Home className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+              <span className="text-gray-700 group-hover:text-primary font-medium">
+                All Services
+              </span>
+            </Link>
+            <Link
+              href="/booking/service/select"
+              className="flex items-center gap-2 p-4 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all group"
+            >
+              <ArrowRight className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+              <span className="text-gray-700 group-hover:text-primary font-medium">
+                Book Now
+              </span>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-br from-primary/5 to-primary/10">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">

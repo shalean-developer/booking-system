@@ -60,12 +60,16 @@ export default async function BlogPage() {
               blogPosts.map((post) => (
                 <Card key={post.slug} className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-shadow">
                   <div className="h-48 relative bg-gradient-to-br from-primary/20 to-primary/40">
-                    {post.featured_image && (
+                    {post.featured_image && post.featured_image.trim() !== '' && (
                       <Image
                         src={post.featured_image}
                         alt={post.featured_image_alt || post.title}
                         fill
                         className="object-cover"
+                        onError={(e) => {
+                          console.error('Featured image failed to load:', post.featured_image);
+                          e.currentTarget.style.display = 'none';
+                        }}
                       />
                     )}
                   </div>

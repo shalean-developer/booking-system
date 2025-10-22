@@ -125,30 +125,41 @@ export default function CapeTownPage() {
           </div>
 
           <div className="space-y-8">
-            {Object.entries(groupedSuburbs).map(([area, suburbs]) => (
-              <Card key={area} className="border-0 shadow-lg">
-                <CardContent className="p-8">
-                  <div className="flex items-center gap-3 mb-6">
-                    <MapPin className="h-6 w-6 text-primary" />
-                    <h3 className="text-2xl font-bold text-gray-900">{area}</h3>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {suburbs.map((suburb) => (
+            {Object.entries(groupedSuburbs).map(([area, suburbs]) => {
+              const areaSlug = area.toLowerCase().replace(/\s+/g, '-').replace('&', 'and');
+              return (
+                <Card key={area} className="border-0 shadow-lg">
+                  <CardContent className="p-8">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-3">
+                        <MapPin className="h-6 w-6 text-primary" />
+                        <h3 className="text-2xl font-bold text-gray-900">{area}</h3>
+                      </div>
                       <Link
-                        key={suburb.slug}
-                        href={`/location/cape-town/${suburb.slug}`}
-                        className="flex items-center gap-2 p-3 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all group"
+                        href={`/location/cape-town/${areaSlug}`}
+                        className="text-primary hover:text-primary/80 font-medium text-sm"
                       >
-                        <Sparkles className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
-                        <span className="text-gray-700 group-hover:text-primary font-medium">
-                          {suburb.name}
-                        </span>
+                        View Area Details →
                       </Link>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {suburbs.map((suburb) => (
+                        <Link
+                          key={suburb.slug}
+                          href={`/location/cape-town/${suburb.slug}`}
+                          className="flex items-center gap-2 p-3 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all group"
+                        >
+                          <Sparkles className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+                          <span className="text-gray-700 group-hover:text-primary font-medium">
+                            {suburb.name}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </div>
       </section>

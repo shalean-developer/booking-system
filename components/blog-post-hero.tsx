@@ -65,7 +65,7 @@ export function BlogPostHero({ post }: BlogPostHeroProps) {
               {post.read_time} min read
             </span>
           </div>
-          {post.featured_image && (
+          {post.featured_image && post.featured_image.trim() !== '' && (
             <div className="relative h-96 md:h-[500px] rounded-xl overflow-hidden shadow-lg border border-gray-200">
               <Image
                 src={post.featured_image}
@@ -74,6 +74,10 @@ export function BlogPostHero({ post }: BlogPostHeroProps) {
                 className="object-cover"
                 priority
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1024px"
+                onError={(e) => {
+                  console.error('Featured image failed to load:', post.featured_image);
+                  e.currentTarget.style.display = 'none';
+                }}
               />
             </div>
           )}

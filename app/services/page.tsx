@@ -10,7 +10,8 @@ import {
   Calendar,
   ArrowRight,
   CheckCircle,
-  Sparkles
+  Sparkles,
+  Users
 } from "lucide-react";
 import type { Metadata } from "next";
 import { createMetadata } from "@/lib/metadata";
@@ -22,12 +23,12 @@ export const metadata: Metadata = createMetadata(getSeoConfig("services"));
 export default function ServicesPage() {
   const services = [
     {
-      title: "Standard Cleaning",
+      title: "Regular Cleaning",
       icon: Home,
       description: "Regular home cleaning to keep your space fresh and organized. Perfect for ongoing maintenance.",
       features: ["Dusting & vacuuming", "Kitchen & bathroom cleaning", "Floor mopping", "Surface sanitization"],
       pricing: "From R250",
-      link: "/services/home-maintenance",
+      link: "/services/regular-cleaning",
       color: "bg-amber-50",
       iconColor: "text-amber-600"
     },
@@ -57,9 +58,49 @@ export default function ServicesPage() {
       description: "Professional turnover cleaning for short-term rentals. Fast, reliable service between guests.",
       features: ["Quick turnaround", "Linen change", "Guest-ready standards", "Quality inspection"],
       pricing: "From R230",
-      link: "/services/move-turnover",
+      link: "/services/airbnb-cleaning",
       color: "bg-teal-50",
       iconColor: "text-teal-600"
+    },
+    {
+      title: "Office Cleaning",
+      icon: Building,
+      description: "Professional commercial cleaning services for offices and workplaces. Keep your business environment clean.",
+      features: ["Desk cleaning", "Reception maintenance", "Kitchen cleaning", "Restroom sanitization"],
+      pricing: "From R180",
+      link: "/services/office-cleaning",
+      color: "bg-blue-50",
+      iconColor: "text-blue-600"
+    },
+    {
+      title: "Apartment Cleaning",
+      icon: Users,
+      description: "Specialized cleaning services for apartments and condos. Understanding apartment layouts and strata requirements.",
+      features: ["Compact space optimization", "Strata-compliant cleaning", "Balcony cleaning", "Built-in storage"],
+      pricing: "From R200",
+      link: "/services/apartment-cleaning",
+      color: "bg-purple-50",
+      iconColor: "text-purple-600"
+    },
+    {
+      title: "Window Cleaning",
+      icon: Sparkles,
+      description: "Professional window cleaning for crystal clear results. Streak-free, spotless windows every time.",
+      features: ["Interior & exterior cleaning", "Window frame cleaning", "Screen maintenance", "Streak-free guarantee"],
+      pricing: "From R150",
+      link: "/services/window-cleaning",
+      color: "bg-cyan-50",
+      iconColor: "text-cyan-600"
+    },
+    {
+      title: "Home Maintenance",
+      icon: Home,
+      description: "Comprehensive home maintenance cleaning services. Keep your home in perfect condition year-round.",
+      features: ["Regular maintenance", "Seasonal cleaning", "Appliance care", "Deep sanitization"],
+      pricing: "From R300",
+      link: "/services/home-maintenance",
+      color: "bg-green-50",
+      iconColor: "text-green-600"
     }
   ];
 
