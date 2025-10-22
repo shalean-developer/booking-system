@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient, isAdmin } from '@/lib/supabase-server';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Admin Stats API
  * GET: Fetch dashboard statistics
@@ -9,46 +11,17 @@ export async function GET(request: Request) {
   console.log('=== ADMIN STATS API CALLED ===');
   
   try {
-    // Get token from Authorization header
-    const authHeader = request.headers.get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { ok: false, error: 'Unauthorized - No token provided' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    
-    // Create Supabase client
-    const supabase = await createClient();
-    
-    // Verify token and get user
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !user) {
-      console.error('Auth error:', authError);
-      return NextResponse.json(
-        { ok: false, error: 'Unauthorized - Invalid token' },
-        { status: 401 }
-      );
-    }
-    
-    // Check if user is admin
-    const { data: customer } = await supabase
-      .from('customers')
-      .select('role')
-      .eq('auth_user_id', user.id)
-      .single();
-    
-    if (customer?.role !== 'admin') {
+    // Check admin access
+    if (!await isAdmin()) {
       return NextResponse.json(
         { ok: false, error: 'Unauthorized - Admin access required' },
         { status: 403 }
       );
     }
     
-    console.log('✅ Admin authenticated:', user.email);
+    const supabase = await createClient();
+    
+    console.log('✅ Admin authenticated');
     
     // Calculate date for recent stats (last 30 days)
     const thirtyDaysAgo = new Date();

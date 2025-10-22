@@ -28,6 +28,18 @@ interface Booking {
   cleaner_completed_at?: string | null;
   customer_rating_id?: string | null;
   distance?: number | null;
+  recurring_schedule_id?: string | null;
+  recurring_schedule?: {
+    id: string;
+    frequency: 'weekly' | 'bi-weekly' | 'monthly' | 'custom-weekly' | 'custom-bi-weekly';
+    day_of_week?: number;
+    day_of_month?: number;
+    days_of_week?: number[];
+    preferred_time: string;
+    is_active: boolean;
+    start_date: string;
+    end_date?: string;
+  } | null;
 }
 
 export function AvailableBookings() {

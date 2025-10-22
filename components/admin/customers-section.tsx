@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, Search, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { CreateCustomerDialog } from '@/components/admin/create-customer-dialog';
 
 interface Customer {
   id: string;
@@ -28,6 +29,7 @@ export function CustomersSection() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   const fetchCustomers = async () => {
     try {
@@ -65,11 +67,22 @@ export function CustomersSection() {
     fetchCustomers();
   };
 
+  const handleCreateSuccess = () => {
+    // Refresh the customer list after successful creation
+    fetchCustomers();
+  };
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Customers Management</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Customers Management</CardTitle>
+            <Button onClick={() => setShowCreateDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Customer
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {/* Search */}
@@ -172,6 +185,13 @@ export function CustomersSection() {
           )}
         </CardContent>
       </Card>
+
+      {/* Create Customer Dialog */}
+      <CreateCustomerDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        onSuccess={handleCreateSuccess}
+      />
     </div>
   );
 }

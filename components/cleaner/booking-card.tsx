@@ -15,6 +15,7 @@ import {
   Star,
   Loader2,
   Navigation,
+  Repeat,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -39,6 +40,18 @@ interface Booking {
   cleaner_completed_at?: string | null;
   customer_rating_id?: string | null;
   distance?: number | null;
+  recurring_schedule_id?: string | null;
+  recurring_schedule?: {
+    id: string;
+    frequency: 'weekly' | 'bi-weekly' | 'monthly' | 'custom-weekly' | 'custom-bi-weekly';
+    day_of_week?: number;
+    day_of_month?: number;
+    days_of_week?: number[];
+    preferred_time: string;
+    is_active: boolean;
+    start_date: string;
+    end_date?: string;
+  } | null;
 }
 
 interface BookingCardProps {
@@ -149,17 +162,40 @@ export function BookingCard({
     }
   };
 
+  const getFrequencyLabel = (frequency: string) => {
+    switch (frequency) {
+      case 'weekly':
+        return 'Weekly';
+      case 'bi-weekly':
+        return 'Bi-weekly';
+      case 'monthly':
+        return 'Monthly';
+      case 'custom-weekly':
+        return 'Custom Weekly';
+      case 'custom-bi-weekly':
+        return 'Custom Bi-weekly';
+      default:
+        return 'Recurring';
+    }
+  };
+
   return (
     <Card className="overflow-hidden border-2 hover:shadow-md transition-shadow">
       <CardContent className="p-4">
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <h3 className="font-semibold text-gray-900">
                 {booking.service_type || 'Cleaning Service'}
               </h3>
               {getStatusBadge()}
+              {booking.recurring_schedule && (
+                <Badge className="bg-blue-100 text-blue-800 border-blue-200 flex items-center gap-1">
+                  <Repeat className="h-3 w-3" />
+                  {getFrequencyLabel(booking.recurring_schedule.frequency)}
+                </Badge>
+              )}
             </div>
             {variant === 'assigned' && booking.customer_name && (
               <p className="text-sm text-gray-600 flex items-center gap-1">

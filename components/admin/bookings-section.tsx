@@ -42,6 +42,7 @@ import { EditBookingDialog } from './edit-booking-dialog';
 import { BookingDetailsDialog } from './booking-details-dialog';
 import { SendEmailDialog } from './send-email-dialog';
 import { AddNoteDialog } from './add-note-dialog';
+import { CreateBookingDialog } from './create-booking-dialog';
 import { fetcher } from '@/lib/fetcher';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 
@@ -80,6 +81,7 @@ export function BookingsSection() {
   const [assigningBooking, setAssigningBooking] = useState<Booking | null>(null);
   const [emailingBooking, setEmailingBooking] = useState<Booking | null>(null);
   const [notingBooking, setNotingBooking] = useState<Booking | null>(null);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   // Debounce search input to reduce API calls
   const search = useDebouncedValue(searchInput, 500);
@@ -218,11 +220,17 @@ export function BookingsSection() {
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
-          <CardTitle>Bookings Management</CardTitle>
-            <Button onClick={handleExport} variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
+            <CardTitle>Bookings Management</CardTitle>
+            <div className="flex gap-2">
+              <Button onClick={() => setShowCreateDialog(true)} size="sm">
+                <UserPlus className="h-4 w-4 mr-2" />
+                Create Booking
+              </Button>
+              <Button onClick={handleExport} variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -511,6 +519,16 @@ export function BookingsSection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Create Booking Dialog */}
+      <CreateBookingDialog
+        open={showCreateDialog}
+        onClose={() => setShowCreateDialog(false)}
+        onSuccess={() => {
+          mutate();
+          setShowCreateDialog(false);
+        }}
+      />
     </div>
   );
 }

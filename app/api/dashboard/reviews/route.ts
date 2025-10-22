@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     const authUser = await getServerAuthUser();
     
     if (!authUser) {
+      console.log('❌ No authenticated user found');
       return NextResponse.json(
         { ok: false, error: 'Unauthorized - Please log in' },
         { status: 401 }
@@ -24,27 +25,51 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
 
     // Get customer profile
-    const { data: customer, error: customerError } = await supabase
+    let { data: customer, error: customerError } = await supabase
       .from('customers')
       .select('id')
       .eq('auth_user_id', authUser.id)
       .maybeSingle();
 
     if (customerError) {
-      console.error('Error fetching customer:', customerError);
+      console.error('❌ Error fetching customer:', customerError);
       return NextResponse.json(
-        { ok: false, error: 'Failed to fetch customer profile' },
+        { ok: false, error: 'Database error while fetching customer profile', details: customerError.message },
         { status: 500 }
       );
     }
 
     if (!customer) {
-      console.log('ℹ️ No customer profile found');
-      return NextResponse.json({
-        ok: true,
-        reviews: [],
-        message: 'No reviews yet',
-      });
+      console.log('ℹ️ No customer profile found for user:', authUser.id);
+      console.log('📝 Creating customer profile automatically...');
+      
+      // Create a basic customer profile for the authenticated user
+      const { data: newCustomer, error: createError } = await supabase
+        .from('customers')
+        .insert({
+          email: authUser.email!,
+          phone: null, // Will be filled when they make their first booking
+          first_name: authUser.user_metadata?.first_name || null,
+          last_name: authUser.user_metadata?.last_name || null,
+          address_line1: null,
+          address_suburb: null,
+          address_city: null,
+          auth_user_id: authUser.id,
+          total_bookings: 0,
+        })
+        .select('id')
+        .single();
+
+      if (createError) {
+        console.error('❌ Failed to create customer profile:', createError);
+        return NextResponse.json(
+          { ok: false, error: 'Failed to create customer profile', details: createError.message },
+          { status: 500 }
+        );
+      }
+
+      console.log('✅ Customer profile created:', newCustomer.id);
+      customer = newCustomer;
     }
 
     console.log('✅ Customer found:', customer.id);
@@ -81,9 +106,9 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false });
 
     if (reviewsError) {
-      console.error('Error fetching reviews:', reviewsError);
+      console.error('❌ Error fetching reviews:', reviewsError);
       return NextResponse.json(
-        { ok: false, error: 'Failed to fetch reviews' },
+        { ok: false, error: 'Failed to fetch reviews', details: reviewsError.message },
         { status: 500 }
       );
     }
@@ -97,9 +122,11 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('=== DASHBOARD REVIEWS ERROR ===');
-    console.error(error);
+    console.error('Error type:', typeof error);
+    console.error('Error message:', error instanceof Error ? error.message : 'Unknown error');
+    console.error('Full error:', error);
     return NextResponse.json(
-      { ok: false, error: 'An error occurred while fetching reviews' },
+      { ok: false, error: 'An error occurred while fetching reviews', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

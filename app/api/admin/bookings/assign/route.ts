@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient, isAdmin } from '@/lib/supabase-server';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Admin Assign Cleaner API
  * GET: Fetch available cleaners for a date/time with their schedules

@@ -19,6 +19,7 @@ import {
   Package,
   FileText,
   Navigation,
+  Repeat,
 } from 'lucide-react';
 
 interface Booking {
@@ -40,6 +41,18 @@ interface Booking {
   cleaner_on_my_way_at?: string | null;
   cleaner_started_at?: string | null;
   cleaner_completed_at?: string | null;
+  recurring_schedule_id?: string | null;
+  recurring_schedule?: {
+    id: string;
+    frequency: 'weekly' | 'bi-weekly' | 'monthly' | 'custom-weekly' | 'custom-bi-weekly';
+    day_of_week?: number;
+    day_of_month?: number;
+    days_of_week?: number[];
+    preferred_time: string;
+    is_active: boolean;
+    start_date: string;
+    end_date?: string;
+  } | null;
 }
 
 interface BookingDetailsModalProps {
@@ -122,6 +135,28 @@ export function BookingDetailsModal({
     }
   };
 
+  const getFrequencyLabel = (frequency: string) => {
+    switch (frequency) {
+      case 'weekly':
+        return 'Weekly';
+      case 'bi-weekly':
+        return 'Bi-weekly';
+      case 'monthly':
+        return 'Monthly';
+      case 'custom-weekly':
+        return 'Custom Weekly';
+      case 'custom-bi-weekly':
+        return 'Custom Bi-weekly';
+      default:
+        return 'Recurring';
+    }
+  };
+
+  const getDayOfWeekLabel = (day: number) => {
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return days[day];
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -177,6 +212,72 @@ export function BookingDetailsModal({
               </div>
             </div>
           </div>
+
+          {/* Recurring Schedule Info */}
+          {booking.recurring_schedule && (
+            <div className="space-y-3">
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <Repeat className="h-5 w-5" />
+                Recurring Schedule
+              </h3>
+              <div className="ml-7 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                    {getFrequencyLabel(booking.recurring_schedule.frequency)}
+                  </Badge>
+                  {!booking.recurring_schedule.is_active && (
+                    <Badge variant="outline" className="bg-gray-100">
+                      Paused
+                    </Badge>
+                  )}
+                </div>
+                <div className="text-sm space-y-1">
+                  {booking.recurring_schedule.days_of_week && booking.recurring_schedule.days_of_week.length > 0 ? (
+                    <div>
+                      <span className="text-gray-500">Repeats on:</span>{' '}
+                      <span className="font-medium">
+                        {booking.recurring_schedule.days_of_week
+                          .map(d => getDayOfWeekLabel(d))
+                          .join(', ')}
+                      </span>
+                    </div>
+                  ) : booking.recurring_schedule.day_of_week !== undefined ? (
+                    <div>
+                      <span className="text-gray-500">Repeats on:</span>{' '}
+                      <span className="font-medium">
+                        {getDayOfWeekLabel(booking.recurring_schedule.day_of_week)}
+                      </span>
+                    </div>
+                  ) : null}
+                  {booking.recurring_schedule.day_of_month !== undefined && (
+                    <div>
+                      <span className="text-gray-500">Day of month:</span>{' '}
+                      <span className="font-medium">
+                        {booking.recurring_schedule.day_of_month}
+                      </span>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-gray-500">Started:</span>{' '}
+                    <span className="font-medium">
+                      {new Date(booking.recurring_schedule.start_date).toLocaleDateString('en-ZA')}
+                    </span>
+                  </div>
+                  {booking.recurring_schedule.end_date && (
+                    <div>
+                      <span className="text-gray-500">Ends:</span>{' '}
+                      <span className="font-medium">
+                        {new Date(booking.recurring_schedule.end_date).toLocaleDateString('en-ZA')}
+                      </span>
+                    </div>
+                  )}
+                  <div className="text-xs text-gray-500 mt-2 pt-2 border-t">
+                    This booking is part of a recurring schedule
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Customer Info */}
           <div className="space-y-3">

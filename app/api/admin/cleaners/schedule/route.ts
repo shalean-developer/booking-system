@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, isAdmin } from '@/lib/supabase-server';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Admin API for managing cleaner day-of-week schedules
  * PATCH: Update which days a cleaner works

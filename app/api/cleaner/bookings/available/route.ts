@@ -57,10 +57,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Build query for available bookings
+    // Build query for available bookings with recurring schedule information
     let query = supabase
       .from('bookings')
-      .select('*')
+      .select(`
+        *,
+        recurring_schedule:recurring_schedules(
+          id,
+          frequency,
+          day_of_week,
+          day_of_month,
+          preferred_time,
+          is_active,
+          start_date,
+          end_date
+        )
+      `)
       .is('cleaner_id', null)
       .eq('status', 'pending')
       .order('booking_date', { ascending: true })

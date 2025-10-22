@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -42,7 +41,7 @@ interface Review {
     name: string;
     photo_url: string | null;
   } | null;
-  customers: {
+  users: {
     id: string;
     first_name: string;
     last_name: string;
@@ -90,31 +89,11 @@ export default function ReviewsSection() {
       setIsLoading(true);
       setIsLoadingRatings(true);
 
-      console.log('=== REVIEWS SECTION DEBUG ===');
-      console.log('Fetching session...');
-      
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      console.log('Session found:', !!session);
-      console.log('Session user:', session?.user?.email);
-      
-      if (!session) {
-        throw new Error('No active session');
-      }
-
-      console.log('Making API call to /api/admin/reviews...');
       const response = await fetch('/api/admin/reviews', {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
         credentials: 'include', // Include cookies for server-side auth
       });
       
-      console.log('API Response status:', response.status);
-      console.log('API Response ok:', response.ok);
-      
       const data = await response.json();
-      console.log('API Response data:', data);
 
       if (!data.ok) {
         throw new Error(data.error || 'Failed to fetch reviews');
@@ -133,7 +112,7 @@ export default function ReviewsSection() {
         created_at: item.created_at,
         bookings: item.bookings || null,
         cleaners: item.cleaners || null,
-        customers: item.customers || null,
+        users: item.users || null,
       }));
 
       const transformedRatings: CustomerRating[] = (data.customerRatings || []).map((item: any) => ({
@@ -252,7 +231,7 @@ export default function ReviewsSection() {
                     {/* Left: Customer & Cleaner Info */}
                     <div className="lg:w-1/3 space-y-4">
                       {/* Customer */}
-                      {review.customers && (
+                      {review.users && (
                         <div>
                           <p className="text-xs text-gray-500 mb-1">Customer</p>
                           <div className="flex items-center gap-2">
@@ -261,9 +240,9 @@ export default function ReviewsSection() {
                             </div>
                             <div>
                               <p className="font-semibold text-gray-900 text-sm">
-                                {review.customers.first_name} {review.customers.last_name}
+                                {review.users.first_name} {review.users.last_name}
                               </p>
-                              <p className="text-xs text-gray-500">{review.customers.email}</p>
+                              <p className="text-xs text-gray-500">{review.users.email}</p>
                             </div>
                           </div>
                         </div>

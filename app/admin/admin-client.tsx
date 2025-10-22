@@ -114,6 +114,18 @@ const ReviewsSection = dynamic(
   }
 );
 
+const RecurringSchedulesSection = dynamic(
+  () => import('@/components/admin/recurring-schedules-section').then(m => ({ default: m.RecurringSchedulesSection })),
+  { 
+    loading: () => (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    ),
+    ssr: false 
+  }
+);
+
 const UsersSection = dynamic(
   () => import('@/components/admin/users-section').then(m => ({ default: m.UsersSection })),
   { 
@@ -126,7 +138,7 @@ const UsersSection = dynamic(
   }
 );
 
-type TabType = 'dashboard' | 'bookings' | 'customers' | 'cleaners' | 'applications' | 'pricing' | 'blog' | 'quotes' | 'reviews' | 'users';
+type TabType = 'dashboard' | 'bookings' | 'recurring' | 'customers' | 'cleaners' | 'applications' | 'pricing' | 'blog' | 'quotes' | 'reviews' | 'users';
 
 export function AdminDashboardClient() {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
@@ -148,6 +160,7 @@ export function AdminDashboardClient() {
             {[
               { id: 'dashboard', label: 'Dashboard' },
               { id: 'bookings', label: 'Bookings' },
+              { id: 'recurring', label: 'Recurring' },
               { id: 'quotes', label: 'Quotes' },
               { id: 'customers', label: 'Customers' },
               { id: 'users', label: 'Users' },
@@ -176,6 +189,7 @@ export function AdminDashboardClient() {
         <div className="bg-white rounded-lg shadow p-6">
           {activeTab === 'dashboard' && <StatsSection />}
           {activeTab === 'bookings' && <BookingsSection />}
+          {activeTab === 'recurring' && <RecurringSchedulesSection />}
           {activeTab === 'quotes' && <QuotesSection />}
           {activeTab === 'customers' && <CustomersSection />}
           {activeTab === 'users' && <UsersSection />}

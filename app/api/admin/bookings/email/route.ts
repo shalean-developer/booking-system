@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { isAdmin } from '@/lib/supabase-server';
 import { sendEmail } from '@/lib/email';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Admin Booking Email API
  * POST: Send custom email to customer

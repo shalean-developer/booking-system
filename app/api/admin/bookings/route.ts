@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient, isAdmin } from '@/lib/supabase-server';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Admin Bookings API
  * GET: Fetch all bookings with filters

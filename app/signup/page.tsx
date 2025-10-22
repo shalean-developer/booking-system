@@ -154,18 +154,20 @@ export default function SignupPage() {
             </div>
 
             {/* Benefits */}
-            <div className="mb-8 grid gap-3">
-              {[
-                'Faster checkout with saved information',
-                'View your booking history',
-                'Manage saved addresses',
-              ].map((benefit, idx) => (
-                <div key={idx} className="flex items-center gap-2 text-sm text-gray-700">
-                  <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
-                  <span>{benefit}</span>
-                </div>
-              ))}
-            </div>
+            {!successMessage && (
+              <div className="mb-8 grid gap-3">
+                {[
+                  'Faster checkout with saved information',
+                  'View your booking history',
+                  'Manage saved addresses',
+                ].map((benefit, idx) => (
+                  <div key={idx} className="flex items-center gap-2 text-sm text-gray-700">
+                    <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                    <span>{benefit}</span>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Form Card */}
             <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100">
@@ -213,7 +215,8 @@ export default function SignupPage() {
                 )}
               </AnimatePresence>
 
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              {!successMessage && (
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                 {/* Name Fields */}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
@@ -375,14 +378,17 @@ export default function SignupPage() {
                   )}
                 </Button>
               </form>
+              )}
 
               {/* Login Link */}
-              <div className="mt-6 text-center text-sm text-gray-600">
-                Already have an account?{' '}
-                <Link href="/login" className="font-semibold text-primary hover:underline">
-                  Sign in
-                </Link>
-              </div>
+              {!successMessage && (
+                <div className="mt-6 text-center text-sm text-gray-600">
+                  Already have an account?{' '}
+                  <Link href="/login" className="font-semibold text-primary hover:underline">
+                    Sign in
+                  </Link>
+                </div>
+              )}
             </div>
 
             {/* Terms */}

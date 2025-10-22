@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, DollarSign, Users, Calendar, Briefcase, CheckCircle, FileText } from 'lucide-react';
-import { supabase } from '@/lib/supabase-client';
 
 interface Stats {
   bookings: {
@@ -44,31 +43,11 @@ export function StatsSection() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        console.log('=== STATS SECTION DEBUG ===');
-        console.log('Fetching session...');
-        
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        console.log('Session found:', !!session);
-        console.log('Session user:', session?.user?.email);
-        
-        if (!session) {
-          throw new Error('No active session');
-        }
-
-        console.log('Making API call to /api/admin/stats...');
         const response = await fetch('/api/admin/stats', {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-          },
           credentials: 'include', // Include cookies for server-side auth
         });
         
-        console.log('API Response status:', response.status);
-        console.log('API Response ok:', response.ok);
-        
         const data = await response.json();
-        console.log('API Response data:', data);
 
         if (!data.ok) {
           throw new Error(data.error || 'Failed to fetch stats');

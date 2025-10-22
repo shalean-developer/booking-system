@@ -1,44 +1,18 @@
 /**
- * SWR Fetcher Utility
- * Used for data fetching with SWR caching
+ * Generic fetcher function for SWR
+ * @param url - The URL to fetch
+ * @returns Promise that resolves to the JSON response
  */
-
-export async function fetcher<T = any>(url: string): Promise<T> {
-  const res = await fetch(url, { 
-    credentials: 'include' 
-  });
+export async function fetcher(url: string): Promise<any> {
+  const response = await fetch(url);
   
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: 'Failed to fetch' }));
-    throw new Error(error.error || `HTTP ${res.status}: ${res.statusText}`);
+  if (!response.ok) {
+    const error = new Error('An error occurred while fetching the data.');
+    // Attach extra info to the error object
+    (error as any).info = await response.json();
+    (error as any).status = response.status;
+    throw error;
   }
   
-  return res.json();
+  return response.json();
 }
-
-/**
- * Authenticated fetcher with Bearer token
- * Used when Authorization header is needed
- */
-export async function authFetcher<T = any>(url: string, token?: string): Promise<T> {
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-  };
-  
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  
-  const res = await fetch(url, {
-    headers,
-    credentials: 'include',
-  });
-  
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: 'Failed to fetch' }));
-    throw new Error(error.error || `HTTP ${res.status}: ${res.statusText}`);
-  }
-  
-  return res.json();
-}
-

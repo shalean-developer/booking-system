@@ -1,0 +1,266 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createServiceClient, isAdmin } from '@/lib/supabase-server';
+import { CreateBookingFormData } from '@/types/recurring';
+import { generateBookingId, calculateBookingDatesForMonth, validateRecurringSchedule } from '@/lib/recurring-bookings';
+
+export const dynamic = 'force-dynamic';
+
+/**
+ * Admin endpoint to create bookings (both one-time and recurring)
+ */
+export async function POST(request: NextRequest) {
+  console.log('=== ADMIN CREATE BOOKING ===');
+  
+  try {
+    // Check admin access
+    if (!await isAdmin()) {
+      return NextResponse.json(
+        { ok: false, error: 'Unauthorized - Admin access required' },
+        { status: 403 }
+      );
+    }
+
+    const body: CreateBookingFormData = await request.json();
+    const supabase = createServiceClient();
+
+    console.log('Creating booking:', {
+      type: body.booking_type,
+      customer_id: body.customer_id,
+      service_type: body.service_type,
+    });
+
+    if (body.booking_type === 'one-time') {
+      return await createOneTimeBooking(supabase, body);
+    } else {
+      return await createRecurringBooking(supabase, body);
+    }
+
+  } catch (error) {
+    console.error('=== ADMIN CREATE BOOKING ERROR ===', error);
+    return NextResponse.json(
+      { ok: false, error: 'Failed to create booking' },
+      { status: 500 }
+    );
+  }
+}
+
+async function createOneTimeBooking(supabase: any, data: CreateBookingFormData) {
+  const bookingId = generateBookingId();
+  
+  // Get customer details for the booking
+  const { data: customer } = await supabase
+    .from('customers')
+    .select('first_name, last_name, email, phone')
+    .eq('id', data.customer_id)
+    .single();
+
+  // Prepare cleaner_id with proper UUID handling
+  let cleanerIdForInsert = null;
+  if (data.cleaner_id && data.cleaner_id !== 'manual') {
+    cleanerIdForInsert = data.cleaner_id;
+  }
+
+  // Create price snapshot for historical record
+  const priceSnapshot = {
+    service: {
+      type: data.service_type,
+      bedrooms: data.bedrooms,
+      bathrooms: data.bathrooms,
+    },
+    extras: data.extras || [],
+    frequency: 'one-time', // Keep 'one-time' in snapshot for historical record
+    service_fee: 0,
+    frequency_discount: 0,
+    subtotal: 0,
+    total: 0,
+    snapshot_date: new Date().toISOString(),
+  };
+  
+  const bookingData = {
+    id: bookingId,
+    customer_id: data.customer_id,
+    cleaner_id: cleanerIdForInsert,
+    service_type: data.service_type,
+    customer_name: customer ? `${customer.first_name} ${customer.last_name}` : 'Unknown',
+    customer_email: customer?.email || '',
+    customer_phone: customer?.phone || '',
+    address_line1: data.address_line1,
+    address_suburb: data.address_suburb,
+    address_city: data.address_city,
+    booking_date: data.booking_date,
+    booking_time: data.booking_time,
+    payment_reference: bookingId, // Use booking ID as reference for admin-created bookings
+    status: 'pending', // All bookings start as pending for cleaner workflow
+    total_amount: 0, // Will be calculated by pricing system or set manually
+    service_fee: 0,
+    frequency: null, // One-time bookings have NULL frequency
+    frequency_discount: 0,
+    cleaner_earnings: 0,
+    price_snapshot: priceSnapshot,
+  };
+
+  const { data: booking, error } = await supabase
+    .from('bookings')
+    .insert([bookingData])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating one-time booking:', error);
+    return NextResponse.json(
+      { ok: false, error: 'Failed to create booking', details: error.message },
+      { status: 500 }
+    );
+  }
+
+  console.log('✅ One-time booking created:', bookingId);
+
+  return NextResponse.json({
+    ok: true,
+    booking,
+    message: 'One-time booking created successfully',
+  });
+}
+
+async function createRecurringBooking(supabase: any, data: CreateBookingFormData) {
+  // Validate recurring schedule data
+  const validationErrors = validateRecurringSchedule(data);
+  if (validationErrors.length > 0) {
+    return NextResponse.json(
+      { ok: false, error: 'Validation failed', details: validationErrors },
+      { status: 400 }
+    );
+  }
+
+  // Create recurring schedule
+  const scheduleData = {
+    customer_id: data.customer_id,
+    service_type: data.service_type,
+    frequency: data.frequency,
+    day_of_week: (data.frequency === 'custom-weekly' || data.frequency === 'custom-bi-weekly') ? null : data.day_of_week,
+    day_of_month: data.day_of_month,
+    days_of_week: (data.frequency === 'custom-weekly' || data.frequency === 'custom-bi-weekly') ? data.days_of_week : null,
+    preferred_time: data.preferred_time,
+    bedrooms: data.bedrooms,
+    bathrooms: data.bathrooms,
+    extras: data.extras,
+    notes: data.notes,
+    address_line1: data.address_line1,
+    address_suburb: data.address_suburb,
+    address_city: data.address_city,
+    cleaner_id: data.cleaner_id || null,
+    start_date: data.start_date,
+    end_date: data.end_date || null,
+    is_active: true,
+  };
+
+  const { data: schedule, error: scheduleError } = await supabase
+    .from('recurring_schedules')
+    .insert([scheduleData])
+    .select()
+    .single();
+
+  if (scheduleError) {
+    console.error('Error creating recurring schedule:', scheduleError);
+    return NextResponse.json(
+      { ok: false, error: 'Failed to create recurring schedule', details: scheduleError.message },
+      { status: 500 }
+    );
+  }
+
+  console.log('✅ Recurring schedule created:', schedule.id);
+
+  // Generate bookings for current month if requested
+  let bookingsCreated = 0;
+  if (data.generate_current_month) {
+    const currentDate = new Date();
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth() + 1;
+
+    const bookingDates = calculateBookingDatesForMonth(schedule, year, month);
+    
+    // Get customer details for the bookings
+    const { data: customer } = await supabase
+      .from('customers')
+      .select('first_name, last_name, email, phone')
+      .eq('id', data.customer_id)
+      .single();
+
+    // Prepare cleaner_id with proper UUID handling
+    let cleanerIdForInsert = null;
+    if (data.cleaner_id && data.cleaner_id !== 'manual') {
+      cleanerIdForInsert = data.cleaner_id;
+    }
+
+    // Create price snapshot for historical record
+    const priceSnapshot = {
+      service: {
+        type: data.service_type,
+        bedrooms: data.bedrooms,
+        bathrooms: data.bathrooms,
+      },
+      extras: data.extras || [],
+      frequency: data.frequency,
+      service_fee: 0,
+      frequency_discount: 0,
+      subtotal: 0,
+      total: 0,
+      snapshot_date: new Date().toISOString(),
+    };
+    
+    const bookings = bookingDates.map(date => ({
+      id: generateBookingId(),
+      customer_id: data.customer_id,
+      cleaner_id: cleanerIdForInsert,
+      service_type: data.service_type,
+      customer_name: customer ? `${customer.first_name} ${customer.last_name}` : 'Unknown',
+      customer_email: customer?.email || '',
+      customer_phone: customer?.phone || '',
+      address_line1: data.address_line1,
+      address_suburb: data.address_suburb,
+      address_city: data.address_city,
+      booking_date: date.toISOString().split('T')[0],
+      booking_time: data.preferred_time,
+      payment_reference: generateBookingId(), // Unique reference for each booking
+      status: 'pending', // All bookings start as pending for cleaner workflow
+      total_amount: 0,
+      service_fee: 0,
+      frequency: data.frequency,
+      frequency_discount: 0,
+      cleaner_earnings: 0,
+      price_snapshot: priceSnapshot,
+      recurring_schedule_id: schedule.id,
+    }));
+
+    if (bookings.length > 0) {
+      const { error: bookingsError } = await supabase
+        .from('bookings')
+        .insert(bookings);
+
+      if (bookingsError) {
+        console.error('Error creating recurring bookings:', bookingsError);
+        return NextResponse.json(
+          { ok: false, error: 'Failed to create recurring bookings', details: bookingsError.message },
+          { status: 500 }
+        );
+      }
+
+      bookingsCreated = bookings.length;
+      console.log(`✅ Created ${bookingsCreated} recurring bookings for current month`);
+    }
+
+    // Update last generated month
+    const monthYear = `${year}-${month.toString().padStart(2, '0')}`;
+    await supabase
+      .from('recurring_schedules')
+      .update({ last_generated_month: monthYear })
+      .eq('id', schedule.id);
+  }
+
+  return NextResponse.json({
+    ok: true,
+    schedule,
+    bookings_created: bookingsCreated,
+    message: `Recurring schedule created successfully${bookingsCreated > 0 ? ` with ${bookingsCreated} bookings for this month` : ''}`,
+  });
+}

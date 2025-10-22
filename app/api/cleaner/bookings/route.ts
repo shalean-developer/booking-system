@@ -19,10 +19,22 @@ export async function GET(request: NextRequest) {
 
     const supabase = await createCleanerSupabaseClient();
 
-    // Build query
+    // Build query with recurring schedule information
     let query = supabase
       .from('bookings')
-      .select('*')
+      .select(`
+        *,
+        recurring_schedule:recurring_schedules(
+          id,
+          frequency,
+          day_of_week,
+          day_of_month,
+          preferred_time,
+          is_active,
+          start_date,
+          end_date
+        )
+      `)
       .eq('cleaner_id', cleanerIdToUuid(session.id))
       .order('booking_date', { ascending: true })
       .order('booking_time', { ascending: true });

@@ -96,7 +96,7 @@ export function CustomerRatings() {
     return (
       <div className="text-center py-8 bg-red-50 rounded-lg border border-red-200">
         <div className="text-red-600 mb-2">Failed to load ratings</div>
-        <p className="text-red-500 text-sm mb-4">{error}</p>
+        <p className="text-red-500 text-sm mb-4">An error occurred while fetching ratings</p>
         <Button onClick={fetchRatings} variant="outline" size="sm">
           Try Again
         </Button>

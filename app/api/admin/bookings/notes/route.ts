@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient, isAdmin } from '@/lib/supabase-server';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Admin Booking Notes API
  * GET: Fetch notes for a booking

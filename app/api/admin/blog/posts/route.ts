@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { isAdmin } from '@/lib/supabase-server';
 
+export const dynamic = 'force-dynamic';
+
 // GET all posts (admin view - including drafts)
 export async function GET() {
   try {

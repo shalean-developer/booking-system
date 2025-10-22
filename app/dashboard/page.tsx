@@ -30,6 +30,7 @@ import {
 import { cn } from '@/lib/utils';
 import { CustomerReviewDialog } from '@/components/review/customer-review-dialog';
 import { CustomerRatings } from '@/components/dashboard/customer-ratings';
+import { CustomerReviews } from '@/components/dashboard/customer-reviews';
 
 interface Booking {
   id: string;
@@ -302,12 +303,22 @@ export default function DashboardPage() {
               transition={{ duration: 0.4, delay: 0.2 }}
               className="lg:col-span-2 space-y-6"
             >
-              {/* My Ratings Section */}
-              <Card className="border-0 shadow-lg">
-                <CardContent className="p-6">
-                  <CustomerRatings />
-                </CardContent>
-              </Card>
+              {/* Ratings & Reviews Section */}
+              <div className="space-y-6">
+                {/* Ratings I Received */}
+                <Card className="border-0 shadow-lg">
+                  <CardContent className="p-6">
+                    <CustomerRatings />
+                  </CardContent>
+                </Card>
+
+                {/* Reviews I Wrote */}
+                <Card className="border-0 shadow-lg">
+                  <CardContent className="p-6">
+                    <CustomerReviews />
+                  </CardContent>
+                </Card>
+              </div>
 
               {/* Pending Reviews Section */}
               {pendingReviews.length > 0 && (

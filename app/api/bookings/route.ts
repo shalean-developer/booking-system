@@ -246,7 +246,7 @@ export async function POST(req: Request) {
           bathrooms: body.bathrooms,
         },
         extras: body.extras || [],
-        frequency: body.frequency || 'one-time',
+        frequency: body.frequency || null, // One-time bookings have NULL frequency
         service_fee: body.serviceFee || 0,
         frequency_discount: body.frequencyDiscount || 0,
         subtotal: body.totalAmount ? body.totalAmount - (body.serviceFee || 0) + (body.frequencyDiscount || 0) : 0,
@@ -303,7 +303,7 @@ export async function POST(req: Request) {
           payment_reference: body.paymentReference,
           total_amount: body.totalAmount,
           cleaner_earnings: cleanerEarnings,
-          frequency: body.frequency || 'one-time',
+          frequency: body.frequency || null, // One-time bookings have NULL frequency
           service_fee: body.serviceFee || 0,
           frequency_discount: body.frequencyDiscount || 0,
           price_snapshot: priceSnapshot,

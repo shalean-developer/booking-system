@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient, isAdmin } from '@/lib/supabase-server';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Admin Users API
  * GET: Fetch all authenticated users from Supabase Auth

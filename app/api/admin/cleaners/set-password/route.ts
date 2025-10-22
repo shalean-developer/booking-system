@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient, isAdmin } from '@/lib/supabase-server';
 import { hashPassword, normalizePhoneNumber, validatePhoneNumber } from '@/lib/cleaner-auth';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Admin Set Password API
  * POST: Set/update cleaner password and auth settings
