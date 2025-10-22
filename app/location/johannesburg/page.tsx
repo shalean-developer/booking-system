@@ -9,7 +9,7 @@ import {
   Mail,
   ArrowRight,
   Sparkles,
-  Clock
+  CheckCircle
 } from "lucide-react";
 import type { Metadata } from "next";
 
