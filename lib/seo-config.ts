@@ -138,6 +138,16 @@ export const SEO_CONFIG = {
   },
 
   // Location pages
+  location: {
+    title: "Service Areas | Shalean Cleaning Services",
+    description: "Professional cleaning services across South Africa. We serve Cape Town, Johannesburg, Pretoria, and Durban. Check if we service your area and get a free quote.",
+    canonical: generateCanonical("/location"),
+    ogImage: {
+      url: generateOgImageUrl("service-areas"),
+      alt: "Shalean Cleaning Services coverage map showing service areas across South Africa"
+    }
+  },
+
   "location-cape-town": {
     title: "Cape Town Cleaning Services | Shalean",
     description: "Professional cleaning services throughout Cape Town. From Sea Point to Stellenbosch, Shalean serves all Cape Town areas.",
