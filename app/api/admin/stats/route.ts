@@ -98,6 +98,11 @@ export async function GET(request: Request) {
       ? Math.round((recentCompanyEarnings / recentRevenue) * 100) 
       : 0;
 
+    // Process results from parallel queries
+    const [totalCleanersResult, activeCleanersResult] = cleanerCounts;
+    const [totalApplicationsResult, pendingApplicationsResult] = applicationCounts;
+    const [totalQuotesResult, pendingQuotesResult, contactedQuotesResult, convertedQuotesResult] = quoteCounts;
+
     // Operational metrics
     const totalBookings = allBookings.count || 0;
     const recentBookings = recentBookingStats.count || 0;
@@ -125,10 +130,6 @@ export async function GET(request: Request) {
     const retentionRate = totalCustomers > 0 
       ? Math.round((repeatCustomers / totalCustomers) * 100) 
       : 0;
-    
-    const [totalCleanersResult, activeCleanersResult] = cleanerCounts;
-    const [totalApplicationsResult, pendingApplicationsResult] = applicationCounts;
-    const [totalQuotesResult, pendingQuotesResult, contactedQuotesResult, convertedQuotesResult] = quoteCounts;
     
     console.log('✅ Stats fetched successfully');
     
