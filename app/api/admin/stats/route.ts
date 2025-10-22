@@ -39,7 +39,7 @@ export async function GET(request: Request) {
     ] = await Promise.all([
       // Total bookings by status (single query with counts)
       Promise.all([
-        supabase.from('bookings').select('id, total_amount', { count: 'exact', head: false }),
+        supabase.from('bookings').select('id, total_amount, cleaner_earnings, service_fee', { count: 'exact', head: false }),
         supabase.from('bookings').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('bookings').select('id', { count: 'exact', head: true }).eq('status', 'confirmed'),
         supabase.from('bookings').select('id', { count: 'exact', head: true }).eq('status', 'completed'),
@@ -47,7 +47,7 @@ export async function GET(request: Request) {
       // Recent bookings and revenue (last 30 days)
       supabase
         .from('bookings')
-        .select('id, total_amount', { count: 'exact', head: false })
+        .select('id, total_amount, cleaner_earnings, service_fee', { count: 'exact', head: false })
         .gte('created_at', thirtyDaysAgoISO),
       // Total customers
       supabase
