@@ -1,10 +1,31 @@
 import { SuburbPageTemplate } from "@/components/suburb-page-template";
+import { createLocationMetadata, createMetadata, validateMetadata, logMetadataValidation } from "@/lib/metadata";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Cleaning Services in Bantry Bay | Shalean",
-  description: "Professional cleaning services in Bantry Bay, Cape Town. Trusted cleaners for luxury apartments and homes.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const highlights = [
+    "Exclusive residential cleaning",
+    "Luxury property specialists",
+    "High-end apartment maintenance",
+    "Discretion & privacy guaranteed",
+    "Premium cleaning products",
+    "Flexible scheduling available"
+  ];
+
+  const locationMetadata = createLocationMetadata(
+    "Bantry Bay",
+    "Cape Town",
+    "Atlantic Seaboard",
+    "Professional cleaning for Bantry Bay's luxury apartments and penthouses. Expert care for high-end properties with ocean views.",
+    highlights
+  );
+
+  // Validate metadata
+  const validation = validateMetadata(locationMetadata);
+  logMetadataValidation('/location/cape-town/bantry-bay', locationMetadata, validation);
+
+  return createMetadata(locationMetadata);
+}
 
 export default function BantryBayPage() {
   return (

@@ -1,10 +1,31 @@
 import { SuburbPageTemplate } from "@/components/suburb-page-template";
+import { createLocationMetadata, createMetadata, validateMetadata, logMetadataValidation } from "@/lib/metadata";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Cleaning Services in Constantia | Shalean",
-  description: "Luxury cleaning services in Constantia, Cape Town. Professional cleaners for estates and homes in the winelands.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const highlights = [
+    "Luxury estate cleaning",
+    "Large property specialists",
+    "Wine cellar & entertainment area cleaning",
+    "Staff accommodation cleaning",
+    "Experienced with high-end homes",
+    "Discretion & professionalism guaranteed"
+  ];
+
+  const locationMetadata = createLocationMetadata(
+    "Constantia",
+    "Cape Town",
+    "Southern Suburbs",
+    "Premium cleaning services for Constantia estates and homes. Experienced with luxury properties in Cape Town's prestigious wine valley.",
+    highlights
+  );
+
+  // Validate metadata
+  const validation = validateMetadata(locationMetadata);
+  logMetadataValidation('/location/cape-town/constantia', locationMetadata, validation);
+
+  return createMetadata(locationMetadata);
+}
 
 export default function ConstantiaPage() {
   return (

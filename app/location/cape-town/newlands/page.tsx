@@ -1,10 +1,31 @@
 import { SuburbPageTemplate } from "@/components/suburb-page-template";
+import { createLocationMetadata, createMetadata, validateMetadata, logMetadataValidation } from "@/lib/metadata";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Cleaning Services in Newlands | Shalean",
-  description: "Reliable cleaning services in Newlands, Cape Town. Professional home and office cleaning in the Southern Suburbs.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const highlights = [
+    "Student accommodation cleaning",
+    "Family home specialists",
+    "Rental property turnover",
+    "Garden cottage cleaning",
+    "Flexible scheduling options",
+    "Experienced & reliable team"
+  ];
+
+  const locationMetadata = createLocationMetadata(
+    "Newlands",
+    "Cape Town",
+    "Southern Suburbs",
+    "Quality cleaning services in leafy Newlands. Perfect for family homes, student accommodation, and rental properties in this popular suburb.",
+    highlights
+  );
+
+  // Validate metadata
+  const validation = validateMetadata(locationMetadata);
+  logMetadataValidation('/location/cape-town/newlands', locationMetadata, validation);
+
+  return createMetadata(locationMetadata);
+}
 
 export default function NewlandsPage() {
   return (

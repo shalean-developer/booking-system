@@ -1,10 +1,31 @@
 import { SuburbPageTemplate } from "@/components/suburb-page-template";
+import { createLocationMetadata, createMetadata, validateMetadata, logMetadataValidation } from "@/lib/metadata";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Cleaning Services in Gardens | Shalean",
-  description: "Premium cleaning services in Gardens, Cape Town. Trusted cleaners for historic homes and modern apartments.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const highlights = [
+    "Historic property specialists",
+    "Victorian home cleaning",
+    "Modern apartment services",
+    "Art & antique-safe cleaning",
+    "Trusted & insured team",
+    "Attention to detail guaranteed"
+  ];
+
+  const locationMetadata = createLocationMetadata(
+    "Gardens",
+    "Cape Town",
+    "City Bowl",
+    "Quality cleaning services for Gardens' beautiful homes and apartments. Experience meets care in this historic Cape Town suburb.",
+    highlights
+  );
+
+  // Validate metadata
+  const validation = validateMetadata(locationMetadata);
+  logMetadataValidation('/location/cape-town/gardens', locationMetadata, validation);
+
+  return createMetadata(locationMetadata);
+}
 
 export default function GardensPage() {
   return (

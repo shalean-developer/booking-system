@@ -43,8 +43,75 @@ export function SuburbPageTemplate({
 
   const features = highlights.length > 0 ? highlights : defaultHighlights;
 
+  // Generate structured data for LocalBusiness
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    "name": `Shalean Cleaning Services - ${suburb}`,
+    "image": `https://shalean.co.za/assets/og/location-${suburb.toLowerCase().replace(/\s+/g, '-')}-1200x630.jpg`,
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": suburb,
+      "addressRegion": "Western Cape",
+      "addressCountry": "ZA"
+    },
+    "telephone": "+27871535250",
+    "email": "support@shalean.com",
+    "url": `https://shalean.co.za/location/${city.toLowerCase().replace(/\s+/g, '-')}/${suburb.toLowerCase().replace(/\s+/g, '-')}`,
+    "priceRange": "R200-R1500",
+    "areaServed": {
+      "@type": "City",
+      "name": suburb
+    },
+    "serviceType": ["Home Cleaning", "Apartment Cleaning", "Deep Cleaning", "Move-in/Move-out Cleaning"],
+    "openingHours": "Mo-Su 08:00-18:00",
+    "description": description
+  };
+
+  // Generate breadcrumb structured data
+  const breadcrumbData = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://shalean.co.za"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Service Areas",
+        "item": "https://shalean.co.za/location"
+      },
+      {
+        "@type": "ListItem",
+        "position": 3,
+        "name": city,
+        "item": `https://shalean.co.za/location/${city.toLowerCase().replace(/\s+/g, '-')}`
+      },
+      {
+        "@type": "ListItem",
+        "position": 4,
+        "name": suburb,
+        "item": `https://shalean.co.za/location/${city.toLowerCase().replace(/\s+/g, '-')}/${suburb.toLowerCase().replace(/\s+/g, '-')}`
+      }
+    ]
+  };
+
   return (
     <div className="min-h-screen bg-white">
+      {/* Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
+      />
+      
       <Header />
 
       {/* Hero Section */}

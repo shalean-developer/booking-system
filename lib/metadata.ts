@@ -181,6 +181,49 @@ export function generateOgImageUrl(pageType: string): string {
 }
 
 /**
+ * Creates location-specific metadata for suburb pages
+ */
+export function createLocationMetadata(
+  suburb: string,
+  city: string,
+  area: string,
+  description: string,
+  highlights: string[] = []
+): PageMetadata {
+  const slug = suburb.toLowerCase().replace(/\s+/g, '-');
+  const path = `/location/${city.toLowerCase().replace(/\s+/g, '-')}/${slug}`;
+  
+  // Create optimized title (max 60 chars)
+  const title = `Cleaning Services in ${suburb} | Shalean`;
+  
+  // Create optimized description (120-170 chars)
+  const serviceTypes = highlights.length > 0 
+    ? highlights.slice(0, 3).join(', ').toLowerCase()
+    : 'regular, deep, and move-in cleaning';
+  
+  const optimizedDescription = `Professional home and apartment cleaning services in ${suburb}, ${city}. Experienced cleaners available for ${serviceTypes}. Book same-day service in ${area}.`;
+  
+  // Ensure description is within optimal range
+  const finalDescription = optimizedDescription.length > DESCRIPTION_MAX_LENGTH 
+    ? truncateText(optimizedDescription, DESCRIPTION_MAX_LENGTH)
+    : optimizedDescription;
+  
+  return {
+    title,
+    description: finalDescription,
+    canonical: generateCanonical(path),
+    ogImage: {
+      url: generateOgImageUrl(`location-${slug}`),
+      alt: `Professional cleaning services in ${suburb}, ${city}`,
+    },
+    ogType: "website",
+    twitterCard: "summary_large_image",
+    robots: "index,follow",
+    generatedMeta: false,
+  };
+}
+
+/**
  * Logs metadata validation results for debugging
  */
 export function logMetadataValidation(

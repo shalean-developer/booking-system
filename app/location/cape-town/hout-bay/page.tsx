@@ -1,10 +1,31 @@
 import { SuburbPageTemplate } from "@/components/suburb-page-template";
+import { createLocationMetadata, createMetadata, validateMetadata, logMetadataValidation } from "@/lib/metadata";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Cleaning Services in Hout Bay | Shalean",
-  description: "Professional cleaning services in Hout Bay, Cape Town. Trusted cleaners for homes and holiday properties.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const highlights = [
+    "Holiday home specialists",
+    "Mountain & harbor properties",
+    "Regular & one-time cleaning",
+    "Post-renovation cleaning",
+    "Airbnb turnover service",
+    "Experienced local team"
+  ];
+
+  const locationMetadata = createLocationMetadata(
+    "Hout Bay",
+    "Cape Town",
+    "West Coast",
+    "Expert cleaning services for beautiful Hout Bay. From harbor-side apartments to mountainside homes, we've got you covered.",
+    highlights
+  );
+
+  // Validate metadata
+  const validation = validateMetadata(locationMetadata);
+  logMetadataValidation('/location/cape-town/hout-bay', locationMetadata, validation);
+
+  return createMetadata(locationMetadata);
+}
 
 export default function HoutBayPage() {
   return (

@@ -1,10 +1,31 @@
 import { SuburbPageTemplate } from "@/components/suburb-page-template";
+import { createLocationMetadata, createMetadata, validateMetadata, logMetadataValidation } from "@/lib/metadata";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Cleaning Services in Table View | Shalean",
-  description: "Reliable cleaning services in Table View, Cape Town. Professional home and apartment cleaning in the Northern Suburbs.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const highlights = [
+    "Apartment complex specialists",
+    "Townhouse cleaning",
+    "Regular maintenance cleaning",
+    "Deep cleaning services",
+    "Pet-friendly cleaning products",
+    "Affordable rates"
+  ];
+
+  const locationMetadata = createLocationMetadata(
+    "Table View",
+    "Cape Town",
+    "Northern Suburbs",
+    "Professional cleaning services for Table View residents. Serving apartments, townhouses, and family homes in this coastal suburb.",
+    highlights
+  );
+
+  // Validate metadata
+  const validation = validateMetadata(locationMetadata);
+  logMetadataValidation('/location/cape-town/table-view', locationMetadata, validation);
+
+  return createMetadata(locationMetadata);
+}
 
 export default function TableViewPage() {
   return (

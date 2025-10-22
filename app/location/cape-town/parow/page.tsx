@@ -1,10 +1,31 @@
 import { SuburbPageTemplate } from "@/components/suburb-page-template";
+import { createLocationMetadata, createMetadata, validateMetadata, logMetadataValidation } from "@/lib/metadata";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Cleaning Services in Parow | Shalean",
-  description: "Affordable cleaning services in Parow, Cape Town. Reliable cleaners for Northern Suburbs homes.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const highlights = [
+    "Family home specialists",
+    "Apartment & house cleaning",
+    "Regular & deep cleaning services",
+    "Same-day booking available",
+    "Professional equipment & products",
+    "Insured & bonded cleaners"
+  ];
+
+  const locationMetadata = createLocationMetadata(
+    "Parow",
+    "Cape Town",
+    "Northern Suburbs",
+    "Affordable, reliable cleaning services in Parow. Quality home cleaning at competitive rates.",
+    highlights
+  );
+
+  // Validate metadata
+  const validation = validateMetadata(locationMetadata);
+  logMetadataValidation('/location/cape-town/parow', locationMetadata, validation);
+
+  return createMetadata(locationMetadata);
+}
 
 export default function ParowPage() {
   return (
