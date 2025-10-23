@@ -10,6 +10,12 @@ const nextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'utfvbtcszzafuoyytlpf.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/public/**',
+      },
     ],
     // Image optimization configuration
     formats: ['image/avif', 'image/webp'],
