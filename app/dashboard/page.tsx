@@ -73,8 +73,9 @@ export default function DashboardPage() {
         const session = await safeGetSession(supabase);
         
         if (!session || !session.user) {
-          console.log('Not authenticated, redirecting to login...');
-          router.push('/login');
+          console.log('Not authenticated - will show login prompt');
+          setIsLoading(false);
+          setError('UNAUTHENTICATED'); // Special error code
           return;
         }
         
@@ -199,6 +200,33 @@ export default function DashboardPage() {
   }
 
   if (error) {
+    // Special case: Not authenticated
+    if (error === 'UNAUTHENTICATED') {
+      return (
+        <div className="min-h-screen bg-gradient-to-b from-primary/5 to-white">
+          <Header />
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <Card className="max-w-md mx-4">
+              <CardContent className="p-8 text-center">
+                <User className="h-12 w-12 text-primary mx-auto mb-4" />
+                <h2 className="text-xl font-bold text-gray-900 mb-2">Please Log In</h2>
+                <p className="text-gray-600 mb-6">You need to be logged in to view your dashboard.</p>
+                <div className="space-y-3">
+                  <Button onClick={() => router.push('/login')} className="w-full">
+                    Log In
+                  </Button>
+                  <Button onClick={() => router.push('/signup')} variant="outline" className="w-full">
+                    Create Account
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+    
+    // Other errors - existing error UI
     return (
       <div className="min-h-screen bg-gradient-to-b from-primary/5 to-white">
         <Header />
