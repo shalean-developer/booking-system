@@ -74,25 +74,26 @@ export async function GET(request: Request) {
     
     // Process results
     const [allBookings, pendingCount, confirmedCount, completedCount] = bookingCounts;
-    const totalRevenue = allBookings.data?.reduce((sum, b) => sum + (b.total_amount || 0), 0) || 0;
     
-    const recentRevenue = recentBookingStats.data?.reduce((sum, b) => sum + (b.total_amount || 0), 0) || 0;
+    // Convert amounts from cents to rands for display
+    const totalRevenue = (allBookings.data?.reduce((sum, b) => sum + (b.total_amount || 0), 0) || 0) / 100;
+    const recentRevenue = (recentBookingStats.data?.reduce((sum, b) => sum + (b.total_amount || 0), 0) || 0) / 100;
 
-    // Financial metrics
-    const totalCleanerEarnings = allBookings.data?.reduce((sum, b) => 
-      sum + (b.cleaner_earnings || 0), 0) || 0;
-    const totalServiceFees = allBookings.data?.reduce((sum, b) => 
-      sum + (b.service_fee || 0), 0) || 0;
+    // Financial metrics (convert from cents to rands)
+    const totalCleanerEarnings = (allBookings.data?.reduce((sum, b) => 
+      sum + (b.cleaner_earnings || 0), 0) || 0) / 100;
+    const totalServiceFees = (allBookings.data?.reduce((sum, b) => 
+      sum + (b.service_fee || 0), 0) || 0) / 100;
     const companyEarnings = totalRevenue - totalCleanerEarnings;
     const profitMargin = totalRevenue > 0 
       ? Math.round((companyEarnings / totalRevenue) * 100) 
       : 0;
 
-    // Recent period (last 30 days)
-    const recentCleanerEarnings = recentBookingStats.data?.reduce((sum, b) => 
-      sum + (b.cleaner_earnings || 0), 0) || 0;
-    const recentServiceFees = recentBookingStats.data?.reduce((sum, b) => 
-      sum + (b.service_fee || 0), 0) || 0;
+    // Recent period (last 30 days) - convert from cents to rands
+    const recentCleanerEarnings = (recentBookingStats.data?.reduce((sum, b) => 
+      sum + (b.cleaner_earnings || 0), 0) || 0) / 100;
+    const recentServiceFees = (recentBookingStats.data?.reduce((sum, b) => 
+      sum + (b.service_fee || 0), 0) || 0) / 100;
     const recentCompanyEarnings = recentRevenue - recentCleanerEarnings;
     const recentProfitMargin = recentRevenue > 0 
       ? Math.round((recentCompanyEarnings / recentRevenue) * 100) 
@@ -111,7 +112,7 @@ export async function GET(request: Request) {
       ? Math.round(recentBookings / activeCleaners) 
       : 0;
 
-    // Growth metrics
+    // Growth metrics (using converted rands values)
     const avgBookingValue = totalBookings > 0 
       ? Math.round(totalRevenue / totalBookings) 
       : 0;
