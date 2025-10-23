@@ -41,11 +41,12 @@ interface Review {
     name: string;
     photo_url: string | null;
   } | null;
-  users: {
+  customers: {
     id: string;
     first_name: string;
     last_name: string;
     email: string;
+    auth_user_id: string;
   } | null;
 }
 
@@ -112,7 +113,7 @@ export default function ReviewsSection() {
         created_at: item.created_at,
         bookings: item.bookings || null,
         cleaners: item.cleaners || null,
-        users: item.users || null,
+        customers: item.customers || null,
       }));
 
       const transformedRatings: CustomerRating[] = (data.customerRatings || []).map((item: any) => ({
@@ -231,7 +232,7 @@ export default function ReviewsSection() {
                     {/* Left: Customer & Cleaner Info */}
                     <div className="lg:w-1/3 space-y-4">
                       {/* Customer */}
-                      {review.users && (
+                      {review.customers && (
                         <div>
                           <p className="text-xs text-gray-500 mb-1">Customer</p>
                           <div className="flex items-center gap-2">
@@ -240,9 +241,9 @@ export default function ReviewsSection() {
                             </div>
                             <div>
                               <p className="font-semibold text-gray-900 text-sm">
-                                {review.users.first_name} {review.users.last_name}
+                                {review.customers.first_name} {review.customers.last_name}
                               </p>
-                              <p className="text-xs text-gray-500">{review.users.email}</p>
+                              <p className="text-xs text-gray-500">{review.customers.email}</p>
                             </div>
                           </div>
                         </div>

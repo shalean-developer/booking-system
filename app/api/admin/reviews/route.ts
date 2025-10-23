@@ -48,11 +48,12 @@ export async function GET(req: Request) {
           name,
           photo_url
         ),
-        users (
+        customers (
           id,
           first_name,
           last_name,
-          email
+          email,
+          auth_user_id
         )
       `)
       .order('created_at', { ascending: false });
