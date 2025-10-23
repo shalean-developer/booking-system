@@ -26,7 +26,7 @@ If you want confirmation emails to work:
 # Resend Email Service
 RESEND_API_KEY=re_xxxxxxxxxxxxx
 SENDER_EMAIL=onboarding@resend.dev
-ADMIN_EMAIL=admin@shalean.com
+ADMIN_EMAIL=admin@shalean.co.za
 ```
 
 Get Resend API key from: [https://resend.com/api-keys](https://resend.com/api-keys)
@@ -69,7 +69,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 # Email Service (Optional)
 RESEND_API_KEY=re_123456789
 SENDER_EMAIL=onboarding@resend.dev
-ADMIN_EMAIL=admin@shalean.com
+ADMIN_EMAIL=admin@shalean.co.za
 ```
 
 ## Troubleshooting

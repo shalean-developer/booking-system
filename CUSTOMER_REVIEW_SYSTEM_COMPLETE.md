@@ -165,8 +165,8 @@ Ensure these are set in your `.env.local`:
 ```bash
 # Required for email notifications
 RESEND_API_KEY=your_resend_api_key
-SENDER_EMAIL=noreply@shalean.com
-ADMIN_EMAIL=admin@shalean.com
+SENDER_EMAIL=noreply@shalean.co.za
+ADMIN_EMAIL=admin@shalean.co.za
 
 # For dashboard links in emails
 NEXT_PUBLIC_SITE_URL=https://yourdomain.com

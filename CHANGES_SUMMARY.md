@@ -53,8 +53,8 @@ Enhanced email system with environment variables:
 
 ```env
 RESEND_API_KEY=your_key        # For Resend email service
-ADMIN_EMAIL=admin@shalean.com  # Where admin notifications go
-SENDER_EMAIL=noreply@shalean.com  # Who emails come from
+ADMIN_EMAIL=admin@shalean.co.za  # Where admin notifications go
+SENDER_EMAIL=noreply@shalean.co.za  # Who emails come from
 ```
 
 Benefits:
@@ -207,8 +207,8 @@ Environment variables in `.env.local`:
 
 ```env
 RESEND_API_KEY=re_...           # Required - from Resend
-ADMIN_EMAIL=admin@shalean.com   # Required - where notifications go
-SENDER_EMAIL=noreply@shalean.com # Optional - defaults to resend.dev
+ADMIN_EMAIL=admin@shalean.co.za   # Required - where notifications go
+SENDER_EMAIL=noreply@shalean.co.za # Optional - defaults to resend.dev
 ```
 
 ---

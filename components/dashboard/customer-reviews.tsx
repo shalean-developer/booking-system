@@ -51,22 +51,38 @@ export function CustomerReviews() {
 
   const fetchReviews = async () => {
     try {
+      console.log('🟦 [CustomerReviews] Starting fetchReviews...');
       setIsLoading(true);
       setError(null);
 
+      console.log('🟦 [CustomerReviews] Making API request to /api/dashboard/reviews');
       const response = await fetch('/api/dashboard/reviews');
+      console.log('🟦 [CustomerReviews] API response status:', response.status);
+      console.log('🟦 [CustomerReviews] API response ok:', response.ok);
+
       const data = await response.json();
+      console.log('🟦 [CustomerReviews] API response data:', data);
 
       if (!data.ok) {
+        console.log('🟥 [CustomerReviews] API returned error:', data.error);
         throw new Error(data.error || 'Failed to fetch reviews');
       }
 
-      setReviews(data.reviews || []);
+      const reviewsData = data.reviews || [];
+      console.log('🟩 [CustomerReviews] Successfully fetched reviews:', reviewsData.length);
+      console.log('🟩 [CustomerReviews] Reviews data:', reviewsData);
+      
+      if (reviewsData.length === 0) {
+        console.log('🟨 [CustomerReviews] Warning: No reviews found');
+      }
+
+      setReviews(reviewsData);
     } catch (err) {
-      console.error('Error fetching reviews:', err);
+      console.error('🟥 [CustomerReviews] Error fetching reviews:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch reviews');
     } finally {
       setIsLoading(false);
+      console.log('🟦 [CustomerReviews] fetchReviews completed');
     }
   };
 
@@ -91,6 +107,14 @@ export function CustomerReviews() {
   const averageOverallRating = reviews.length > 0
     ? (reviews.reduce((sum, r) => sum + r.overall_rating, 0) / reviews.length).toFixed(1)
     : '0.0';
+
+  console.log('🟦 [CustomerReviews] Render state:', {
+    isLoading,
+    error,
+    reviewsCount: reviews.length,
+    averageRating: averageOverallRating,
+    reviews: reviews
+  });
 
   if (isLoading) {
     return (

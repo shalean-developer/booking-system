@@ -21,7 +21,7 @@ export async function sendEmail({ to, subject, html }: EmailData) {
     const resend = getResendInstance();
     
     // Get sender email from environment variable or use default
-    const senderEmail = process.env.SENDER_EMAIL || 'onboarding@resend.dev';
+    const senderEmail = process.env.SENDER_EMAIL || 'noreply@shalean.co.za';
     const senderName = 'Shalean Cleaning';
     const fromAddress = `${senderName} <${senderEmail}>`;
 
@@ -144,7 +144,7 @@ export function generateBookingConfirmationEmail(booking: BookingState & { booki
         <p>If you have any questions or need to make changes to your booking, please contact us at:</p>
         <p>
           <strong>Phone:</strong> +27 87 153 5250<br>
-          <strong>Email:</strong> bookings@shalean.com
+          <strong>Email:</strong> bookings@shalean.co.za
         </p>
       </div>
       
@@ -274,7 +274,7 @@ export function generateAdminBookingNotificationEmail(booking: BookingState & { 
     </html>
   `;
 
-  const adminEmail = process.env.ADMIN_EMAIL || 'admin@shalean.com';
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@shalean.co.za';
 
   return {
     to: adminEmail,
@@ -335,7 +335,7 @@ export function generateQuoteConfirmationEmail(quote: QuoteRequest): EmailData {
         <p>If you have any questions, please contact us at:</p>
         <p>
           <strong>Phone:</strong> +27 87 153 5250<br>
-          <strong>Email:</strong> bookings@shalean.com
+          <strong>Email:</strong> bookings@shalean.co.za
         </p>
       </div>
       
@@ -428,7 +428,7 @@ export function generateAdminQuoteNotificationEmail(quote: QuoteRequest): EmailD
     </html>
   `;
 
-  const adminEmail = process.env.ADMIN_EMAIL || 'bookings@shalean.com';
+  const adminEmail = process.env.ADMIN_EMAIL || 'bookings@shalean.co.za';
 
   return {
     to: adminEmail,
@@ -524,7 +524,7 @@ export function generateApplicationConfirmationEmail(application: ApplicationDat
         
         <p>If you have any questions about your application, please contact us at:</p>
         <p>
-          <strong>Email:</strong> careers@shalean.com<br>
+          <strong>Email:</strong> careers@shalean.co.za<br>
           <strong>Phone:</strong> +27 87 153 5250
         </p>
         
@@ -669,7 +669,7 @@ export function generateAdminApplicationNotificationEmail(application: Applicati
     </html>
   `;
 
-  const adminEmail = process.env.ADMIN_EMAIL || 'careers@shalean.com';
+  const adminEmail = process.env.ADMIN_EMAIL || 'careers@shalean.co.za';
 
   return {
     to: adminEmail,
@@ -690,9 +690,19 @@ export function generateReviewRequestEmail(data: {
   serviceType: string;
   cleanerName?: string;
 }): EmailData {
-  const dashboardUrl = process.env.NEXT_PUBLIC_SITE_URL 
-    ? `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard`
-    : 'https://shalean.com/dashboard';
+  console.log('🚀 [EMAIL DEBUG] generateReviewRequestEmail() called with:', {
+    bookingId: data.bookingId,
+    customerEmail: data.customerEmail,
+    customerName: data.customerName
+  });
+
+  // Use .co.za domain to match sender email
+  const dashboardUrl = 'https://shalean.co.za/dashboard';
+  
+  console.log('🔗 [EMAIL DEBUG] Review email URL:', { 
+    envSiteUrl: process.env.NEXT_PUBLIC_SITE_URL, 
+    dashboardUrl: dashboardUrl 
+  });
 
   const html = `
     <!DOCTYPE html>
@@ -831,7 +841,7 @@ export function generateReviewRequestEmail(data: {
         
         <div class="footer">
           <p>Questions? Contact us anytime</p>
-          <p>📧 <a href="mailto:hello@shalean.com" style="color: #0C53ED;">hello@shalean.com</a></p>
+          <p>📧 <a href="mailto:hello@shalean.co.za" style="color: #0C53ED;">hello@shalean.co.za</a></p>
           <p style="margin-top: 20px; color: #999; font-size: 12px;">
             This email was sent because your cleaning service was completed.<br>
             Booking ID: ${data.bookingId}
@@ -841,6 +851,10 @@ export function generateReviewRequestEmail(data: {
     </body>
     </html>
   `;
+
+  console.log('📧 [EMAIL DEBUG] Generated HTML contains shalean.co.za:', html.includes('shalean.co.za'));
+  console.log('📧 [EMAIL DEBUG] Generated HTML contains shalean.co.za:', html.includes('shalean.co.za/dashboard'));
+  console.log('📧 [EMAIL DEBUG] Dashboard URL in HTML:', html.match(/href="([^"]*dashboard[^"]*)"/)?.[1] || 'Not found');
 
   return {
     to: data.customerEmail,

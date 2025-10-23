@@ -6,7 +6,7 @@ This document summarizes the comprehensive location pages implementation for Sha
 ## Changes Completed
 
 ### 1. Email Updates (✅ Completed)
-Replaced `farai@shalean.com` with `support@shalean.com` across all pages:
+Replaced `farai@shalean.com` with `support@shalean.co.za` across all pages:
 - `app/location/page.tsx`
 - `app/terms/page.tsx`
 - `app/privacy/page.tsx`
@@ -204,7 +204,7 @@ components/
 
 - All Cape Town suburb pages are live and ready for production
 - The suburb page template makes it easy to create pages for other cities
-- Email updated to support@shalean.com across the entire site
+- Email updated to support@shalean.co.za across the entire site
 - Location pages are fully responsive and SEO-optimized
 - The "Coming Soon" feature allows for planned expansion communication
 

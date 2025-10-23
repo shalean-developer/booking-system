@@ -229,10 +229,10 @@ Ensure your `.env.local` has the required email configuration:
 RESEND_API_KEY=your_resend_api_key
 
 # Where admin notifications are sent
-ADMIN_EMAIL=careers@shalean.com
+ADMIN_EMAIL=careers@shalean.co.za
 
 # Who emails come from
-SENDER_EMAIL=noreply@shalean.com
+SENDER_EMAIL=noreply@shalean.co.za
 
 # Supabase configuration
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url

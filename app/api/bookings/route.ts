@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     console.log('Step 1.5: Running service health checks...');
     
     // Log any unhealthy services but don't fail yet
-    const unhealthyServices = [];
+    const unhealthyServices: Array<{service: string; error: string}> = [];
     if (unhealthyServices.length > 0) {
       console.warn('⚠️ Some services are unhealthy:', unhealthyServices.map(s => `${s.service}: ${s.error}`));
     }
@@ -53,13 +53,6 @@ export async function POST(req: Request) {
     console.log('Payment Reference:', body.paymentReference);
     console.log('Full booking data:', JSON.stringify(body, null, 2));
     console.log('========================');
-    
-      service: body.service,
-      customer: `${body.firstName} ${body.lastName}`,
-      email: body.email,
-      paymentReference: body.paymentReference,
-      totalAmount: body.totalAmount
-    }, body.paymentReference);
 
     // Verify payment reference is provided
     if (!body.paymentReference) {
@@ -252,11 +245,7 @@ export async function POST(req: Request) {
     console.log('Step 5: Saving booking to database...');
     console.log('Cleaner ID:', body.cleaner_id);
     console.log('Customer ID:', customerId);
-    
-      cleanerId: body.cleaner_id,
-      customerId,
-      bookingId
-    }, body.paymentReference, bookingId);
+    console.log('Booking ID:', bookingId);
     
     if (body.cleaner_id === 'manual') {
       console.log('⚠️ MANUAL CLEANER ASSIGNMENT REQUESTED');
@@ -361,12 +350,10 @@ export async function POST(req: Request) {
       dbSaved = true;
       console.log('✅ Booking saved to database successfully');
       console.log('Saved booking data:', bookingData);
-      
-        bookingId,
-        customerId,
-        cleanerId: body.cleaner_id,
-        status: body.cleaner_id === 'manual' ? 'pending' : 'confirmed'
-      }, body.paymentReference, bookingId);
+      console.log('Booking ID:', bookingId);
+      console.log('Customer ID:', customerId);
+      console.log('Cleaner ID:', body.cleaner_id);
+      console.log('Status:', body.cleaner_id === 'manual' ? 'pending' : 'confirmed');
     } else {
       console.log('⚠️ Supabase not configured - skipping database save');
       console.log('Booking will be processed but not stored in database');
@@ -375,11 +362,11 @@ export async function POST(req: Request) {
     // STEP 6: Send confirmation emails (REQUIRED if configured)
     console.log('Step 6: Sending confirmation emails...');
     let emailSent = false;
-    
+    console.log('Email config:', {
       hasResendKey: !!process.env.RESEND_API_KEY,
       customerEmail: body.email,
-      adminEmail: process.env.ADMIN_EMAIL || 'admin@shalean.com'
-    }, body.paymentReference, bookingId);
+      adminEmail: process.env.ADMIN_EMAIL || 'admin@shalean.co.za'
+    });
     
     // Check if email service is configured
     if (process.env.RESEND_API_KEY) {
@@ -387,7 +374,7 @@ export async function POST(req: Request) {
         console.log('=== EMAIL SENDING ===');
         console.log('SENDER_EMAIL:', process.env.SENDER_EMAIL || 'onboarding@resend.dev');
         console.log('Customer email:', body.email);
-        console.log('Admin email:', process.env.ADMIN_EMAIL || 'admin@shalean.com');
+        console.log('Admin email:', process.env.ADMIN_EMAIL || 'admin@shalean.co.za');
         console.log('Booking ID:', bookingId);
 
         // Send confirmation email to customer (REQUIRED)
@@ -415,11 +402,11 @@ export async function POST(req: Request) {
         console.log('✅ Admin notification email sent successfully');
         
         emailSent = true;
-        
+        console.log('Email sending success:', {
           customerEmailSent: true,
           adminEmailSent: true,
           bookingId
-        }, body.paymentReference, bookingId);
+        });
         
       } catch (emailErr) {
         console.error('=== EMAIL SENDING FAILED ===');
@@ -439,7 +426,7 @@ export async function POST(req: Request) {
           console.log('⚠️ This booking needs manual email sending');
           
           // Log the error context for debugging
-          const errorContext = captureErrorContext('EMAIL_FAILED_KEEPING_BOOKING', emailErr, {
+          console.log('🟥 [Bookings API] EMAIL_FAILED_KEEPING_BOOKING:', {
             bookingId,
             paymentReference: body.paymentReference,
             customerEmail: body.email,
@@ -485,12 +472,12 @@ export async function POST(req: Request) {
     console.log('=== BOOKING API SUCCESS ===');
     console.log(JSON.stringify(finalResponse, null, 2));
     console.log('===========================');
-    
+    console.log('Final response summary:', {
       bookingId,
       dbSaved,
       emailSent,
       message
-    }, body.paymentReference, bookingId);
+    });
 
     return NextResponse.json(finalResponse);
   } catch (error) {
@@ -501,7 +488,7 @@ export async function POST(req: Request) {
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
     
     // Enhanced error context capture
-    const errorContext = captureErrorContext('BOOKING_API_ERROR', error, {
+    console.log('🟥 [Bookings API] BOOKING_API_ERROR:', {
       timestamp: new Date().toISOString(),
       errorType: error instanceof Error ? 'Error' : typeof error,
       errorMessage: error instanceof Error ? error.message : String(error)

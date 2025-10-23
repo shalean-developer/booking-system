@@ -9,7 +9,7 @@ Create `.env.local` in your project root:
 ```bash
 # Copy this entire block into .env.local
 RESEND_API_KEY=your_resend_api_key_here
-ADMIN_EMAIL=admin@shalean.com
+ADMIN_EMAIL=admin@shalean.co.za
 SENDER_EMAIL=onboarding@resend.dev
 ```
 

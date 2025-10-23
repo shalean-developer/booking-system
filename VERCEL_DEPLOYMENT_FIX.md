@@ -29,8 +29,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzd
 
 # Email (Resend) - REQUIRED
 RESEND_API_KEY=re_V6DTxSNy_6y8fGwNVTVwY3MPKzPZgoika
-SENDER_EMAIL=noreply@shalean.com
-ADMIN_EMAIL=bookings@shalean.com
+SENDER_EMAIL=noreply@shalean.co.za
+ADMIN_EMAIL=bookings@shalean.co.za
 ```
 
 ### Step 2: How to Add Environment Variables in Vercel

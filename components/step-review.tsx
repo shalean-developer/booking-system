@@ -11,7 +11,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, MapPin, Clock, Home, User, Mail, Phone, FileText, Loader2, CreditCard, AlertCircle, Shield } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { captureErrorContext, logBookingStep, createDebugSummary } from '@/lib/booking-debug';
 
 // Helper function to convert ServiceType to URL slug
 function serviceTypeToSlug(serviceType: ServiceType): string {
@@ -105,7 +104,7 @@ export function StepReview() {
     console.log('=== PAYMENT SUCCESS HANDLER CALLED ===');
     console.log('Payment reference received:', reference);
     
-    logBookingStep('PAYMENT_SUCCESS_RECEIVED', { reference }, reference.reference);
+    console.log('🟦 [StepReview] PAYMENT_SUCCESS_RECEIVED:', reference);
     
     setIsSubmitting(true);
     setPaymentError(null);
@@ -118,7 +117,7 @@ export function StepReview() {
     try {
       console.log('Step 1: Starting payment verification...');
       console.log('Reference to verify:', reference.reference);
-      logBookingStep('PAYMENT_VERIFICATION_START', { reference: reference.reference }, reference.reference);
+      console.log('🟦 [StepReview] PAYMENT_VERIFICATION_START:', reference.reference);
 
       // Verify payment with our backend
       verifyResponse = await fetch('/api/payment/verify', {
@@ -132,19 +131,19 @@ export function StepReview() {
       console.log('Step 2: Verification response received');
       console.log('Response status:', verifyResponse.status);
       console.log('Response ok:', verifyResponse.ok);
-      logBookingStep('PAYMENT_VERIFICATION_RESPONSE', { 
+      console.log('🟦 [StepReview] PAYMENT_VERIFICATION_RESPONSE:', { 
         status: verifyResponse.status, 
         ok: verifyResponse.ok 
-      }, reference.reference);
+      });
 
       const verifyResult: PaystackVerificationResponse = await verifyResponse.json();
       console.log('Step 3: Verification result parsed:', verifyResult);
-      logBookingStep('PAYMENT_VERIFICATION_RESULT', verifyResult, reference.reference);
+      console.log('🟦 [StepReview] PAYMENT_VERIFICATION_RESULT:', verifyResult);
 
       if (!verifyResult.ok) {
         console.error('❌ Verification failed:', verifyResult);
         
-        const errorContext = captureErrorContext('PAYMENT_VERIFICATION_FAILED', verifyResult, {
+        console.log('🟥 [StepReview] PAYMENT_VERIFICATION_FAILED:', {
           paymentReference: reference.reference,
           verifyResponseStatus: verifyResponse.status,
           verifyResult
@@ -161,13 +160,13 @@ export function StepReview() {
       }
 
       console.log('✅ Step 4: Payment verified successfully, submitting booking...');
-      logBookingStep('PAYMENT_VERIFIED_SUCCESS', { verified: true }, reference.reference);
+      console.log('🟩 [StepReview] PAYMENT_VERIFIED_SUCCESS:', { verified: true });
 
       // Validate pricing is loaded
       const currentPricing = pricingDetailsRef.current;
       if (!currentPricing || currentPricing.total <= 0) {
         console.error('❌ Pricing not loaded or invalid:', currentPricing);
-        const errorContext = captureErrorContext('PRICING_NOT_LOADED', new Error('Pricing invalid'), {
+        console.log('🟥 [StepReview] PRICING_NOT_LOADED:', {
           paymentReference: reference.reference,
           pricingDetails: currentPricing
         });
@@ -183,7 +182,7 @@ export function StepReview() {
         frequencyDiscount: currentPricing.frequencyDiscount,
       };
       console.log('Booking payload:', bookingPayload);
-      logBookingStep('BOOKING_PAYLOAD_PREPARED', bookingPayload, reference.reference);
+      console.log('🟦 [StepReview] BOOKING_PAYLOAD_PREPARED:', bookingPayload);
 
       bookingResponse = await fetch('/api/bookings', {
         method: 'POST',
@@ -196,35 +195,35 @@ export function StepReview() {
       console.log('Step 5: Booking response received');
       console.log('Booking response status:', bookingResponse.status);
       console.log('Booking response ok:', bookingResponse.ok);
-      logBookingStep('BOOKING_RESPONSE_RECEIVED', { 
+      console.log('🟦 [StepReview] BOOKING_RESPONSE_RECEIVED:', { 
         status: bookingResponse.status, 
         ok: bookingResponse.ok 
-      }, reference.reference);
+      });
 
       const bookingResult = await bookingResponse.json();
       console.log('Step 6: Booking result parsed:', bookingResult);
-      logBookingStep('BOOKING_RESULT_PARSED', bookingResult, reference.reference);
+      console.log('🟦 [StepReview] BOOKING_RESULT_PARSED:', bookingResult);
 
       if (bookingResult.ok) {
         console.log('✅ Step 7: Booking successful! Redirecting...');
         console.log('Booking ID:', bookingResult.bookingId);
         console.log('Message:', bookingResult.message);
-        logBookingStep('BOOKING_SUCCESS', { 
+        console.log('🟩 [StepReview] BOOKING_SUCCESS:', { 
           bookingId: bookingResult.bookingId, 
           message: bookingResult.message 
-        }, reference.reference, bookingResult.bookingId);
+        });
         
         // Clear booking state
         reset();
         
         // Navigate to confirmation page
         console.log('Navigating to /booking/confirmation');
-        logBookingStep('NAVIGATION_START', { target: '/booking/confirmation' }, reference.reference, bookingResult.bookingId);
+        console.log('🟦 [StepReview] NAVIGATION_START:', { target: '/booking/confirmation' });
         router.push('/booking/confirmation');
       } else {
         console.error('❌ Booking submission failed:', bookingResult);
         
-        const errorContext = captureErrorContext('BOOKING_SUBMISSION_FAILED', bookingResult, {
+        console.log('🟥 [StepReview] BOOKING_SUBMISSION_FAILED:', {
           paymentReference: reference.reference,
           bookingResponseStatus: bookingResponse.status,
           bookingResult,
@@ -248,7 +247,7 @@ export function StepReview() {
       console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       
       // Enhanced error context capture
-      const errorContext = captureErrorContext('POST_PAYMENT_ERROR', error, {
+      console.log('🟥 [StepReview] POST_PAYMENT_ERROR:', {
         paymentReference: reference.reference,
         bookingState: state,
         pricingDetails: pricingDetailsRef.current,
@@ -257,16 +256,12 @@ export function StepReview() {
       });
       
       // Create comprehensive debug summary
-      const debugSummary = createDebugSummary(error, {
+      console.log('🟥 [StepReview] DEBUG_SUMMARY:', {
         step: 'POST_PAYMENT_ERROR',
         paymentReference: reference.reference,
         bookingState: state,
         pricingDetails: pricingDetailsRef.current
       });
-      
-      console.error('=== FULL DEBUG SUMMARY ===');
-      console.error(debugSummary);
-      console.error('========================');
       
       let errorMessage = error instanceof Error 
         ? error.message 
@@ -591,7 +586,7 @@ export function StepReview() {
               publicKey: paystackConfig.publicKey ? 'pk_***' : 'MISSING',
             });
             
-            logBookingStep('PAYMENT_BUTTON_CLICKED', {
+            console.log('🟦 [StepReview] PAYMENT_BUTTON_CLICKED:', {
               config: {
                 ...paystackConfig,
                 publicKey: paystackConfig.publicKey ? 'pk_***' : 'MISSING',
@@ -599,7 +594,7 @@ export function StepReview() {
               pricingDetails,
               paystackHookLoaded: !!PaystackHook,
               emailProvided: !!state.email
-            }, paymentReference);
+            });
             
             // Check if pricing is loaded
             if (!pricingDetails || pricingDetails.total <= 0) {
@@ -607,7 +602,7 @@ export function StepReview() {
               console.error('pricingDetails:', pricingDetails);
               console.error('========================');
               
-              const errorContext = captureErrorContext('PRICING_NOT_READY', new Error('Pricing not loaded'), {
+              console.log('🟥 [StepReview] PRICING_NOT_READY:', {
                 paymentReference,
                 pricingDetails,
                 state
@@ -624,7 +619,7 @@ export function StepReview() {
 
             // Check if Paystack is loaded
             if (!PaystackHook) {
-              const errorContext = captureErrorContext('PAYSTACK_NOT_LOADED', new Error('Paystack hook not loaded'), {
+              console.log('🟥 [StepReview] PAYSTACK_NOT_LOADED:', {
                 paymentReference,
                 paystackHookLoaded: false
               });
@@ -633,7 +628,7 @@ export function StepReview() {
             }
             
             if (!process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY) {
-              const errorContext = captureErrorContext('PAYSTACK_NOT_CONFIGURED', new Error('Paystack public key missing'), {
+              console.log('🟥 [StepReview] PAYSTACK_NOT_CONFIGURED:', {
                 paymentReference,
                 hasPublicKey: false
               });
@@ -641,7 +636,7 @@ export function StepReview() {
               return;
             }
             if (!state.email) {
-              const errorContext = captureErrorContext('EMAIL_MISSING', new Error('Customer email not provided'), {
+              console.log('🟥 [StepReview] EMAIL_MISSING:', {
                 paymentReference,
                 state
               });
@@ -655,14 +650,14 @@ export function StepReview() {
               onClose: typeof onPaymentClose,
             });
             
-            logBookingStep('PAYMENT_INITIALIZATION', {
+            console.log('🟦 [StepReview] PAYMENT_INITIALIZATION:', {
               callbacksConfigured: {
                 onSuccess: typeof onPaymentSuccess,
                 onClose: typeof onPaymentClose,
               },
               amount: pricingDetails.total,
               currency: 'ZAR'
-            }, paymentReference);
+            });
             
             // Call initializePayment with config object containing callbacks
             initializePayment({

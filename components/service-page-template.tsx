@@ -54,7 +54,7 @@ export function ServicePageTemplate({
       "name": "Shalean Cleaning Services",
       "url": "https://shalean.co.za",
       "telephone": "+27871535250",
-      "email": "support@shalean.com"
+      "email": "support@shalean.co.za"
     },
     "areaServed": {
       "@type": "Country",

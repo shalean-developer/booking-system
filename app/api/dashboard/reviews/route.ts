@@ -75,7 +75,8 @@ export async function GET(request: NextRequest) {
     console.log('✅ Customer found:', customer.id);
 
     // Fetch all reviews by this customer with booking and cleaner details
-    const { data: reviews, error: reviewsError } = await supabase
+    console.log('🟦 [Dashboard Reviews API] Executing query for customer_id:', customer.id);
+    const query = supabase
       .from('cleaner_reviews')
       .select(`
         id,
@@ -104,6 +105,9 @@ export async function GET(request: NextRequest) {
       `)
       .eq('customer_id', customer.id)
       .order('created_at', { ascending: false });
+    
+    console.log('🟦 [Dashboard Reviews API] Query constructed, executing...');
+    const { data: reviews, error: reviewsError } = await query;
 
     if (reviewsError) {
       console.error('❌ Error fetching reviews:', reviewsError);
@@ -114,6 +118,15 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(`✅ Found ${reviews?.length || 0} reviews`);
+    
+    // Enhanced debug output
+    if (reviews && reviews.length > 0) {
+      console.log('🟩 [Dashboard Reviews API] Sample review data:', JSON.stringify(reviews[0], null, 2));
+      console.log('🟩 [Dashboard Reviews API] All review IDs:', reviews.map(r => r.id));
+    } else {
+      console.log('🟨 [Dashboard Reviews API] Warning: No reviews found for customer:', customer.id);
+      console.log('🟨 [Dashboard Reviews API] Customer auth_user_id:', authUser.id);
+    }
 
     return NextResponse.json({
       ok: true,

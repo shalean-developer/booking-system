@@ -31,7 +31,7 @@ export default function LocationPage() {
     "logo": "https://shalean.co.za/icon-512.png",
     "description": "Professional cleaning services for homes and businesses across South Africa. Expert cleaners, eco-friendly products, 98% satisfaction rate.",
     "telephone": "+27 87 153 5250",
-    "email": "support@shalean.com",
+    "email": "support@shalean.co.za",
     "address": {
       "@type": "PostalAddress",
       "addressCountry": "ZA",
@@ -258,8 +258,8 @@ export default function LocationPage() {
                   </div>
                   <h3 className="font-semibold text-gray-900 mb-2">Email</h3>
                   <p className="text-gray-600">
-                    <a href="mailto:support@shalean.com" className="hover:text-primary transition-colors">
-                      support@shalean.com
+                    <a href="mailto:support@shalean.co.za" className="hover:text-primary transition-colors">
+                      support@shalean.co.za
                     </a>
                   </p>
                   <p className="text-sm text-gray-500 mt-1">24/7 support</p>
@@ -320,7 +320,7 @@ export default function LocationPage() {
             </ul>
             <p className="text-gray-600 mt-4">
               Contact us at <a href="tel:+27871535250" className="text-primary">+27 87 153 5250</a> or 
-              <a href="mailto:support@shalean.com" className="text-primary"> support@shalean.com</a>
+              <a href="mailto:support@shalean.co.za" className="text-primary"> support@shalean.co.za</a>
             </p>
           </div>
         </div>

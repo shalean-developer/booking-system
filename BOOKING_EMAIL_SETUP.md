@@ -49,12 +49,12 @@ RESEND_API_KEY=your_resend_api_key_here
 
 # Admin Email Configuration
 # This email will receive notifications when new bookings are submitted
-ADMIN_EMAIL=admin@shalean.com
+ADMIN_EMAIL=admin@shalean.co.za
 
 # Sender Email Configuration
 # This should be your verified domain email
 # For testing, you can use: onboarding@resend.dev
-SENDER_EMAIL=noreply@shalean.com
+SENDER_EMAIL=noreply@shalean.co.za
 ```
 
 ⚠️ **Important**: The `.env.local` file is automatically ignored by git for security.
@@ -81,7 +81,7 @@ ADMIN_EMAIL=your-admin-email@yourdomain.com
 SENDER_EMAIL=onboarding@resend.dev
 
 # For production, use your verified domain
-# SENDER_EMAIL=noreply@shalean.com
+# SENDER_EMAIL=noreply@shalean.co.za
 ```
 
 ### Step 4: Verify Domain (Production Only)
@@ -90,7 +90,7 @@ For production, verify your own domain in Resend:
 
 1. In Resend dashboard, go to **Domains**
 2. Click **Add Domain**
-3. Enter your domain (e.g., `shalean.com`)
+3. Enter your domain (e.g., `shalean.co.za`)
 4. Follow DNS verification instructions
 5. Update `SENDER_EMAIL` in `.env.local` to use your domain
 

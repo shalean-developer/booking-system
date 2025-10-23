@@ -116,7 +116,7 @@ export async function POST(req: Request) {
         console.log('=== EMAIL SENDING ===');
         console.log('SENDER_EMAIL:', process.env.SENDER_EMAIL || 'onboarding@resend.dev');
         console.log('Applicant email:', body.email);
-        console.log('Admin email:', process.env.ADMIN_EMAIL || 'careers@shalean.com');
+        console.log('Admin email:', process.env.ADMIN_EMAIL || 'careers@shalean.co.za');
         console.log('Application ID:', applicationId);
 
         // Prepare email data

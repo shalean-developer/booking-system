@@ -200,7 +200,7 @@ This shouldn't happen if verification succeeds. Check browser console for errors
    ```env
    RESEND_API_KEY=re_...
    SENDER_EMAIL=onboarding@resend.dev
-   ADMIN_EMAIL=admin@shalean.com
+   ADMIN_EMAIL=admin@shalean.co.za
    ```
 3. Restart dev server
 

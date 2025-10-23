@@ -143,8 +143,8 @@ export default function FAQPage() {
                 <Mail className="h-8 w-8 text-primary mx-auto mb-4" />
                 <h3 className="font-bold text-gray-900 mb-2">Email Us</h3>
                 <p className="text-gray-600 mb-4">Get detailed answers</p>
-                <a href="mailto:support@shalean.com" className="text-primary font-medium">
-                  support@shalean.com
+                <a href="mailto:support@shalean.co.za" className="text-primary font-medium">
+                  support@shalean.co.za
                 </a>
               </CardContent>
             </Card>

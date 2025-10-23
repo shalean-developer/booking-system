@@ -56,7 +56,7 @@ export function SuburbPageTemplate({
       "addressCountry": "ZA"
     },
     "telephone": "+27871535250",
-    "email": "support@shalean.com",
+    "email": "support@shalean.co.za",
     "url": `https://shalean.co.za/location/${city.toLowerCase().replace(/\s+/g, '-')}/${suburb.toLowerCase().replace(/\s+/g, '-')}`,
     "priceRange": "R200-R1500",
     "areaServed": {

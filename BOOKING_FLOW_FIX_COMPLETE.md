@@ -169,7 +169,7 @@ RESEND_API_KEY=re_xxxxxxxxxxxxx
 
 # Optional (have defaults)
 SENDER_EMAIL=onboarding@resend.dev  # Default: onboarding@resend.dev
-ADMIN_EMAIL=admin@shalean.com        # Default: admin@shalean.com
+ADMIN_EMAIL=admin@shalean.co.za        # Default: admin@shalean.co.za
 ```
 
 **Note:** If any required variable is missing, the booking will fail with a clear error message before processing payment.

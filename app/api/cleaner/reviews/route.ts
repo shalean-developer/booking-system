@@ -16,6 +16,8 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('✅ Cleaner authenticated:', session.id, session.name);
+    console.log('🟦 [Cleaner Reviews API] Session ID type:', typeof session.id);
+    console.log('🟦 [Cleaner Reviews API] Session ID value:', session.id);
 
     // Create service client that bypasses RLS
     const supabase = createClient(
@@ -30,12 +32,16 @@ export async function GET(request: NextRequest) {
     );
 
     // Fetch last 10 reviews for this cleaner
-    const { data: reviews, error: reviewsError } = await supabase
+    console.log('🟦 [Cleaner Reviews API] Executing query for cleaner_id:', session.id);
+    const query = supabase
       .from('cleaner_reviews')
       .select('id, booking_id, customer_id, overall_rating, quality_rating, punctuality_rating, professionalism_rating, review_text, photos, created_at')
       .eq('cleaner_id', session.id)
       .order('created_at', { ascending: false })
       .limit(10);
+    
+    console.log('🟦 [Cleaner Reviews API] Query constructed, executing...');
+    const { data: reviews, error: reviewsError } = await query;
 
     if (reviewsError) {
       console.error('Error fetching reviews:', reviewsError);
@@ -50,32 +56,44 @@ export async function GET(request: NextRequest) {
     console.log(`✅ Found ${reviews?.length || 0} reviews for cleaner ${session.name}`);
 
     if (!reviews || reviews.length === 0) {
+      console.log('🟨 [Cleaner Reviews API] Warning: No reviews found for cleaner:', session.name);
+      console.log('🟨 [Cleaner Reviews API] Cleaner ID:', session.id);
       return NextResponse.json({
         ok: true,
         reviews: [],
       });
     }
 
+    // Enhanced debug output
+    console.log('🟩 [Cleaner Reviews API] Sample review data:', JSON.stringify(reviews[0], null, 2));
+    console.log('🟩 [Cleaner Reviews API] All review IDs:', reviews.map(r => r.id));
+
     // Fetch related bookings
     const bookingIds = reviews.map(r => r.booking_id);
+    console.log('🟦 [Cleaner Reviews API] Fetching bookings for IDs:', bookingIds);
     const { data: bookings, error: bookingsError } = await supabase
       .from('bookings')
       .select('id, booking_date, booking_time, service_type, address_line1, address_suburb, address_city')
       .in('id', bookingIds);
 
     if (bookingsError) {
-      console.error('Error fetching bookings:', bookingsError);
+      console.error('🟥 [Cleaner Reviews API] Error fetching bookings:', bookingsError);
+    } else {
+      console.log('🟩 [Cleaner Reviews API] Fetched bookings:', bookings?.length || 0);
     }
 
     // Fetch related customers
     const customerIds = reviews.map(r => r.customer_id);
+    console.log('🟦 [Cleaner Reviews API] Fetching customers for IDs:', customerIds);
     const { data: customers, error: customersError } = await supabase
       .from('customers')
       .select('id, first_name, last_name, email')
       .in('id', customerIds);
 
     if (customersError) {
-      console.error('Error fetching customers:', customersError);
+      console.error('🟥 [Cleaner Reviews API] Error fetching customers:', customersError);
+    } else {
+      console.log('🟩 [Cleaner Reviews API] Fetched customers:', customers?.length || 0);
     }
 
     // Create lookup maps
@@ -96,6 +114,9 @@ export async function GET(request: NextRequest) {
       bookings: bookingsMap.get(review.booking_id) || null,
       customers: customersMap.get(review.customer_id) || null,
     }));
+
+    console.log('🟩 [Cleaner Reviews API] Transformed reviews:', transformedReviews.length);
+    console.log('🟩 [Cleaner Reviews API] Sample transformed review:', JSON.stringify(transformedReviews[0], null, 2));
 
     return NextResponse.json({
       ok: true,

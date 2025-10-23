@@ -128,7 +128,7 @@ export default function PrivacyPage() {
                 For questions about this Privacy Policy or to exercise your rights, contact:
               </p>
               <ul className="text-gray-600">
-                <li>Email: support@shalean.com</li>
+                <li>Email: support@shalean.co.za</li>
                 <li>Phone: +27 87 153 5250</li>
               </ul>
             </CardContent>

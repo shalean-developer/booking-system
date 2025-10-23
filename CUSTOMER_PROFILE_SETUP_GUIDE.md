@@ -185,7 +185,7 @@ INSERT INTO customers (email, first_name, last_name, phone, address_line1, addre
 VALUES 
   ('john@test.com', 'John', 'Doe', '0821234567', '123 Main St', 'Sandton', 'Johannesburg', 3),
   ('jane@test.com', 'Jane', 'Smith', '0829876543', '456 Park Ave', 'Sea Point', 'Cape Town', 5),
-  ('test@shalean.com', 'Test', 'Customer', '0821111111', '789 Oak Rd', 'Constantia', 'Cape Town', 1);
+  ('test@shalean.co.za', 'Test', 'Customer', '0821111111', '789 Oak Rd', 'Constantia', 'Cape Town', 1);
 ```
 
 Now test autofill with these emails in the Contact form!

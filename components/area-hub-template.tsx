@@ -63,7 +63,7 @@ export function AreaHubTemplate({
       "addressCountry": "ZA"
     },
     "telephone": "+27871535250",
-    "email": "support@shalean.com",
+    "email": "support@shalean.co.za",
     "url": `https://shalean.co.za/location/${city.toLowerCase().replace(/\s+/g, '-')}/${areaName.toLowerCase().replace(/\s+/g, '-')}`,
     "priceRange": "R200-R1500",
     "areaServed": {
