@@ -244,7 +244,8 @@ export function logMetadataValidation(
     }
     
     if (!validation.isValid) {
-      console.error("❌ Metadata validation failed");
+      // Only log as warning for blog posts to avoid console errors
+      console.warn("⚠️  Metadata validation failed - using fallback values");
     } else {
       console.log("✅ Metadata validation passed");
     }

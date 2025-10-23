@@ -33,7 +33,7 @@ export function BlogPostRelated({ posts }: BlogPostRelatedProps) {
           {posts.map((relatedPost) => (
             <Card key={relatedPost.slug} className="overflow-hidden border-0 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 bg-white">
               <div className="h-48 relative bg-gradient-to-br from-primary/10 to-primary/20">
-                {relatedPost.featured_image && relatedPost.featured_image.trim() !== '' && (
+                {relatedPost.featured_image && relatedPost.featured_image.trim() !== '' ? (
                   <Image
                     src={relatedPost.featured_image}
                     alt={relatedPost.featured_image_alt || relatedPost.title}
@@ -41,11 +41,11 @@ export function BlogPostRelated({ posts }: BlogPostRelatedProps) {
                     className="object-cover"
                     loading="lazy"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    onError={(e) => {
-                      console.error('Featured image failed to load:', relatedPost.featured_image);
-                      e.currentTarget.style.display = 'none';
-                    }}
                   />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-primary/10 to-primary/20 flex items-center justify-center">
+                    <span className="text-primary/60 text-sm font-medium">No Image</span>
+                  </div>
                 )}
               </div>
               <CardContent className="p-6">
