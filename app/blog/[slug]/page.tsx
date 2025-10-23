@@ -36,12 +36,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   // Create blog post metadata
   const blogMetadata = {
-    title: post.meta_title || post.title,
-    description: post.meta_description || post.excerpt,
+    title: post.meta_title || post.title || 'Blog Post',
+    description: post.meta_description || post.excerpt || 'Read our latest blog post about cleaning services.',
     canonical: `https://shalean.co.za/blog/${post.slug}`,
     ogImage: {
       url: post.featured_image || generateOgImageUrl("blog-default"),
-      alt: post.featured_image_alt || post.title,
+      alt: post.featured_image_alt || post.title || 'Blog post image',
     },
     ogType: "article" as const,
     publishedTime: post.published_at || undefined,
