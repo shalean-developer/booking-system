@@ -193,30 +193,30 @@ export function BookingDetailsDialog({
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Total Amount</p>
-                  <p className="font-semibold">R{booking.total_amount.toFixed(2)}</p>
+                  <p className="font-semibold">R{(booking.total_amount / 100).toFixed(2)}</p>
                 </div>
                 <div className="bg-yellow-50 p-2 rounded">
                   <p className="text-sm text-gray-600">Service Fee</p>
                   <p className="font-semibold text-orange-600">
-                    R{booking.service_fee.toFixed(2)}
+                    R{(booking.service_fee / 100).toFixed(2)}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Subtotal (before fee)</p>
                   <p className="font-medium">
-                    R{(booking.total_amount - booking.service_fee).toFixed(2)}
+                    R{((booking.total_amount - booking.service_fee) / 100).toFixed(2)}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Cleaner Earnings</p>
                   <p className="font-semibold text-green-600">
-                    R{booking.cleaner_earnings.toFixed(2)}
+                    R{(booking.cleaner_earnings / 100).toFixed(2)}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Company Earnings</p>
                   <p className="font-semibold text-blue-600">
-                    R{(booking.total_amount - booking.cleaner_earnings).toFixed(2)}
+                    R{((booking.total_amount - booking.cleaner_earnings) / 100).toFixed(2)}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
                     (Service fee + {(((booking.total_amount - booking.cleaner_earnings - booking.service_fee) / (booking.total_amount - booking.service_fee)) * 100).toFixed(0)}% of subtotal)
