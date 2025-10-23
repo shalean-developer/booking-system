@@ -23,11 +23,22 @@ export async function GET(req: Request) {
     console.log('✅ Admin access confirmed');
     const supabase = await createClient();
     
-    // Fetch cleaner reviews - simple query like debug endpoint
+    // Fetch cleaner reviews with customer and cleaner names
     console.log('🔍 Fetching cleaner reviews...');
     const { data: reviews, error: reviewsError } = await supabase
       .from('cleaner_reviews')
-      .select('*')
+      .select(`
+        *,
+        customers!cleaner_reviews_customer_id_fkey (
+          first_name,
+          last_name,
+          email
+        ),
+        cleaners!cleaner_reviews_cleaner_id_fkey (
+          name,
+          photo_url
+        )
+      `)
       .order('created_at', { ascending: false });
 
     if (reviewsError) {
@@ -40,11 +51,17 @@ export async function GET(req: Request) {
 
     console.log(`📊 Cleaner reviews fetched: ${reviews?.length || 0}`);
 
-    // Fetch customer ratings - simple query like debug endpoint
+    // Fetch customer ratings with cleaner names
     console.log('🔍 Fetching customer ratings...');
     const { data: customerRatings, error: ratingsError } = await supabase
       .from('customer_ratings')
-      .select('*')
+      .select(`
+        *,
+        cleaners!customer_ratings_cleaner_id_fkey (
+          name,
+          photo_url
+        )
+      `)
       .order('created_at', { ascending: false });
 
     if (ratingsError) {

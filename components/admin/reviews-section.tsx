@@ -33,6 +33,15 @@ interface Review {
   created_at: string;
   customer_id: string;
   cleaner_id: string;
+  customers: {
+    first_name: string;
+    last_name: string;
+    email: string;
+  } | null;
+  cleaners: {
+    name: string;
+    photo_url: string | null;
+  } | null;
 }
 
 interface CustomerRating {
@@ -43,6 +52,10 @@ interface CustomerRating {
   created_at: string;
   customer_phone: string | null;
   cleaner_id: string;
+  cleaners: {
+    name: string;
+    photo_url: string | null;
+  } | null;
 }
 
 export default function ReviewsSection() {
@@ -86,6 +99,8 @@ export default function ReviewsSection() {
         created_at: item.created_at,
         customer_id: item.customer_id,
         cleaner_id: item.cleaner_id,
+        customers: item.customers || null,
+        cleaners: item.cleaners || null,
       }));
 
       const transformedRatings: CustomerRating[] = (data.customerRatings || []).map((item: any) => ({
@@ -96,6 +111,7 @@ export default function ReviewsSection() {
         created_at: item.created_at,
         customer_phone: item.customer_phone,
         cleaner_id: item.cleaner_id,
+        cleaners: item.cleaners || null,
       }));
 
       setReviews(transformedReviews);
@@ -200,30 +216,63 @@ export default function ReviewsSection() {
                   className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
                 >
                   <div className="flex flex-col lg:flex-row gap-6">
-                    {/* Left: Basic Info */}
+                    {/* Left: Customer & Cleaner Info */}
                     <div className="lg:w-1/3 space-y-4">
-                      {/* Review ID */}
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Review ID</p>
-                        <p className="text-sm font-medium text-gray-900">{review.id}</p>
-                      </div>
+                      {/* Customer */}
+                      {review.customers ? (
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Customer</p>
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                              <User className="w-4 h-4 text-blue-600" />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-gray-900 text-sm">
+                                {review.customers.first_name} {review.customers.last_name}
+                              </p>
+                              <p className="text-xs text-gray-500">{review.customers.email}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Customer</p>
+                          <p className="text-sm font-medium text-gray-900">ID: {review.customer_id}</p>
+                        </div>
+                      )}
+
+                      {/* Cleaner */}
+                      {review.cleaners ? (
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Cleaner</p>
+                          <div className="flex items-center gap-2">
+                            {review.cleaners.photo_url ? (
+                              <img
+                                src={review.cleaners.photo_url}
+                                alt={review.cleaners.name}
+                                className="w-8 h-8 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                                <User className="w-4 h-4 text-primary" />
+                              </div>
+                            )}
+                            <p className="font-semibold text-gray-900 text-sm">
+                              {review.cleaners.name}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Cleaner</p>
+                          <p className="text-sm font-medium text-gray-900">ID: {review.cleaner_id}</p>
+                        </div>
+                      )}
 
                       {/* Booking ID */}
                       <div>
                         <p className="text-xs text-gray-500 mb-1">Booking ID</p>
                         <p className="text-sm font-medium text-gray-900">{review.booking_id}</p>
-                      </div>
-
-                      {/* Customer ID */}
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Customer ID</p>
-                        <p className="text-sm font-medium text-gray-900">{review.customer_id}</p>
-                      </div>
-
-                      {/* Cleaner ID */}
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Cleaner ID</p>
-                        <p className="text-sm font-medium text-gray-900">{review.cleaner_id}</p>
                       </div>
 
                       <p className="text-xs text-gray-500">
@@ -345,30 +394,46 @@ export default function ReviewsSection() {
                   className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
                 >
                   <div className="flex flex-col lg:flex-row gap-6">
-                    {/* Left: Basic Info */}
+                    {/* Left: Customer & Cleaner Info */}
                     <div className="lg:w-1/3 space-y-4">
-                      {/* Rating ID */}
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Rating ID</p>
-                        <p className="text-sm font-medium text-gray-900">{rating.id}</p>
-                      </div>
-
-                      {/* Booking ID */}
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Booking ID</p>
-                        <p className="text-sm font-medium text-gray-900">{rating.booking_id}</p>
-                      </div>
-
                       {/* Customer Phone */}
                       <div>
                         <p className="text-xs text-gray-500 mb-1">Customer Phone</p>
                         <p className="text-sm font-medium text-gray-900">{rating.customer_phone || 'N/A'}</p>
                       </div>
 
-                      {/* Cleaner ID */}
+                      {/* Cleaner */}
+                      {rating.cleaners ? (
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Cleaner</p>
+                          <div className="flex items-center gap-2">
+                            {rating.cleaners.photo_url ? (
+                              <img
+                                src={rating.cleaners.photo_url}
+                                alt={rating.cleaners.name}
+                                className="w-8 h-8 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                                <User className="w-4 h-4 text-primary" />
+                              </div>
+                            )}
+                            <p className="font-semibold text-gray-900 text-sm">
+                              {rating.cleaners.name}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Cleaner</p>
+                          <p className="text-sm font-medium text-gray-900">ID: {rating.cleaner_id}</p>
+                        </div>
+                      )}
+
+                      {/* Booking ID */}
                       <div>
-                        <p className="text-xs text-gray-500 mb-1">Cleaner ID</p>
-                        <p className="text-sm font-medium text-gray-900">{rating.cleaner_id}</p>
+                        <p className="text-xs text-gray-500 mb-1">Booking ID</p>
+                        <p className="text-sm font-medium text-gray-900">{rating.booking_id}</p>
                       </div>
 
                       <p className="text-xs text-gray-500">
