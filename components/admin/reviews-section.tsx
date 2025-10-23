@@ -31,23 +31,8 @@ interface Review {
   review_text: string | null;
   photos: string[];
   created_at: string;
-  bookings: {
-    booking_date: string;
-    booking_time: string;
-    service_type: string;
-  } | null;
-  cleaners: {
-    id: string;
-    name: string;
-    photo_url: string | null;
-  } | null;
-  customers: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    email: string;
-    auth_user_id: string;
-  } | null;
+  customer_id: string;
+  cleaner_id: string;
 }
 
 interface CustomerRating {
@@ -57,19 +42,7 @@ interface CustomerRating {
   comment: string | null;
   created_at: string;
   customer_phone: string | null;
-  bookings: {
-    booking_date: string;
-    booking_time: string;
-    service_type: string;
-    address_line1: string;
-    address_suburb: string;
-    address_city: string;
-  } | null;
-  cleaners: {
-    id: string;
-    name: string;
-    photo_url: string | null;
-  } | null;
+  cleaner_id: string;
 }
 
 export default function ReviewsSection() {
@@ -111,9 +84,8 @@ export default function ReviewsSection() {
         review_text: item.review_text,
         photos: item.photos || [],
         created_at: item.created_at,
-        bookings: item.bookings || null,
-        cleaners: item.cleaners || null,
-        customers: item.customers || null,
+        customer_id: item.customer_id,
+        cleaner_id: item.cleaner_id,
       }));
 
       const transformedRatings: CustomerRating[] = (data.customerRatings || []).map((item: any) => ({
@@ -123,8 +95,7 @@ export default function ReviewsSection() {
         comment: item.comment,
         created_at: item.created_at,
         customer_phone: item.customer_phone,
-        bookings: item.bookings || null,
-        cleaners: item.cleaners || null,
+        cleaner_id: item.cleaner_id,
       }));
 
       setReviews(transformedReviews);
@@ -229,66 +200,31 @@ export default function ReviewsSection() {
                   className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
                 >
                   <div className="flex flex-col lg:flex-row gap-6">
-                    {/* Left: Customer & Cleaner Info */}
+                    {/* Left: Basic Info */}
                     <div className="lg:w-1/3 space-y-4">
-                      {/* Customer */}
-                      {review.customers && (
-                        <div>
-                          <p className="text-xs text-gray-500 mb-1">Customer</p>
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                              <User className="w-4 h-4 text-blue-600" />
-                            </div>
-                            <div>
-                              <p className="font-semibold text-gray-900 text-sm">
-                                {review.customers.first_name} {review.customers.last_name}
-                              </p>
-                              <p className="text-xs text-gray-500">{review.customers.email}</p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                      {/* Review ID */}
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Review ID</p>
+                        <p className="text-sm font-medium text-gray-900">{review.id}</p>
+                      </div>
 
-                      {/* Cleaner */}
-                      {review.cleaners && (
-                        <div>
-                          <p className="text-xs text-gray-500 mb-1">Cleaner</p>
-                          <div className="flex items-center gap-2">
-                            {review.cleaners.photo_url ? (
-                              <img
-                                src={review.cleaners.photo_url}
-                                alt={review.cleaners.name}
-                                className="w-8 h-8 rounded-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                                <User className="w-4 h-4 text-primary" />
-                              </div>
-                            )}
-                            <p className="font-semibold text-gray-900 text-sm">
-                              {review.cleaners.name}
-                            </p>
-                          </div>
-                        </div>
-                      )}
+                      {/* Booking ID */}
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Booking ID</p>
+                        <p className="text-sm font-medium text-gray-900">{review.booking_id}</p>
+                      </div>
 
-                      {/* Booking Info */}
-                      {review.bookings && (
-                        <div>
-                          <p className="text-xs text-gray-500 mb-1">Booking</p>
-                          <p className="text-sm font-medium text-gray-900">
-                            {review.bookings.service_type}
-                          </p>
-                          <div className="flex items-center gap-1 text-xs text-gray-600 mt-1">
-                            <Calendar className="w-3 h-3" />
-                            {new Date(review.bookings.booking_date).toLocaleDateString('en-ZA', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric'
-                            })}
-                          </div>
-                        </div>
-                      )}
+                      {/* Customer ID */}
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Customer ID</p>
+                        <p className="text-sm font-medium text-gray-900">{review.customer_id}</p>
+                      </div>
+
+                      {/* Cleaner ID */}
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Cleaner ID</p>
+                        <p className="text-sm font-medium text-gray-900">{review.cleaner_id}</p>
+                      </div>
 
                       <p className="text-xs text-gray-500">
                         Reviewed {new Date(review.created_at).toLocaleDateString('en-ZA', {
@@ -409,67 +345,31 @@ export default function ReviewsSection() {
                   className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
                 >
                   <div className="flex flex-col lg:flex-row gap-6">
-                    {/* Left: Customer & Cleaner Info */}
+                    {/* Left: Basic Info */}
                     <div className="lg:w-1/3 space-y-4">
-                      {/* Customer */}
+                      {/* Rating ID */}
                       <div>
-                        <p className="text-xs text-gray-500 mb-1">Customer</p>
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                            <User className="w-4 h-4 text-blue-600" />
-                          </div>
-                          <div>
-                            <p className="font-semibold text-gray-900 text-sm">
-                              {rating.customer_phone || 'Unknown'}
-                            </p>
-                            <p className="text-xs text-gray-500">Phone: {rating.customer_phone}</p>
-                          </div>
-                        </div>
+                        <p className="text-xs text-gray-500 mb-1">Rating ID</p>
+                        <p className="text-sm font-medium text-gray-900">{rating.id}</p>
                       </div>
 
-                      {/* Cleaner */}
-                      {rating.cleaners && (
-                        <div>
-                          <p className="text-xs text-gray-500 mb-1">Cleaner</p>
-                          <div className="flex items-center gap-2">
-                            {rating.cleaners.photo_url ? (
-                              <img
-                                src={rating.cleaners.photo_url}
-                                alt={rating.cleaners.name}
-                                className="w-8 h-8 rounded-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                                <User className="w-4 h-4 text-primary" />
-                              </div>
-                            )}
-                            <p className="font-semibold text-gray-900 text-sm">
-                              {rating.cleaners.name}
-                            </p>
-                          </div>
-                        </div>
-                      )}
+                      {/* Booking ID */}
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Booking ID</p>
+                        <p className="text-sm font-medium text-gray-900">{rating.booking_id}</p>
+                      </div>
 
-                      {/* Booking Info */}
-                      {rating.bookings && (
-                        <div>
-                          <p className="text-xs text-gray-500 mb-1">Booking</p>
-                          <p className="text-sm font-medium text-gray-900">
-                            {rating.bookings.service_type}
-                          </p>
-                          <p className="text-xs text-gray-600">
-                            {rating.bookings.address_line1}, {rating.bookings.address_suburb}
-                          </p>
-                          <div className="flex items-center gap-1 text-xs text-gray-600 mt-1">
-                            <Calendar className="w-3 h-3" />
-                            {new Date(rating.bookings.booking_date).toLocaleDateString('en-ZA', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric'
-                            })}
-                          </div>
-                        </div>
-                      )}
+                      {/* Customer Phone */}
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Customer Phone</p>
+                        <p className="text-sm font-medium text-gray-900">{rating.customer_phone || 'N/A'}</p>
+                      </div>
+
+                      {/* Cleaner ID */}
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Cleaner ID</p>
+                        <p className="text-sm font-medium text-gray-900">{rating.cleaner_id}</p>
+                      </div>
 
                       <p className="text-xs text-gray-500">
                         Rated on {new Date(rating.created_at).toLocaleDateString('en-ZA', {

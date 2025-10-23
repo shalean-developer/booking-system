@@ -22,7 +22,7 @@ export async function GET(req: Request) {
     const supabase = await createClient();
     
     // Fetch cleaner reviews with related data
-    // Using left joins (no !inner) so reviews show even if related data is missing
+    // Using simple query first, then fetch related data separately to avoid RLS issues
     const { data: reviews, error: reviewsError } = await supabase
       .from('cleaner_reviews')
       .select(`
@@ -36,25 +36,7 @@ export async function GET(req: Request) {
         professionalism_rating,
         review_text,
         photos,
-        created_at,
-        bookings!cleaner_reviews_booking_id_fkey (
-          id,
-          booking_date,
-          booking_time,
-          service_type
-        ),
-        cleaners (
-          id,
-          name,
-          photo_url
-        ),
-        customers (
-          id,
-          first_name,
-          last_name,
-          email,
-          auth_user_id
-        )
+        created_at
       `)
       .order('created_at', { ascending: false });
 
@@ -69,7 +51,7 @@ export async function GET(req: Request) {
     }
 
     // Fetch customer ratings with related data
-    // Using left joins so ratings show even if related data is missing
+    // Using simple query first to avoid RLS issues with joins
     const { data: customerRatings, error: ratingsError } = await supabase
       .from('customer_ratings')
       .select(`
@@ -79,21 +61,7 @@ export async function GET(req: Request) {
         rating,
         comment,
         created_at,
-        customer_phone,
-        bookings (
-          id,
-          booking_date,
-          booking_time,
-          service_type,
-          address_line1,
-          address_suburb,
-          address_city
-        ),
-        cleaners (
-          id,
-          name,
-          photo_url
-        )
+        customer_phone
       `)
       .order('created_at', { ascending: false });
 
