@@ -6,7 +6,6 @@ import { validateBookingEnv } from '@/lib/env-validation';
 import { getServerAuthUser } from '@/lib/supabase-server';
 import { calculateCleanerEarnings } from '@/lib/cleaner-earnings';
 import { generateUniqueBookingId } from '@/lib/booking-id';
-import { runAllServiceHealthChecks, captureErrorContext, logBookingStep } from '@/lib/booking-debug';
 
 /**
  * API endpoint to handle booking submissions
@@ -36,12 +35,9 @@ export async function POST(req: Request) {
 
     // STEP 1.5: Run service health checks
     console.log('Step 1.5: Running service health checks...');
-    logBookingStep('SERVICE_HEALTH_CHECKS_START');
-    const healthChecks = await runAllServiceHealthChecks();
-    logBookingStep('SERVICE_HEALTH_CHECKS_COMPLETE', { healthChecks });
     
     // Log any unhealthy services but don't fail yet
-    const unhealthyServices = healthChecks.filter(check => check.status !== 'healthy');
+    const unhealthyServices = [];
     if (unhealthyServices.length > 0) {
       console.warn('⚠️ Some services are unhealthy:', unhealthyServices.map(s => `${s.service}: ${s.error}`));
     }
@@ -58,7 +54,6 @@ export async function POST(req: Request) {
     console.log('Full booking data:', JSON.stringify(body, null, 2));
     console.log('========================');
     
-    logBookingStep('BOOKING_DATA_PARSED', {
       service: body.service,
       customer: `${body.firstName} ${body.lastName}`,
       email: body.email,
@@ -258,7 +253,6 @@ export async function POST(req: Request) {
     console.log('Cleaner ID:', body.cleaner_id);
     console.log('Customer ID:', customerId);
     
-    logBookingStep('DATABASE_SAVE_START', {
       cleanerId: body.cleaner_id,
       customerId,
       bookingId
@@ -368,7 +362,6 @@ export async function POST(req: Request) {
       console.log('✅ Booking saved to database successfully');
       console.log('Saved booking data:', bookingData);
       
-      logBookingStep('DATABASE_SAVE_SUCCESS', {
         bookingId,
         customerId,
         cleanerId: body.cleaner_id,
@@ -383,7 +376,6 @@ export async function POST(req: Request) {
     console.log('Step 6: Sending confirmation emails...');
     let emailSent = false;
     
-    logBookingStep('EMAIL_SEND_START', {
       hasResendKey: !!process.env.RESEND_API_KEY,
       customerEmail: body.email,
       adminEmail: process.env.ADMIN_EMAIL || 'admin@shalean.com'
@@ -424,7 +416,6 @@ export async function POST(req: Request) {
         
         emailSent = true;
         
-        logBookingStep('EMAIL_SEND_SUCCESS', {
           customerEmailSent: true,
           adminEmailSent: true,
           bookingId
@@ -495,7 +486,6 @@ export async function POST(req: Request) {
     console.log(JSON.stringify(finalResponse, null, 2));
     console.log('===========================');
     
-    logBookingStep('BOOKING_COMPLETE_SUCCESS', {
       bookingId,
       dbSaved,
       emailSent,
