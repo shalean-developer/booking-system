@@ -99,12 +99,17 @@ async function createOneTimeBooking(supabase: any, data: CreateBookingFormData) 
     'one-time'
   );
 
-  // Calculate cleaner earnings
+  // Convert pricing details from rands to cents
+  const totalInCents = Math.round(pricingDetails.total * 100);
+  const serviceFeeInCents = Math.round(pricingDetails.serviceFee * 100);
+  const frequencyDiscountInCents = Math.round(pricingDetails.frequencyDiscount * 100);
+
+  // Calculate cleaner earnings (in cents)
   const cleanerEarnings = cleanerIdForInsert 
-    ? await calculateCleanerEarningsForCleaner(supabase, cleanerIdForInsert, pricingDetails.total, pricingDetails.serviceFee)
+    ? await calculateCleanerEarningsForCleaner(supabase, cleanerIdForInsert, pricingDetails.total, pricingDetails.serviceFee) * 100
     : 0;
 
-  // Create price snapshot for historical record
+  // Create price snapshot for historical record (in cents)
   const priceSnapshot = {
     service: {
       type: data.service_type,
@@ -113,10 +118,10 @@ async function createOneTimeBooking(supabase: any, data: CreateBookingFormData) 
     },
     extras: data.extras || [],
     frequency: 'one-time', // Keep 'one-time' in snapshot for historical record
-    service_fee: pricingDetails.serviceFee,
-    frequency_discount: pricingDetails.frequencyDiscount,
-    subtotal: pricingDetails.subtotal,
-    total: pricingDetails.total,
+    service_fee: serviceFeeInCents,
+    frequency_discount: frequencyDiscountInCents,
+    subtotal: Math.round(pricingDetails.subtotal * 100),
+    total: totalInCents,
     snapshot_date: new Date().toISOString(),
   };
   
@@ -135,10 +140,10 @@ async function createOneTimeBooking(supabase: any, data: CreateBookingFormData) 
     booking_time: data.booking_time,
     payment_reference: bookingId, // Use booking ID as reference for admin-created bookings
     status: 'pending', // All bookings start as pending for cleaner workflow
-    total_amount: pricingDetails.total,
-    service_fee: pricingDetails.serviceFee,
+    total_amount: totalInCents,
+    service_fee: serviceFeeInCents,
     frequency: null, // One-time bookings have NULL frequency
-    frequency_discount: pricingDetails.frequencyDiscount,
+    frequency_discount: frequencyDiscountInCents,
     cleaner_earnings: cleanerEarnings,
     price_snapshot: priceSnapshot,
   };
@@ -258,12 +263,17 @@ async function createRecurringBooking(supabase: any, data: CreateBookingFormData
       pricingFrequency as 'weekly' | 'bi-weekly' | 'monthly'
     );
 
-    // Calculate cleaner earnings
+    // Recurring bookings have NO service fee
+    const serviceFeeInCents = 0;
+    const totalWithoutServiceFee = Math.round((pricingDetails.subtotal - pricingDetails.frequencyDiscount) * 100);
+    const frequencyDiscountInCents = Math.round(pricingDetails.frequencyDiscount * 100);
+
+    // Calculate cleaner earnings (60% or 70% based on experience)
     const cleanerEarnings = cleanerIdForInsert 
-      ? await calculateCleanerEarningsForCleaner(supabase, cleanerIdForInsert, pricingDetails.total, pricingDetails.serviceFee)
+      ? await calculateCleanerEarningsForCleaner(supabase, cleanerIdForInsert, pricingDetails.subtotal - pricingDetails.frequencyDiscount, 0) * 100
       : 0;
 
-    // Create price snapshot for historical record
+    // Create price snapshot for historical record (in cents)
     const priceSnapshot = {
       service: {
         type: data.service_type,
@@ -272,10 +282,10 @@ async function createRecurringBooking(supabase: any, data: CreateBookingFormData
       },
       extras: data.extras || [],
       frequency: data.frequency,
-      service_fee: pricingDetails.serviceFee,
-      frequency_discount: pricingDetails.frequencyDiscount,
-      subtotal: pricingDetails.subtotal,
-      total: pricingDetails.total,
+      service_fee: serviceFeeInCents, // 0 for recurring
+      frequency_discount: frequencyDiscountInCents,
+      subtotal: Math.round(pricingDetails.subtotal * 100),
+      total: totalWithoutServiceFee,
       snapshot_date: new Date().toISOString(),
     };
     
@@ -294,10 +304,10 @@ async function createRecurringBooking(supabase: any, data: CreateBookingFormData
       booking_time: data.preferred_time,
       payment_reference: generateBookingId(), // Unique reference for each booking
       status: 'pending', // All bookings start as pending for cleaner workflow
-      total_amount: pricingDetails.total,
-      service_fee: pricingDetails.serviceFee,
+      total_amount: totalWithoutServiceFee,
+      service_fee: serviceFeeInCents, // 0 for recurring
       frequency: data.frequency,
-      frequency_discount: pricingDetails.frequencyDiscount,
+      frequency_discount: frequencyDiscountInCents,
       cleaner_earnings: cleanerEarnings,
       price_snapshot: priceSnapshot,
       recurring_schedule_id: schedule.id,

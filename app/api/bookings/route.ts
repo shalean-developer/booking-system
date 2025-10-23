@@ -269,10 +269,10 @@ export async function POST(req: Request) {
         },
         extras: body.extras || [],
         frequency: frequencyForSnapshot, // One-time bookings stored as NULL
-        service_fee: body.serviceFee || 0,
-        frequency_discount: body.frequencyDiscount || 0,
-        subtotal: body.totalAmount ? body.totalAmount - (body.serviceFee || 0) + (body.frequencyDiscount || 0) : 0,
-        total: body.totalAmount || 0,
+        service_fee: (body.serviceFee || 0) * 100, // Convert to cents
+        frequency_discount: (body.frequencyDiscount || 0) * 100, // Convert to cents
+        subtotal: body.totalAmount ? (body.totalAmount - (body.serviceFee || 0) + (body.frequencyDiscount || 0)) * 100 : 0,
+        total: (body.totalAmount || 0) * 100, // Convert to cents
         snapshot_date: new Date().toISOString(),
       };
 
@@ -292,7 +292,7 @@ export async function POST(req: Request) {
         body.totalAmount ?? null,
         body.serviceFee ?? null,
         cleanerHireDate
-      );
+      ) * 100; // Convert to cents
 
       // Prepare cleaner_id with proper UUID handling
       let cleanerIdForInsert = null;
@@ -331,11 +331,11 @@ export async function POST(req: Request) {
           address_suburb: body.address.suburb,
           address_city: body.address.city,
           payment_reference: body.paymentReference,
-          total_amount: body.totalAmount,
+          total_amount: (body.totalAmount || 0) * 100, // Convert rands to cents
           cleaner_earnings: cleanerEarnings,
           frequency: frequencyForDb, // One-time bookings must be NULL
-          service_fee: body.serviceFee || 0,
-          frequency_discount: body.frequencyDiscount || 0,
+          service_fee: (body.serviceFee || 0) * 100, // Convert rands to cents
+          frequency_discount: (body.frequencyDiscount || 0) * 100, // Convert rands to cents
           price_snapshot: priceSnapshot,
           status: body.cleaner_id === 'manual' ? 'pending' : 'confirmed',
         })
