@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
         review_text,
         photos,
         created_at,
-        bookings!inner (
+        bookings!cleaner_reviews_booking_id_fkey!inner (
           booking_date,
           booking_time,
           service_type,
