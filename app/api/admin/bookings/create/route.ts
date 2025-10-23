@@ -242,6 +242,11 @@ async function createRecurringBooking(supabase: any, data: CreateBookingFormData
       cleanerIdForInsert = data.cleaner_id;
     }
 
+    // Map custom frequencies to base frequencies for pricing calculation
+    const pricingFrequency = data.frequency === 'custom-weekly' ? 'weekly' :
+                           data.frequency === 'custom-bi-weekly' ? 'bi-weekly' :
+                           data.frequency;
+
     // Calculate pricing for recurring bookings
     const pricingDetails = await calcTotalAsync(
       {
@@ -250,7 +255,7 @@ async function createRecurringBooking(supabase: any, data: CreateBookingFormData
         bathrooms: data.bathrooms,
         extras: data.extras || [],
       },
-      data.frequency
+      pricingFrequency as 'weekly' | 'bi-weekly' | 'monthly'
     );
 
     // Calculate cleaner earnings
