@@ -75,6 +75,9 @@ export async function GET(request: NextRequest) {
     console.log('✅ Customer found:', customer.id);
 
     // Fetch all reviews by this customer with booking and cleaner details
+    console.log('🟦 [Dashboard Reviews API] Starting reviews query...');
+    console.log('🟦 [Dashboard Reviews API] Customer ID:', customer.id);
+    console.log('🟦 [Dashboard Reviews API] Auth User ID:', authUser.id);
     console.log('🟦 [Dashboard Reviews API] Executing query for customer_id:', customer.id);
     const query = supabase
       .from('cleaner_reviews')
@@ -111,8 +114,11 @@ export async function GET(request: NextRequest) {
 
     if (reviewsError) {
       console.error('❌ Error fetching reviews:', reviewsError);
+      console.error('❌ Error code:', reviewsError.code);
+      console.error('❌ Error details:', reviewsError.details);
+      console.error('❌ Error hint:', reviewsError.hint);
       return NextResponse.json(
-        { ok: false, error: 'Failed to fetch reviews', details: reviewsError.message },
+        { ok: false, error: 'Failed to fetch reviews', details: reviewsError.message, code: reviewsError.code },
         { status: 500 }
       );
     }

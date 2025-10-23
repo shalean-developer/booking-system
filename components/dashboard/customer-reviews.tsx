@@ -61,11 +61,13 @@ export function CustomerReviews() {
       console.log('🟦 [CustomerReviews] API response ok:', response.ok);
 
       const data = await response.json();
-      console.log('🟦 [CustomerReviews] API response data:', data);
+      console.log('🟦 [CustomerReviews] API response data:', JSON.stringify(data, null, 2));
 
       if (!data.ok) {
         console.log('🟥 [CustomerReviews] API returned error:', data.error);
-        throw new Error(data.error || 'Failed to fetch reviews');
+        console.log('🟥 [CustomerReviews] Error details:', data.details);
+        console.log('🟥 [CustomerReviews] Error code:', data.code);
+        throw new Error(data.details || data.error || 'Failed to fetch reviews');
       }
 
       const reviewsData = data.reviews || [];
@@ -128,8 +130,9 @@ export function CustomerReviews() {
   if (error) {
     return (
       <div className="text-center py-8 bg-red-50 rounded-lg border border-red-200">
-        <div className="text-red-600 mb-2">Failed to load reviews</div>
-        <p className="text-red-500 text-sm mb-4">An error occurred while fetching reviews</p>
+        <div className="text-red-600 mb-2 font-semibold">Failed to load reviews</div>
+        <p className="text-red-500 text-sm mb-2">{error}</p>
+        <p className="text-gray-600 text-xs mb-4">Check browser console for more details</p>
         <Button onClick={fetchReviews} variant="outline" size="sm">
           Try Again
         </Button>
