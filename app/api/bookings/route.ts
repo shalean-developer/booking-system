@@ -6,6 +6,7 @@ import { validateBookingEnv } from '@/lib/env-validation';
 import { getServerAuthUser } from '@/lib/supabase-server';
 import { calculateCleanerEarnings } from '@/lib/cleaner-earnings';
 import { generateUniqueBookingId } from '@/lib/booking-id';
+import { runAllServiceHealthChecks, captureErrorContext, logBookingStep } from '@/lib/booking-debug';
 
 /**
  * API endpoint to handle booking submissions
@@ -33,6 +34,18 @@ export async function POST(req: Request) {
     }
     console.log('✅ Environment validation passed');
 
+    // STEP 1.5: Run service health checks
+    console.log('Step 1.5: Running service health checks...');
+    logBookingStep('SERVICE_HEALTH_CHECKS_START');
+    const healthChecks = await runAllServiceHealthChecks();
+    logBookingStep('SERVICE_HEALTH_CHECKS_COMPLETE', { healthChecks });
+    
+    // Log any unhealthy services but don't fail yet
+    const unhealthyServices = healthChecks.filter(check => check.status !== 'healthy');
+    if (unhealthyServices.length > 0) {
+      console.warn('⚠️ Some services are unhealthy:', unhealthyServices.map(s => `${s.service}: ${s.error}`));
+    }
+
     // STEP 2: Parse and validate booking data
     console.log('Step 2: Parsing booking data...');
     const body: BookingState = await req.json();
@@ -44,6 +57,14 @@ export async function POST(req: Request) {
     console.log('Payment Reference:', body.paymentReference);
     console.log('Full booking data:', JSON.stringify(body, null, 2));
     console.log('========================');
+    
+    logBookingStep('BOOKING_DATA_PARSED', {
+      service: body.service,
+      customer: `${body.firstName} ${body.lastName}`,
+      email: body.email,
+      paymentReference: body.paymentReference,
+      totalAmount: body.totalAmount
+    }, body.paymentReference);
 
     // Verify payment reference is provided
     if (!body.paymentReference) {
@@ -55,6 +76,15 @@ export async function POST(req: Request) {
     }
 
     console.log('✅ Payment reference found:', body.paymentReference);
+
+    // Validate required financial data
+    if (!body.totalAmount || body.totalAmount <= 0) {
+      console.error('❌ Total amount missing or invalid:', body.totalAmount);
+      return NextResponse.json(
+        { ok: false, error: 'Total amount is required and must be greater than 0' },
+        { status: 400 }
+      );
+    }
 
     // STEP 3: Re-verify payment for extra security (REQUIRED)
     console.log('Step 3: Re-verifying payment with Paystack...');
@@ -228,6 +258,12 @@ export async function POST(req: Request) {
     console.log('Cleaner ID:', body.cleaner_id);
     console.log('Customer ID:', customerId);
     
+    logBookingStep('DATABASE_SAVE_START', {
+      cleanerId: body.cleaner_id,
+      customerId,
+      bookingId
+    }, body.paymentReference, bookingId);
+    
     if (body.cleaner_id === 'manual') {
       console.log('⚠️ MANUAL CLEANER ASSIGNMENT REQUESTED');
       console.log('Admin will need to assign a cleaner for this booking');
@@ -239,6 +275,9 @@ export async function POST(req: Request) {
     // Check if Supabase is configured
     if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       // Create price snapshot for historical record
+      // Normalize frequency for consistency
+      const frequencyForSnapshot = body.frequency === 'one-time' ? null : body.frequency;
+      
       const priceSnapshot = {
         service: {
           type: body.service,
@@ -246,7 +285,7 @@ export async function POST(req: Request) {
           bathrooms: body.bathrooms,
         },
         extras: body.extras || [],
-        frequency: body.frequency || null, // One-time bookings have NULL frequency
+        frequency: frequencyForSnapshot, // One-time bookings stored as NULL
         service_fee: body.serviceFee || 0,
         frequency_discount: body.frequencyDiscount || 0,
         subtotal: body.totalAmount ? body.totalAmount - (body.serviceFee || 0) + (body.frequencyDiscount || 0) : 0,
@@ -284,6 +323,14 @@ export async function POST(req: Request) {
           throw new Error('Invalid cleaner ID format');
         }
       }
+      // For 'manual' assignments, cleanerIdForInsert remains null (which is correct)
+
+      // Normalize frequency: convert "one-time" to null for database constraint
+      const frequencyForDb = body.frequency === 'one-time' ? null : body.frequency;
+      console.log('Frequency normalization:', { 
+        original: body.frequency, 
+        normalized: frequencyForDb 
+      });
 
       const { data, error: bookingError } = await supabase
         .from('bookings')
@@ -303,7 +350,7 @@ export async function POST(req: Request) {
           payment_reference: body.paymentReference,
           total_amount: body.totalAmount,
           cleaner_earnings: cleanerEarnings,
-          frequency: body.frequency || null, // One-time bookings have NULL frequency
+          frequency: frequencyForDb, // One-time bookings must be NULL
           service_fee: body.serviceFee || 0,
           frequency_discount: body.frequencyDiscount || 0,
           price_snapshot: priceSnapshot,
@@ -320,6 +367,13 @@ export async function POST(req: Request) {
       dbSaved = true;
       console.log('✅ Booking saved to database successfully');
       console.log('Saved booking data:', bookingData);
+      
+      logBookingStep('DATABASE_SAVE_SUCCESS', {
+        bookingId,
+        customerId,
+        cleanerId: body.cleaner_id,
+        status: body.cleaner_id === 'manual' ? 'pending' : 'confirmed'
+      }, body.paymentReference, bookingId);
     } else {
       console.log('⚠️ Supabase not configured - skipping database save');
       console.log('Booking will be processed but not stored in database');
@@ -328,6 +382,12 @@ export async function POST(req: Request) {
     // STEP 6: Send confirmation emails (REQUIRED if configured)
     console.log('Step 6: Sending confirmation emails...');
     let emailSent = false;
+    
+    logBookingStep('EMAIL_SEND_START', {
+      hasResendKey: !!process.env.RESEND_API_KEY,
+      customerEmail: body.email,
+      adminEmail: process.env.ADMIN_EMAIL || 'admin@shalean.com'
+    }, body.paymentReference, bookingId);
     
     // Check if email service is configured
     if (process.env.RESEND_API_KEY) {
@@ -364,6 +424,12 @@ export async function POST(req: Request) {
         
         emailSent = true;
         
+        logBookingStep('EMAIL_SEND_SUCCESS', {
+          customerEmailSent: true,
+          adminEmailSent: true,
+          bookingId
+        }, body.paymentReference, bookingId);
+        
       } catch (emailErr) {
         console.error('=== EMAIL SENDING FAILED ===');
         console.error('Failed to send emails:', emailErr);
@@ -373,25 +439,25 @@ export async function POST(req: Request) {
           name: emailErr instanceof Error ? emailErr.name : undefined
         });
         
-        // ROLLBACK: Delete the booking from database since emails failed (only if DB was saved)
+        // TEMPORARILY DISABLED ROLLBACK FOR DEBUGGING
+        // Keep booking in database even if emails fail to help identify the issue
         if (dbSaved) {
-          console.log('⚠️ Rolling back: Deleting booking from database...');
-          try {
-            const { error: deleteError } = await supabase
-              .from('bookings')
-              .delete()
-              .eq('id', bookingId);
-            
-            if (deleteError) {
-              console.error('❌ Failed to rollback booking:', deleteError);
-              console.error('CRITICAL: Booking exists but emails not sent. Manual intervention required.');
-            } else {
-              console.log('✅ Booking successfully rolled back');
-            }
-          } catch (rollbackErr) {
-            console.error('❌ Rollback failed:', rollbackErr);
-            console.error('CRITICAL: Booking may exist without emails. Manual intervention required.');
-          }
+          console.log('⚠️ EMAIL FAILED BUT KEEPING BOOKING FOR DEBUGGING');
+          console.log('⚠️ Booking ID:', bookingId, 'remains in database');
+          console.log('⚠️ Email failure details:', emailErr);
+          console.log('⚠️ This booking needs manual email sending');
+          
+          // Log the error context for debugging
+          const errorContext = captureErrorContext('EMAIL_FAILED_KEEPING_BOOKING', emailErr, {
+            bookingId,
+            paymentReference: body.paymentReference,
+            customerEmail: body.email,
+            dbSaved: true,
+            emailSent: false
+          });
+          
+          // TODO: Replace this with proper email retry queue
+          console.log('🔧 TODO: Implement email retry queue instead of rollback');
         }
         
         // Return error to client
@@ -428,6 +494,13 @@ export async function POST(req: Request) {
     console.log('=== BOOKING API SUCCESS ===');
     console.log(JSON.stringify(finalResponse, null, 2));
     console.log('===========================');
+    
+    logBookingStep('BOOKING_COMPLETE_SUCCESS', {
+      bookingId,
+      dbSaved,
+      emailSent,
+      message
+    }, body.paymentReference, bookingId);
 
     return NextResponse.json(finalResponse);
   } catch (error) {
@@ -437,8 +510,20 @@ export async function POST(req: Request) {
     console.error('Error message:', error instanceof Error ? error.message : String(error));
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
     
+    // Enhanced error context capture
+    const errorContext = captureErrorContext('BOOKING_API_ERROR', error, {
+      timestamp: new Date().toISOString(),
+      errorType: error instanceof Error ? 'Error' : typeof error,
+      errorMessage: error instanceof Error ? error.message : String(error)
+    });
+    
     return NextResponse.json(
-      { ok: false, error: 'Failed to process booking', message: error instanceof Error ? error.message : 'Unknown error' },
+      { 
+        ok: false, 
+        error: 'Failed to process booking', 
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      },
       { status: 500 }
     );
   }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ServiceType, PaystackVerificationResponse } from '@/types/booking';
 import { useBooking } from '@/lib/useBooking';
@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, MapPin, Clock, Home, User, Mail, Phone, FileText, Loader2, CreditCard, AlertCircle, Shield } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { captureErrorContext, logBookingStep, createDebugSummary } from '@/lib/booking-debug';
 
 // Helper function to convert ServiceType to URL slug
 function serviceTypeToSlug(serviceType: ServiceType): string {
@@ -38,6 +39,7 @@ export function StepReview() {
     frequencyDiscountPercent: number;
     total: number;
   } | null>(null);
+  const pricingDetailsRef = useRef(pricingDetails);
 
   // Dynamically import react-paystack on client side only
   useEffect(() => {
@@ -60,6 +62,10 @@ export function StepReview() {
           state.frequency
         );
         setPricingDetails(details);
+        console.log('=== PRICING LOADED ===');
+        console.log('Pricing details:', JSON.stringify(details, null, 2));
+        console.log('Total amount:', details.total);
+        console.log('======================');
       } catch (error) {
         console.error('Failed to fetch pricing:', error);
         // Fallback to simple calculation
@@ -82,6 +88,11 @@ export function StepReview() {
     fetchPricing();
   }, [state.service, state.bedrooms, state.bathrooms, state.extras, state.frequency]);
 
+  // Keep ref in sync with pricingDetails
+  useEffect(() => {
+    pricingDetailsRef.current = pricingDetails;
+  }, [pricingDetails]);
+
   const total = pricingDetails?.total || 0;
 
   // Generate unique payment reference for each render
@@ -94,16 +105,23 @@ export function StepReview() {
     console.log('=== PAYMENT SUCCESS HANDLER CALLED ===');
     console.log('Payment reference received:', reference);
     
+    logBookingStep('PAYMENT_SUCCESS_RECEIVED', { reference }, reference.reference);
+    
     setIsSubmitting(true);
     setPaymentError(null);
     setErrorDetails([]);
 
+    // Declare variables outside try block for error context
+    let verifyResponse: Response | undefined;
+    let bookingResponse: Response | undefined;
+
     try {
       console.log('Step 1: Starting payment verification...');
       console.log('Reference to verify:', reference.reference);
+      logBookingStep('PAYMENT_VERIFICATION_START', { reference: reference.reference }, reference.reference);
 
       // Verify payment with our backend
-      const verifyResponse = await fetch('/api/payment/verify', {
+      verifyResponse = await fetch('/api/payment/verify', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -114,12 +132,23 @@ export function StepReview() {
       console.log('Step 2: Verification response received');
       console.log('Response status:', verifyResponse.status);
       console.log('Response ok:', verifyResponse.ok);
+      logBookingStep('PAYMENT_VERIFICATION_RESPONSE', { 
+        status: verifyResponse.status, 
+        ok: verifyResponse.ok 
+      }, reference.reference);
 
       const verifyResult: PaystackVerificationResponse = await verifyResponse.json();
       console.log('Step 3: Verification result parsed:', verifyResult);
+      logBookingStep('PAYMENT_VERIFICATION_RESULT', verifyResult, reference.reference);
 
       if (!verifyResult.ok) {
         console.error('❌ Verification failed:', verifyResult);
+        
+        const errorContext = captureErrorContext('PAYMENT_VERIFICATION_FAILED', verifyResult, {
+          paymentReference: reference.reference,
+          verifyResponseStatus: verifyResponse.status,
+          verifyResult
+        });
         
         // Check for configuration errors
         if (verifyResponse.status === 500) {
@@ -132,17 +161,31 @@ export function StepReview() {
       }
 
       console.log('✅ Step 4: Payment verified successfully, submitting booking...');
+      logBookingStep('PAYMENT_VERIFIED_SUCCESS', { verified: true }, reference.reference);
+
+      // Validate pricing is loaded
+      const currentPricing = pricingDetailsRef.current;
+      if (!currentPricing || currentPricing.total <= 0) {
+        console.error('❌ Pricing not loaded or invalid:', currentPricing);
+        const errorContext = captureErrorContext('PRICING_NOT_LOADED', new Error('Pricing invalid'), {
+          paymentReference: reference.reference,
+          pricingDetails: currentPricing
+        });
+        throw new Error('Pricing information not loaded. Please refresh and try again.');
+      }
 
       // Submit booking with payment reference and pricing details
       const bookingPayload = {
         ...state,
         paymentReference: reference.reference,
-        serviceFee: pricingDetails?.serviceFee || 0,
-        frequencyDiscount: pricingDetails?.frequencyDiscount || 0,
+        totalAmount: currentPricing.total,
+        serviceFee: currentPricing.serviceFee,
+        frequencyDiscount: currentPricing.frequencyDiscount,
       };
       console.log('Booking payload:', bookingPayload);
+      logBookingStep('BOOKING_PAYLOAD_PREPARED', bookingPayload, reference.reference);
 
-      const bookingResponse = await fetch('/api/bookings', {
+      bookingResponse = await fetch('/api/bookings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -153,23 +196,40 @@ export function StepReview() {
       console.log('Step 5: Booking response received');
       console.log('Booking response status:', bookingResponse.status);
       console.log('Booking response ok:', bookingResponse.ok);
+      logBookingStep('BOOKING_RESPONSE_RECEIVED', { 
+        status: bookingResponse.status, 
+        ok: bookingResponse.ok 
+      }, reference.reference);
 
       const bookingResult = await bookingResponse.json();
       console.log('Step 6: Booking result parsed:', bookingResult);
+      logBookingStep('BOOKING_RESULT_PARSED', bookingResult, reference.reference);
 
       if (bookingResult.ok) {
         console.log('✅ Step 7: Booking successful! Redirecting...');
         console.log('Booking ID:', bookingResult.bookingId);
         console.log('Message:', bookingResult.message);
+        logBookingStep('BOOKING_SUCCESS', { 
+          bookingId: bookingResult.bookingId, 
+          message: bookingResult.message 
+        }, reference.reference, bookingResult.bookingId);
         
         // Clear booking state
         reset();
         
         // Navigate to confirmation page
         console.log('Navigating to /booking/confirmation');
+        logBookingStep('NAVIGATION_START', { target: '/booking/confirmation' }, reference.reference, bookingResult.bookingId);
         router.push('/booking/confirmation');
       } else {
         console.error('❌ Booking submission failed:', bookingResult);
+        
+        const errorContext = captureErrorContext('BOOKING_SUBMISSION_FAILED', bookingResult, {
+          paymentReference: reference.reference,
+          bookingResponseStatus: bookingResponse.status,
+          bookingResult,
+          bookingPayload
+        });
         
         // Check for configuration errors
         if (bookingResponse.status === 500) {
@@ -187,6 +247,27 @@ export function StepReview() {
       console.error('Error message:', error instanceof Error ? error.message : String(error));
       console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       
+      // Enhanced error context capture
+      const errorContext = captureErrorContext('POST_PAYMENT_ERROR', error, {
+        paymentReference: reference.reference,
+        bookingState: state,
+        pricingDetails: pricingDetailsRef.current,
+        verifyResponse: verifyResponse,
+        bookingResponse: bookingResponse
+      });
+      
+      // Create comprehensive debug summary
+      const debugSummary = createDebugSummary(error, {
+        step: 'POST_PAYMENT_ERROR',
+        paymentReference: reference.reference,
+        bookingState: state,
+        pricingDetails: pricingDetailsRef.current
+      });
+      
+      console.error('=== FULL DEBUG SUMMARY ===');
+      console.error(debugSummary);
+      console.error('========================');
+      
       let errorMessage = error instanceof Error 
         ? error.message 
         : 'Failed to complete booking. Please contact support.';
@@ -200,7 +281,7 @@ export function StepReview() {
       setPaymentError(errorMessage);
       setIsSubmitting(false);
     }
-  }, [state, reset, router]);
+  }, [state, reset, router]); // REMOVE pricingDetails
 
   // Paystack payment close handler
   const onPaymentClose = useCallback(() => {
@@ -510,17 +591,60 @@ export function StepReview() {
               publicKey: paystackConfig.publicKey ? 'pk_***' : 'MISSING',
             });
             
+            logBookingStep('PAYMENT_BUTTON_CLICKED', {
+              config: {
+                ...paystackConfig,
+                publicKey: paystackConfig.publicKey ? 'pk_***' : 'MISSING',
+              },
+              pricingDetails,
+              paystackHookLoaded: !!PaystackHook,
+              emailProvided: !!state.email
+            }, paymentReference);
+            
+            // Check if pricing is loaded
+            if (!pricingDetails || pricingDetails.total <= 0) {
+              console.error('=== PRICING NOT READY ===');
+              console.error('pricingDetails:', pricingDetails);
+              console.error('========================');
+              
+              const errorContext = captureErrorContext('PRICING_NOT_READY', new Error('Pricing not loaded'), {
+                paymentReference,
+                pricingDetails,
+                state
+              });
+              
+              setPaymentError('Pricing information is still loading. Please wait a moment and try again.');
+              return;
+            }
+
+            console.log('=== PAYMENT BUTTON VALIDATION ===');
+            console.log('pricingDetails valid:', pricingDetails);
+            console.log('Total:', pricingDetails.total);
+            console.log('=================================');
+
             // Check if Paystack is loaded
             if (!PaystackHook) {
+              const errorContext = captureErrorContext('PAYSTACK_NOT_LOADED', new Error('Paystack hook not loaded'), {
+                paymentReference,
+                paystackHookLoaded: false
+              });
               setPaymentError('Payment system is still loading. Please wait a moment and try again.');
               return;
             }
             
             if (!process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY) {
+              const errorContext = captureErrorContext('PAYSTACK_NOT_CONFIGURED', new Error('Paystack public key missing'), {
+                paymentReference,
+                hasPublicKey: false
+              });
               setPaymentError('Payment service is not configured. Please contact support.');
               return;
             }
             if (!state.email) {
+              const errorContext = captureErrorContext('EMAIL_MISSING', new Error('Customer email not provided'), {
+                paymentReference,
+                state
+              });
               setPaymentError('Email is required for payment. Please go back and enter your email.');
               return;
             }
@@ -531,6 +655,15 @@ export function StepReview() {
               onClose: typeof onPaymentClose,
             });
             
+            logBookingStep('PAYMENT_INITIALIZATION', {
+              callbacksConfigured: {
+                onSuccess: typeof onPaymentSuccess,
+                onClose: typeof onPaymentClose,
+              },
+              amount: pricingDetails.total,
+              currency: 'ZAR'
+            }, paymentReference);
+            
             // Call initializePayment with config object containing callbacks
             initializePayment({
               onSuccess: onPaymentSuccess,
@@ -538,7 +671,7 @@ export function StepReview() {
             });
           }}
           size="lg" 
-          disabled={isSubmitting} 
+          disabled={isSubmitting || !pricingDetails || pricingDetails.total <= 0} 
           className={cn(
             "rounded-full px-8 py-3 font-semibold shadow-lg flex-1 sm:flex-none sm:min-w-[220px]",
             "bg-primary hover:bg-primary/90 text-white",
@@ -553,6 +686,11 @@ export function StepReview() {
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               <span className="sm:hidden">Processing...</span>
               <span className="hidden sm:inline">Processing Payment...</span>
+            </>
+          ) : !pricingDetails ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <span>Loading pricing...</span>
             </>
           ) : (
             <>

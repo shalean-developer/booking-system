@@ -80,7 +80,7 @@ export async function POST(req: Request) {
     }
 
     // Check if payment was successful
-    if (data.status && data.data.status === 'success') {
+    if (data.status && data.data && data.data.status === 'success') {
       console.log('✅ Payment verified successfully:', reference);
       console.log('Amount:', data.data.amount / 100, 'ZAR');
       console.log('Customer:', data.data.customer.email);
@@ -103,12 +103,31 @@ export async function POST(req: Request) {
       console.log('Returning success response:', result);
       return NextResponse.json(result);
     } else {
-      console.error('❌ Payment not successful, status:', data.data.status);
+      console.error('❌ Payment not successful');
+      console.error('Response status:', data.status);
+      console.error('Payment data:', data.data);
+      console.error('Payment status:', data.data?.status);
+      
+      // Enhanced error logging for debugging
+      const errorDetails = {
+        reference,
+        paystackResponse: data,
+        possibleCauses: [
+          'Payment was not completed',
+          'Payment failed',
+          'Reference does not exist',
+          'Timing issue - payment still processing'
+        ]
+      };
+      
+      console.error('Payment verification error details:', errorDetails);
+      
       return NextResponse.json(
         { 
           ok: false, 
           error: 'Payment was not successful',
-          message: data.data.gateway_response || 'Payment failed'
+          message: data.data?.gateway_response || data.message || 'Payment verification failed',
+          details: errorDetails
         },
         { status: 400 }
       );

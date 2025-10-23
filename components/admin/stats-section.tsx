@@ -107,10 +107,10 @@ export function StatsSection() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              R{(stats.revenue.total / 100).toFixed(2)}
+              R{stats.revenue.total.toFixed(2)}
             </div>
             <p className="text-xs text-muted-foreground">
-              R{(stats.revenue.recent / 100).toFixed(2)} last 30 days
+              R{stats.revenue.recent.toFixed(2)} last 30 days
             </p>
           </CardContent>
         </Card>
@@ -122,10 +122,10 @@ export function StatsSection() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              R{(stats.revenue.companyEarnings / 100).toFixed(2)}
+              R{stats.revenue.companyEarnings.toFixed(2)}
             </div>
             <p className="text-xs text-muted-foreground">
-              R{(stats.revenue.recentCompanyEarnings / 100).toFixed(2)} last 30 days
+              R{stats.revenue.recentCompanyEarnings.toFixed(2)} last 30 days
             </p>
           </CardContent>
         </Card>
@@ -152,10 +152,10 @@ export function StatsSection() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              R{(stats.revenue.serviceFees / 100).toFixed(2)}
+              R{stats.revenue.serviceFees.toFixed(2)}
             </div>
             <p className="text-xs text-muted-foreground">
-              R{(stats.revenue.recentServiceFees / 100).toFixed(2)} last 30 days
+              R{stats.revenue.recentServiceFees.toFixed(2)} last 30 days
             </p>
           </CardContent>
         </Card>
@@ -211,10 +211,10 @@ export function StatsSection() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              R{(stats.revenue.cleanerEarnings / 100).toFixed(2)}
+              R{stats.revenue.cleanerEarnings.toFixed(2)}
             </div>
             <p className="text-xs text-muted-foreground">
-              R{(stats.revenue.recentCleanerEarnings / 100).toFixed(2)} last 30 days
+              R{stats.revenue.recentCleanerEarnings.toFixed(2)} last 30 days
             </p>
           </CardContent>
         </Card>
@@ -255,10 +255,10 @@ export function StatsSection() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              R{(stats.revenue.avgBookingValue / 100).toFixed(2)}
+              R{stats.revenue.avgBookingValue.toFixed(2)}
             </div>
             <p className="text-xs text-muted-foreground">
-              R{(stats.revenue.recentAvgBookingValue / 100).toFixed(2)} recent
+              R{stats.revenue.recentAvgBookingValue.toFixed(2)} recent
             </p>
           </CardContent>
         </Card>

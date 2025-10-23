@@ -159,7 +159,7 @@ export function QuotesSection() {
 
   const formatPrice = (price: number | null) => {
     if (!price) return 'N/A';
-    return `R${(price / 100).toFixed(2)}`;
+    return `R${price.toFixed(2)}`;
   };
 
   return (

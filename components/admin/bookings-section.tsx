@@ -345,10 +345,10 @@ export function BookingsSection() {
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">
-                            <div>R{(booking.total_amount / 100).toFixed(2)}</div>
+                            <div>R{booking.total_amount.toFixed(2)}</div>
                             <div className="text-xs text-gray-500">
-                              Fee: R{(booking.service_fee / 100).toFixed(2)} | 
-                              Cleaner: R{(booking.cleaner_earnings / 100).toFixed(2)}
+                              Fee: R{booking.service_fee.toFixed(2)} | 
+                              Cleaner: R{booking.cleaner_earnings.toFixed(2)}
                             </div>
                           </div>
                         </TableCell>
