@@ -80,6 +80,9 @@ export function CreateBookingDialog({ open, onClose, onSuccess }: CreateBookingD
     address_suburb: '',
     address_city: '',
     cleaner_id: '',
+    total_amount: 0,
+    service_fee: 0,
+    cleaner_earnings: 0,
     booking_date: '',
     booking_time: '',
     frequency: 'weekly',
@@ -181,6 +184,9 @@ export function CreateBookingDialog({ open, onClose, onSuccess }: CreateBookingD
       address_suburb: '',
       address_city: '',
       cleaner_id: '',
+      total_amount: 0,
+      service_fee: 0,
+      cleaner_earnings: 0,
       booking_date: '',
       booking_time: '',
       frequency: 'weekly',
@@ -333,6 +339,70 @@ export function CreateBookingDialog({ open, onClose, onSuccess }: CreateBookingD
             </div>
           </div>
 
+          {/* Extras */}
+          <div className="space-y-3">
+            <Label>Extras</Label>
+            <div className="grid grid-cols-2 gap-3 p-4 bg-gray-50 rounded-lg border">
+              {[
+                { id: 'windows', label: 'Window Cleaning', price: 50 },
+                { id: 'oven', label: 'Oven Cleaning', price: 80 },
+                { id: 'fridge', label: 'Fridge Cleaning', price: 60 },
+                { id: 'garage', label: 'Garage Cleaning', price: 100 },
+                { id: 'balcony', label: 'Balcony Cleaning', price: 40 },
+                { id: 'laundry', label: 'Laundry Service', price: 30 },
+              ].map((extra) => (
+                <div key={extra.id} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`extra-${extra.id}`}
+                    checked={formData.extras?.includes(extra.id) || false}
+                    onCheckedChange={(checked) => {
+                      const currentExtras = formData.extras || [];
+                      if (checked) {
+                        setFormData(prev => ({
+                          ...prev,
+                          extras: [...currentExtras, extra.id]
+                        }));
+                      } else {
+                        setFormData(prev => ({
+                          ...prev,
+                          extras: currentExtras.filter(e => e !== extra.id)
+                        }));
+                      }
+                    }}
+                  />
+                  <Label
+                    htmlFor={`extra-${extra.id}`}
+                    className="text-sm font-normal cursor-pointer flex-1"
+                  >
+                    <div className="flex justify-between items-center">
+                      <span>{extra.label}</span>
+                      <span className="text-xs text-gray-500">R{extra.price}</span>
+                    </div>
+                  </Label>
+                </div>
+              ))}
+            </div>
+            {formData.extras && formData.extras.length > 0 && (
+              <div className="flex gap-1 flex-wrap">
+                {formData.extras.map(extraId => {
+                  const extra = [
+                    { id: 'windows', label: 'Window Cleaning', price: 50 },
+                    { id: 'oven', label: 'Oven Cleaning', price: 80 },
+                    { id: 'fridge', label: 'Fridge Cleaning', price: 60 },
+                    { id: 'garage', label: 'Garage Cleaning', price: 100 },
+                    { id: 'balcony', label: 'Balcony Cleaning', price: 40 },
+                    { id: 'laundry', label: 'Laundry Service', price: 30 },
+                  ].find(e => e.id === extraId);
+                  return extra ? (
+                    <Badge key={extraId} variant="secondary" className="text-xs">
+                      {extra.label} (R{extra.price})
+                    </Badge>
+                  ) : null;
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Address */}
           <div className="space-y-3">
             <Label>Address *</Label>
@@ -374,6 +444,85 @@ export function CreateBookingDialog({ open, onClose, onSuccess }: CreateBookingD
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Pricing Section */}
+          <div className="space-y-4">
+            <Separator />
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Home className="h-5 w-5" />
+              Pricing Details
+            </h3>
+            
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-3">
+                <Label>Total Amount (R)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.total_amount || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, total_amount: parseFloat(e.target.value) || 0 }))}
+                />
+                <p className="text-xs text-gray-500">Total booking amount</p>
+              </div>
+              
+              <div className="space-y-3">
+                <Label>Service Fee (R)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.service_fee || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, service_fee: parseFloat(e.target.value) || 0 }))}
+                  disabled={formData.booking_type === 'recurring'}
+                />
+                <p className="text-xs text-gray-500">
+                  {formData.booking_type === 'recurring' ? 'Recurring bookings have no service fee' : 'Service fee for one-time bookings'}
+                </p>
+              </div>
+              
+              <div className="space-y-3">
+                <Label>Cleaner Earnings (R)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.cleaner_earnings || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, cleaner_earnings: parseFloat(e.target.value) || 0 }))}
+                />
+                <p className="text-xs text-gray-500">Cleaner commission amount</p>
+              </div>
+            </div>
+            
+            {/* Pricing Summary */}
+            {(formData.total_amount || formData.service_fee || formData.cleaner_earnings) && (
+              <Card className="p-4 bg-blue-50 border-blue-200">
+                <h4 className="font-medium text-blue-900 mb-2">Pricing Summary</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span>Total Amount:</span>
+                    <span className="font-medium">R{(formData.total_amount || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Service Fee:</span>
+                    <span className="font-medium">R{(formData.service_fee || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Cleaner Earnings:</span>
+                    <span className="font-medium">R{(formData.cleaner_earnings || 0).toFixed(2)}</span>
+                  </div>
+                  <Separator className="my-2" />
+                  <div className="flex justify-between font-semibold">
+                    <span>Company Earnings:</span>
+                    <span>R{((formData.total_amount || 0) - (formData.cleaner_earnings || 0)).toFixed(2)}</span>
+                  </div>
+                </div>
+              </Card>
+            )}
           </div>
 
           {/* One-Time Booking Fields */}

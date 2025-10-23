@@ -56,6 +56,11 @@ export interface CreateBookingFormData {
   address_city: string;
   cleaner_id?: string;
   
+  // Pricing fields
+  total_amount?: number; // Total booking amount in rands
+  service_fee?: number; // Service fee in rands (0 for recurring)
+  cleaner_earnings?: number; // Cleaner earnings in rands
+  
   // One-time booking fields
   booking_date?: string; // YYYY-MM-DD format
   booking_time?: string; // HH:MM format
