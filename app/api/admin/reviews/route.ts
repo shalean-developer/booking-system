@@ -4,11 +4,11 @@ import { createClient, isAdmin } from '@/lib/supabase-server';
 export const dynamic = 'force-dynamic';
 
 /**
- * Admin Reviews API
+ * Admin Reviews API - FIXED VERSION
  * GET: Fetch all reviews and customer ratings
  */
 export async function GET(req: Request) {
-  console.log('=== ADMIN REVIEWS GET ===');
+  console.log('=== ADMIN REVIEWS GET (FIXED VERSION) ===');
   
   try {
     // Check admin access
