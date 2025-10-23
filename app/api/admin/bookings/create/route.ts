@@ -4,6 +4,7 @@ import { CreateBookingFormData } from '@/types/recurring';
 import { generateBookingId, calculateBookingDatesForMonth, validateRecurringSchedule } from '@/lib/recurring-bookings';
 import { calcTotalAsync } from '@/lib/pricing';
 import { calculateCleanerEarnings } from '@/lib/cleaner-earnings';
+import { ServiceType } from '@/types/booking';
 
 export const dynamic = 'force-dynamic';
 
@@ -90,7 +91,7 @@ async function createOneTimeBooking(supabase: any, data: CreateBookingFormData) 
   // Calculate pricing for one-time booking
   const pricingDetails = await calcTotalAsync(
     {
-      service: data.service_type,
+      service: data.service_type as ServiceType,
       bedrooms: data.bedrooms,
       bathrooms: data.bathrooms,
       extras: data.extras || [],
@@ -244,7 +245,7 @@ async function createRecurringBooking(supabase: any, data: CreateBookingFormData
     // Calculate pricing for recurring bookings
     const pricingDetails = await calcTotalAsync(
       {
-        service: data.service_type,
+        service: data.service_type as ServiceType,
         bedrooms: data.bedrooms,
         bathrooms: data.bathrooms,
         extras: data.extras || [],
