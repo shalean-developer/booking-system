@@ -9,6 +9,8 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request: Request) {
   console.log('=== ADMIN STATS API CALLED ===');
+  console.log('🔍 API Request URL:', request.url);
+  console.log('🔍 API Request Headers:', Object.fromEntries(request.headers));
   
   try {
     // Check admin access
@@ -85,7 +87,7 @@ export async function GET(request: Request) {
           booking_time,
           service_type,
           status,
-          cleaners!cleaner_id(name)
+          cleaner_id
         `)
         .eq('booking_date', tomorrowISO)
         .order('booking_time', { ascending: true })
@@ -152,15 +154,32 @@ export async function GET(request: Request) {
       ? Math.round((repeatCustomers / totalCustomers) * 100) 
       : 0;
     
-    // Process tomorrow's bookings
-    const tomorrowBookingsData = tomorrowBookings.data?.map(booking => ({
-      id: booking.id,
-      customer_name: booking.customer_name,
-      booking_time: booking.booking_time,
-      service_type: booking.service_type,
-      status: booking.status,
-      cleaner_name: booking.cleaners?.[0]?.name || null
-    })) || [];
+    // Process tomorrow's bookings and fetch cleaner names
+    const tomorrowBookingsData = await Promise.all(
+      (tomorrowBookings.data || []).map(async (booking) => {
+        let cleaner_name = null;
+        
+        if (booking.cleaner_id && booking.cleaner_id !== 'manual') {
+          // Fetch cleaner name from cleaners table
+          const { data: cleaner } = await supabase
+            .from('cleaners')
+            .select('name')
+            .eq('id', booking.cleaner_id)
+            .single();
+          
+          cleaner_name = cleaner?.name || 'Unknown Cleaner';
+        }
+        
+        return {
+          id: booking.id,
+          customer_name: booking.customer_name,
+          booking_time: booking.booking_time,
+          service_type: booking.service_type,
+          status: booking.status,
+          cleaner_name
+        };
+      })
+    );
     
     console.log('✅ Stats fetched successfully');
     
