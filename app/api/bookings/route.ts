@@ -337,7 +337,7 @@ export async function POST(req: Request) {
           service_fee: (body.serviceFee || 0) * 100, // Convert rands to cents
           frequency_discount: (body.frequencyDiscount || 0) * 100, // Convert rands to cents
           price_snapshot: priceSnapshot,
-          status: body.cleaner_id === 'manual' ? 'pending' : 'confirmed',
+          status: body.cleaner_id === 'manual' ? 'pending' : 'accepted',
         })
         .select();
 

@@ -9,7 +9,7 @@ interface Stats {
     total: number;
     recent: number;
     pending: number;
-    confirmed: number;
+    accepted: number;
     completed: number;
   };
   revenue: {
@@ -46,6 +46,14 @@ interface Stats {
     contacted: number;
     converted: number;
   };
+  tomorrowBookings: Array<{
+    id: string;
+    customer_name: string;
+    booking_time: string;
+    service_type: string;
+    status: string;
+    cleaner_name?: string | null;
+  }>;
 }
 
 export function StatsSection() {
@@ -295,12 +303,12 @@ export function StatsSection() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Confirmed Bookings</CardTitle>
+            <CardTitle className="text-sm font-medium">Accepted Bookings</CardTitle>
             <CheckCircle className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              {stats.bookings.confirmed}
+              {stats.bookings.accepted}
             </div>
           </CardContent>
         </Card>
@@ -317,6 +325,63 @@ export function StatsSection() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Tomorrow's Bookings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Tomorrow's Bookings - {new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { 
+              weekday: 'long', 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            })}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {stats.tomorrowBookings.length === 0 ? (
+            <div className="text-center py-8">
+              <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">No bookings scheduled for tomorrow</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="text-sm text-muted-foreground mb-4">
+                {stats.tomorrowBookings.length} booking{stats.tomorrowBookings.length !== 1 ? 's' : ''} scheduled
+              </div>
+              <div className="space-y-2">
+                {stats.tomorrowBookings.map((booking) => (
+                  <div key={booking.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center space-x-4">
+                      <div className="text-sm font-medium text-gray-900 min-w-[60px]">
+                        {booking.booking_time}
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900">{booking.customer_name}</div>
+                        <div className="text-sm text-gray-500">{booking.service_type}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        booking.status === 'accepted' ? 'bg-blue-100 text-blue-800' :
+                        booking.status === 'completed' ? 'bg-green-100 text-green-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {booking.status}
+                      </span>
+                      {booking.cleaner_name && (
+                        <span className="text-sm text-gray-600">{booking.cleaner_name}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Applications */}
       <Card>

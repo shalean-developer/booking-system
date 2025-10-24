@@ -47,7 +47,7 @@ export function SendEmailDialog({ booking, open, onClose, onSent }: SendEmailDia
     switch (template) {
       case 'confirmation':
         setSubject(`Booking Confirmation - ${booking.id}`);
-        setBody(`Dear ${booking.customer_name},\n\nYour booking has been confirmed!\n\nBooking Details:\n- Service: ${booking.service_type}\n- Date: ${new Date(booking.booking_date).toLocaleDateString()}\n- Time: ${booking.booking_time}\n- Address: ${booking.address_line1}, ${booking.address_suburb}, ${booking.address_city}\n${booking.cleaner_name ? `- Cleaner: ${booking.cleaner_name}\n` : ''}\nIf you have any questions, please don't hesitate to contact us.\n\nBest regards,\nShalean Cleaning Services`);
+        setBody(`Dear ${booking.customer_name},\n\nYour booking has been accepted!\n\nBooking Details:\n- Service: ${booking.service_type}\n- Date: ${new Date(booking.booking_date).toLocaleDateString()}\n- Time: ${booking.booking_time}\n- Address: ${booking.address_line1}, ${booking.address_suburb}, ${booking.address_city}\n${booking.cleaner_name ? `- Cleaner: ${booking.cleaner_name}\n` : ''}\nIf you have any questions, please don't hesitate to contact us.\n\nBest regards,\nShalean Cleaning Services`);
         break;
       case 'update':
         setSubject(`Booking Update - ${booking.id}`);

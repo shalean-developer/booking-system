@@ -28,6 +28,11 @@ export async function GET(request: Request) {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
     
+    // Calculate tomorrow's date
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowISO = tomorrow.toISOString().split('T')[0]; // YYYY-MM-DD format
+    
     // Fetch all stats in parallel for better performance
     const [
       bookingCounts,
@@ -35,13 +40,14 @@ export async function GET(request: Request) {
       customerCount,
       cleanerCounts,
       applicationCounts,
-      quoteCounts
+      quoteCounts,
+      tomorrowBookings
     ] = await Promise.all([
       // Total bookings by status (single query with counts)
       Promise.all([
         supabase.from('bookings').select('id, total_amount, cleaner_earnings, service_fee', { count: 'exact', head: false }),
         supabase.from('bookings').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabase.from('bookings').select('id', { count: 'exact', head: true }).eq('status', 'confirmed'),
+        supabase.from('bookings').select('id', { count: 'exact', head: true }).eq('status', 'accepted'),
         supabase.from('bookings').select('id', { count: 'exact', head: true }).eq('status', 'completed'),
       ]),
       // Recent bookings and revenue (last 30 days)
@@ -70,10 +76,24 @@ export async function GET(request: Request) {
         supabase.from('quotes').select('id', { count: 'exact', head: true }).eq('status', 'contacted'),
         supabase.from('quotes').select('id', { count: 'exact', head: true }).eq('status', 'converted'),
       ]),
+      // Tomorrow's bookings
+      supabase
+        .from('bookings')
+        .select(`
+          id,
+          customer_name,
+          booking_time,
+          service_type,
+          status,
+          cleaners!cleaner_id(name)
+        `)
+        .eq('booking_date', tomorrowISO)
+        .order('booking_time', { ascending: true })
+        .limit(20),
     ]);
     
     // Process results
-    const [allBookings, pendingCount, confirmedCount, completedCount] = bookingCounts;
+    const [allBookings, pendingCount, acceptedCount, completedCount] = bookingCounts;
     
     // Convert amounts from cents to rands for display
     const totalRevenue = (allBookings.data?.reduce((sum, b) => sum + (b.total_amount || 0), 0) || 0) / 100;
@@ -132,6 +152,16 @@ export async function GET(request: Request) {
       ? Math.round((repeatCustomers / totalCustomers) * 100) 
       : 0;
     
+    // Process tomorrow's bookings
+    const tomorrowBookingsData = tomorrowBookings.data?.map(booking => ({
+      id: booking.id,
+      customer_name: booking.customer_name,
+      booking_time: booking.booking_time,
+      service_type: booking.service_type,
+      status: booking.status,
+      cleaner_name: booking.cleaners?.[0]?.name || null
+    })) || [];
+    
     console.log('✅ Stats fetched successfully');
     
     return NextResponse.json({
@@ -141,7 +171,7 @@ export async function GET(request: Request) {
           total: totalBookings,
           recent: recentBookings,
           pending: pendingCount.count || 0,
-          confirmed: confirmedCount.count || 0,
+          accepted: acceptedCount.count || 0,
           completed: completedCount.count || 0,
         },
         revenue: {
@@ -178,6 +208,7 @@ export async function GET(request: Request) {
           contacted: contactedQuotesResult.count || 0,
           converted: convertedQuotesResult.count || 0,
         },
+        tomorrowBookings: tomorrowBookingsData,
       },
     });
     
