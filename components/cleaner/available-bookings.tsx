@@ -6,21 +6,9 @@ import { BookingDetailsModal } from './booking-details-modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, Briefcase, RefreshCw, Calendar, Search } from 'lucide-react';
+import type { CleanerBooking } from '@/types/booking';
 
-interface Booking {
-  id: string;
-  booking_date: string;
-  booking_time: string;
-  service_type: string | null;
-  customer_name: string | null;
-  customer_email?: string | null;
-  customer_phone: string | null;
-  address_line1: string | null;
-  address_suburb: string | null;
-  address_city: string | null;
-  total_amount: number | null;
-  cleaner_earnings: number | null;
-  status: string;
+interface Booking extends CleanerBooking {
   cleaner_claimed_at?: string | null;
   cleaner_accepted_at?: string | null;
   cleaner_on_my_way_at?: string | null;
@@ -28,18 +16,6 @@ interface Booking {
   cleaner_completed_at?: string | null;
   customer_rating_id?: string | null;
   distance?: number | null;
-  recurring_schedule_id?: string | null;
-  recurring_schedule?: {
-    id: string;
-    frequency: 'weekly' | 'bi-weekly' | 'monthly' | 'custom-weekly' | 'custom-bi-weekly';
-    day_of_week?: number;
-    day_of_month?: number;
-    days_of_week?: number[];
-    preferred_time: string;
-    is_active: boolean;
-    start_date: string;
-    end_date?: string;
-  } | null;
 }
 
 export function AvailableBookings() {
