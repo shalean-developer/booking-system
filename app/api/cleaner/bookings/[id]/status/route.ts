@@ -5,6 +5,7 @@ import { generateReviewRequestEmail, sendEmail } from '@/lib/email';
 const VALID_TRANSITIONS: Record<string, string[]> = {
   pending: ['accepted'],
   accepted: ['on_my_way'],        // Must go to "on my way"
+  confirmed: ['on_my_way'],       // Same as accepted (legacy status)
   on_my_way: ['in-progress'],     // Must start job from "on my way"
   'in-progress': ['completed'],
   completed: [], // No transitions from completed
