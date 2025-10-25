@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build query for available bookings with recurring schedule information
+    // Exclude team bookings (requires_team = true) since they're assigned by admin
     let query = supabase
       .from('bookings')
       .select(`
@@ -75,6 +76,7 @@ export async function GET(request: NextRequest) {
       `)
       .is('cleaner_id', null)
       .eq('status', 'pending')
+      .eq('requires_team', false) // Exclude team bookings - they're admin assigned
       .order('booking_date', { ascending: true })
       .order('booking_time', { ascending: true });
 

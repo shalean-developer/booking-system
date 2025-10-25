@@ -38,6 +38,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { AssignCleanerDialog } from './assign-cleaner-dialog';
+import { AssignTeamDialog } from './assign-team-dialog';
 import { EditBookingDialog } from './edit-booking-dialog';
 import { BookingDetailsDialog } from './booking-details-dialog';
 import { SendEmailDialog } from './send-email-dialog';
@@ -66,6 +67,8 @@ interface Booking {
   cleaner_id: string | null;
   cleaner_name?: string | null;
   customer_id: string | null;
+  requires_team?: boolean;
+  team_assigned?: boolean;
   notes_count?: number;
 }
 
@@ -79,6 +82,7 @@ export function BookingsSection() {
   const [selectedBookings, setSelectedBookings] = useState<Set<string>>(new Set());
   const [viewingBooking, setViewingBooking] = useState<Booking | null>(null);
   const [assigningBooking, setAssigningBooking] = useState<Booking | null>(null);
+  const [assigningTeam, setAssigningTeam] = useState<Booking | null>(null);
   const [emailingBooking, setEmailingBooking] = useState<Booking | null>(null);
   const [notingBooking, setNotingBooking] = useState<Booking | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -337,7 +341,19 @@ export function BookingsSection() {
                           <div className="text-sm text-gray-500">{booking.booking_time}</div>
                         </TableCell>
                         <TableCell>
-                          {booking.cleaner_name ? (
+                          {booking.requires_team ? (
+                            booking.team_assigned ? (
+                              <div className="text-sm">
+                                <Badge variant="outline" className="text-green-600">
+                                  Team Assigned
+                                </Badge>
+                              </div>
+                            ) : (
+                              <Badge variant="outline" className="text-blue-600">
+                                Team Required
+                              </Badge>
+                            )
+                          ) : booking.cleaner_name ? (
                             <div className="text-sm">{booking.cleaner_name}</div>
                           ) : (
                             <Badge variant="outline" className="text-gray-500">Unassigned</Badge>
@@ -370,9 +386,15 @@ export function BookingsSection() {
                                   <Eye className="h-4 w-4 mr-2" />
                                   View Details
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setAssigningBooking(booking)}>
+                                <DropdownMenuItem onClick={() => {
+                                  if (booking.requires_team) {
+                                    setAssigningTeam(booking);
+                                  } else {
+                                    setAssigningBooking(booking);
+                                  }
+                                }}>
                                   <UserPlus className="h-4 w-4 mr-2" />
-                                  Assign Cleaner
+                                  {booking.requires_team ? 'Assign Team' : 'Assign Cleaner'}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => setEditingBooking(booking)}>
                                   <Edit className="h-4 w-4 mr-2" />
@@ -450,7 +472,11 @@ export function BookingsSection() {
           setViewingBooking(null);
         }}
         onAssign={() => {
-          setAssigningBooking(viewingBooking);
+          if (viewingBooking?.requires_team) {
+            setAssigningTeam(viewingBooking);
+          } else {
+            setAssigningBooking(viewingBooking);
+          }
           setViewingBooking(null);
         }}
         onEmail={() => {
@@ -472,6 +498,19 @@ export function BookingsSection() {
           mutate(); // Revalidate SWR cache
         }}
       />
+
+      {assigningTeam && (
+        <AssignTeamDialog
+          booking={assigningTeam}
+          selectedTeam="Team A" // This should be fetched from the booking team record
+          open={!!assigningTeam}
+          onClose={() => setAssigningTeam(null)}
+          onAssigned={() => {
+            setAssigningTeam(null);
+            mutate(); // Revalidate SWR cache
+          }}
+        />
+      )}
 
       <EditBookingDialog
         booking={editingBooking}

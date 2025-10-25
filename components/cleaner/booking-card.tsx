@@ -16,23 +16,13 @@ import {
   Loader2,
   Navigation,
   Repeat,
+  Users,
+  Crown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { CleanerBooking } from '@/types/booking';
 
-interface Booking {
-  id: string;
-  booking_date: string;
-  booking_time: string;
-  service_type: string | null;
-  customer_name: string | null;
-  customer_email?: string | null;
-  customer_phone: string | null;
-  address_line1: string | null;
-  address_suburb: string | null;
-  address_city: string | null;
-  total_amount: number | null;
-  cleaner_earnings: number | null;
-  status: string;
+interface Booking extends CleanerBooking {
   cleaner_claimed_at?: string | null;
   cleaner_accepted_at?: string | null;
   cleaner_on_my_way_at?: string | null;
@@ -40,18 +30,6 @@ interface Booking {
   cleaner_completed_at?: string | null;
   customer_rating_id?: string | null;
   distance?: number | null;
-  recurring_schedule_id?: string | null;
-  recurring_schedule?: {
-    id: string;
-    frequency: 'weekly' | 'bi-weekly' | 'monthly' | 'custom-weekly' | 'custom-bi-weekly';
-    day_of_week?: number;
-    day_of_month?: number;
-    days_of_week?: number[];
-    preferred_time: string;
-    is_active: boolean;
-    start_date: string;
-    end_date?: string;
-  } | null;
 }
 
 interface BookingCardProps {
@@ -190,6 +168,15 @@ export function BookingCard({
                 {booking.service_type || 'Cleaning Service'}
               </h3>
               {getStatusBadge()}
+              {booking.is_team_booking && (
+                <Badge className="bg-purple-100 text-purple-800 border-purple-200 flex items-center gap-1">
+                  <Users className="h-3 w-3" />
+                  {booking.team_name}
+                  {booking.team_role === 'supervisor' && (
+                    <Crown className="h-3 w-3" title="Supervisor" />
+                  )}
+                </Badge>
+              )}
               {booking.recurring_schedule && (
                 <Badge className="bg-blue-100 text-blue-800 border-blue-200 flex items-center gap-1">
                   <Repeat className="h-3 w-3" />
@@ -201,14 +188,24 @@ export function BookingCard({
               <p className="text-sm text-gray-600 flex items-center gap-1">
                 <User className="h-3 w-3" />
                 {booking.customer_name}
+                {booking.is_team_booking && booking.team_role && (
+                  <span className="text-xs text-purple-600 ml-2">
+                    ({booking.team_role === 'supervisor' ? 'Team Supervisor' : 'Team Member'})
+                  </span>
+                )}
               </p>
             )}
           </div>
-          {booking.cleaner_earnings && (
+          {(booking.cleaner_earnings || booking.team_earnings) && (
             <div className="text-right">
               <div className="text-lg font-bold text-primary">
-                {formatAmount(booking.cleaner_earnings)}
+                {formatAmount(booking.team_earnings || booking.cleaner_earnings)}
               </div>
+              {booking.is_team_booking && (
+                <div className="text-xs text-gray-500">
+                  Team earnings
+                </div>
+              )}
             </div>
           )}
         </div>

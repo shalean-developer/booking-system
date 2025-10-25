@@ -120,6 +120,14 @@ async function createOneTimeBooking(supabase: any, data: CreateBookingFormData) 
       : 0;
   }
 
+  // Check if this is a team-based booking
+  const requiresTeam = data.service_type === 'Deep' || data.service_type === 'Move In/Out';
+  
+  // For team bookings, earnings will be calculated when team is assigned
+  if (requiresTeam) {
+    cleanerEarnings = 0;
+  }
+
   // Create price snapshot for historical record (in cents)
   const priceSnapshot = {
     service: {
@@ -140,7 +148,7 @@ async function createOneTimeBooking(supabase: any, data: CreateBookingFormData) 
   const bookingData = {
     id: bookingId,
     customer_id: data.customer_id,
-    cleaner_id: cleanerIdForInsert,
+    cleaner_id: requiresTeam ? null : cleanerIdForInsert, // Use NULL for team bookings
     service_type: data.service_type,
     customer_name: customer ? `${customer.first_name} ${customer.last_name}` : 'Unknown',
     customer_email: customer?.email || '',
@@ -157,6 +165,7 @@ async function createOneTimeBooking(supabase: any, data: CreateBookingFormData) 
     frequency: null, // One-time bookings have NULL frequency
     frequency_discount: frequencyDiscountInCents,
     cleaner_earnings: cleanerEarnings,
+    requires_team: requiresTeam, // Flag for team-based bookings
     price_snapshot: priceSnapshot,
   };
 

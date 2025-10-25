@@ -276,9 +276,18 @@ export async function POST(req: Request) {
         snapshot_date: new Date().toISOString(),
       };
 
-      // Calculate cleaner earnings based on experience
+      // Check if this is a team-based booking
+      const requiresTeam = body.service === 'Deep' || body.service === 'Move In/Out';
+      
+      // Calculate cleaner earnings based on experience (only for non-team bookings)
       let cleanerHireDate = null;
-      if (body.cleaner_id && body.cleaner_id !== 'manual') {
+      let cleanerEarnings = 0;
+      
+      if (requiresTeam) {
+        // For team bookings, earnings will be calculated when team is assigned
+        console.log('📋 Team-based booking detected - earnings will be calculated during team assignment');
+        cleanerEarnings = 0;
+      } else if (body.cleaner_id && body.cleaner_id !== 'manual') {
         const { data: cleanerData } = await supabase
           .from('cleaners')
           .select('hire_date')
@@ -286,13 +295,12 @@ export async function POST(req: Request) {
           .single();
         
         cleanerHireDate = cleanerData?.hire_date || null;
+        cleanerEarnings = calculateCleanerEarnings(
+          body.totalAmount ?? null,
+          body.serviceFee ?? null,
+          cleanerHireDate
+        ) * 100; // Convert to cents
       }
-
-      const cleanerEarnings = calculateCleanerEarnings(
-        body.totalAmount ?? null,
-        body.serviceFee ?? null,
-        cleanerHireDate
-      ) * 100; // Convert to cents
 
       // Prepare cleaner_id with proper UUID handling
       let cleanerIdForInsert = null;
@@ -320,7 +328,7 @@ export async function POST(req: Request) {
         .insert({
           id: bookingId,
           customer_id: customerId,
-          cleaner_id: cleanerIdForInsert,
+          cleaner_id: requiresTeam ? null : cleanerIdForInsert, // Use NULL for team bookings (teams tracked separately)
           booking_date: body.date,
           booking_time: body.time,
           service_type: body.service,
@@ -333,11 +341,12 @@ export async function POST(req: Request) {
           payment_reference: body.paymentReference,
           total_amount: (body.totalAmount || 0) * 100, // Convert rands to cents
           cleaner_earnings: cleanerEarnings,
+          requires_team: requiresTeam, // Flag for team-based bookings
           frequency: frequencyForDb, // One-time bookings must be NULL
           service_fee: (body.serviceFee || 0) * 100, // Convert rands to cents
           frequency_discount: (body.frequencyDiscount || 0) * 100, // Convert rands to cents
           price_snapshot: priceSnapshot,
-          status: body.cleaner_id === 'manual' ? 'pending' : 'accepted',
+          status: 'pending', // All bookings start as pending, cleaner must accept
         })
         .select();
 
@@ -353,7 +362,27 @@ export async function POST(req: Request) {
       console.log('Booking ID:', bookingId);
       console.log('Customer ID:', customerId);
       console.log('Cleaner ID:', body.cleaner_id);
-      console.log('Status:', body.cleaner_id === 'manual' ? 'pending' : 'confirmed');
+      console.log('Status: pending'); // All bookings start as pending
+
+      // Create team record for team-based bookings
+      if (requiresTeam && body.selected_team) {
+        console.log('📋 Creating team record for booking:', bookingId);
+        const { data: teamData, error: teamError } = await supabase
+          .from('booking_teams')
+          .insert({
+            booking_id: bookingId,
+            team_name: body.selected_team,
+            supervisor_id: null, // Will be set when admin assigns team
+          })
+          .select();
+
+        if (teamError) {
+          console.error('❌ Failed to create team record:', teamError);
+          // Don't fail the booking, just log the error
+        } else {
+          console.log('✅ Team record created successfully:', teamData);
+        }
+      }
     } else {
       console.log('⚠️ Supabase not configured - skipping database save');
       console.log('Booking will be processed but not stored in database');

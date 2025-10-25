@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useBooking } from '@/lib/useBooking';
 import { CleanerCard } from '@/components/cleaner-card';
 import { cn } from '@/lib/utils';
-import type { Cleaner, AvailableCleanersResponse, ServiceType } from '@/types/booking';
+import type { Cleaner, AvailableCleanersResponse, ServiceType, TeamName } from '@/types/booking';
 
 // Helper function to convert ServiceType to URL slug
 function serviceTypeToSlug(serviceType: ServiceType): string {
@@ -28,12 +28,23 @@ export function StepSelectCleaner() {
   const [cleaners, setCleaners] = useState<Cleaner[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCleanerId, setSelectedCleanerId] = useState<string | null>(null);
+  const [selectedTeam, setSelectedTeam] = useState<TeamName | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch available cleaners
+  // Check if service requires team assignment
+  const requiresTeam = state.service === 'Deep' || state.service === 'Move In/Out';
+
+  // Fetch available cleaners (only for non-team services)
   useEffect(() => {
     const fetchCleaners = async () => {
+      if (requiresTeam) {
+        // For team services, teams are always available - no need to fetch
+        // Availability is checked when admin assigns the team
+        setIsLoading(false);
+        return;
+      }
+
       if (!state.date || !state.address.city) {
         setError('Date and address information is required');
         setIsLoading(false);
@@ -66,7 +77,29 @@ export function StepSelectCleaner() {
     };
 
     fetchCleaners();
-  }, [state.date, state.address.city]);
+  }, [state.date, state.address.city, requiresTeam]);
+
+  const handleSelectTeam = async (teamName: TeamName) => {
+    try {
+      setIsSubmitting(true);
+      setSelectedTeam(teamName);
+      
+      // Update booking state
+      updateField('selected_team', teamName);
+      updateField('requires_team', true);
+      updateField('step', 6);
+
+      // Navigate to review step
+      const slug = serviceTypeToSlug(state.service!);
+      router.push(`/booking/service/${slug}/review`);
+    } catch (err) {
+      console.error('Error selecting team:', err);
+      setError('Failed to select team');
+      setSelectedTeam(null);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleSelectCleaner = async (cleanerId: string) => {
     try {
@@ -105,32 +138,49 @@ export function StepSelectCleaner() {
         {/* Header */}
         <div className="mb-6">
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
-            Select Your Cleaner
+            {requiresTeam ? 'Select Your Team' : 'Select Your Cleaner'}
           </h2>
           <p className="text-sm md:text-base text-gray-600">
-            Finding available cleaners in {state.address.city} for {state.date}
+            {requiresTeam 
+              ? `Choose your preferred team for ${state.service} service`
+              : `Finding available cleaners in ${state.address.city} for ${state.date}`
+            }
           </p>
         </div>
 
-        {/* Loading Skeletons */}
-        <div className="grid gap-4 md:gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="animate-pulse">
-              <div className="bg-slate-200 h-64 rounded-2xl"></div>
-            </div>
-          ))}
-        </div>
+        {requiresTeam ? (
+          /* Team Selection Loading */
+          <div className="grid gap-4 md:gap-6 md:grid-cols-3 mb-8">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="animate-pulse">
+                <div className="bg-slate-200 h-48 rounded-2xl"></div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* Cleaner Selection Loading */
+          <div className="grid gap-4 md:gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="animate-pulse">
+                <div className="bg-slate-200 h-64 rounded-2xl"></div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Loading Message */}
         <div className="flex items-center justify-center gap-3 py-4">
           <Loader2 className="w-5 h-5 animate-spin text-primary" />
-          <span className="text-sm font-medium text-slate-600">Loading available cleaners...</span>
+          <span className="text-sm font-medium text-slate-600">
+            {requiresTeam ? 'Loading team options...' : 'Loading available cleaners...'}
+          </span>
         </div>
       </motion.div>
     );
   }
 
-  if (error) {
+  // Don't show error state for team bookings - teams are always available
+  if (error && !requiresTeam) {
     return (
       <motion.div
         initial={{ opacity: 0, y: 6 }}
@@ -203,7 +253,8 @@ export function StepSelectCleaner() {
     }
   };
 
-  if (cleaners.length === 0) {
+  // Don't show "no cleaners" state for team bookings - teams are always available
+  if (cleaners.length === 0 && !requiresTeam) {
     return (
       <motion.div
         initial={{ opacity: 0, y: 6 }}
@@ -285,6 +336,110 @@ export function StepSelectCleaner() {
               Our team will contact you within 24 hours to confirm your cleaner assignment
             </p>
           </motion.div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  // Team Selection UI
+  if (requiresTeam) {
+    const teams: { name: TeamName; description: string; color: string }[] = [
+      { name: 'Team A', description: 'Experienced team with proven track record', color: 'bg-blue-50 border-blue-200 hover:bg-blue-100' },
+      { name: 'Team B', description: 'Professional team specializing in deep cleaning', color: 'bg-green-50 border-green-200 hover:bg-green-100' },
+      { name: 'Team C', description: 'Reliable team with excellent customer reviews', color: 'bg-purple-50 border-purple-200 hover:bg-purple-100' },
+    ];
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35 }}
+        className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100"
+      >
+        {/* Header */}
+        <div className="mb-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+            Select Your Team
+          </h2>
+          <p className="text-sm md:text-base text-gray-600">
+            Choose your preferred team for {state.service} service on {state.date}
+          </p>
+        </div>
+
+        {/* Teams Grid */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="grid gap-4 md:gap-6 md:grid-cols-3 mb-8"
+        >
+          {teams.map((team, index) => (
+            <motion.div
+              key={team.name}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <button
+                onClick={() => handleSelectTeam(team.name)}
+                disabled={isSubmitting}
+                className={cn(
+                  "w-full p-6 rounded-2xl border-2 transition-all duration-200",
+                  "text-left focus:ring-2 focus:ring-primary/30 focus:outline-none",
+                  "disabled:opacity-50 disabled:cursor-not-allowed",
+                  selectedTeam === team.name
+                    ? "border-primary bg-primary/5 shadow-lg"
+                    : team.color
+                )}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xl font-bold text-gray-900">{team.name}</h3>
+                  {selectedTeam === team.name && (
+                    <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
+                      <div className="w-2 h-2 rounded-full bg-white"></div>
+                    </div>
+                  )}
+                </div>
+                <p className="text-sm text-gray-600 mb-4">{team.description}</p>
+                <div className="text-xs text-gray-500">
+                  Admin will assign specific cleaners to this team
+                </div>
+                {isSubmitting && selectedTeam === team.name && (
+                  <div className="mt-3 flex items-center justify-center">
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                  </div>
+                )}
+              </button>
+            </motion.div>
+          ))}
+        </motion.div>
+
+        {/* Navigation */}
+        <div className="flex justify-between items-center gap-3 pt-6 border-t">
+          <Button
+            variant="outline"
+            onClick={handleBack}
+            disabled={isSubmitting}
+            className={cn(
+              "rounded-full px-6 font-semibold",
+              "focus:ring-2 focus:ring-primary/30 focus:outline-none",
+              "transition-all duration-200"
+            )}
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            <span className="hidden sm:inline">Back to Contact</span>
+            <span className="sm:hidden">Back</span>
+          </Button>
+          
+          {selectedTeam && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="flex items-center gap-2 text-green-600"
+            >
+              <div className="w-2 h-2 rounded-full bg-green-600 animate-pulse"></div>
+              <span className="text-sm font-medium">Team selected! Proceeding...</span>
+            </motion.div>
+          )}
         </div>
       </motion.div>
     );

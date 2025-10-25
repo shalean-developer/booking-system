@@ -470,16 +470,27 @@ export function StepReview() {
           </div>
         </div>
 
-        {/* Cleaner Assignment Section */}
-        {state.cleaner_id && (
+        {/* Cleaner/Team Assignment Section */}
+        {(state.cleaner_id || state.selected_team) && (
           <div className="rounded-xl bg-slate-50/50 p-5 border border-slate-200">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                 <User className="h-4 w-4 text-primary" />
               </div>
-              <h3 className="text-base font-bold text-gray-900">Cleaner Assignment</h3>
+              <h3 className="text-base font-bold text-gray-900">
+                {state.requires_team ? 'Team Assignment' : 'Cleaner Assignment'}
+              </h3>
             </div>
-            {state.cleaner_id === 'manual' ? (
+            {state.requires_team ? (
+              <div className="rounded-xl bg-blue-50 border-2 border-blue-200 p-4">
+                <p className="text-sm font-semibold text-blue-900 mb-1">
+                  {state.selected_team} Selected
+                </p>
+                <p className="text-xs text-blue-700 leading-relaxed">
+                  Our admin team will assign specific cleaners to {state.selected_team} and contact you within 24 hours to confirm the team composition.
+                </p>
+              </div>
+            ) : state.cleaner_id === 'manual' ? (
               <div className="rounded-xl bg-amber-50 border-2 border-amber-200 p-4">
                 <p className="text-sm font-semibold text-amber-900 mb-1">
                   Manual Assignment Requested

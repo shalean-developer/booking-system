@@ -55,6 +55,7 @@ export async function GET(req: Request) {
         payment_reference,
         cleaner_id,
         customer_id,
+        requires_team,
         created_at
       `, { count: 'exact' });
     
@@ -113,13 +114,33 @@ export async function GET(req: Request) {
       }, {} as Record<string, number>);
     }
     
-    // Add cleaner names and notes count to bookings
+    // Fetch team assignments for bookings that require teams
+    const teamBookingIds = bookings
+      ?.filter(b => b.requires_team)
+      .map(b => b.id) || [];
+    
+    let teamAssignments: Record<string, boolean> = {};
+    
+    if (teamBookingIds.length > 0) {
+      const { data: teams } = await supabase
+        .from('booking_teams')
+        .select('booking_id')
+        .in('booking_id', teamBookingIds);
+      
+      teamAssignments = (teams || []).reduce((acc, team) => {
+        acc[team.booking_id] = true;
+        return acc;
+      }, {} as Record<string, boolean>);
+    }
+    
+    // Add cleaner names, notes count, and team assignments to bookings
     const bookingsWithExtras = bookings?.map(b => ({
       ...b,
       cleaner_name: b.cleaner_id === 'manual' 
         ? 'Manual Assignment'
         : cleanerNames[b.cleaner_id || ''] || null,
       notes_count: notesCounts[b.id] || 0,
+      team_assigned: teamAssignments[b.id] || false,
     }));
     
     console.log(`✅ Fetched ${bookings?.length || 0} bookings`);

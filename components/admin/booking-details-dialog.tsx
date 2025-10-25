@@ -53,6 +53,7 @@ interface BookingDetailsDialogProps {
     payment_reference: string;
     cleaner_name?: string | null;
     customer_id: string | null;
+    requires_team?: boolean;
     cleaner_accepted_at?: string | null;
     cleaner_on_my_way_at?: string | null;
     cleaner_started_at?: string | null;
@@ -78,6 +79,11 @@ export function BookingDetailsDialog({
   const [notes, setNotes] = useState<BookingNote[]>([]);
   const [customerHistory, setCustomerHistory] = useState<CustomerBooking[]>([]);
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [teamInfo, setTeamInfo] = useState<{
+    teamName: string;
+    supervisor: string;
+    members: Array<{ name: string; earnings: number }>;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -110,6 +116,17 @@ export function BookingDetailsDialog({
         if (customerData.ok) {
           setCustomer(customerData.customer);
           setCustomerHistory(customerData.bookings);
+        }
+      }
+
+      // Fetch team information if booking requires team
+      if (booking.requires_team) {
+        const teamResponse = await fetch(`/api/admin/bookings/team?bookingId=${booking.id}`, {
+          credentials: 'include',
+        });
+        const teamData = await teamResponse.json();
+        if (teamData.ok && teamData.team) {
+          setTeamInfo(teamData.team);
         }
       }
 
@@ -155,7 +172,7 @@ export function BookingDetailsDialog({
               </Button>
               <Button onClick={onAssign} variant="outline" size="sm">
                 <UserPlus className="h-4 w-4 mr-2" />
-                Assign Cleaner
+                {booking.requires_team ? 'Assign Team' : 'Assign Cleaner'}
               </Button>
               <Button onClick={onEmail} variant="outline" size="sm">
                 <Mail className="h-4 w-4 mr-2" />
@@ -233,8 +250,42 @@ export function BookingDetailsDialog({
                   <p className="font-mono text-sm">{booking.payment_reference || 'N/A'}</p>
                 </div>
                 <div className="col-span-2">
-                  <p className="text-sm text-gray-500">Assigned Cleaner</p>
-                  <p>{booking.cleaner_name || <span className="text-gray-400">Not assigned</span>}</p>
+                  <p className="text-sm text-gray-500">
+                    {booking.requires_team ? 'Assigned Team' : 'Assigned Cleaner'}
+                  </p>
+                  {booking.requires_team ? (
+                    teamInfo ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">{teamInfo.teamName}</Badge>
+                          <span className="text-sm text-gray-600">
+                            ({teamInfo.members.length} members)
+                          </span>
+                        </div>
+                        <div className="text-sm">
+                          <p><strong>Supervisor:</strong> {teamInfo.supervisor}</p>
+                          <p><strong>Total Earnings:</strong> R{(teamInfo.totalEarnings / 100).toFixed(2)}</p>
+                        </div>
+                        <details className="text-sm">
+                          <summary className="cursor-pointer text-gray-600 hover:text-gray-800">
+                            View Team Members
+                          </summary>
+                          <div className="mt-2 space-y-1 pl-4">
+                            {teamInfo.members.map((member, index) => (
+                              <div key={index} className="flex justify-between">
+                                <span>{member.name} {member.isSupervisor && '(Supervisor)'}</span>
+                                <span>R{(member.earnings / 100).toFixed(2)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </details>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">Team not assigned yet</span>
+                    )
+                  ) : (
+                    <p>{booking.cleaner_name || <span className="text-gray-400">Not assigned</span>}</p>
+                  )}
                 </div>
                 {booking.cleaner_accepted_at && (
                   <div>
