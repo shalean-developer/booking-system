@@ -49,17 +49,17 @@ export function AssignTeamDialog({
   // Fixed earnings per cleaner for team bookings
   const EARNINGS_PER_CLEANER = 25000; // R250 in cents
 
-  // Don't render if booking is null
-  if (!booking) {
-    return null;
-  }
-
   useEffect(() => {
     if (open && booking) {
       fetchCleaners();
       fetchTeamBookingsOnDate();
     }
   }, [open, booking]);
+
+  // Don't render if booking is null - must be after hooks
+  if (!booking) {
+    return null;
+  }
 
   const fetchCleaners = async () => {
     try {
