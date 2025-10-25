@@ -209,16 +209,7 @@ export function BookingDetailsModal({
                   )}
                 </div>
                 <div className="text-sm space-y-1">
-                  {booking.recurring_schedule.days_of_week && booking.recurring_schedule.days_of_week.length > 0 ? (
-                    <div>
-                      <span className="text-gray-500">Repeats on:</span>{' '}
-                      <span className="font-medium">
-                        {booking.recurring_schedule.days_of_week
-                          .map(d => getDayOfWeekLabel(d))
-                          .join(', ')}
-                      </span>
-                    </div>
-                  ) : booking.recurring_schedule.day_of_week !== undefined ? (
+                  {booking.recurring_schedule.day_of_week !== null && booking.recurring_schedule.day_of_week !== undefined ? (
                     <div>
                       <span className="text-gray-500">Repeats on:</span>{' '}
                       <span className="font-medium">
