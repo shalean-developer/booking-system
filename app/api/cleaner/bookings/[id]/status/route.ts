@@ -36,19 +36,58 @@ export async function PATCH(
     }
 
     const supabase = await createCleanerSupabaseClient();
+    const cleanerUuid = cleanerIdToUuid(session.id);
 
-    // Get current booking
+    // Get current booking - check both individual and team bookings
     const { data: booking, error: fetchError } = await supabase
       .from('bookings')
       .select('*')
       .eq('id', bookingId)
-      .eq('cleaner_id', cleanerIdToUuid(session.id))
       .maybeSingle();
 
     if (fetchError || !booking) {
       return NextResponse.json(
-        { ok: false, error: 'Booking not found or not assigned to you' },
+        { ok: false, error: 'Booking not found' },
         { status: 404 }
+      );
+    }
+
+    // Check if booking is assigned to this cleaner
+    // For individual bookings: check cleaner_id
+    // For team bookings: check if cleaner is a team member
+    let isAssigned = false;
+
+    if (booking.cleaner_id === cleanerUuid) {
+      // Individual booking assigned to this cleaner
+      isAssigned = true;
+    } else if (booking.requires_team) {
+      // Team booking - check if cleaner is a team member
+      try {
+        const { data: teamMembership } = await supabase
+          .from('booking_team_members')
+          .select(`
+            booking_team_id,
+            booking_teams!inner(booking_id)
+          `)
+          .eq('cleaner_id', cleanerUuid);
+        
+        if (teamMembership && teamMembership.length > 0) {
+          const isMemberOfThisBooking = teamMembership.some(
+            (membership: any) => membership.booking_teams.booking_id === bookingId
+          );
+          if (isMemberOfThisBooking) {
+            isAssigned = true;
+          }
+        }
+      } catch (err) {
+        console.error('Error checking team membership:', err);
+      }
+    }
+
+    if (!isAssigned) {
+      return NextResponse.json(
+        { ok: false, error: 'Booking not assigned to you' },
+        { status: 403 }
       );
     }
 
@@ -80,12 +119,11 @@ export async function PATCH(
       updateData.cleaner_completed_at = new Date().toISOString();
     }
 
-    // Update booking
+    // Update booking (we already verified ownership above)
     const { data: updatedBooking, error: updateError } = await supabase
       .from('bookings')
       .update(updateData)
       .eq('id', bookingId)
-      .eq('cleaner_id', cleanerIdToUuid(session.id))
       .select()
       .single();
 
