@@ -83,6 +83,7 @@ export function BookingDetailsDialog({
     teamName: string;
     supervisor: string;
     members: Array<{ name: string; earnings: number }>;
+    totalEarnings: number;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
