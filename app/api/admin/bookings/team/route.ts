@@ -3,6 +3,22 @@ import { createClient, isAdmin } from '@/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
+interface TeamMember {
+  cleaner_id: string;
+  earnings: number;
+  cleaners: {
+    id: string;
+    name: string;
+  };
+}
+
+interface TeamData {
+  id: string;
+  team_name: string;
+  supervisor_id: string;
+  cleaners: TeamMember[];
+}
+
 /**
  * Admin Team Info API
  * GET: Fetch team information for a booking
@@ -48,7 +64,7 @@ export async function GET(req: Request) {
         )
       `)
       .eq('booking_id', bookingId)
-      .single();
+      .single() as { data: TeamData | null; error: any };
     
     if (teamError) {
       if (teamError.code === 'PGRST116') {
@@ -62,19 +78,27 @@ export async function GET(req: Request) {
       throw teamError;
     }
 
+    if (!team) {
+      return NextResponse.json({
+        ok: true,
+        team: null,
+        message: 'No team assigned yet'
+      });
+    }
+
     // Find supervisor name
     let supervisorName = 'Not assigned';
-    if (team.supervisor_id) {
-      const supervisor = team.cleaners.find((member: any) => 
-        member.cleaners.id === team.supervisor_id
+    if (team.supervisor_id && team.cleaners) {
+      const supervisor = team.cleaners.find((member: TeamMember) => 
+        member.cleaner_id === team.supervisor_id
       );
-      if (supervisor) {
+      if (supervisor && supervisor.cleaners) {
         supervisorName = supervisor.cleaners.name;
       }
     }
 
     // Format team members
-    const members = team.cleaners.map((member: any) => ({
+    const members = team.cleaners.map((member: TeamMember) => ({
       name: member.cleaners.name,
       earnings: member.earnings,
       isSupervisor: member.cleaner_id === team.supervisor_id
