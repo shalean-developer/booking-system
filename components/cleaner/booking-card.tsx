@@ -173,7 +173,9 @@ export function BookingCard({
                   <Users className="h-3 w-3" />
                   {booking.team_name}
                   {booking.team_role === 'supervisor' && (
-                    <Crown className="h-3 w-3" title="Supervisor" />
+                    <span title="Supervisor">
+                      <Crown className="h-3 w-3" />
+                    </span>
                   )}
                 </Badge>
               )}
