@@ -89,13 +89,13 @@ export function BookingsTab({ bookings, onOpenReviewDialog }: BookingsTabProps) 
                 <Filter className="h-4 w-4 text-gray-500" />
                 <span className="text-sm font-medium text-gray-700">Filter by status:</span>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-nowrap gap-2 overflow-x-auto scrollbar-hide sm:flex-wrap sm:overflow-visible">
                 {Object.entries(statusCounts).map(([status, count]) => (
                   <button
                     key={status}
                     onClick={() => setStatusFilter(status)}
                     className={cn(
-                      'px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap',
+                      'px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0',
                       statusFilter === status
                         ? 'bg-primary text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'

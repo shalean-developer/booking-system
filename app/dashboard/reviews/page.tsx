@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { MobileBottomNav } from '@/components/dashboard/mobile-bottom-nav';
 import { ReviewsTab } from '@/components/dashboard/reviews-tab';
+import { DashboardTabs } from '@/components/dashboard/dashboard-tabs';
+import { DashboardSidebar } from '@/components/dashboard/dashboard-sidebar';
 
 interface CustomerData {
   id: string;
@@ -136,14 +138,27 @@ export default function ReviewsPage() {
             </div>
           </div>
 
-          {/* Desktop Header */}
-          <div className="hidden lg:block mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Reviews & Ratings</h1>
-            <p className="text-gray-600">View your reviews and ratings</p>
-          </div>
+          <div className="grid lg:grid-cols-3 gap-6 sm:gap-8">
+            {/* Main Content */}
+            <div className="lg:col-span-2">
+              {/* Desktop Tabs */}
+              <div className="hidden lg:block">
+                <DashboardTabs activeTab="reviews" onTabChange={() => {}} />
+              </div>
 
-          {/* Reviews Content */}
-          <ReviewsTab />
+              {/* Desktop Header */}
+              <div className="hidden lg:block mb-8">
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Reviews & Ratings</h1>
+                <p className="text-gray-600">View your reviews and ratings</p>
+              </div>
+
+              {/* Reviews Content */}
+              <ReviewsTab />
+            </div>
+
+            {/* Sidebar - Profile & Quick Actions */}
+            <DashboardSidebar user={user} customer={customer} />
+          </div>
         </div>
       </section>
 

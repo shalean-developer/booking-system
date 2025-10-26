@@ -2,11 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Header } from '@/components/header';
 import { supabase } from '@/lib/supabase-client';
 import { safeLogout, safeGetSession } from '@/lib/logout-utils';
@@ -14,9 +12,6 @@ import { toast } from 'sonner';
 import { 
   User, 
   Loader2,
-  Briefcase,
-  Home,
-  Mail,
   AlertCircle,
 } from 'lucide-react';
 import { CustomerReviewDialog } from '@/components/review/customer-review-dialog';
@@ -24,6 +19,7 @@ import { DashboardTabs } from '@/components/dashboard/dashboard-tabs';
 import { MobileBottomNav } from '@/components/dashboard/mobile-bottom-nav';
 import { MobileDrawer } from '@/components/dashboard/mobile-drawer';
 import { OverviewTab } from '@/components/dashboard/overview-tab';
+import { DashboardSidebar } from '@/components/dashboard/dashboard-sidebar';
 
 interface Booking {
   id: string;
@@ -271,7 +267,9 @@ export default function DashboardPage() {
               transition={{ duration: 0.4, delay: 0.2 }}
               className="lg:col-span-2"
             >
-              <DashboardTabs activeTab="overview" onTabChange={setActiveTab} />
+              <div className="hidden lg:block">
+                <DashboardTabs activeTab="overview" onTabChange={() => {}} />
+              </div>
 
               {/* Tab Content - Only Overview on main dashboard */}
               <OverviewTab
@@ -284,65 +282,7 @@ export default function DashboardPage() {
             </motion.div>
 
             {/* Sidebar - Profile & Quick Actions */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.3 }}
-              className="space-y-6"
-            >
-              {/* Profile Card - Hidden on mobile */}
-              <Card className="border-0 shadow-lg hidden sm:block">
-                <CardContent className="p-6">
-                  <div className="text-center mb-6">
-                    <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                      <User className="h-10 w-10 text-primary" />
-                    </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-1">
-                      {customer?.firstName && customer?.lastName 
-                        ? `${customer.firstName} ${customer.lastName}`
-                        : user?.user_metadata?.first_name || 'User'}
-                    </h3>
-                    <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
-                      <Mail className="h-4 w-4" />
-                      <span>{user?.email}</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                    <p className="text-xs text-gray-600 mb-1">Member Since</p>
-                    <p className="font-semibold text-gray-900">
-                      {new Date(user?.created_at).toLocaleDateString('en-ZA', { month: 'long', year: 'numeric' })}
-                    </p>
-                  </div>
-
-                  <Button variant="outline" className="w-full" disabled>
-                    Edit Profile
-                    <span className="ml-2 text-xs">(Coming Soon)</span>
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Quick Actions */}
-              <Card className="border-0 shadow-lg">
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h3>
-                  <div className="space-y-3">
-                    <Button className="w-full bg-primary hover:bg-primary/90" asChild>
-                      <Link href="/booking/service/select">
-                        <Briefcase className="mr-2 h-4 w-4" />
-                        Book a Service
-                      </Link>
-                    </Button>
-                    <Button variant="outline" className="w-full" asChild>
-                      <Link href="/">
-                        <Home className="mr-2 h-4 w-4" />
-                        Back to Home
-                      </Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
+            <DashboardSidebar user={user} customer={customer} />
           </div>
         </div>
       </section>

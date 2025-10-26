@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Home, Calendar, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -34,10 +35,16 @@ export function DashboardTabs({ activeTab, onTabChange }: DashboardTabsProps) {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           
+          // Determine href based on tab id
+          const href = 
+            tab.id === 'overview' ? '/dashboard' :
+            tab.id === 'bookings' ? '/dashboard/bookings' : 
+            '/dashboard/reviews';
+          
           return (
-            <button
+            <Link
               key={tab.id}
-              onClick={() => onTabChange(tab.id)}
+              href={href}
               className={cn(
                 'flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors',
                 isActive
@@ -47,7 +54,7 @@ export function DashboardTabs({ activeTab, onTabChange }: DashboardTabsProps) {
             >
               <Icon className="h-4 w-4" />
               <span className="hidden sm:inline">{tab.label}</span>
-            </button>
+            </Link>
           );
         })}
       </nav>

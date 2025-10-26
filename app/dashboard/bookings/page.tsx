@@ -22,6 +22,8 @@ import {
 import { CustomerReviewDialog } from '@/components/review/customer-review-dialog';
 import { MobileBottomNav } from '@/components/dashboard/mobile-bottom-nav';
 import { BookingsTab } from '@/components/dashboard/bookings-tab';
+import { DashboardTabs } from '@/components/dashboard/dashboard-tabs';
+import { DashboardSidebar } from '@/components/dashboard/dashboard-sidebar';
 
 interface Booking {
   id: string;
@@ -182,17 +184,30 @@ export default function BookingsPage() {
             </div>
           </div>
 
-          {/* Desktop Header */}
-          <div className="hidden lg:block mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">My Bookings</h1>
-            <p className="text-gray-600">Manage and view all your bookings</p>
-          </div>
+          <div className="grid lg:grid-cols-3 gap-6 sm:gap-8">
+            {/* Main Content */}
+            <div className="lg:col-span-2">
+              {/* Desktop Tabs */}
+              <div className="hidden lg:block">
+                <DashboardTabs activeTab="bookings" onTabChange={() => {}} />
+              </div>
 
-          {/* Bookings Content */}
-          <BookingsTab
-            bookings={bookings}
-            onOpenReviewDialog={handleOpenReviewDialog}
-          />
+              {/* Desktop Header */}
+              <div className="hidden lg:block mb-8">
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">My Bookings</h1>
+                <p className="text-gray-600">Manage and view all your bookings</p>
+              </div>
+
+              {/* Bookings Content */}
+              <BookingsTab
+                bookings={bookings}
+                onOpenReviewDialog={handleOpenReviewDialog}
+              />
+            </div>
+
+            {/* Sidebar - Profile & Quick Actions */}
+            <DashboardSidebar user={user} customer={customer} />
+          </div>
         </div>
       </section>
 
