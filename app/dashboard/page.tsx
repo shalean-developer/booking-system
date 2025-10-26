@@ -13,24 +13,17 @@ import { safeLogout, safeGetSession } from '@/lib/logout-utils';
 import { toast } from 'sonner';
 import { 
   User, 
-  Calendar,
-  Clock,
-  MapPin,
-  TrendingUp,
-  CheckCircle,
   Loader2,
   Briefcase,
   Home,
   Mail,
-  ArrowRight,
   AlertCircle,
-  Star,
-  MessageSquare
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { CustomerReviewDialog } from '@/components/review/customer-review-dialog';
-import { CustomerRatings } from '@/components/dashboard/customer-ratings';
-import { CustomerReviews } from '@/components/dashboard/customer-reviews';
+import { DashboardTabs } from '@/components/dashboard/dashboard-tabs';
+import { MobileBottomNav } from '@/components/dashboard/mobile-bottom-nav';
+import { MobileDrawer } from '@/components/dashboard/mobile-drawer';
+import { OverviewTab } from '@/components/dashboard/overview-tab';
 
 interface Booking {
   id: string;
@@ -65,6 +58,8 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'reviews'>('overview');
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
     const checkAuthAndFetchData = async () => {
@@ -246,7 +241,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-primary/5 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-primary/5 to-white pb-20 lg:pb-0">
       <Header />
 
       <section className="py-8 sm:py-12">
@@ -256,249 +251,36 @@ export default function DashboardPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className="mb-8"
+            className="mb-4 sm:mb-8"
           >
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
-                  Welcome back, {customer?.firstName || user?.user_metadata?.first_name || 'there'}! 👋
-                </h1>
-                <p className="text-gray-600">
-                  Manage your bookings and profile from your dashboard
-                </p>
-              </div>
-              <Button variant="outline" onClick={handleSignOut} className="whitespace-nowrap">
-                Sign Out
-              </Button>
+            <div>
+              <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-2">
+                Welcome back, {customer?.firstName || user?.user_metadata?.first_name || 'there'}! 👋
+              </h1>
+              <p className="text-sm sm:text-base text-gray-600">
+                Manage your bookings and profile from your dashboard
+              </p>
             </div>
           </motion.div>
 
-          {/* Stats Cards */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
-            className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-8"
-          >
-            <Card className="border-0 shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Total Bookings</p>
-                    <p className="text-3xl font-bold text-gray-900">{customer?.totalBookings || 0}</p>
-                  </div>
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <CheckCircle className="h-6 w-6 text-primary" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Upcoming</p>
-                    <p className="text-3xl font-bold text-gray-900">{upcomingBookings}</p>
-                  </div>
-                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-                    <Calendar className="h-6 w-6 text-blue-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Completed</p>
-                    <p className="text-3xl font-bold text-gray-900">{completedBookings}</p>
-                  </div>
-                  <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-                    <TrendingUp className="h-6 w-6 text-green-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
           <div className="grid lg:grid-cols-3 gap-6 sm:gap-8">
-            {/* Main Content - Bookings */}
+            {/* Main Content - Tabs */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.2 }}
-              className="lg:col-span-2 space-y-6"
+              className="lg:col-span-2"
             >
-              {/* Ratings & Reviews Section */}
-              <div className="space-y-6">
-                {/* Ratings I Received */}
-                <Card className="border-0 shadow-lg">
-                  <CardContent className="p-6">
-                    <CustomerRatings />
-                  </CardContent>
-                </Card>
+              <DashboardTabs activeTab="overview" onTabChange={setActiveTab} />
 
-                {/* Reviews I Wrote */}
-                <Card className="border-0 shadow-lg">
-                  <CardContent className="p-6">
-                    <CustomerReviews />
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Pending Reviews Section */}
-              {pendingReviews.length > 0 && (
-                <Card className="border-0 shadow-lg bg-gradient-to-r from-amber-50 to-yellow-50 border-l-4 border-l-amber-500">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="p-2 bg-amber-100 rounded-lg">
-                        <Star className="h-5 w-5 text-amber-600" />
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-bold text-gray-900">Pending Reviews</h2>
-                        <p className="text-sm text-gray-600">Share your experience with these completed services</p>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      {pendingReviews.map((booking) => (
-                        <div
-                          key={booking.id}
-                          className="bg-white border border-amber-200 rounded-lg p-4"
-                        >
-                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-gray-900 mb-2">{booking.service_type}</h3>
-                              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
-                                <div className="flex items-center gap-1">
-                                  <Calendar className="h-4 w-4" />
-                                  <span>{new Date(booking.booking_date).toLocaleDateString('en-ZA', { month: 'short', day: 'numeric' })}</span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Clock className="h-4 w-4" />
-                                  <span>{booking.booking_time}</span>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <Button
-                              onClick={() => handleOpenReviewDialog(booking)}
-                              className="bg-amber-600 hover:bg-amber-700 w-full sm:w-auto"
-                            >
-                              <Star className="mr-2 h-4 w-4" />
-                              Leave Review
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-              
-              {/* Recent Bookings */}
-              <Card className="border-0 shadow-lg">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-gray-900">Recent Bookings</h2>
-                    {bookings.length > 5 && (
-                      <Button variant="ghost" size="sm" className="text-primary">
-                        View All
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-
-                  {bookings.length === 0 ? (
-                    <div className="text-center py-12">
-                      <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-                        <Calendar className="h-8 w-8 text-gray-400" />
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">No bookings yet</h3>
-                      <p className="text-gray-600 mb-6">Book your first cleaning service to get started!</p>
-                      <Button asChild>
-                        <Link href="/booking/service/select">
-                          <Briefcase className="mr-2 h-4 w-4" />
-                          Book a Service
-                        </Link>
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {bookings.slice(0, 5).map((booking) => (
-                        <div
-                          key={booking.id}
-                          className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-                        >
-                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <h3 className="font-semibold text-gray-900">{booking.service_type}</h3>
-                                <Badge 
-                                  variant={booking.status === 'completed' ? 'default' : 'outline'}
-                                  className={cn(
-                                    'text-xs',
-                                    booking.status === 'completed' && 'bg-green-100 text-green-800 border-green-200',
-                                    booking.status === 'accepted' && 'bg-blue-100 text-blue-800 border-blue-200',
-                                    booking.status === 'pending' && 'bg-yellow-100 text-yellow-800 border-yellow-200'
-                                  )}
-                                >
-                                  {booking.status}
-                                </Badge>
-                              </div>
-                              
-                              <div className="space-y-1 text-sm text-gray-600">
-                                <div className="flex items-center gap-2">
-                                  <Calendar className="h-4 w-4" />
-                                  <span>{new Date(booking.booking_date).toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Clock className="h-4 w-4" />
-                                  <span>{booking.booking_time}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <MapPin className="h-4 w-4" />
-                                  <span>{booking.address_line1}, {booking.address_suburb}</span>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <div className="text-left sm:text-right">
-                              {booking.total_amount ? (
-                                <p className="text-2xl font-bold text-primary">R{(booking.total_amount / 100).toFixed(2)}</p>
-                              ) : (
-                                <p className="text-sm text-gray-500">Price not available</p>
-                              )}
-                              <p className="text-xs text-gray-500 mt-1">
-                                Booked {new Date(booking.created_at).toLocaleDateString()}
-                              </p>
-                              {booking.status === 'completed' && !booking.customer_reviewed && booking.cleaner_id && booking.cleaner_id !== 'manual' && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleOpenReviewDialog(booking)}
-                                  className="mt-2 text-xs w-full sm:w-auto"
-                                >
-                                  <Star className="mr-1 h-3 w-3" />
-                                  Leave Review
-                                </Button>
-                              )}
-                              {booking.status === 'completed' && booking.customer_reviewed && (
-                                <Badge variant="outline" className="mt-2 bg-green-50 text-green-700 border-green-200">
-                                  <CheckCircle className="mr-1 h-3 w-3" />
-                                  Reviewed
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              {/* Tab Content - Only Overview on main dashboard */}
+              <OverviewTab
+                customer={customer}
+                bookings={bookings}
+                upcomingBookings={upcomingBookings}
+                completedBookings={completedBookings}
+                onOpenReviewDialog={handleOpenReviewDialog}
+              />
             </motion.div>
 
             {/* Sidebar - Profile & Quick Actions */}
@@ -508,8 +290,8 @@ export default function DashboardPage() {
               transition={{ duration: 0.4, delay: 0.3 }}
               className="space-y-6"
             >
-              {/* Profile Card */}
-              <Card className="border-0 shadow-lg">
+              {/* Profile Card - Hidden on mobile */}
+              <Card className="border-0 shadow-lg hidden sm:block">
                 <CardContent className="p-6">
                   <div className="text-center mb-6">
                     <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
@@ -574,6 +356,25 @@ export default function DashboardPage() {
           setSelectedBooking(null);
         }}
         onSuccess={handleReviewSuccess}
+      />
+
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNav 
+        activeTab="overview" 
+        onTabChange={(tab) => {
+          if (tab !== 'more') {
+            setActiveTab(tab);
+          }
+        }}
+        onMoreClick={() => setDrawerOpen(true)}
+      />
+
+      {/* Mobile Drawer */}
+      <MobileDrawer
+        isOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        user={user}
+        customer={customer}
       />
     </div>
   );

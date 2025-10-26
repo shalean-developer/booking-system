@@ -245,8 +245,8 @@ export function Header({ variant = 'default' }: HeaderProps) {
           {/* Action Buttons - Desktop & Mobile */}
           <div className="flex items-center gap-2 md:gap-3">
             <Button className="bg-primary hover:bg-primary/90 text-white rounded-full text-xs sm:text-sm px-3 sm:px-4 h-9 sm:h-10" asChild>
-              <Link href="/booking/quote">
-                Get Free Quote
+              <Link href={user ? "/booking/service/select" : "/booking/quote"}>
+                {user ? "Book a Service" : "Get Free Quote"}
               </Link>
             </Button>
             

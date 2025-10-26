@@ -1,5 +1,6 @@
 -- Mark Past Bookings as Completed
--- Purpose: Update bookings with 'pending' status from October 1, 2024 to today to 'completed'
+-- Purpose: Update all past bookings with 'pending' or 'accepted' status to 'completed'
+-- Any booking from the past (before today) will be marked as completed
 -- Date: January 2025
 
 -- ==============================================
@@ -13,9 +14,8 @@ SELECT
   customer_name,
   cleaner_id
 FROM bookings
-WHERE status = 'pending'
-  AND booking_date >= '2024-10-01'
-  AND booking_date <= CURRENT_DATE
+WHERE status IN ('pending', 'accepted')
+  AND booking_date < CURRENT_DATE
 ORDER BY booking_date, booking_time;
 
 -- ==============================================
@@ -23,9 +23,8 @@ ORDER BY booking_date, booking_time;
 -- ==============================================
 SELECT COUNT(*) as records_to_update
 FROM bookings
-WHERE status = 'pending'
-  AND booking_date >= '2024-10-01'
-  AND booking_date <= CURRENT_DATE;
+WHERE status IN ('pending', 'accepted')
+  AND booking_date < CURRENT_DATE;
 
 -- ==============================================
 -- STEP 3: UPDATE STATEMENT (Execute this to mark bookings as completed)
@@ -34,9 +33,8 @@ UPDATE bookings
 SET 
   status = 'completed',
   cleaner_completed_at = CURRENT_TIMESTAMP
-WHERE status = 'pending'
-  AND booking_date >= '2024-10-01'
-  AND booking_date <= CURRENT_DATE;
+WHERE status IN ('pending', 'accepted')
+  AND booking_date < CURRENT_DATE;
 
 -- ==============================================
 -- STEP 4: VERIFICATION QUERY (Confirm the changes were applied)
@@ -44,8 +42,7 @@ WHERE status = 'pending'
 SELECT COUNT(*) as updated_count
 FROM bookings
 WHERE status = 'completed'
-  AND booking_date >= '2024-10-01'
-  AND booking_date <= CURRENT_DATE
+  AND booking_date < CURRENT_DATE
   AND cleaner_completed_at >= CURRENT_DATE - INTERVAL '1 minute';
 
 -- ==============================================
@@ -60,8 +57,7 @@ SELECT
   cleaner_completed_at
 FROM bookings
 WHERE status = 'completed'
-  AND booking_date >= '2024-10-01'
-  AND booking_date <= CURRENT_DATE
+  AND booking_date < CURRENT_DATE
   AND cleaner_completed_at >= CURRENT_DATE - INTERVAL '1 minute'
 ORDER BY cleaner_completed_at DESC
 LIMIT 10;
