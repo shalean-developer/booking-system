@@ -3,20 +3,18 @@
 import { useState, useEffect } from 'react';
 import { CleanerHeader } from '@/components/cleaner/cleaner-header';
 import { LocationTracker } from '@/components/cleaner/location-tracker';
-import { MyBookings } from '@/components/cleaner/my-bookings';
-import { AvailableBookings } from '@/components/cleaner/available-bookings';
-import { CleanerReviews } from '@/components/cleaner/cleaner-reviews';
 import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { DayAvailabilityDisplay } from '@/components/admin/day-availability-display';
+import { CleanerMobileBottomNav } from '@/components/cleaner/cleaner-mobile-bottom-nav';
 import {
   Calendar,
   CheckCircle2,
   DollarSign,
   Briefcase,
   TrendingUp,
-  Star,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 interface CleanerSession {
@@ -50,7 +48,8 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
     monthlyCompleted: 0,
     monthlyEarnings: 0,
   });
-  const [activeTab, setActiveTab] = useState<'my-bookings' | 'available' | 'reviews'>('my-bookings');
+  const [showTodayPerformance, setShowTodayPerformance] = useState(false);
+  const [showMonthlyPerformance, setShowMonthlyPerformance] = useState(false);
 
   // Fetch today's and monthly stats
   useEffect(() => {
@@ -211,6 +210,11 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
 
       {/* Main Content */}
       <main className="mx-auto max-w-7xl px-4 py-6">
+        {/* Location Tracker */}
+        <div className="mb-4">
+          <LocationTracker />
+        </div>
+
         {/* Welcome Section */}
         <div className="mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
@@ -221,135 +225,170 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
           </p>
         </div>
 
-        {/* My Weekly Schedule Card */}
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
-                My Weekly Schedule
+        {/* Quick Navigation */}
+        <div className="flex gap-3 mb-6">
+          <button
+            onClick={() => setShowTodayPerformance(!showTodayPerformance)}
+            className="flex-1 flex items-center justify-center gap-2 p-4 bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 rounded-xl transition-colors"
+          >
+            <Calendar className="h-5 w-5 text-blue-600" />
+            <span className="text-sm font-semibold text-blue-900">Today's Performance</span>
+            {showTodayPerformance ? (
+              <ChevronUp className="h-4 w-4 text-blue-600" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-blue-600" />
+            )}
+          </button>
+          <button
+            onClick={() => setShowMonthlyPerformance(!showMonthlyPerformance)}
+            className="flex-1 flex items-center justify-center gap-2 p-4 bg-purple-50 hover:bg-purple-100 border-2 border-purple-200 rounded-xl transition-colors"
+          >
+            <TrendingUp className="h-5 w-5 text-purple-600" />
+            <span className="text-sm font-semibold text-purple-900">Monthly Performance</span>
+            {showMonthlyPerformance ? (
+              <ChevronUp className="h-4 w-4 text-purple-600" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-purple-600" />
+            )}
+          </button>
+        </div>
+
+        {/* My Weekly Schedule Card - Hidden when performance sections are visible */}
+        {!showTodayPerformance && !showMonthlyPerformance && (
+          <Card className="mb-6">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900">
+                  My Weekly Schedule
+                </h3>
+                <Badge variant="outline" className="text-xs w-fit">
+                  {Object.entries(cleaner).filter(([key, val]) => 
+                    key.startsWith('available_') && val === true
+                  ).length} days/week
+                </Badge>
+              </div>
+              <div className="flex justify-center sm:justify-start">
+                <DayAvailabilityDisplay 
+                  schedule={cleaner} 
+                  compact={false}
+                />
+              </div>
+              <p className="text-xs sm:text-sm text-gray-500 mt-3 text-center sm:text-left">
+                Your schedule is set by your manager. Contact admin to request changes.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Today's Performance Section */}
+        {showTodayPerformance && (
+          <>
+            <div id="today-performance" className="mb-4 scroll-mt-6">
+              <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                Today's Performance
               </h3>
-              <Badge variant="outline" className="text-xs">
-                {Object.entries(cleaner).filter(([key, val]) => 
-                  key.startsWith('available_') && val === true
-                ).length} days/week
-              </Badge>
             </div>
-            <DayAvailabilityDisplay 
-              schedule={cleaner} 
-              compact={false}
-            />
-            <p className="text-sm text-gray-500 mt-3">
-              Your schedule is set by your manager. Contact admin to request changes.
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Location Tracker */}
-        <div className="mb-6">
-          <LocationTracker />
-        </div>
-
-        {/* Quick Stats */}
-        <div className="mb-4">
-          <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-            Today's Performance
-          </h3>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <Card className="border-2">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-full bg-blue-50">
-                  <Calendar className="h-6 w-6 text-blue-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-gray-900">
-                    {stats.todayBookings}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+              <Card className="border-2">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-full bg-blue-50">
+                      <Calendar className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-gray-900">
+                        {stats.todayBookings}
+                      </div>
+                      <div className="text-sm text-gray-500">Today's Bookings</div>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-500">Today's Bookings</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
 
-          <Card className="border-2">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-full bg-green-50">
-                  <CheckCircle2 className="h-6 w-6 text-green-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-gray-900">
-                    {stats.completedToday}
+              <Card className="border-2">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-full bg-green-50">
+                      <CheckCircle2 className="h-6 w-6 text-green-600" />
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-gray-900">
+                        {stats.completedToday}
+                      </div>
+                      <div className="text-sm text-gray-500">Completed Today</div>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-500">Completed Today</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
 
-          <Card className="border-2">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-full bg-primary/10">
-                  <DollarSign className="h-6 w-6 text-primary" />
-                </div>
-                {getEarningsDisplay(stats.totalEarnings, "Today's Earnings")}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Monthly Stats */}
-        <div className="mt-8 mb-4">
-          <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-            This Month's Performance
-          </h3>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <Card className="border-2">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-full bg-purple-50">
-                  <Briefcase className="h-6 w-6 text-purple-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-gray-900">
-                    {stats.monthlyBookings}
+              <Card className="border-2">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-full bg-primary/10">
+                      <DollarSign className="h-6 w-6 text-primary" />
+                    </div>
+                    {getEarningsDisplay(stats.totalEarnings, "Today's Earnings")}
                   </div>
-                  <div className="text-sm text-gray-500">This Month's Bookings</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            </div>
+          </>
+        )}
 
-          <Card className="border-2">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-full bg-green-50">
-                  <CheckCircle2 className="h-6 w-6 text-green-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-gray-900">
-                    {stats.monthlyCompleted}
+        {/* Monthly Performance Section */}
+        {showMonthlyPerformance && (
+          <>
+            <div id="monthly-performance" className="mt-8 mb-4 scroll-mt-6">
+              <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                This Month's Performance
+              </h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+              <Card className="border-2">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-full bg-purple-50">
+                      <Briefcase className="h-6 w-6 text-purple-600" />
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-gray-900">
+                        {stats.monthlyBookings}
+                      </div>
+                      <div className="text-sm text-gray-500">This Month's Bookings</div>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-500">Completed This Month</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
 
-          <Card className="border-2">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-full bg-purple-50">
-                  <TrendingUp className="h-6 w-6 text-purple-600" />
-                </div>
-                {getEarningsDisplay(stats.monthlyEarnings, "This Month's Earnings")}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              <Card className="border-2">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-full bg-green-50">
+                      <CheckCircle2 className="h-6 w-6 text-green-600" />
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-gray-900">
+                        {stats.monthlyCompleted}
+                      </div>
+                      <div className="text-sm text-gray-500">Completed This Month</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-2">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-full bg-purple-50">
+                      <TrendingUp className="h-6 w-6 text-purple-600" />
+                    </div>
+                    {getEarningsDisplay(stats.monthlyEarnings, "This Month's Earnings")}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </>
+        )}
 
         {/* Service Areas Badge */}
         <div className="mb-6">
@@ -362,48 +401,6 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
             ))}
           </div>
         </div>
-
-        {/* Main Tabs */}
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-          <TabsList className="grid w-full grid-cols-3 mb-6">
-            <TabsTrigger value="my-bookings" className="text-sm sm:text-base">
-              <Calendar className="h-4 w-4 mr-2" />
-              My Bookings
-            </TabsTrigger>
-            <TabsTrigger value="available" className="text-sm sm:text-base">
-              <Briefcase className="h-4 w-4 mr-2" />
-              Available Jobs
-            </TabsTrigger>
-            <TabsTrigger value="reviews" className="text-sm sm:text-base">
-              <Star className="h-4 w-4 mr-2" />
-              Reviews
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="my-bookings">
-            <Card className="border-2">
-              <CardContent className="p-4 sm:p-6">
-                <MyBookings />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="available">
-            <Card className="border-2">
-              <CardContent className="p-4 sm:p-6">
-                <AvailableBookings />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="reviews">
-            <Card className="border-2">
-              <CardContent className="p-4 sm:p-6">
-                <CleanerReviews />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
 
         {/* Help Section */}
         <div className="mt-8 p-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
@@ -423,6 +420,9 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
           </div>
         </div>
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <CleanerMobileBottomNav />
 
       {/* Mobile Bottom Navigation Spacer */}
       <div className="h-20 sm:h-0" />

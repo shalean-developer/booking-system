@@ -62,6 +62,13 @@ export function LocationTracker() {
           setStatus('error');
           const errorMsg = error instanceof Error ? error.message : 'Failed to update location';
           setErrorMessage(errorMsg);
+          
+          // Retry after 2 minutes
+          setTimeout(() => {
+            if (status === 'error') {
+              updateLocation();
+            }
+          }, 2 * 60 * 1000);
         }
       },
       (error) => {

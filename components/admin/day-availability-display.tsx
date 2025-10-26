@@ -28,7 +28,7 @@ const DAYS = [
 
 export function DayAvailabilityDisplay({ schedule, compact = false }: DayAvailabilityDisplayProps) {
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-2 sm:gap-1">
       {compact && <Calendar className="h-3 w-3 text-gray-400 mr-1" />}
       {DAYS.map((day) => {
         const isAvailable = schedule[`available_${day.key}` as keyof typeof schedule] ?? true;
@@ -36,9 +36,9 @@ export function DayAvailabilityDisplay({ schedule, compact = false }: DayAvailab
         return (
           <Badge
             key={day.key}
-            variant={isAvailable ? 'default' : 'secondary'}
+            variant="outline"
             className={`
-              text-[10px] px-1.5 py-0.5 font-medium
+              text-xs px-2.5 sm:px-1.5 py-1 sm:py-0.5 font-medium min-w-[36px] sm:min-w-0 flex items-center justify-center
               ${isAvailable 
                 ? 'bg-green-100 text-green-700 border-green-200 hover:bg-green-100' 
                 : 'bg-gray-100 text-gray-400 border-gray-200 hover:bg-gray-100'
