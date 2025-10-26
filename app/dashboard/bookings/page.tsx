@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Header } from '@/components/header';
 import { supabase } from '@/lib/supabase-client';
-import { safeLogout, safeGetSession } from '@/lib/logout-utils';
+import { safeLogout, safeGetSession, handleRefreshTokenError } from '@/lib/logout-utils';
 import { toast } from 'sonner';
 import { 
   User, 
@@ -73,7 +73,26 @@ export default function BookingsPage() {
         const authUser = session.user;
         setUser(authUser);
 
-        const { data: { session: apiSession } } = await supabase.auth.getSession();
+        // Get session token for API call with error handling
+        let apiSession;
+        try {
+          const { data, error } = await supabase.auth.getSession();
+          if (error) {
+            if (handleRefreshTokenError(error)) {
+              router.push('/login');
+              return;
+            }
+            throw error;
+          }
+          apiSession = data.session;
+        } catch (error: any) {
+          if (handleRefreshTokenError(error)) {
+            router.push('/login');
+            return;
+          }
+          throw error;
+        }
+        
         if (!apiSession) {
           throw new Error('No active session');
         }
@@ -111,7 +130,20 @@ export default function BookingsPage() {
 
   const handleReviewSuccess = async () => {
     try {
-      const { data: { session: apiSession } } = await supabase.auth.getSession();
+      let apiSession;
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error && handleRefreshTokenError(error)) {
+          return;
+        }
+        apiSession = data.session;
+      } catch (error: any) {
+        if (handleRefreshTokenError(error)) {
+          return;
+        }
+        throw error;
+      }
+      
       if (!apiSession) return;
 
       const response = await fetch('/api/dashboard/bookings', {

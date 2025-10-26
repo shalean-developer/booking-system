@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Header } from '@/components/header';
 import { supabase } from '@/lib/supabase-client';
-import { safeLogout, safeGetSession } from '@/lib/logout-utils';
+import { safeLogout, safeGetSession, handleRefreshTokenError } from '@/lib/logout-utils';
 import { toast } from 'sonner';
 import { 
   User, 
@@ -79,7 +79,32 @@ export default function DashboardPage() {
         console.log('Fetching dashboard bookings from API...');
 
         // Get session token for API call
-        const { data: { session: apiSession } } = await supabase.auth.getSession();
+        let apiSession;
+        try {
+          const { data, error } = await supabase.auth.getSession();
+          if (error) {
+            // Handle refresh token errors gracefully
+            if (handleRefreshTokenError(error)) {
+              // Storage was cleared, redirect to login
+              console.log('Refresh token error - redirecting to login');
+              setIsLoading(false);
+              setError('UNAUTHENTICATED');
+              return;
+            }
+            throw error;
+          }
+          apiSession = data.session;
+        } catch (error: any) {
+          // Handle refresh token errors gracefully
+          if (handleRefreshTokenError(error)) {
+            console.log('Refresh token error - redirecting to login');
+            setIsLoading(false);
+            setError('UNAUTHENTICATED');
+            return;
+          }
+          throw error;
+        }
+        
         if (!apiSession) {
           throw new Error('No active session');
         }

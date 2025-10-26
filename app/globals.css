@@ -215,5 +215,15 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none; /* Chrome, Safari, Opera */
   }
+
+  /* Scroll isolation utilities */
+  .overscroll-x-contain {
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .touch-pan-x {
+    touch-action: pan-x;
+  }
 }
 

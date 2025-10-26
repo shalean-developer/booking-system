@@ -114,14 +114,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* Font Preloading */}
-        <link
-          rel="preload"
-          href="/_next/static/media/inter-latin.woff2"
-          as="font"
-          type="font/woff2"
-          crossOrigin="anonymous"
-        />
+        {/* Font Preloading - Removed invalid path causing 404 */}
         
         {/* Organization Schema for Brand Name Display */}
         <script

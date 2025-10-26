@@ -45,6 +45,12 @@ function LoginForm() {
   });
 
   const onSubmit = async (data: LoginFormData) => {
+    // Prevent double submission
+    if (isLoading) {
+      console.log('⏸️ Login already in progress, ignoring duplicate submit');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -52,34 +58,49 @@ function LoginForm() {
       console.log('=== LOGIN ATTEMPT ===');
       console.log('Email:', data.email);
 
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      const result = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
       });
 
-      if (authError) {
-        console.error('Login error:', authError);
-        setError(authError.message);
+      console.log('🔍 Sign in result:', result);
+      console.log('🔍 Has data:', !!result.data);
+      console.log('🔍 Has error:', !!result.error);
+
+      if (result.error) {
+        console.error('❌ Login error:', result.error);
+        setError(result.error.message);
+        setIsLoading(false);
         return;
       }
 
-      console.log('✅ Login successful:', authData);
+      console.log('✅ Login successful, user:', result.data?.user?.email);
 
       // Determine redirect URL
-      const redirectUrl = returnTo || '/dashboard'; // Use returnTo if provided, else dashboard
-      console.log('Redirecting to:', redirectUrl);
+      const redirectUrl = returnTo || '/dashboard';
+      console.log('🎯 Redirecting to:', redirectUrl);
 
-      // Small delay to ensure session is fully established
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait for session to be fully established
+      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log('⏱️ Wait complete');
       
-      // Force a refresh to pick up the new session, then redirect
-      router.refresh();
-      router.push(redirectUrl);
+      // Verify session before redirect
+      try {
+        const { data: { session: verifySession } } = await supabase.auth.getSession();
+        console.log('🔍 Session verification:', verifySession ? '✅ Session found' : '❌ No session');
+        
+        console.log('🚀 About to redirect...');
+        // Use window.location for reliable redirect
+        window.location.href = redirectUrl;
+      } catch (redirectErr) {
+        console.error('❌ Redirect error:', redirectErr);
+        // Force redirect even if session check fails
+        window.location.href = redirectUrl;
+      }
 
     } catch (err) {
-      console.error('Login exception:', err);
+      console.error('❌ Login exception:', err);
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
-    } finally {
       setIsLoading(false);
     }
   };
