@@ -560,8 +560,8 @@ export function StepReview() {
                 <div className="mt-3 pt-3 border-t border-red-300">
                   <p className="text-xs text-red-800">
                     Need help? Contact us at{' '}
-                    <a href="mailto:hello@shalean.co.za" className="underline font-semibold hover:text-red-900">
-                      hello@shalean.co.za
+                    <a href="mailto:hello@shalean.com" className="underline font-semibold hover:text-red-900">
+                      hello@shalean.com
                     </a>
                   </p>
                 </div>

@@ -140,7 +140,7 @@ export default function CancellationPage() {
                     <DollarSign className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
                     <div>
                       <h4 className="font-semibold text-gray-900">By Email</h4>
-                      <p className="text-gray-600">Email support@shalean.co.za with your booking reference</p>
+                      <p className="text-gray-600">Email support@shalean.com with your booking reference</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">

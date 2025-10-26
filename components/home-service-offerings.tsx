@@ -22,7 +22,7 @@ export function HomeServiceOfferings() {
             Choose Your Cleaning Solution
           </h2>
           <p className="text-base sm:text-lg text-gray-600 max-w-3xl mx-auto">
-            Explore our comprehensive range of professional cleaning services and solutions.
+            Explore our comprehensive range of professional cleaning services near me, including house cleaning, deep cleaning services, and home cleaning services for every need.
           </p>
         </div>
         <div className="grid md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
@@ -47,7 +47,7 @@ export function HomeServiceOfferings() {
             <CardContent className="p-4 sm:p-6">
               <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Home Maintenance</h3>
               <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
-                Regular home cleaning for ongoing upkeep. Ideal for one-off or recurring visits.
+                Regular house cleaning services for ongoing upkeep. Ideal for one-off or recurring visits.
               </p>
               <Link href="/services/home-maintenance">
                 <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10 text-sm sm:text-base" aria-label="Learn more about Home Maintenance">
@@ -78,7 +78,7 @@ export function HomeServiceOfferings() {
             <CardContent className="p-4 sm:p-6">
               <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Deep & Specialty</h3>
               <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
-                Intensive or focused cleaning such as deep cleans, carpets & upholstery, and other specialty tasks.
+                Intensive deep cleaning services and focused specialty cleaning such as deep cleans, carpets & upholstery, and other specialty tasks.
               </p>
               <Link href="/services/deep-specialty">
                 <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10 text-sm sm:text-base" aria-label="Learn more about Deep & Specialty">

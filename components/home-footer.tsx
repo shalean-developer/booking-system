@@ -22,58 +22,115 @@ export function HomeFooter() {
   return (
     <footer className="bg-gray-900 text-white py-12 sm:py-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid md:grid-cols-2 gap-8 sm:gap-12 mb-8 sm:mb-12">
-          <div>
-            <div className="flex items-center gap-2 mb-3 sm:mb-4">
+        {/* Main Footer Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-12 mb-8 sm:mb-12">
+          {/* Left Column - Brand & Contact Info (Wider) */}
+          <div className="lg:col-span-2">
+            <div className="flex items-center gap-2 mb-6">
               <Logo />
-              <span className="text-lg sm:text-xl font-bold">Shalean</span>
+              <span className="text-xl font-bold">Shalean</span>
             </div>
-            <p className="text-sm sm:text-base text-gray-400 max-w-md">
+            <p className="text-base text-gray-400 mb-8 max-w-md leading-relaxed">
               Professional cleaning services and solutions helping homeowners and businesses 
-              maintain pristine, healthy environments.
+              maintain pristine, healthy environments across Cape Town.
             </p>
+            
+            {/* Contact Information */}
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.054-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z" />
+                  </svg>
+                </div>
+                <span className="text-gray-400">+27 87 153 5250</span>
+              </div>
+              
+              <div className="flex items-start gap-3">
+                <Mail className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
+                <span className="text-gray-400">bookings@shalean.com</span>
+              </div>
+              
+              <div className="flex items-start gap-3">
+                <div className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25s-7.5-4.108-7.5-11.25a7.5 7.5 0 1 1 15 0Z" />
+                  </svg>
+                </div>
+                <span className="text-gray-400">
+                  Claremont, Cape Town
+                  <br />
+                  Western Cape, South Africa
+                </span>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-6 sm:gap-8">
+
+          {/* Right Columns - Navigation Links (4 columns) */}
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-8 lg:col-span-3">
+            {/* Services */}
             <div>
-              <h3 className="font-semibold mb-3 sm:mb-4 text-sm sm:text-base">Services</h3>
-              <div className="space-y-1.5 sm:space-y-2">
-                <Link href="/services/deep-specialty" className="block text-sm sm:text-base text-gray-400 hover:text-white">Deep Specialty Cleaning</Link>
-                <Link href="/services/home-maintenance" className="block text-sm sm:text-base text-gray-400 hover:text-white">Home Maintenance</Link>
-                <Link href="/services/move-turnover" className="block text-sm sm:text-base text-gray-400 hover:text-white">Move-in/Turnover</Link>
-                <Link href="/booking/service/select" className="block text-sm sm:text-base text-gray-400 hover:text-white">Book Service</Link>
+              <h3 className="font-semibold mb-4 text-base">Services</h3>
+              <div className="space-y-3">
+                <Link href="/services/deep-specialty" className="block text-sm text-gray-400 hover:text-white transition-colors">Deep Cleaning</Link>
+                <Link href="/services/home-maintenance" className="block text-sm text-gray-400 hover:text-white transition-colors">Home Maintenance</Link>
+                <Link href="/services/move-turnover" className="block text-sm text-gray-400 hover:text-white transition-colors">Move-in/Turnover</Link>
+                <Link href="/booking/service/select" className="block text-sm text-gray-400 hover:text-white transition-colors">Book Service</Link>
               </div>
             </div>
+
+            {/* Service Areas */}
             <div>
-              <h3 className="font-semibold mb-3 sm:mb-4 text-sm sm:text-base">Company</h3>
-              <div className="space-y-1.5 sm:space-y-2">
-                <Link href="/about" className="block text-sm sm:text-base text-gray-400 hover:text-white">About Us</Link>
-                <Link href="/team" className="block text-sm sm:text-base text-gray-400 hover:text-white">Our Team</Link>
-                <Link href="/contact" className="block text-sm sm:text-base text-gray-400 hover:text-white">Contact Us</Link>
-                <Link href="/careers" className="block text-sm sm:text-base text-gray-400 hover:text-white">Careers</Link>
-                <Link href="/blog" className="block text-sm sm:text-base text-gray-400 hover:text-white">Blog</Link>
+              <h3 className="font-semibold mb-4 text-base">Service Areas</h3>
+              <div className="space-y-3">
+                <Link href="/location/cape-town/sea-point" className="block text-sm text-gray-400 hover:text-white transition-colors">Sea Point</Link>
+                <Link href="/location/cape-town/camps-bay" className="block text-sm text-gray-400 hover:text-white transition-colors">Camps Bay</Link>
+                <Link href="/location/cape-town/claremont" className="block text-sm text-gray-400 hover:text-white transition-colors">Claremont</Link>
+                <Link href="/location/cape-town" className="block text-sm text-gray-400 hover:text-white transition-colors">All Areas</Link>
               </div>
             </div>
+
+            {/* Company */}
             <div>
-              <h3 className="font-semibold mb-3 sm:mb-4 text-sm sm:text-base">Legal</h3>
-              <div className="space-y-1.5 sm:space-y-2">
-                <Link href="/terms" className="block text-sm sm:text-base text-gray-400 hover:text-white">Terms & Conditions</Link>
-                <Link href="/privacy" className="block text-sm sm:text-base text-gray-400 hover:text-white">Privacy Policy</Link>
-                <Link href="/cancellation" className="block text-sm sm:text-base text-gray-400 hover:text-white">Cancellation Policy</Link>
+              <h3 className="font-semibold mb-4 text-base">Company</h3>
+              <div className="space-y-3">
+                <Link href="/about" className="block text-sm text-gray-400 hover:text-white transition-colors">About Us</Link>
+                <Link href="/team" className="block text-sm text-gray-400 hover:text-white transition-colors">Our Team</Link>
+                <Link href="/contact" className="block text-sm text-gray-400 hover:text-white transition-colors">Contact</Link>
+                <Link href="/careers" className="block text-sm text-gray-400 hover:text-white transition-colors">Careers</Link>
               </div>
             </div>
           </div>
         </div>
-        <div className="border-t border-gray-800 pt-6 sm:pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-gray-400 text-xs sm:text-sm text-center md:text-left">
+
+        {/* Separator Line */}
+        <div className="border-t border-gray-800 mb-8"></div>
+
+        {/* Bottom Bar */}
+        <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+          {/* Left - Copyright */}
+          <p className="text-sm text-gray-400 text-center md:text-left">
             © 2025 Shalean Cleaning Services. All rights reserved.
           </p>
-          <div className="flex gap-3 sm:gap-4">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-primary rounded-full flex items-center justify-center">
-              <Instagram className="h-4 w-4 sm:h-5 sm:w-5" />
-            </div>
-            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-primary rounded-full flex items-center justify-center">
-              <Mail className="h-4 w-4 sm:h-5 sm:w-5" />
-            </div>
+
+          {/* Center - Legal Links */}
+          <div className="flex items-center gap-6 flex-wrap justify-center">
+            <Link href="/terms" className="text-sm text-gray-400 hover:text-white transition-colors">Terms & Conditions</Link>
+            <Link href="/privacy" className="text-sm text-gray-400 hover:text-white transition-colors">Privacy Policy</Link>
+            <Link href="/cancellation" className="text-sm text-gray-400 hover:text-white transition-colors">Cancellation Policy</Link>
+          </div>
+
+          {/* Right - Social Icons */}
+          <div className="flex items-center gap-4">
+            <a 
+              href="https://instagram.com/shaleancleaning" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors"
+            >
+              <Instagram className="h-5 w-5 text-gray-300" />
+            </a>
           </div>
         </div>
       </div>

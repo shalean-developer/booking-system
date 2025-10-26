@@ -486,7 +486,7 @@ export default function CleanerLoginPage() {
             <div className="mt-6 text-center text-xs text-gray-500">
               Need help? Contact support at{' '}
               <a href="mailto:support@shalean.co.za" className="text-primary hover:underline">
-                support@shalean.co.za
+                support@shalean.com
               </a>
             </div>
           </motion.div>

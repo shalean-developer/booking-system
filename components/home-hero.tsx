@@ -42,8 +42,7 @@ export function HomeHero() {
             <span className="text-primary">Made Simple</span>
           </h1>
           <p className="mx-auto mb-6 sm:mb-8 max-w-3xl text-base sm:text-lg lg:text-xl text-gray-600">
-            Book vetted, professional cleaners in minutes. Flexible scheduling, eco-friendly products, 
-            and 100% satisfaction guarantee—every single time.
+            Book professional cleaning services in Cape Town from trusted cleaning companies near you. Expert house cleaning, deep cleaning services, and home cleaning services with flexible scheduling, eco-friendly products, and 100% satisfaction guarantee.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
             <Button size="lg" className="bg-primary hover:bg-primary/90 text-white rounded-full px-6 py-3 sm:px-8 sm:py-4 text-base sm:text-lg" asChild>

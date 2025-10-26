@@ -19,8 +19,8 @@ export function HomeWhyChooseUs() {
             Everything You Need for a Spotless Home
           </h2>
           <p className="text-base sm:text-lg text-gray-600 max-w-3xl mx-auto">
-            From residential to commercial spaces, we provide comprehensive cleaning 
-            solutions and tools for every type of property.
+            From residential house cleaning services to commercial cleaning, we provide comprehensive cleaning 
+            services near you and tools for every type of property.
           </p>
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">

@@ -70,7 +70,7 @@ export default function ConfirmationPage() {
                 <br />
                 Reply to your confirmation email or contact us at{' '}
                 <a href="mailto:hello@shalean.co.za" className="text-primary hover:underline font-medium">
-                  hello@shalean.co.za
+                  hello@shalean.com
                 </a>
               </p>
             </div>

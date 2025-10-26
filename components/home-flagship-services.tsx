@@ -17,8 +17,8 @@ export function HomeFlagshipServices() {
               Experience Our Most Booked Services
             </h2>
             <p className="text-base sm:text-lg text-gray-600 mb-6 sm:mb-8">
-              Comprehensive cleaning solutions designed to transform your space 
-              from ordinary to extraordinary through meticulous attention to detail.
+              Comprehensive house cleaning services and deep cleaning services designed to transform your space 
+              from ordinary to extraordinary. As one of Cape Town's leading cleaning companies, we deliver meticulous attention to detail.
             </p>
             <div className="space-y-4 sm:space-y-6 mb-6 sm:mb-8">
               <div className="flex items-start gap-3 sm:gap-4">
@@ -35,7 +35,7 @@ export function HomeFlagshipServices() {
                   <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-sm sm:text-base text-gray-900">Deep Cleaning</h3>
+                  <h3 className="font-semibold text-sm sm:text-base text-gray-900">Deep Cleaning Services</h3>
                   <p className="text-sm sm:text-base text-gray-600">Thorough cleaning sessions that tackle every corner and surface.</p>
                 </div>
               </div>

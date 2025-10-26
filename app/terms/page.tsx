@@ -112,7 +112,7 @@ export default function TermsPage() {
                 For questions about these Terms and Conditions, please contact us:
               </p>
               <ul className="text-gray-600">
-                <li>Email: support@shalean.co.za</li>
+                <li>Email: support@shalean.com</li>
                 <li>Phone: +27 87 153 5250</li>
               </ul>
             </CardContent>

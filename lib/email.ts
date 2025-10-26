@@ -144,7 +144,7 @@ export function generateBookingConfirmationEmail(booking: BookingState & { booki
         <p>If you have any questions or need to make changes to your booking, please contact us at:</p>
         <p>
           <strong>Phone:</strong> +27 87 153 5250<br>
-          <strong>Email:</strong> bookings@shalean.co.za
+          <strong>Email:</strong> bookings@shalean.com
         </p>
       </div>
       
@@ -335,7 +335,7 @@ export function generateQuoteConfirmationEmail(quote: QuoteRequest): EmailData {
         <p>If you have any questions, please contact us at:</p>
         <p>
           <strong>Phone:</strong> +27 87 153 5250<br>
-          <strong>Email:</strong> bookings@shalean.co.za
+          <strong>Email:</strong> bookings@shalean.com
         </p>
       </div>
       
@@ -524,7 +524,7 @@ export function generateApplicationConfirmationEmail(application: ApplicationDat
         
         <p>If you have any questions about your application, please contact us at:</p>
         <p>
-          <strong>Email:</strong> careers@shalean.co.za<br>
+          <strong>Email:</strong> careers@shalean.com<br>
           <strong>Phone:</strong> +27 87 153 5250
         </p>
         
@@ -841,7 +841,7 @@ export function generateReviewRequestEmail(data: {
         
         <div class="footer">
           <p>Questions? Contact us anytime</p>
-          <p>📧 <a href="mailto:hello@shalean.co.za" style="color: #0C53ED;">hello@shalean.co.za</a></p>
+          <p>📧 <a href="mailto:hello@shalean.com" style="color: #0C53ED;">hello@shalean.com</a></p>
           <p style="margin-top: 20px; color: #999; font-size: 12px;">
             This email was sent because your cleaning service was completed.<br>
             Booking ID: ${data.bookingId}
