@@ -41,22 +41,24 @@ export async function POST(
     try {
       const emailData = generateBookingConfirmationEmail({
         service: booking.service_type as any,
-        bedrooms: 0,
-        bathrooms: 0,
-        extras: [],
+        bedrooms: booking.bedrooms || 0,
+        bathrooms: booking.bathrooms || 0,
+        extras: (booking.extras as string[]) || [],
         date: booking.booking_date,
         time: booking.booking_time,
         firstName: booking.customer_name.split(' ')[0] || '',
         lastName: booking.customer_name.split(' ')[1] || '',
         email: booking.customer_email,
-        phone: booking.customer_phone,
+        phone: booking.customer_phone || '',
         address: {
           line1: booking.address_line1,
           suburb: booking.address_suburb,
           city: booking.address_city,
         },
         cleaner_id: booking.cleaner_id || 'manual',
-        notes: '',
+        notes: booking.notes || '',
+        step: 6,
+        frequency: (booking.frequency as any) || 'one-time',
         bookingId: booking.id,
       });
 
