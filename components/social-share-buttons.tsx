@@ -77,7 +77,7 @@ export function SocialShareButtons({
   };
 
   // Native share button for mobile
-  const isMobile = typeof window !== 'undefined' && navigator.share && window.innerWidth < 768;
+  const isMobile = typeof window !== 'undefined' && typeof navigator !== 'undefined' && typeof navigator.share !== 'undefined' && window.innerWidth < 768;
 
   if (compact) {
     return (
