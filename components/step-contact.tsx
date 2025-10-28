@@ -13,6 +13,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { User, MapPin, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getCachedCustomer, setCachedCustomer } from '@/lib/customer-cache';
 
 // Helper function to convert ServiceType to URL slug
 function serviceTypeToSlug(serviceType: ServiceType): string {
@@ -30,7 +31,14 @@ const contactSchema = z.object({
   firstName: z.string().min(2, 'First name must be at least 2 characters'),
   lastName: z.string().min(2, 'Last name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
-  phone: z.string().min(10, 'Phone number must be at least 10 digits'),
+  phone: z.string()
+    .min(10, 'Phone number must be at least 10 digits')
+    .refine((phone) => {
+      // Remove spaces and special characters for validation
+      const cleaned = phone.replace(/[\s-]/g, '');
+      // Must start with 0 or +27 and have 10 digits total
+      return cleaned.length >= 10 && (cleaned.startsWith('0') || cleaned.startsWith('+27') || cleaned.startsWith('27'));
+    }, 'Please enter a valid South African phone number (e.g., 0821234567 or +27821234567)'),
   line1: z.string().min(5, 'Street address is required'),
   suburb: z.string().min(2, 'Suburb is required'),
   city: z.string().min(2, 'City is required'),
@@ -68,9 +76,19 @@ export function StepContact() {
 
   const emailValue = watch('email');
 
-  // Check for existing customer profile by email
+  // Check for existing customer profile by email (with caching)
   const checkCustomerProfile = useCallback(async (email: string) => {
     if (!email || email.length < 5) return;
+    
+    // Check cache first (optimization)
+    const cached = getCachedCustomer(email);
+    if (cached !== null) {
+      console.log('✅ Customer profile found in cache:', cached);
+      setExistingProfile(cached);
+      setShowAutofillPrompt(!!cached);
+      updateField('customer_id', cached?.id);
+      return;
+    }
     
     setIsCheckingProfile(true);
     try {
@@ -83,10 +101,14 @@ export function StepContact() {
         setShowAutofillPrompt(true);
         // Store customer_id in booking state
         updateField('customer_id', data.customer.id);
+        // Cache the result
+        setCachedCustomer(email, data.customer);
       } else {
         setExistingProfile(null);
         setShowAutofillPrompt(false);
         updateField('customer_id', undefined);
+        // Cache null result to prevent repeated lookups
+        setCachedCustomer(email, null);
       }
     } catch (error) {
       console.error('Error checking customer profile:', error);
@@ -283,7 +305,7 @@ export function StepContact() {
               <Input
                 id="phone"
                 type="tel"
-                placeholder="e.g., 0821234567"
+                placeholder="0821234567 or +27821234567"
                 {...register('phone')}
                 className={cn(
                   'h-11 rounded-xl border-2 transition-all',
@@ -291,8 +313,11 @@ export function StepContact() {
                   'hover:border-gray-300',
                   errors.phone && 'border-red-500 ring-2 ring-red-500/20'
                 )}
-                aria-describedby={errors.phone ? 'phone-error' : undefined}
+                aria-describedby={errors.phone ? 'phone-error' : 'phone-helper'}
               />
+              <p id="phone-helper" className="text-xs text-gray-500 mt-1">
+                South African format: 0821234567 or +27821234567
+              </p>
               {errors.phone && (
                 <motion.p
                   initial={{ opacity: 0, y: -4 }}

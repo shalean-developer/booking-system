@@ -29,7 +29,7 @@ export function CleanerCard({ cleaner, onSelect, isSelected, isLoading }: Cleane
       whileHover={{ scale: 1.02 }}
       transition={{ duration: 0.2 }}
     >
-      <Card className={`h-full transition-all duration-200 ${isSelected ? 'ring-2 ring-primary' : 'hover:shadow-lg'}`}>
+      <Card className={`h-full transition-all duration-200 ${isSelected ? 'ring-4 ring-primary bg-primary/5' : 'hover:shadow-lg'}`}>
         <CardContent className="p-6">
           {/* Photo and Basic Info */}
           <div className="flex flex-col items-center text-center space-y-4">

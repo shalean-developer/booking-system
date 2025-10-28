@@ -1,18 +1,16 @@
 'use client';
 
-import { useCallback, useMemo, useState, useEffect } from 'react';
+import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ServiceType } from '@/types/booking';
 import { useBooking } from '@/lib/useBooking';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Check, Clock } from 'lucide-react';
-import { generateTimeSlots, getCurrentPricing } from '@/lib/pricing';
+import { Calendar as CalendarIcon, Check, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { generateTimeSlots, getCurrentPricing, calcTotalAsync } from '@/lib/pricing';
 import { FrequencySelector } from '@/components/frequency-selector';
 
 const timeSlots = generateTimeSlots();
@@ -33,20 +31,118 @@ export function StepSchedule() {
   const router = useRouter();
   const { state, updateField } = useBooking();
   const [discounts, setDiscounts] = useState<{ [key: string]: number }>({});
+  const [visibleDates, setVisibleDates] = useState<Date[]>([]);
+  const dateCardsRef = useRef<HTMLDivElement>(null);
+  const [scrollDirection, setScrollDirection] = useState<'left' | 'right' | null>(null);
 
   const selectedDate = useMemo(() => 
     state.date ? new Date(state.date) : undefined, 
     [state.date]
   );
 
-  // Fetch frequency discounts
+  const today = useMemo(() => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }, []);
+
+  const canNavigateLeft = useMemo(() => {
+    if (visibleDates.length === 0) return false;
+    return visibleDates[0] > today;
+  }, [visibleDates, today]);
+
+  // Initialize visible dates - show 7 dates starting from today (complete week)
   useEffect(() => {
+    const dates: Date[] = [];
+    const todayDate = new Date();
+    todayDate.setHours(0, 0, 0, 0);
+    
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(todayDate);
+      date.setDate(todayDate.getDate() + i);
+      dates.push(date);
+    }
+    
+    setVisibleDates(dates);
+  }, []);
+
+  const navigateDates = useCallback((direction: 'left' | 'right') => {
+    setScrollDirection(direction);
+    setVisibleDates(prev => {
+      if (prev.length === 0) return prev;
+      
+      const newDates: Date[] = [];
+      const firstDate = prev[0];
+      
+      // Don't allow scrolling left if we're already at or before today
+      if (direction === 'left' && firstDate <= today) {
+        return prev;
+      }
+      
+      const offset = direction === 'right' ? 7 : -7;
+      
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(firstDate);
+        date.setDate(firstDate.getDate() + offset + i);
+        // Don't allow dates before today
+        if (date >= today) {
+          newDates.push(date);
+        }
+      }
+      
+      return newDates.length > 0 ? newDates : prev;
+    });
+  }, [today]);
+
+  // Reset scroll direction after animation completes
+  useEffect(() => {
+    if (scrollDirection) {
+      const timer = setTimeout(() => {
+        setScrollDirection(null);
+      }, 350); // Slightly longer than animation duration
+      
+      return () => clearTimeout(timer);
+    }
+  }, [scrollDirection]);
+
+  // Fetch frequency discounts and pre-fetch pricing in parallel (optimization)
+  useEffect(() => {
+    // Fetch discounts on mount
     getCurrentPricing().then((pricing) => {
       setDiscounts(pricing.frequencyDiscounts);
     }).catch((error) => {
       console.error('Failed to fetch frequency discounts:', error);
     });
   }, []);
+
+  // Pre-fetch pricing while user is selecting schedule (optimization)
+  useEffect(() => {
+    if (state.service && state.bathrooms >= 1) {
+      // Pre-calculate pricing and cache it for the review step
+      // This runs in parallel with discount fetching for better performance
+      calcTotalAsync(
+        {
+          service: state.service,
+          bedrooms: state.bedrooms,
+          bathrooms: state.bathrooms,
+          extras: state.extras || [],
+        },
+        state.frequency || 'one-time'
+      ).then((details) => {
+        // Store in sessionStorage for instant loading on review step
+        try {
+          sessionStorage.setItem('cached_pricing', JSON.stringify({
+            ...details,
+            timestamp: Date.now(),
+          }));
+        } catch (err) {
+          console.warn('Failed to cache pricing:', err);
+        }
+      }).catch((error) => {
+        console.warn('Failed to pre-fetch pricing:', error);
+      });
+    }
+  }, [state.service, state.bedrooms, state.bathrooms, state.extras, state.frequency]);
 
   const handleDateSelect = useCallback((date: Date | undefined) => {
     if (date) {
@@ -103,35 +199,91 @@ export function StepSchedule() {
           <Label htmlFor="date-picker" className="text-sm font-semibold text-gray-900">
             Preferred Date
           </Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                id="date-picker"
-                variant="outline"
-                className={cn(
-                  'w-full h-14 justify-start text-left font-normal rounded-xl border-2',
-                  'hover:border-gray-300 hover:bg-gray-50',
-                  'focus:ring-2 focus:ring-primary/30 focus:outline-none',
-                  !selectedDate && 'text-muted-foreground',
-                  selectedDate && 'border-primary/30 bg-primary/5'
-                )}
-              >
-                <CalendarIcon className="mr-3 h-5 w-5" />
-                <span className="text-base">
-                  {selectedDate ? format(selectedDate, 'EEEE, MMMM d, yyyy') : 'Select a date'}
-                </span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={handleDateSelect}
-                disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
+          
+          {/* Horizontal Date Selector */}
+          <div className="flex items-center gap-3 justify-center">
+            {/* Left Arrow */}
+            <button
+              type="button"
+              onClick={() => navigateDates('left')}
+              disabled={!canNavigateLeft}
+              className={cn(
+                "flex-shrink-0 w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors",
+                !canNavigateLeft && "opacity-30 cursor-not-allowed"
+              )}
+              aria-label="Previous dates"
+            >
+              <ChevronLeft className="h-5 w-5 text-gray-900" />
+            </button>
+
+            {/* Date Cards */}
+            <div 
+              ref={dateCardsRef}
+              className="flex gap-2 flex-1 justify-center overflow-x-hidden relative"
+            >
+              <AnimatePresence mode="wait">
+                {(() => {
+                  const getInitial = () => {
+                    if (scrollDirection === 'right') return { x: 616, opacity: 0 };
+                    if (scrollDirection === 'left') return { x: -616, opacity: 0 };
+                    return undefined;
+                  };
+                  
+                  const getExit = () => {
+                    if (scrollDirection === 'right') return { x: -616, opacity: 0 };
+                    if (scrollDirection === 'left') return { x: 616, opacity: 0 };
+                    return undefined;
+                  };
+                  
+                  return (
+                    <motion.div
+                      key={visibleDates.map(d => d.toISOString()).join(',')}
+                      initial={getInitial()}
+                      animate={{ x: 0, opacity: 1 }}
+                      exit={getExit()}
+                      transition={{ duration: 0.3, ease: 'easeInOut' }}
+                      className="flex gap-2"
+                    >
+                      {visibleDates.map((date) => {
+                    const isSelected = selectedDate && format(date, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
+                    const isDisabled = date < today;
+                    
+                    return (
+                      <button
+                        key={date.toISOString()}
+                        type="button"
+                        onClick={() => !isDisabled && handleDateSelect(date)}
+                        disabled={isDisabled}
+                        className={cn(
+                          'flex flex-col items-center justify-center rounded-lg p-3 min-w-[80px] transition-all',
+                          'focus:outline-none focus:ring-2 focus:ring-primary/30',
+                          isSelected
+                            ? 'bg-[#D0EEF2] text-gray-900'
+                            : 'bg-white border border-[#E0E0E0] text-gray-900 hover:border-gray-300',
+                          isDisabled && 'opacity-50 cursor-not-allowed'
+                        )}
+                      >
+                        <span className="text-sm font-medium">{format(date, 'EEE')}</span>
+                        <span className="text-sm font-medium mt-1">{format(date, 'MMM d')}</span>
+                      </button>
+                    );
+                  })}
+                    </motion.div>
+                  );
+                })()}
+              </AnimatePresence>
+            </div>
+
+            {/* Right Arrow */}
+            <button
+              type="button"
+              onClick={() => navigateDates('right')}
+              className="flex-shrink-0 w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+              aria-label="Next dates"
+            >
+              <ChevronRight className="h-5 w-5 text-gray-900" />
+            </button>
+          </div>
         </div>
 
         {/* Time Slots */}
@@ -155,7 +307,7 @@ export function StepSchedule() {
                     'relative rounded-xl border-2 p-3 min-h-[52px] font-medium text-sm transition-all',
                     'focus:outline-none focus:ring-2 focus:ring-primary/30',
                     isSelected
-                      ? 'bg-primary/6 ring-2 ring-primary shadow-md border-primary'
+                      ? 'bg-primary/10 ring-4 ring-primary shadow-lg border-primary/30'
                       : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md'
                   )}
                   whileHover={{ scale: 1.02 }}
@@ -192,32 +344,52 @@ export function StepSchedule() {
           discounts={discounts}
         />
 
-        {/* Confirmation Box */}
+        {/* Confirmation Cards */}
         <AnimatePresence>
           {state.date && state.time && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
-              className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-4"
-              role="status"
-              aria-live="polite"
-            >
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <CalendarIcon className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-1">
-                    Appointment Scheduled
-                  </h3>
-                  <p className="text-sm text-gray-700">
-                    {format(selectedDate!, 'EEEE, MMMM d, yyyy')} at <span className="font-semibold">{state.time}</span>
+            <div className="space-y-3">
+              {/* Discount Confirmation - Show only for weekly recurring */}
+              {state.frequency === 'weekly' && discounts.weekly && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                  className="rounded-lg border border-blue-200 bg-blue-50 p-4"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <p className="text-sm font-medium text-blue-900">
+                    Great choice! You'll save {discounts.weekly}% on recurring weekly service.
                   </p>
+                </motion.div>
+              )}
+
+              {/* Appointment Confirmation */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+                className="rounded-lg border border-gray-200 bg-white p-4"
+                role="status"
+                aria-live="polite"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                    <CalendarIcon className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                      Appointment Scheduled
+                    </h3>
+                    <p className="text-sm text-gray-700">
+                      {format(selectedDate!, 'EEEE, MMMM d, yyyy')} at <span className="font-semibold">{state.time}</span>
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </motion.div>
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
       </div>

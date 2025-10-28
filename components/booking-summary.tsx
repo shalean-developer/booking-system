@@ -6,7 +6,7 @@ import { calcTotal, calcTotalAsync, PRICING, getServicePricing, getCurrentPricin
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, MapPin, Clock, Home, Receipt, User, X, ChevronRight, Percent } from 'lucide-react';
+import { Calendar, MapPin, Clock, Home, Receipt, User, X, ChevronRight, Percent, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -14,6 +14,16 @@ export function BookingSummary() {
   const { state } = useBooking();
   const [isSlideOverOpen, setIsSlideOverOpen] = useState(false);
   const chipButtonRef = useRef<HTMLButtonElement>(null);
+  
+  // Diagnostic logging
+  useEffect(() => {
+    console.log('📋 BookingSummary rendered with state:', {
+      bedrooms: state.bedrooms,
+      bathrooms: state.bathrooms,
+      extras: state.extras,
+      extrasCount: state.extras.length
+    });
+  }, [state.bedrooms, state.bathrooms, state.extras]);
   const [pricingDetails, setPricingDetails] = useState<{
     subtotal: number;
     serviceFee: number;
@@ -25,16 +35,53 @@ export function BookingSummary() {
 
   // Get service-specific pricing (sync for display)
   const servicePricing = useMemo(() => getServicePricing(state.service), [state.service]);
+  
+  // Create stable string key for extras array to detect changes
+  const extrasKey = useMemo(() => state.extras.join(','), [state.extras]);
 
-  // Fetch detailed pricing with fees and discounts
+  // Single optimized effect for immediate price updates
   useEffect(() => {
+    console.log('📊 Booking Summary - State changed:', {
+      service: state.service,
+      bedrooms: state.bedrooms,
+      bathrooms: state.bathrooms,
+      extras: state.extras,
+      extrasLength: state.extras.length
+    });
+    
+    // Immediate synchronous calculation for instant display
+    if (state.service) {
+      const syncTotal = calcTotal({
+        service: state.service,
+        bedrooms: state.bedrooms,
+        bathrooms: state.bathrooms,
+        extras: state.extras,
+      });
+      console.log('💰 Calculated total:', syncTotal, 'for service:', state.service);
+      setPricingDetails({
+        subtotal: syncTotal,
+        serviceFee: 0,
+        frequencyDiscount: 0,
+        frequencyDiscountPercent: 0,
+        total: syncTotal,
+      });
+    } else {
+      console.log('⚠️ No service selected, setting total to 0');
+      setPricingDetails({
+        subtotal: 0,
+        serviceFee: 0,
+        frequencyDiscount: 0,
+        frequencyDiscountPercent: 0,
+        total: 0,
+      });
+    }
+
+    // Then fetch detailed pricing asynchronously (no loading state shown)
     const fetchPricing = async () => {
       try {
-        // Get current pricing for extras
         const pricing = await getCurrentPricing();
         setExtraPrices(pricing.extras);
 
-        // Calculate total with service fee and frequency discount
         const details = await calcTotalAsync(
           {
             service: state.service,
@@ -46,26 +93,13 @@ export function BookingSummary() {
         );
         setPricingDetails(details);
       } catch (error) {
+        // Already have sync fallback displayed
         console.error('Failed to fetch pricing:', error);
-        // Fallback to simple calculation
-        const total = calcTotal({
-          service: state.service,
-          bedrooms: state.bedrooms,
-          bathrooms: state.bathrooms,
-          extras: state.extras,
-        });
-        setPricingDetails({
-          subtotal: total,
-          serviceFee: 0,
-          frequencyDiscount: 0,
-          frequencyDiscountPercent: 0,
-          total,
-        });
       }
     };
 
     fetchPricing();
-  }, [state.service, state.bedrooms, state.bathrooms, state.extras, state.frequency]);
+  }, [state.service, state.bedrooms, state.bathrooms, extrasKey, state.frequency]);
 
   const total = pricingDetails?.total || 0;
 
@@ -96,8 +130,68 @@ export function BookingSummary() {
     };
   }, [isSlideOverOpen]);
 
-  const SummaryContent = () => (
+  const SummaryContent = () => {
+    // Determine which groups are completed
+    const group1Completed = state.service && state.bathrooms >= 1;
+    const group2Completed = state.date && state.time && state.email && state.firstName && state.lastName;
+    const group3Completed = state.cleaner_id || state.selected_team;
+    
+    // Current group number (1-3)
+    const currentGroup = Math.ceil(state.step / 2);
+    
+    return (
     <div className="space-y-6">
+      {/* Group Status Indicator */}
+      <div className="space-y-2 pb-4 border-b border-slate-200">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Progress</span>
+          <span className="text-xs text-slate-500">
+            {currentGroup === 1 && 'Setting up service...'}
+            {currentGroup === 2 && 'Schedule & contact...'}
+            {currentGroup === 3 && 'Finalizing...'}
+            {currentGroup >= 4 && 'Ready to confirm'}
+          </span>
+        </div>
+        <div className="space-y-1">
+          {/* Group 1 */}
+          <div className={cn(
+            "flex items-center gap-2 text-sm",
+            group1Completed ? "text-green-600" : "text-slate-400"
+          )}>
+            {group1Completed ? (
+              <Check className="h-4 w-4 text-green-600" />
+            ) : (
+              <div className="h-4 w-4 rounded-full border-2 border-slate-300" />
+            )}
+            <span className="font-medium">Service Setup</span>
+          </div>
+          {/* Group 2 */}
+          <div className={cn(
+            "flex items-center gap-2 text-sm",
+            group2Completed ? "text-green-600" : "text-slate-400"
+          )}>
+            {group2Completed ? (
+              <Check className="h-4 w-4 text-green-600" />
+            ) : (
+              <div className="h-4 w-4 rounded-full border-2 border-slate-300" />
+            )}
+            <span className="font-medium">Schedule & Contact</span>
+          </div>
+          {/* Group 3 */}
+          <div className={cn(
+            "flex items-center gap-2 text-sm",
+            group3Completed ? "text-green-600" : "text-slate-400"
+          )}>
+            {group3Completed ? (
+              <Check className="h-4 w-4 text-green-600" />
+            ) : (
+              <div className="h-4 w-4 rounded-full border-2 border-slate-300" />
+            )}
+            <span className="font-medium">Finalize</span>
+          </div>
+        </div>
+      </div>
+
       {/* Service */}
       {state.service && (
         <div>
@@ -284,13 +378,14 @@ export function BookingSummary() {
             <span className="text-lg font-semibold text-slate-900">Total</span>
           </div>
           <motion.span 
-            key={total}
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
+            key={`${state.service}-${total}`}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.15 }}
             className="text-2xl font-bold text-primary"
             aria-live="polite"
             aria-atomic="true"
+            aria-label={`Total price: R${total}`}
           >
             R{total}
           </motion.span>
@@ -299,7 +394,8 @@ export function BookingSummary() {
       </div>
     </div>
   );
-
+  };
+  
   return (
     <>
       {/* Desktop: Sticky Card */}
@@ -310,7 +406,7 @@ export function BookingSummary() {
             Booking Summary
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent key={`summary-${state.bedrooms}-${state.bathrooms}-${extrasKey}`}>
           <SummaryContent />
         </CardContent>
       </Card>
@@ -327,13 +423,26 @@ export function BookingSummary() {
           "transition-all hover:shadow-xl hover:scale-105"
         )}
         whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+        whileTap={{ scale: 0.98 }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
         aria-expanded={isSlideOverOpen}
         aria-controls="booking-summary-panel"
         aria-label="View booking summary"
       >
         <Receipt className="h-5 w-5 text-primary" />
-        <span className="text-lg font-bold text-slate-900">R{total}</span>
+        <motion.span 
+          key={`mobile-${state.service}-${total}`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.15 }}
+          className="text-lg font-bold text-slate-900"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          R{total}
+        </motion.span>
         <ChevronRight className="h-4 w-4 text-slate-400" />
       </motion.button>
 
@@ -392,7 +501,7 @@ export function BookingSummary() {
               </div>
 
               {/* Content */}
-              <div className="p-6">
+              <div className="p-6" key={`mobile-summary-${state.bedrooms}-${state.bathrooms}-${extrasKey}`}>
                 <SummaryContent />
               </div>
             </motion.div>

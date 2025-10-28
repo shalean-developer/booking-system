@@ -388,100 +388,80 @@ export async function POST(req: Request) {
       console.log('Booking will be processed but not stored in database');
     }
 
-    // STEP 6: Send confirmation emails (REQUIRED if configured)
-    console.log('Step 6: Sending confirmation emails...');
-    let emailSent = false;
-    console.log('Email config:', {
-      hasResendKey: !!process.env.RESEND_API_KEY,
-      customerEmail: body.email,
-      adminEmail: process.env.ADMIN_EMAIL || 'admin@shalean.co.za'
-    });
+    // STEP 6: Send confirmation emails asynchronously (non-blocking optimization)
+    console.log('Step 6: Queueing confirmation emails for background sending...');
+    const emailSent = !!process.env.RESEND_API_KEY;
     
-    // Check if email service is configured
     if (process.env.RESEND_API_KEY) {
-      try {
-        console.log('=== EMAIL SENDING ===');
-        console.log('SENDER_EMAIL:', process.env.SENDER_EMAIL || 'onboarding@resend.dev');
-        console.log('Customer email:', body.email);
-        console.log('Admin email:', process.env.ADMIN_EMAIL || 'admin@shalean.co.za');
-        console.log('Booking ID:', bookingId);
+      // Fire-and-forget email sending (non-blocking)
+      // This allows us to respond immediately while emails send in background
+      (async () => {
+        try {
+          console.log('=== BACKGROUND EMAIL SENDING ===');
+          console.log('SENDER_EMAIL:', process.env.SENDER_EMAIL || 'onboarding@resend.dev');
+          console.log('Customer email:', body.email);
+          console.log('Admin email:', process.env.ADMIN_EMAIL || 'admin@shalean.co.za');
+          console.log('Booking ID:', bookingId);
 
-        // Send confirmation email to customer (REQUIRED)
-        console.log('📧 Generating customer email...');
-        const customerEmailData = generateBookingConfirmationEmail({
-          ...body,
-          bookingId
-        });
-        console.log('✅ Customer email generated');
-        
-        console.log('📤 Sending customer email...');
-        await sendEmail(customerEmailData);
-        console.log('✅ Customer confirmation email sent successfully');
-        
-        // Send notification email to admin (REQUIRED)
-        console.log('📧 Generating admin email...');
-        const adminEmailData = generateAdminBookingNotificationEmail({
-          ...body,
-          bookingId
-        });
-        console.log('✅ Admin email generated');
-        
-        console.log('📤 Sending admin email...');
-        await sendEmail(adminEmailData);
-        console.log('✅ Admin notification email sent successfully');
-        
-        emailSent = true;
-        console.log('Email sending success:', {
-          customerEmailSent: true,
-          adminEmailSent: true,
-          bookingId
-        });
-        
-      } catch (emailErr) {
-        console.error('=== EMAIL SENDING FAILED ===');
-        console.error('Failed to send emails:', emailErr);
-        console.error('Email error details:', {
-          message: emailErr instanceof Error ? emailErr.message : 'Unknown error',
-          stack: emailErr instanceof Error ? emailErr.stack : undefined,
-          name: emailErr instanceof Error ? emailErr.name : undefined
-        });
-        
-        // TEMPORARILY DISABLED ROLLBACK FOR DEBUGGING
-        // Keep booking in database even if emails fail to help identify the issue
-        if (dbSaved) {
-          console.log('⚠️ EMAIL FAILED BUT KEEPING BOOKING FOR DEBUGGING');
-          console.log('⚠️ Booking ID:', bookingId, 'remains in database');
-          console.log('⚠️ Email failure details:', emailErr);
-          console.log('⚠️ This booking needs manual email sending');
+          // Generate and send emails in background
+          console.log('📧 Generating emails...');
+          const customerEmailData = generateBookingConfirmationEmail({
+            ...body,
+            bookingId
+          });
+          const adminEmailData = generateAdminBookingNotificationEmail({
+            ...body,
+            bookingId
+          });
+          console.log('✅ Emails generated');
           
-          // Log the error context for debugging
-          console.log('🟥 [Bookings API] EMAIL_FAILED_KEEPING_BOOKING:', {
+          console.log('📤 Sending emails in parallel...');
+          await Promise.all([
+            sendEmail(customerEmailData),
+            sendEmail(adminEmailData)
+          ]);
+          console.log('✅ Both emails sent successfully');
+          
+          console.log('Email sending success:', {
+            customerEmailSent: true,
+            adminEmailSent: true,
+            bookingId
+          });
+        } catch (emailErr) {
+          // Log error but don't fail the booking
+          console.error('=== BACKGROUND EMAIL SENDING FAILED ===');
+          console.error('Failed to send emails:', emailErr);
+          console.error('Email error details:', {
+            message: emailErr instanceof Error ? emailErr.message : 'Unknown error',
+            stack: emailErr instanceof Error ? emailErr.stack : undefined,
+            name: emailErr instanceof Error ? emailErr.name : undefined
+          });
+          
+          // Log for admin to manually retry
+          console.log('🟥 [Bookings API] BACKGROUND_EMAIL_FAILED:', {
             bookingId,
             paymentReference: body.paymentReference,
             customerEmail: body.email,
-            dbSaved: true,
-            emailSent: false
+            error: emailErr instanceof Error ? emailErr.message : 'Unknown error'
           });
           
-          // TODO: Replace this with proper email retry queue
-          console.log('🔧 TODO: Implement email retry queue instead of rollback');
+          // TODO: In the future, add to email retry queue
+          console.log('⚠️ Emails failed but booking is saved. Manual retry needed or implement retry queue.');
         }
-        
-        // Return error to client
-        const errorMessage = emailErr instanceof Error ? emailErr.message : 'Unknown email error';
-        throw new Error(`Email delivery failed: ${errorMessage}`);
-      }
+      })(); // Immediately invoked async function (fire-and-forget)
+      
+      console.log('📧 Emails queued for background sending');
     } else {
       console.log('⚠️ Email service not configured - skipping email sending');
       console.log('Booking will be processed but no confirmation emails will be sent');
     }
 
-    // STEP 7: Return success response
+    // STEP 7: Return success response immediately (emails are sending in background)
     console.log('Step 7: Booking completed successfully');
     
     let message = 'Booking confirmed!';
     if (dbSaved && emailSent) {
-      message = 'Booking confirmed! Confirmation emails sent successfully.';
+      message = 'Booking confirmed! Confirmation emails are being sent.';
     } else if (dbSaved && !emailSent) {
       message = 'Booking confirmed! (Email service not configured)';
     } else if (!dbSaved && emailSent) {

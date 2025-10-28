@@ -48,8 +48,38 @@ export function StepReview() {
   }, []);
 
   // Calculate total with service fee and frequency discount
+  // Try to use cached pricing first (pre-fetched from schedule step)
   useEffect(() => {
     const fetchPricing = async () => {
+      // Check for cached pricing from schedule step (optimization)
+      try {
+        const cached = sessionStorage.getItem('cached_pricing');
+        if (cached) {
+          const cachedData = JSON.parse(cached);
+          // Use cache if it's less than 5 minutes old and matches current state
+          const cacheAge = Date.now() - (cachedData.timestamp || 0);
+          if (cacheAge < 5 * 60 * 1000) {
+            // Cache is fresh, use it immediately
+            setPricingDetails({
+              subtotal: cachedData.subtotal,
+              serviceFee: cachedData.serviceFee,
+              frequencyDiscount: cachedData.frequencyDiscount,
+              frequencyDiscountPercent: cachedData.frequencyDiscountPercent,
+              total: cachedData.total,
+            });
+            console.log('=== PRICING LOADED FROM CACHE ===');
+            console.log('Pricing details:', JSON.stringify(cachedData, null, 2));
+            console.log('Total amount:', cachedData.total);
+            console.log('Cache age:', Math.round(cacheAge / 1000), 'seconds');
+            console.log('==================================');
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to read cached pricing:', err);
+      }
+
+      // Cache miss or expired - fetch fresh pricing
       try {
         const details = await calcTotalAsync(
           {
@@ -61,10 +91,10 @@ export function StepReview() {
           state.frequency
         );
         setPricingDetails(details);
-        console.log('=== PRICING LOADED ===');
+        console.log('=== PRICING LOADED FROM API ===');
         console.log('Pricing details:', JSON.stringify(details, null, 2));
         console.log('Total amount:', details.total);
-        console.log('======================');
+        console.log('================================');
       } catch (error) {
         console.error('Failed to fetch pricing:', error);
         // Fallback to simple calculation
@@ -99,184 +129,52 @@ export function StepReview() {
     () => `BK-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
   );
 
-  // Paystack payment success handler (needs to be defined before config)
+  // Paystack payment success handler - Optimized for speed: redirect immediately, process in background
   const onPaymentSuccess = useCallback(async (reference: any) => {
     console.log('=== PAYMENT SUCCESS HANDLER CALLED ===');
     console.log('Payment reference received:', reference);
     
     console.log('🟦 [StepReview] PAYMENT_SUCCESS_RECEIVED:', reference);
     
-    setIsSubmitting(true);
-    setPaymentError(null);
-    setErrorDetails([]);
-
-    // Declare variables outside try block for error context
-    let verifyResponse: Response | undefined;
-    let bookingResponse: Response | undefined;
-
-    try {
-      console.log('Step 1: Starting payment verification...');
-      console.log('Reference to verify:', reference.reference);
-      console.log('🟦 [StepReview] PAYMENT_VERIFICATION_START:', reference.reference);
-
-      // Verify payment with our backend
-      verifyResponse = await fetch('/api/payment/verify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ reference: reference.reference }),
-      });
-
-      console.log('Step 2: Verification response received');
-      console.log('Response status:', verifyResponse.status);
-      console.log('Response ok:', verifyResponse.ok);
-      console.log('🟦 [StepReview] PAYMENT_VERIFICATION_RESPONSE:', { 
-        status: verifyResponse.status, 
-        ok: verifyResponse.ok 
-      });
-
-      const verifyResult: PaystackVerificationResponse = await verifyResponse.json();
-      console.log('Step 3: Verification result parsed:', verifyResult);
-      console.log('🟦 [StepReview] PAYMENT_VERIFICATION_RESULT:', verifyResult);
-
-      if (!verifyResult.ok) {
-        console.error('❌ Verification failed:', verifyResult);
-        
-        console.log('🟥 [StepReview] PAYMENT_VERIFICATION_FAILED:', {
-          paymentReference: reference.reference,
-          verifyResponseStatus: verifyResponse.status,
-          verifyResult
-        });
-        
-        // Check for configuration errors
-        if (verifyResponse.status === 500) {
-          const details = (verifyResult as any).details || [];
-          setErrorDetails(details);
-          throw new Error('Server configuration error. Please contact support.');
-        }
-        
-        throw new Error(verifyResult.error || verifyResult.message || 'Payment verification failed');
-      }
-
-      console.log('✅ Step 4: Payment verified successfully, submitting booking...');
-      console.log('🟩 [StepReview] PAYMENT_VERIFIED_SUCCESS:', { verified: true });
-
-      // Validate pricing is loaded
-      const currentPricing = pricingDetailsRef.current;
-      if (!currentPricing || currentPricing.total <= 0) {
-        console.error('❌ Pricing not loaded or invalid:', currentPricing);
-        console.log('🟥 [StepReview] PRICING_NOT_LOADED:', {
-          paymentReference: reference.reference,
-          pricingDetails: currentPricing
-        });
-        throw new Error('Pricing information not loaded. Please refresh and try again.');
-      }
-
-      // Submit booking with payment reference and pricing details
-      const bookingPayload = {
-        ...state,
-        paymentReference: reference.reference,
-        totalAmount: currentPricing.total,
-        serviceFee: currentPricing.serviceFee,
-        frequencyDiscount: currentPricing.frequencyDiscount,
-      };
-      console.log('Booking payload:', bookingPayload);
-      console.log('🟦 [StepReview] BOOKING_PAYLOAD_PREPARED:', bookingPayload);
-
-      bookingResponse = await fetch('/api/bookings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(bookingPayload),
-      });
-
-      console.log('Step 5: Booking response received');
-      console.log('Booking response status:', bookingResponse.status);
-      console.log('Booking response ok:', bookingResponse.ok);
-      console.log('🟦 [StepReview] BOOKING_RESPONSE_RECEIVED:', { 
-        status: bookingResponse.status, 
-        ok: bookingResponse.ok 
-      });
-
-      const bookingResult = await bookingResponse.json();
-      console.log('Step 6: Booking result parsed:', bookingResult);
-      console.log('🟦 [StepReview] BOOKING_RESULT_PARSED:', bookingResult);
-
-      if (bookingResult.ok) {
-        console.log('✅ Step 7: Booking successful! Redirecting...');
-        console.log('Booking ID:', bookingResult.bookingId);
-        console.log('Message:', bookingResult.message);
-        console.log('🟩 [StepReview] BOOKING_SUCCESS:', { 
-          bookingId: bookingResult.bookingId, 
-          message: bookingResult.message 
-        });
-        
-        // Clear booking state
-        reset();
-        
-        // Navigate to confirmation page
-        console.log('Navigating to /booking/confirmation');
-        console.log('🟦 [StepReview] NAVIGATION_START:', { target: '/booking/confirmation' });
-        router.push('/booking/confirmation');
-      } else {
-        console.error('❌ Booking submission failed:', bookingResult);
-        
-        console.log('🟥 [StepReview] BOOKING_SUBMISSION_FAILED:', {
-          paymentReference: reference.reference,
-          bookingResponseStatus: bookingResponse.status,
-          bookingResult,
-          bookingPayload
-        });
-        
-        // Check for configuration errors
-        if (bookingResponse.status === 500) {
-          const details = (bookingResult as any).details || [];
-          setErrorDetails(details);
-          throw new Error(bookingResult.error || 'Server configuration error. Please contact support.');
-        }
-        
-        throw new Error(bookingResult.error || bookingResult.message || 'Failed to complete booking');
-      }
-    } catch (error) {
-      console.error('=== POST-PAYMENT ERROR ===');
-      console.error('Error type:', error instanceof Error ? 'Error object' : typeof error);
-      console.error('Error details:', error);
-      console.error('Error message:', error instanceof Error ? error.message : String(error));
-      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-      
-      // Enhanced error context capture
-      console.log('🟥 [StepReview] POST_PAYMENT_ERROR:', {
-        paymentReference: reference.reference,
-        bookingState: state,
-        pricingDetails: pricingDetailsRef.current,
-        verifyResponse: verifyResponse,
-        bookingResponse: bookingResponse
-      });
-      
-      // Create comprehensive debug summary
-      console.log('🟥 [StepReview] DEBUG_SUMMARY:', {
-        step: 'POST_PAYMENT_ERROR',
-        paymentReference: reference.reference,
-        bookingState: state,
-        pricingDetails: pricingDetailsRef.current
-      });
-      
-      let errorMessage = error instanceof Error 
-        ? error.message 
-        : 'Failed to complete booking. Please contact support.';
-      
-      // Add payment reference to error message for support
-      if (reference.reference && !errorMessage.includes(reference.reference)) {
-        errorMessage += `\n\nPayment Reference: ${reference.reference}`;
-        errorMessage += '\nPlease save this reference for support.';
-      }
-      
-      setPaymentError(errorMessage);
-      setIsSubmitting(false);
+    // Validate pricing is loaded
+    const currentPricing = pricingDetailsRef.current;
+    if (!currentPricing || currentPricing.total <= 0) {
+      console.error('❌ Pricing not loaded or invalid:', currentPricing);
+      setPaymentError('Pricing information not loaded. Please refresh and try again.');
+      return;
     }
-  }, [state, reset, router]); // REMOVE pricingDetails
+
+    // Prepare booking payload
+    const bookingPayload = {
+      ...state,
+      paymentReference: reference.reference,
+      totalAmount: currentPricing.total,
+      serviceFee: currentPricing.serviceFee,
+      frequencyDiscount: currentPricing.frequencyDiscount,
+    };
+
+    // Store booking state in sessionStorage for background processing
+    sessionStorage.setItem('pending_booking', JSON.stringify({
+      paymentReference: reference.reference,
+      bookingState: bookingPayload,
+      timestamp: Date.now(),
+    }));
+
+    // Store booking reference for confirmation page
+    sessionStorage.setItem('last_booking_ref', reference.reference);
+    
+    // Clear booking state (after storing)
+    reset();
+    
+    // IMMEDIATE REDIRECT - processing happens in background on confirmation page
+    console.log('🚀 Redirecting immediately to confirmation page...');
+    console.log('🟦 [StepReview] IMMEDIATE_REDIRECT:', { 
+      target: '/booking/confirmation', 
+      ref: reference.reference 
+    });
+    
+    router.push(`/booking/confirmation?ref=${reference.reference}`);
+  }, [state, reset, router]);
 
   // Paystack payment close handler
   const onPaymentClose = useCallback(() => {
@@ -696,7 +594,8 @@ export function StepReview() {
           ) : !pricingDetails ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              <span>Loading pricing...</span>
+              <span className="sm:hidden">Loading...</span>
+              <span className="hidden sm:inline">Calculating Pricing...</span>
             </>
           ) : (
             <>

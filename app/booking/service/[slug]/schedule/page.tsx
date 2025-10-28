@@ -3,7 +3,6 @@
 import { useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { useBooking } from '@/lib/useBooking';
-import { Stepper } from '@/components/stepper';
 import { BookingSummary } from '@/components/booking-summary';
 import { StepSchedule } from '@/components/step-schedule';
 import { motion } from 'framer-motion';
@@ -79,13 +78,6 @@ export default function SchedulePage() {
             Back to Details
           </Link>
         </motion.div>
-
-        {/* Progress Stepper - Centered */}
-        <div className="flex justify-center w-full mb-6 lg:mb-8">
-          <div className="max-w-4xl w-full">
-            <Stepper currentStep={state.step} />
-          </div>
-        </div>
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-12 gap-6 pb-24 lg:pb-8">

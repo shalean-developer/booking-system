@@ -55,6 +55,7 @@ export interface PricingData {
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 let cachedPricing: PricingData | null = null;
 let cacheTimestamp: number = 0;
+let fetchingPromise: Promise<PricingData> | null = null; // Prevent duplicate parallel fetches
 
 /**
  * Check if cache is still valid
@@ -82,83 +83,97 @@ export async function fetchActivePricing(forceRefresh = false): Promise<PricingD
     return cachedPricing;
   }
 
-  console.log('🔄 Fetching fresh pricing from database...');
-
-  try {
-    const { data, error } = await supabase
-      .from('pricing_config')
-      .select('*')
-      .eq('is_active', true)
-      .lte('effective_date', new Date().toISOString().split('T')[0])
-      .or('end_date.is.null,end_date.gt.' + new Date().toISOString().split('T')[0]);
-
-    if (error) {
-      console.error('❌ Error fetching pricing:', error);
-      throw new Error(`Failed to fetch pricing: ${error.message}`);
-    }
-
-    if (!data || data.length === 0) {
-      console.warn('⚠️ No active pricing found in database');
-      throw new Error('No active pricing configuration found');
-    }
-
-    // Transform database records into structured pricing data
-    const pricing: PricingData = {
-      services: {},
-      extras: {},
-      serviceFee: 0,
-      frequencyDiscounts: {},
-    };
-
-    data.forEach((record: any) => {
-      const { service_type, price_type, item_name, price } = record;
-
-      switch (price_type) {
-        case 'base':
-        case 'bedroom':
-        case 'bathroom':
-          if (service_type) {
-            if (!pricing.services[service_type]) {
-              pricing.services[service_type] = { base: 0, bedroom: 0, bathroom: 0 };
-            }
-            pricing.services[service_type][price_type as keyof ServicePricing] = Number(price);
-          }
-          break;
-
-        case 'extra':
-          if (item_name) {
-            pricing.extras[item_name] = Number(price);
-          }
-          break;
-
-        case 'service_fee':
-          pricing.serviceFee = Number(price);
-          break;
-
-        case 'frequency_discount':
-          if (item_name) {
-            pricing.frequencyDiscounts[item_name] = Number(price);
-          }
-          break;
-      }
-    });
-
-    // Update cache
-    cachedPricing = pricing;
-    cacheTimestamp = Date.now();
-
-    console.log('✅ Pricing fetched and cached:', {
-      services: Object.keys(pricing.services).length,
-      extras: Object.keys(pricing.extras).length,
-      serviceFee: pricing.serviceFee,
-      frequencyDiscounts: Object.keys(pricing.frequencyDiscounts).length,
-    });
-
-    return pricing;
-  } catch (error) {
-    console.error('❌ Failed to fetch pricing:', error);
-    throw error;
+  // If already fetching, return the existing promise (prevent duplicate parallel fetches)
+  if (fetchingPromise) {
+    console.log('⏳ Waiting for existing pricing fetch...');
+    return fetchingPromise;
   }
+
+  console.log('🔄 Fetching fresh pricing from database...');
+  
+  // Create and store the fetch promise to prevent duplicate parallel fetches
+  fetchingPromise = (async () => {
+    try {
+      const { data, error } = await supabase
+        .from('pricing_config')
+        .select('*')
+        .eq('is_active', true)
+        .lte('effective_date', new Date().toISOString().split('T')[0])
+        .or('end_date.is.null,end_date.gt.' + new Date().toISOString().split('T')[0]);
+
+      if (error) {
+        console.error('❌ Error fetching pricing:', error);
+        throw new Error(`Failed to fetch pricing: ${error.message}`);
+      }
+
+      if (!data || data.length === 0) {
+        console.warn('⚠️ No active pricing found in database');
+        throw new Error('No active pricing configuration found');
+      }
+
+      // Transform database records into structured pricing data
+      const pricing: PricingData = {
+        services: {},
+        extras: {},
+        serviceFee: 0,
+        frequencyDiscounts: {},
+      };
+
+      data.forEach((record: any) => {
+        const { service_type, price_type, item_name, price } = record;
+
+        switch (price_type) {
+          case 'base':
+          case 'bedroom':
+          case 'bathroom':
+            if (service_type) {
+              if (!pricing.services[service_type]) {
+                pricing.services[service_type] = { base: 0, bedroom: 0, bathroom: 0 };
+              }
+              pricing.services[service_type][price_type as keyof ServicePricing] = Number(price);
+            }
+            break;
+
+          case 'extra':
+            if (item_name) {
+              pricing.extras[item_name] = Number(price);
+            }
+            break;
+
+          case 'service_fee':
+            pricing.serviceFee = Number(price);
+            break;
+
+          case 'frequency_discount':
+            if (item_name) {
+              pricing.frequencyDiscounts[item_name] = Number(price);
+            }
+            break;
+        }
+      });
+
+      // Update cache
+      cachedPricing = pricing;
+      cacheTimestamp = Date.now();
+
+      console.log('✅ Pricing fetched and cached:', {
+        services: Object.keys(pricing.services).length,
+        extras: Object.keys(pricing.extras).length,
+        serviceFee: pricing.serviceFee,
+        frequencyDiscounts: Object.keys(pricing.frequencyDiscounts).length,
+      });
+
+      return pricing;
+    } catch (error) {
+      console.error('❌ Failed to fetch pricing:', error);
+      throw error;
+    } finally {
+      // Clear the fetching promise so future calls can fetch fresh data
+      fetchingPromise = null;
+    }
+  })();
+
+  return fetchingPromise;
 }
 
 /**

@@ -3,9 +3,8 @@
 import { useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { useBooking } from '@/lib/useBooking';
-import { Stepper } from '@/components/stepper';
-import { BookingSummary } from '@/components/booking-summary';
 import { StepReview } from '@/components/step-review';
+import { BookingFooter } from '@/components/booking-footer';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
@@ -62,10 +61,11 @@ export default function ReviewPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 py-6 lg:py-10">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <motion.div 
+    <div className="min-h-screen bg-slate-50 pb-28">
+      <div className="py-6 lg:py-10">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          {/* Back Link */}
+          <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3 }}
@@ -80,26 +80,16 @@ export default function ReviewPage() {
           </Link>
         </motion.div>
 
-        {/* Progress Stepper - Centered */}
-        <div className="flex justify-center w-full mb-6 lg:mb-8">
-          <div className="max-w-4xl w-full">
-            <Stepper currentStep={state.step} />
-          </div>
-        </div>
-
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-12 gap-6 pb-24 lg:pb-8">
-          {/* Main Column - Review Content */}
-          <div className="col-span-12 lg:col-span-8">
+        {/* Main Content - Full Width */}
+        <div className="pb-24 lg:pb-8">
+          <div className="max-w-4xl mx-auto">
             <StepReview />
-          </div>
-
-          {/* Right Column - Booking Summary (Desktop Only) */}
-          <div className="col-span-12 lg:col-span-4">
-            <BookingSummary />
           </div>
         </div>
       </div>
+
+      {/* Footer */}
+      <BookingFooter />
     </div>
   );
 }

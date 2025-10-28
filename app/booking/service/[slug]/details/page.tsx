@@ -3,9 +3,9 @@
 import { useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { useBooking } from '@/lib/useBooking';
-import { Stepper } from '@/components/stepper';
 import { BookingSummary } from '@/components/booking-summary';
 import { StepDetails } from '@/components/step-details';
+import { BookingFooter } from '@/components/booking-footer';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
@@ -44,6 +44,17 @@ export default function DetailsPage() {
       updateField('step', 2);
     }
   }, [isLoaded, serviceFromSlug, state.service, state.step, updateField]);
+  
+  // Diagnostic logging
+  useEffect(() => {
+    console.log('📄 DetailsPage loaded with state:', {
+      bedrooms: state.bedrooms,
+      bathrooms: state.bathrooms,
+      extras: state.extras,
+      extrasCount: state.extras.length,
+      service: state.service
+    });
+  }, [state.bedrooms, state.bathrooms, state.extras, state.service]);
 
   // Wait for localStorage to load
   if (!isLoaded) {
@@ -62,44 +73,42 @@ export default function DetailsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 py-6 lg:py-10">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-          className="mb-6"
-        >
-          <Link 
-            href="/booking/service/select" 
-            className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
+    <div className="min-h-screen bg-slate-50 pb-28">
+      <div className="py-6 lg:py-10">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          {/* Back Link */}
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="mb-6"
           >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Service Selection
-          </Link>
-        </motion.div>
+            <Link 
+              href="/booking/service/select" 
+              className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Service Selection
+            </Link>
+          </motion.div>
 
-        {/* Progress Stepper - Centered */}
-        <div className="flex justify-center w-full mb-6 lg:mb-8">
-          <div className="max-w-4xl w-full">
-            <Stepper currentStep={state.step} />
-          </div>
-        </div>
+          {/* Main Content Grid */}
+          <div className="grid grid-cols-12 gap-6 pb-24 lg:pb-8">
+            {/* Main Column - Home Details Form */}
+            <div className="col-span-12 lg:col-span-8">
+              <StepDetails />
+            </div>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-12 gap-6 pb-24 lg:pb-8">
-          {/* Main Column - Home Details Form */}
-          <div className="col-span-12 lg:col-span-8">
-            <StepDetails />
-          </div>
-
-          {/* Right Column - Booking Summary (Desktop Only) */}
-          <div className="col-span-12 lg:col-span-4">
-            <BookingSummary />
+            {/* Right Column - Booking Summary (Desktop Only) */}
+            <div className="col-span-12 lg:col-span-4">
+              <BookingSummary />
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Footer */}
+      <BookingFooter />
     </div>
   );
 }

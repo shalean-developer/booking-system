@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ServiceType } from '@/types/booking';
 import { useBooking } from '@/lib/useBooking';
@@ -10,8 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { motion } from 'framer-motion';
 import { PRICING } from '@/lib/pricing';
-import { Check, Plus } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { EXTRA_ICONS } from '@/components/extra-service-icons';
 
 const extrasList = Object.keys(PRICING.extras) as Array<keyof typeof PRICING.extras>;
 
@@ -30,6 +31,16 @@ function serviceTypeToSlug(serviceType: ServiceType): string {
 export function StepDetails() {
   const router = useRouter();
   const { state, updateField } = useBooking();
+  
+  // Diagnostic logging
+  useEffect(() => {
+    console.log('🏠 StepDetails rendered with state:', {
+      bedrooms: state.bedrooms,
+      bathrooms: state.bathrooms,
+      extras: state.extras,
+      extrasCount: state.extras.length
+    });
+  }, [state.bedrooms, state.bathrooms, state.extras]);
 
   const handleBack = useCallback(() => {
     // Navigate immediately - step will be updated by the target page's useEffect
@@ -37,30 +48,47 @@ export function StepDetails() {
   }, [router]);
 
   const handleNext = useCallback(() => {
+    // Validate minimum requirements (only bathroom required now)
+    if (state.bathrooms < 1) {
+      // This validation will be handled by the canProceed check
+      return;
+    }
+    
     if (state.service) {
       const slug = serviceTypeToSlug(state.service);
       // Navigate immediately - step will be updated by the target page's useEffect
       router.push(`/booking/service/${slug}/schedule`);
     }
-  }, [state.service, router]);
+  }, [state.service, state.bathrooms, router]);
 
   const handleBedroomChange = useCallback((value: string) => {
     const newValue = parseInt(value);
+    console.log('🛏️ Bedroom dropdown changed from', state.bedrooms, 'to', newValue);
     updateField('bedrooms', newValue);
-  }, [updateField]);
+  }, [updateField, state.bedrooms]);
 
   const handleBathroomChange = useCallback((value: string) => {
     const newValue = parseInt(value);
+    console.log('🚿 Bathroom dropdown changed from', state.bathrooms, 'to', newValue);
     updateField('bathrooms', newValue);
-  }, [updateField]);
+  }, [updateField, state.bathrooms]);
 
   const toggleExtra = useCallback((extra: string) => {
-    if (state.extras.includes(extra)) {
-      updateField('extras', state.extras.filter((e) => e !== extra));
-    } else {
-      updateField('extras', [...state.extras, extra]);
-    }
+    const isCurrentlySelected = state.extras.includes(extra);
+    console.log('⭐ Extra toggled:', extra, 'currently selected:', isCurrentlySelected);
+    const newExtras = isCurrentlySelected 
+      ? state.extras.filter((e) => e !== extra)
+      : [...state.extras, extra];
+    console.log('⭐ New extras array:', newExtras);
+    updateField('extras', newExtras);
   }, [state.extras, updateField]);
+
+  // Validation: Ensure minimum 1 bathroom
+  const isValid = state.bathrooms >= 1;
+  const validationMessage = 
+    state.bathrooms < 1 
+      ? 'Please select at least 1 bathroom' 
+      : '';
 
   return (
     <motion.div
@@ -126,8 +154,8 @@ export function StepDetails() {
         {/* Extras */}
         <div className="space-y-4">
           <div>
-            <Label className="text-sm font-semibold text-gray-900">
-              Additional Services
+            <Label className="text-base font-bold text-gray-900">
+              Extra Services
             </Label>
             <p className="text-sm text-gray-600 mt-1">
               Select any extras to enhance your cleaning service
@@ -135,12 +163,13 @@ export function StepDetails() {
           </div>
           
           <div 
-            className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6"
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 lg:gap-6"
             role="group"
-            aria-label="Additional services"
+            aria-label="Extra services"
           >
             {extrasList.map((extra) => {
               const isSelected = state.extras.includes(extra);
+              const IconComponent = EXTRA_ICONS[extra as keyof typeof EXTRA_ICONS];
               return (
                 <motion.button
                   key={extra}
@@ -150,7 +179,7 @@ export function StepDetails() {
                     'relative rounded-2xl border p-5 flex flex-col items-center gap-3 cursor-pointer transition-all',
                     'focus:outline-none focus:ring-2 focus:ring-primary/30 min-h-[120px]',
                     isSelected
-                      ? 'bg-primary/6 ring-2 ring-primary shadow-md'
+                      ? 'bg-primary/10 ring-4 ring-primary shadow-lg border-primary/30'
                       : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-md'
                   )}
                   whileHover={{ scale: 1.02, y: -2 }}
@@ -160,15 +189,17 @@ export function StepDetails() {
                   aria-checked={isSelected}
                   aria-labelledby={`extra-${extra}-label`}
                 >
-                  {/* Icon Container */}
+                  {/* Icon Container - Green outlined circle */}
                   <div className={cn(
-                    "w-12 h-12 rounded-full flex items-center justify-center transition-colors",
-                    isSelected ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'
+                    "w-14 h-14 rounded-full flex items-center justify-center transition-all border-2",
+                    isSelected 
+                      ? 'border-primary bg-primary/5 text-primary' 
+                      : 'border-primary/30 bg-white text-gray-700'
                   )}>
-                    {isSelected ? (
-                      <Check className="h-5 w-5" strokeWidth={2.5} />
+                    {IconComponent ? (
+                      <IconComponent className="w-6 h-6" />
                     ) : (
-                      <Plus className="h-5 w-5" strokeWidth={2} />
+                      <div className="w-6 h-6 rounded bg-gray-300" />
                     )}
                   </div>
 
@@ -176,7 +207,10 @@ export function StepDetails() {
                   <div className="text-center space-y-1">
                     <div 
                       id={`extra-${extra}-label`}
-                      className="text-sm font-semibold text-gray-900 leading-tight"
+                      className={cn(
+                        "text-sm font-semibold leading-tight",
+                        isSelected ? 'text-gray-900' : 'text-gray-700'
+                      )}
                     >
                       {extra}
                     </div>
@@ -237,9 +271,10 @@ export function StepDetails() {
         <Button 
           onClick={handleNext} 
           size="lg" 
+          disabled={!isValid}
           className={cn(
             "rounded-full px-8 py-3 font-semibold shadow-lg",
-            "bg-primary hover:bg-primary/90 text-white",
+            isValid ? "bg-primary hover:bg-primary/90 text-white" : "bg-gray-300 text-gray-500 cursor-not-allowed",
             "focus:ring-2 focus:ring-primary/30 focus:outline-none",
             "transition-all duration-200"
           )}
@@ -249,6 +284,17 @@ export function StepDetails() {
           <span className="hidden sm:inline">Continue to Schedule</span>
         </Button>
       </div>
+
+      {/* Validation Message */}
+      {!isValid && validationMessage && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm"
+        >
+          {validationMessage}
+        </motion.div>
+      )}
     </motion.div>
   );
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Instagram, Mail } from "lucide-react";
+import { Instagram, Mail, Facebook, Linkedin, MessageCircle } from "lucide-react";
 
 // Optimized Logo component - static import, no client-side detection
 function Logo() {
@@ -124,12 +124,40 @@ export function HomeFooter() {
           {/* Right - Social Icons */}
           <div className="flex items-center gap-4">
             <a 
+              href="https://facebook.com/shaleancleaning" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors"
+              aria-label="Visit our Facebook page"
+            >
+              <Facebook className="h-5 w-5 text-gray-300" />
+            </a>
+            <a 
+              href="https://www.linkedin.com/company/shaleancleaning" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors"
+              aria-label="Visit our LinkedIn page"
+            >
+              <Linkedin className="h-5 w-5 text-gray-300" />
+            </a>
+            <a 
               href="https://instagram.com/shaleancleaning" 
               target="_blank" 
               rel="noopener noreferrer"
               className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors"
+              aria-label="Visit our Instagram profile"
             >
               <Instagram className="h-5 w-5 text-gray-300" />
+            </a>
+            <a 
+              href="https://wa.me/27871535250" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors"
+              aria-label="Contact us on WhatsApp"
+            >
+              <MessageCircle className="h-5 w-5 text-gray-300" />
             </a>
           </div>
         </div>

@@ -14,6 +14,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/lib/supabase-client';
 import { safeLogout, cleanupCorruptedSession, safeGetSession } from '@/lib/logout-utils';
+import { useBooking } from '@/lib/useBooking';
+import { Stepper } from '@/components/stepper';
 import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
 import {
@@ -71,6 +73,15 @@ export function Header({ variant = 'default' }: HeaderProps) {
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  
+  // Get booking state for stepper display
+  const { state: bookingState, isLoaded: bookingLoaded } = useBooking();
+  
+  // Check if on booking flow pages
+  const isBookingPage = pathname?.startsWith('/booking/') && 
+    !pathname.includes('/quote') && 
+    !pathname.includes('/success') && 
+    !pathname.includes('/confirmation');
 
   // Check auth state and admin role
   useEffect(() => {
@@ -167,6 +178,9 @@ export function Header({ variant = 'default' }: HeaderProps) {
   };
 
   const currentPage = getCurrentPage();
+  
+  // Check if on booking/service/select page
+  const isServiceSelectionPage = pathname === '/booking/service/select';
 
   // Optimized Logo component - static import, no client-side detection
   const Logo = () => {
@@ -209,46 +223,59 @@ export function Header({ variant = 'default' }: HeaderProps) {
   return (
     <header className="bg-white border-b sticky top-0 z-50">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between py-4">
+        {/* Top Row: Logo, Navigation/Stepper, Buttons */}
+        <div className="flex items-center justify-between py-4 gap-4">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2 flex-shrink-0">
             <Logo />
             <div className="text-lg md:text-xl font-bold text-primary">Shalean</div>
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center">
-            {/* Navigation Container */}
-            <div className="bg-gray-100 rounded-full p-1 flex items-center gap-1">
-              {navigationItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = currentPage === item.key;
-                
-                return (
-                  <Link
-                    key={item.key}
-                    href={item.href}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full transition-colors ${
-                      isActive
-                        ? 'bg-primary text-white'
-                        : 'bg-white text-gray-700 hover:text-primary'
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span className="text-sm font-medium">{item.name}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          </nav>
+          {/* Center Section: Navigation or Stepper */}
+          <div className="flex-1 flex justify-center min-w-0">
+            {isBookingPage && bookingLoaded ? (
+              /* Stepper for booking pages - Show on all screens but hide mobile stepper text */
+              <div className="w-full max-w-2xl">
+                <Stepper currentStep={bookingState.step} />
+              </div>
+            ) : !isServiceSelectionPage ? (
+              /* Desktop Navigation for other pages */
+              <nav className="hidden md:flex items-center">
+                {/* Navigation Container */}
+                <div className="bg-gray-100 rounded-full p-1 flex items-center gap-1">
+                  {navigationItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = currentPage === item.key;
+                    
+                    return (
+                      <Link
+                        key={item.key}
+                        href={item.href}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-full transition-colors ${
+                          isActive
+                            ? 'bg-primary text-white'
+                            : 'bg-white text-gray-700 hover:text-primary'
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span className="text-sm font-medium">{item.name}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </nav>
+            ) : null}
+          </div>
 
           {/* Action Buttons - Desktop & Mobile */}
-          <div className="flex items-center gap-2 md:gap-3">
-            <Button className="bg-primary hover:bg-primary/90 text-white rounded-full text-xs sm:text-sm px-3 sm:px-4 h-9 sm:h-10" asChild>
-              <Link href={user ? "/booking/service/select" : "/booking/quote"}>
-                {user ? "Book a Service" : "Get Free Quote"}
-              </Link>
-            </Button>
+          <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+            {!isServiceSelectionPage && (
+              <Button className="bg-primary hover:bg-primary/90 text-white rounded-full text-xs sm:text-sm px-3 sm:px-4 h-9 sm:h-10" asChild>
+                <Link href={user ? "/booking/service/select" : "/booking/quote"}>
+                  {user ? "Book a Service" : "Get Free Quote"}
+                </Link>
+              </Button>
+            )}
             
             {user ? (
               /* Logged In State - User Dropdown */

@@ -84,7 +84,11 @@ export default async function BlogPostPage({ params }: Props) {
       <BlogPostHero post={post} />
 
       {/* Article Content */}
-      <BlogPostContent content={post.content} />
+      <BlogPostContent 
+        content={post.content} 
+        title={post.title}
+        url={`https://shalean.co.za/blog/${post.slug}`}
+      />
 
       {/* Related Posts - Lazy Loaded */}
       <BlogPostRelated posts={relatedPosts} />
