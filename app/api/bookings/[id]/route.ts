@@ -6,9 +6,10 @@ import { supabase } from '@/lib/supabase';
  */
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const id = params.id;
     
     if (!id) {

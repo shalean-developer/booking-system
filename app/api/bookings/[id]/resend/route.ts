@@ -7,9 +7,10 @@ import { sendEmail, generateBookingConfirmationEmail } from '@/lib/email';
  */
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const id = params.id;
     
     if (!id) {
