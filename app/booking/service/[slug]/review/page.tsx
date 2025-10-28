@@ -66,24 +66,25 @@ export default function ReviewPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {/* Back Link */}
           <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-          className="mb-6"
-        >
-          <Link 
-            href={`/booking/service/${slug}/contact`}
-            className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="mb-6"
           >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Contact
-          </Link>
-        </motion.div>
+            <Link 
+              href={`/booking/service/${slug}/contact`}
+              className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Contact
+            </Link>
+          </motion.div>
 
-        {/* Main Content - Full Width */}
-        <div className="pb-24 lg:pb-8">
-          <div className="max-w-4xl mx-auto">
-            <StepReview />
+          {/* Main Content - Full Width */}
+          <div className="pb-24 lg:pb-8">
+            <div className="max-w-4xl mx-auto">
+              <StepReview />
+            </div>
           </div>
         </div>
       </div>
