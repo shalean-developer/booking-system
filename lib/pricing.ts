@@ -94,6 +94,80 @@ export function calcTotal(input: {
 }
 
 /**
+ * Calculate total booking price with service fee and frequency discount (synchronous)
+ * Uses fallback PRICING constant for immediate calculation
+ * @param input Booking details
+ * @param frequency Booking frequency: 'one-time', 'weekly', 'bi-weekly', 'monthly'
+ * @returns Object with subtotal, serviceFee, discount, and total
+ */
+export function calcTotalSync(
+  input: {
+    service: ServiceType | null;
+    bedrooms: number;
+    bathrooms: number;
+    extras: string[];
+  },
+  frequency: 'one-time' | 'weekly' | 'bi-weekly' | 'monthly' = 'one-time'
+): {
+  subtotal: number;
+  serviceFee: number;
+  frequencyDiscount: number;
+  frequencyDiscountPercent: number;
+  total: number;
+} {
+  if (!input.service) {
+    return {
+      subtotal: 0,
+      serviceFee: 0,
+      frequencyDiscount: 0,
+      frequencyDiscountPercent: 0,
+      total: 0,
+    };
+  }
+
+  const servicePricing = PRICING.services[input.service];
+  if (!servicePricing) {
+    return {
+      subtotal: 0,
+      serviceFee: 0,
+      frequencyDiscount: 0,
+      frequencyDiscountPercent: 0,
+      total: 0,
+    };
+  }
+
+  // Calculate base + rooms + extras
+  const base = servicePricing.base;
+  const beds = input.bedrooms * servicePricing.bedroom;
+  const baths = input.bathrooms * servicePricing.bathroom;
+  const extrasTotal = input.extras.reduce((sum, extraName) => {
+    return sum + (PRICING.extras[extraName as ExtraKey] ?? 0);
+  }, 0);
+
+  const subtotal = base + beds + baths + extrasTotal;
+
+  // Add service fee
+  const serviceFee = PRICING.serviceFee;
+
+  // Calculate frequency discount
+  const discountPercent = frequency !== 'one-time' 
+    ? (PRICING.frequencyDiscounts[frequency] || 0)
+    : 0;
+  const frequencyDiscount = (subtotal * discountPercent) / 100;
+
+  // Calculate total
+  const total = Math.round(subtotal + serviceFee - frequencyDiscount);
+
+  return {
+    subtotal: Math.round(subtotal),
+    serviceFee: Math.round(serviceFee),
+    frequencyDiscount: Math.round(frequencyDiscount),
+    frequencyDiscountPercent: discountPercent,
+    total,
+  };
+}
+
+/**
  * Calculate total booking price with service fee and frequency discount (async)
  * @param input Booking details
  * @param frequency Booking frequency: 'one-time', 'weekly', 'bi-weekly', 'monthly'

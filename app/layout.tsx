@@ -121,7 +121,8 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
         />
-        
+      </head>
+      <body className={cn(inter.className, "min-h-screen bg-slate-50")}>
         {/* Google Tag Manager */}
         <Script
           id="gtm-script"
@@ -134,8 +135,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 })(window,document,'script','dataLayer','GTM-5XRFHPL8');`,
           }}
         />
-      </head>
-      <body className={cn(inter.className, "min-h-screen bg-slate-50")}>
         {/* Google Tag Manager (noscript) */}
         <noscript>
           <iframe

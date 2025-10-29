@@ -49,116 +49,42 @@ function ConfirmationContent() {
   const [resendSuccess, setResendSuccess] = useState(false);
 
   useEffect(() => {
-    const processBooking = async () => {
+    const fetchBooking = async () => {
       if (!id) {
+        // Try to get reference from sessionStorage as fallback
         const storedRef = sessionStorage.getItem('last_booking_ref');
         if (storedRef) {
           window.location.href = `/booking/confirmation?ref=${storedRef}`;
           return;
         }
+        setProcessingError('Booking reference not found');
         return;
       }
 
-      // Check if booking already exists (user refreshing page)
-      try {
-        const existingResponse = await fetch(`/api/bookings/${id}`);
-        const existingData = await existingResponse.json();
-
-        if (existingData.ok && existingData.booking) {
-          setBooking(existingData.booking);
-          return;
-        }
-      } catch (err) {
-        console.error('Failed to check existing booking:', err);
-      }
-
-      // Get pending booking from sessionStorage
-      const pendingBookingStr = sessionStorage.getItem('pending_booking');
-      if (!pendingBookingStr) {
-        // No pending booking, try to fetch existing
-        try {
-          const response = await fetch(`/api/bookings/${id}`);
-          const data = await response.json();
-          if (data.ok && data.booking) {
-            setBooking(data.booking);
-          }
-        } catch (err) {
-          console.error('Failed to fetch booking:', err);
-        }
-        return;
-      }
-
-      const pendingBooking = JSON.parse(pendingBookingStr);
-      if (pendingBooking.paymentReference !== id) {
-        // Payment reference mismatch, clear and fetch existing
-        sessionStorage.removeItem('pending_booking');
-        try {
-          const response = await fetch(`/api/bookings/${id}`);
-          const data = await response.json();
-          if (data.ok && data.booking) {
-            setBooking(data.booking);
-          }
-        } catch (err) {
-          console.error('Failed to fetch booking:', err);
-        }
-        return;
-      }
-
-      // Process booking in background with retry logic
       setIsProcessing(true);
       
-      const processWithRetry = async (maxRetries = 3) => {
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-          try {
-            console.log(`Processing booking (attempt ${attempt}/${maxRetries})...`);
-            
-            const response = await fetch('/api/bookings/process', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(pendingBooking.bookingState),
-            });
+      try {
+        // Fetch booking from database (already saved by step-review)
+        console.log('Fetching booking:', id);
+        const response = await fetch(`/api/bookings/${id}`);
+        const data = await response.json();
 
-            const data = await response.json();
-
-            if (data.ok && data.booking) {
-              setBooking(data.booking);
-              // Clear pending booking
-              sessionStorage.removeItem('pending_booking');
-              return; // Success, exit retry loop
-            } else {
-              // If last attempt, set error
-              if (attempt === maxRetries) {
-                setProcessingError(data.error || 'Processing delayed');
-              } else {
-                // Wait before retry with exponential backoff
-                const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-                console.log(`Retrying in ${delay}ms...`);
-                await new Promise(resolve => setTimeout(resolve, delay));
-              }
-            }
-          } catch (err) {
-            console.error(`Attempt ${attempt} failed:`, err);
-            
-            if (attempt === maxRetries) {
-              setProcessingError('Processing delayed - payment was successful, check your email');
-            } else {
-              // Wait before retry with exponential backoff
-              const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-              console.log(`Retrying in ${delay}ms...`);
-              await new Promise(resolve => setTimeout(resolve, delay));
-            }
-          }
+        if (data.ok && data.booking) {
+          setBooking(data.booking);
+          console.log('✅ Booking fetched successfully');
+        } else {
+          setProcessingError(data.error || 'Booking not found');
+          console.error('❌ Booking not found:', data.error);
         }
-      };
-      
-      processWithRetry().finally(() => {
+      } catch (err) {
+        console.error('Failed to fetch booking:', err);
+        setProcessingError('Failed to load booking details. Please try again or contact support.');
+      } finally {
         setIsProcessing(false);
-      });
+      }
     };
 
-    processBooking();
+    fetchBooking();
   }, [id]);
 
   const handleResendEmail = async () => {
@@ -197,8 +123,8 @@ function ConfirmationContent() {
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-primary/5 to-white">
         <div className="text-center max-w-md">
           <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-lg font-semibold text-gray-900 mb-2">Payment Successful!</p>
-          <p className="text-gray-600 mb-4">Processing your booking...</p>
+          <p className="text-lg font-semibold text-gray-900 mb-2">Loading your booking...</p>
+          <p className="text-gray-600 mb-4">Please wait while we fetch your booking details.</p>
           {id && (
             <Badge className="bg-primary text-white">
               Reference: {id}

@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ServiceType, PaystackVerificationResponse } from '@/types/booking';
 import { useBooking } from '@/lib/useBooking';
-import { calcTotal, calcTotalAsync, PRICING } from '@/lib/pricing';
+import { calcTotal, calcTotalAsync, calcTotalSync, PRICING } from '@/lib/pricing';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -31,13 +31,30 @@ export function StepReview() {
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<string[]>([]);
   const [PaystackHook, setPaystackHook] = useState<any>(null);
+  
+  // Calculate immediate fallback pricing for instant display
+  const fallbackPricing = useMemo(() => {
+    return calcTotalSync(
+      {
+        service: state.service,
+        bedrooms: state.bedrooms,
+        bathrooms: state.bathrooms,
+        extras: state.extras || [],
+      },
+      state.frequency || 'one-time'
+    );
+  }, [state.service, state.bedrooms, state.bathrooms, state.extras, state.frequency]);
+
+  // Initialize pricingDetails state immediately with fallback (no delay)
+  // This ensures price displays instantly instead of "Calculating Pricing..."
   const [pricingDetails, setPricingDetails] = useState<{
     subtotal: number;
     serviceFee: number;
     frequencyDiscount: number;
     frequencyDiscountPercent: number;
     total: number;
-  } | null>(null);
+  }>(fallbackPricing);
+  
   const pricingDetailsRef = useRef(pricingDetails);
 
   // Dynamically import react-paystack on client side only
@@ -47,26 +64,31 @@ export function StepReview() {
     });
   }, []);
 
-  // Calculate total with service fee and frequency discount
-  // Try to use cached pricing first (pre-fetched from schedule step)
+  // Update pricing: show fallback immediately, then update with cache/database if available
   useEffect(() => {
+    // Set fallback immediately for instant display (no delay)
+    setPricingDetails(fallbackPricing);
+    pricingDetailsRef.current = fallbackPricing;
+
     const fetchPricing = async () => {
       // Check for cached pricing from schedule step (optimization)
       try {
         const cached = sessionStorage.getItem('cached_pricing');
         if (cached) {
           const cachedData = JSON.parse(cached);
-          // Use cache if it's less than 5 minutes old and matches current state
+          // Use cache if it's less than 5 minutes old
           const cacheAge = Date.now() - (cachedData.timestamp || 0);
           if (cacheAge < 5 * 60 * 1000) {
-            // Cache is fresh, use it immediately
-            setPricingDetails({
+            // Cache is fresh, use it to override fallback
+            const cachedPricing = {
               subtotal: cachedData.subtotal,
               serviceFee: cachedData.serviceFee,
               frequencyDiscount: cachedData.frequencyDiscount,
               frequencyDiscountPercent: cachedData.frequencyDiscountPercent,
               total: cachedData.total,
-            });
+            };
+            setPricingDetails(cachedPricing);
+            pricingDetailsRef.current = cachedPricing;
             console.log('=== PRICING LOADED FROM CACHE ===');
             console.log('Pricing details:', JSON.stringify(cachedData, null, 2));
             console.log('Total amount:', cachedData.total);
@@ -79,43 +101,33 @@ export function StepReview() {
         console.warn('Failed to read cached pricing:', err);
       }
 
-      // Cache miss or expired - fetch fresh pricing
+      // Cache miss or expired - fetch fresh pricing from database
       try {
         const details = await calcTotalAsync(
           {
             service: state.service,
             bedrooms: state.bedrooms,
             bathrooms: state.bathrooms,
-            extras: state.extras,
+            extras: state.extras || [],
           },
-          state.frequency
+          state.frequency || 'one-time'
         );
+        // Update with database pricing (may differ from fallback)
         setPricingDetails(details);
-        console.log('=== PRICING LOADED FROM API ===');
+        pricingDetailsRef.current = details;
+        console.log('=== PRICING UPDATED FROM DATABASE ===');
         console.log('Pricing details:', JSON.stringify(details, null, 2));
         console.log('Total amount:', details.total);
-        console.log('================================');
+        console.log('====================================');
       } catch (error) {
-        console.error('Failed to fetch pricing:', error);
-        // Fallback to simple calculation
-        const total = calcTotal({
-          service: state.service,
-          bedrooms: state.bedrooms,
-          bathrooms: state.bathrooms,
-          extras: state.extras,
-        });
-        setPricingDetails({
-          subtotal: total,
-          serviceFee: 0,
-          frequencyDiscount: 0,
-          frequencyDiscountPercent: 0,
-          total,
-        });
+        console.error('Failed to fetch pricing from database, using fallback:', error);
+        // Fallback already set above, just ensure ref is updated
+        pricingDetailsRef.current = fallbackPricing;
       }
     };
 
     fetchPricing();
-  }, [state.service, state.bedrooms, state.bathrooms, state.extras, state.frequency]);
+  }, [state.service, state.bedrooms, state.bathrooms, state.extras, state.frequency, fallbackPricing]);
 
   // Keep ref in sync with pricingDetails
   useEffect(() => {
@@ -129,7 +141,7 @@ export function StepReview() {
     () => `BK-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
   );
 
-  // Paystack payment success handler - Optimized for speed: redirect immediately, process in background
+  // Paystack payment success handler - Save booking and send emails before redirecting
   const onPaymentSuccess = useCallback(async (reference: any) => {
     console.log('=== PAYMENT SUCCESS HANDLER CALLED ===');
     console.log('Payment reference received:', reference);
@@ -144,36 +156,93 @@ export function StepReview() {
       return;
     }
 
-    // Prepare booking payload
-    const bookingPayload = {
-      ...state,
-      paymentReference: reference.reference,
-      totalAmount: currentPricing.total,
-      serviceFee: currentPricing.serviceFee,
-      frequencyDiscount: currentPricing.frequencyDiscount,
-    };
+    // Set submitting state to show loading UI
+    setIsSubmitting(true);
+    setPaymentError(null);
 
-    // Store booking state in sessionStorage for background processing
-    sessionStorage.setItem('pending_booking', JSON.stringify({
-      paymentReference: reference.reference,
-      bookingState: bookingPayload,
-      timestamp: Date.now(),
-    }));
+    try {
+      // Prepare booking payload
+      const bookingPayload = {
+        ...state,
+        paymentReference: reference.reference,
+        totalAmount: currentPricing.total,
+        serviceFee: currentPricing.serviceFee,
+        frequencyDiscount: currentPricing.frequencyDiscount,
+      };
 
-    // Store booking reference for confirmation page
-    sessionStorage.setItem('last_booking_ref', reference.reference);
-    
-    // Clear booking state (after storing)
-    reset();
-    
-    // IMMEDIATE REDIRECT - processing happens in background on confirmation page
-    console.log('🚀 Redirecting immediately to confirmation page...');
-    console.log('🟦 [StepReview] IMMEDIATE_REDIRECT:', { 
-      target: '/booking/confirmation', 
-      ref: reference.reference 
-    });
-    
-    router.push(`/booking/confirmation?ref=${reference.reference}`);
+      console.log('💾 Saving booking to database...');
+      console.log('🟦 [StepReview] SAVING_BOOKING:', { 
+        paymentReference: reference.reference,
+        totalAmount: currentPricing.total
+      });
+
+      // Call booking API to save booking and send emails
+      const response = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bookingPayload),
+      });
+
+      const data = await response.json();
+
+      if (!data.ok) {
+        throw new Error(data.error || 'Failed to save booking');
+      }
+
+      console.log('✅ Booking saved successfully');
+      console.log('🟦 [StepReview] BOOKING_SAVED:', { 
+        bookingId: data.bookingId,
+        ref: reference.reference 
+      });
+
+      // Store booking reference for confirmation page fallback
+      sessionStorage.setItem('last_booking_ref', reference.reference);
+      
+      // Clear any pending booking from sessionStorage (no longer needed)
+      sessionStorage.removeItem('pending_booking');
+      
+      // Clear booking state (after successful save)
+      reset();
+      
+      // Redirect to confirmation page with booking reference
+      console.log('🚀 Redirecting to confirmation page...');
+      console.log('🟦 [StepReview] REDIRECT_TO_CONFIRMATION:', { 
+        target: '/booking/confirmation', 
+        ref: reference.reference 
+      });
+      
+      router.push(`/booking/confirmation?ref=${reference.reference}`);
+    } catch (error) {
+      console.error('❌ Failed to save booking:', error);
+      console.error('🟥 [StepReview] BOOKING_SAVE_FAILED:', {
+        paymentReference: reference.reference,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      // Set error state but don't clear payment success
+      let errorMessage = 'Payment was successful, but we couldn\'t save your booking. Please contact support.';
+      if (error instanceof Error) {
+        errorMessage = `Payment was successful, but we couldn't save your booking. Please contact support with payment reference: ${reference.reference}`;
+      }
+      setPaymentError(errorMessage);
+      setIsSubmitting(false);
+      
+      // Store booking reference for manual recovery
+      sessionStorage.setItem('last_booking_ref', reference.reference);
+      sessionStorage.setItem('pending_booking', JSON.stringify({
+        paymentReference: reference.reference,
+        bookingState: {
+          ...state,
+          paymentReference: reference.reference,
+          totalAmount: currentPricing.total,
+          serviceFee: currentPricing.serviceFee,
+          frequencyDiscount: currentPricing.frequencyDiscount,
+        },
+        timestamp: Date.now(),
+      }));
+    }
   }, [state, reset, router]);
 
   // Paystack payment close handler
@@ -588,14 +657,8 @@ export function StepReview() {
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              <span className="sm:hidden">Processing...</span>
-              <span className="hidden sm:inline">Processing Payment...</span>
-            </>
-          ) : !pricingDetails ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              <span className="sm:hidden">Loading...</span>
-              <span className="hidden sm:inline">Calculating Pricing...</span>
+              <span className="sm:hidden">Completing...</span>
+              <span className="hidden sm:inline">Completing your booking...</span>
             </>
           ) : (
             <>
