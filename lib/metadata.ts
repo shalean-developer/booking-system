@@ -115,28 +115,34 @@ export function generateFallbackMetadata(
 /**
  * Creates Next.js Metadata object from page metadata
  */
-export function createMetadata(metadata: PageMetadata): Metadata {
-  const canonical = metadata.canonical || generateCanonical();
-  
+export function createMetadata(metadata: PageMetadata | Metadata): Metadata {
+  // If it's already a Next.js Metadata object, return as-is
+  if ((metadata as any).alternates || (metadata as any).openGraph) {
+    return metadata as Metadata;
+  }
+
+  const pageMeta = metadata as PageMetadata;
+  const canonical = pageMeta.canonical || generateCanonical();
+
   return {
-    title: metadata.title,
-    description: metadata.description,
+    title: pageMeta.title,
+    description: pageMeta.description,
     alternates: {
       canonical,
     },
-    robots: metadata.robots || "index,follow",
+    robots: pageMeta.robots || "index,follow",
     openGraph: {
       locale: DEFAULT_SITE_METADATA.locale,
       siteName: DEFAULT_SITE_METADATA.siteName,
-      type: metadata.ogType || DEFAULT_SITE_METADATA.defaultOgType,
-      title: metadata.title,
-      description: metadata.description,
+      type: pageMeta.ogType || DEFAULT_SITE_METADATA.defaultOgType,
+      title: pageMeta.title,
+      description: pageMeta.description,
       url: canonical,
-      ...(metadata.ogImage && {
+      ...(pageMeta.ogImage && {
         images: [
           {
-            url: metadata.ogImage.url,
-            alt: metadata.ogImage.alt,
+            url: pageMeta.ogImage.url,
+            alt: pageMeta.ogImage.alt,
             width: OG_IMAGE_WIDTH,
             height: OG_IMAGE_HEIGHT,
           },
@@ -144,11 +150,11 @@ export function createMetadata(metadata: PageMetadata): Metadata {
       }),
     },
     twitter: {
-      card: metadata.twitterCard || DEFAULT_SITE_METADATA.twitterCard,
-      title: metadata.title,
-      description: metadata.description,
-      ...(metadata.ogImage && {
-        images: [metadata.ogImage.url],
+      card: pageMeta.twitterCard || DEFAULT_SITE_METADATA.twitterCard,
+      title: pageMeta.title,
+      description: pageMeta.description,
+      ...(pageMeta.ogImage && {
+        images: [pageMeta.ogImage.url],
       }),
     },
   };
@@ -231,15 +237,20 @@ export function createLocationMetadata(
  */
 export function logMetadataValidation(
   path: string,
-  metadata: PageMetadata,
+  metadata: PageMetadata | Metadata,
   validation: { isValid: boolean; warnings: string[] }
 ): void {
   if (process.env.NODE_ENV === "development") {
     console.log(`\n📄 Metadata for ${path}:`);
-    console.log(`Title: "${metadata.title}" (${metadata.title.length} chars)`);
-    console.log(`Description: "${metadata.description}" (${metadata.description.length} chars)`);
-    console.log(`Canonical: ${metadata.canonical}`);
-    console.log(`Generated: ${metadata.generatedMeta ? "Yes" : "No"}`);
+    const titleValue = (metadata as any).title as string | undefined;
+    const descriptionValue = (metadata as any).description as string | undefined;
+    const canonicalValue = (metadata as any).alternates?.canonical || (metadata as any).canonical;
+    const generated = (metadata as any).generatedMeta ? "Yes" : "No";
+
+    console.log(`Title: "${titleValue ?? ""}" (${titleValue?.length ?? 0} chars)`);
+    console.log(`Description: "${descriptionValue ?? ""}" (${descriptionValue?.length ?? 0} chars)`);
+    console.log(`Canonical: ${canonicalValue ?? ""}`);
+    console.log(`Generated: ${generated}`);
     
     if (validation.warnings.length > 0) {
       console.warn("⚠️  Warnings:");
