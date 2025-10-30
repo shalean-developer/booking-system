@@ -230,7 +230,13 @@ export default function DashboardPage() {
     if (error === 'UNAUTHENTICATED') {
       return (
         <div className="min-h-screen bg-gradient-to-b from-primary/5 to-white">
-          <Header />
+          <CustomerHeader 
+            activeTab={activeTab}
+            onTabChange={(tab) => setActiveTab(tab)}
+            user={user}
+            customer={customer}
+            onOpenMobileDrawer={() => setDrawerOpen(true)}
+          />
           <div className="flex items-center justify-center min-h-[60vh]">
             <Card className="max-w-md mx-4">
               <CardContent className="p-8 text-center">
@@ -255,7 +261,13 @@ export default function DashboardPage() {
     // Other errors - existing error UI
     return (
       <div className="min-h-screen bg-gradient-to-b from-primary/5 to-white">
-        <Header />
+        <CustomerHeader 
+          activeTab={activeTab}
+          onTabChange={(tab) => setActiveTab(tab)}
+          user={user}
+          customer={customer}
+          onOpenMobileDrawer={() => setDrawerOpen(true)}
+        />
         <div className="flex items-center justify-center min-h-[60vh]">
           <Card className="max-w-md mx-4">
             <CardContent className="p-8 text-center">
