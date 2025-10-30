@@ -12,11 +12,13 @@ import {
   CheckCircle
 } from "lucide-react";
 import type { Metadata } from "next";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createMetadata({
   title: "Johannesburg Cleaning Services - Coming Soon | Shalean",
   description: "Professional cleaning services coming soon to Johannesburg suburbs. Register your interest today!",
-};
+  canonical: generateCanonical("/location/johannesburg"),
+});
 
 const johannesburgSuburbs = [
   // Northern Suburbs

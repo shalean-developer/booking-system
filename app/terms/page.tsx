@@ -4,11 +4,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Home } from "lucide-react";
 import type { Metadata } from "next";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createMetadata({
   title: "Terms & Conditions | Shalean Cleaning Services",
   description: "Read our terms and conditions for using Shalean cleaning services. Learn about our policies, service agreements, and customer responsibilities.",
-};
+  canonical: generateCanonical("/terms"),
+});
 
 export default function TermsPage() {
   return (

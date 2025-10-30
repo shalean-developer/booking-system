@@ -5,11 +5,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Home, ArrowRight, Star } from "lucide-react";
 import type { Metadata } from "next";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createMetadata({
   title: "Our Team | Shalean Cleaning Services",
   description: "Meet the professional cleaning experts behind Shalean. Experienced, trained, and dedicated to exceptional service.",
-};
+  canonical: generateCanonical("/team"),
+});
 
 export default function TeamPage() {
   const team = [

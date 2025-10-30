@@ -15,11 +15,13 @@ import {
   Users
 } from "lucide-react";
 import type { Metadata } from "next";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createMetadata({
   title: "How It Works | Shalean Cleaning Services",
   description: "Simple 4-step process to book your cleaning service. Professional cleaners, eco-friendly products, satisfaction guaranteed.",
-};
+  canonical: generateCanonical("/how-it-works"),
+});
 
 export default function HowItWorksPage() {
   const steps = [

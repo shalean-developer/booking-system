@@ -13,11 +13,13 @@ import {
   Sparkles
 } from "lucide-react";
 import type { Metadata } from "next";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createMetadata({
   title: "Cape Town Cleaning Services | Shalean",
   description: "Professional cleaning services across all Cape Town suburbs. Book your cleaner today!",
-};
+  canonical: generateCanonical("/location/cape-town"),
+});
 
 const capeSuburbs = [
   // Atlantic Seaboard

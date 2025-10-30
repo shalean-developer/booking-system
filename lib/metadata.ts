@@ -189,7 +189,7 @@ export function createLocationMetadata(
   area: string,
   description: string,
   highlights: string[] = []
-): PageMetadata {
+): Metadata {
   const slug = suburb.toLowerCase().replace(/\s+/g, '-');
   const path = `/location/${city.toLowerCase().replace(/\s+/g, '-')}/${slug}`;
   
@@ -208,7 +208,8 @@ export function createLocationMetadata(
     ? truncateText(optimizedDescription, DESCRIPTION_MAX_LENGTH)
     : optimizedDescription;
   
-  return {
+  // Return full Next.js Metadata so pages using this directly get proper canonicals
+  return createMetadata({
     title,
     description: finalDescription,
     canonical: generateCanonical(path),
@@ -220,7 +221,7 @@ export function createLocationMetadata(
     twitterCard: "summary_large_image",
     robots: "index,follow",
     generatedMeta: false,
-  };
+  });
 }
 
 /**

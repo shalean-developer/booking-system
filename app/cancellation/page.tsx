@@ -4,11 +4,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Home, Clock, DollarSign, Calendar, Phone } from "lucide-react";
 import type { Metadata } from "next";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createMetadata({
   title: "Cancellation Policy | Shalean Cleaning Services",
   description: "Understand Shalean's cancellation and rescheduling policy. Flexible options with clear terms for your peace of mind.",
-};
+  canonical: generateCanonical("/cancellation"),
+});
 
 export default function CancellationPage() {
   return (
