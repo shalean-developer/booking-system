@@ -130,7 +130,8 @@ export async function GET(request: Request) {
         .eq('customer_id', customer.id)
         .order('booking_date', { ascending: false })
         .limit(limit);
-      bookings = retry.data;
+      // Ensure shape matches earlier select by adding notes: null for each row
+      bookings = (retry.data || []).map((b: any) => ({ ...b, notes: null }));
       bookingsError = retry.error || null;
     }
 
