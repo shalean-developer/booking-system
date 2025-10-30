@@ -52,8 +52,8 @@ export function MobileBottomNav({ activeTab, onTabChange, onMoreClick }: MobileB
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 lg:hidden">
-      <div className="flex items-center justify-around py-2 px-4">
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 lg:hidden" role="navigation" aria-label="Customer dashboard bottom navigation">
+      <div className="flex items-center justify-around py-2 px-2">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = currentActiveTab === tab.id;
@@ -64,20 +64,28 @@ export function MobileBottomNav({ activeTab, onTabChange, onMoreClick }: MobileB
                 key={tab.id}
                 href={tab.href}
                 className={cn(
-                  'flex flex-col items-center justify-center py-2 px-3 min-w-0 flex-1 transition-colors',
+                  'flex flex-col items-center justify-center py-2 px-3 min-w-[64px] flex-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md',
                   isActive
                     ? 'text-primary'
                     : 'text-gray-600'
                 )}
+                aria-label={tab.label}
+                aria-current={isActive ? 'page' : undefined}
+                onClick={() => onTabChange?.(tab.id)}
               >
-                <Icon className={cn(
-                  'h-5 w-5 mb-1',
-                  isActive && 'text-primary'
-                )} />
-                <span className={cn(
-                  'text-xs font-medium truncate',
-                  isActive ? 'text-primary' : 'text-gray-600'
-                )}>
+                <Icon
+                  className={cn(
+                    'h-5 w-5 mb-0.5',
+                    isActive && 'text-primary'
+                  )}
+                  aria-hidden="true"
+                />
+                <span
+                  className={cn(
+                    'text-[11px] leading-4 font-medium truncate',
+                    isActive ? 'text-primary' : 'text-gray-600'
+                  )}
+                >
                   {tab.label}
                 </span>
               </Link>
@@ -88,12 +96,13 @@ export function MobileBottomNav({ activeTab, onTabChange, onMoreClick }: MobileB
                 key={tab.id}
                 onClick={onMoreClick}
                 className={cn(
-                  'flex flex-col items-center justify-center py-2 px-3 min-w-0 flex-1 transition-colors',
+                  'flex flex-col items-center justify-center py-2 px-3 min-w-[64px] flex-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md',
                   'text-gray-600'
                 )}
+                aria-label={tab.label}
               >
-                <Icon className="h-5 w-5 mb-1" />
-                <span className="text-xs font-medium truncate">
+                <Icon className="h-5 w-5 mb-0.5" aria-hidden="true" />
+                <span className="text-[11px] leading-4 font-medium truncate">
                   {tab.label}
                 </span>
               </button>

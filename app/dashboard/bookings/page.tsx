@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Header } from '@/components/header';
+// import { Header } from '@/components/header';
+import { CustomerHeader } from '@/components/dashboard/customer-header';
 import { supabase } from '@/lib/supabase-client';
 import { safeLogout, safeGetSession, handleRefreshTokenError } from '@/lib/logout-utils';
 import { toast } from 'sonner';
@@ -164,7 +165,7 @@ export default function BookingsPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-primary/5 to-white pb-20 lg:pb-0">
-        <Header />
+        <CustomerHeader activeTab="bookings" user={user} customer={customer} />
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
@@ -179,7 +180,7 @@ export default function BookingsPage() {
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-primary/5 to-white pb-20 lg:pb-0">
-        <Header />
+        <CustomerHeader activeTab="bookings" user={user} customer={customer} />
         <div className="flex items-center justify-center min-h-[60vh]">
           <Card className="max-w-md mx-4">
             <CardContent className="p-8 text-center">
@@ -197,7 +198,7 @@ export default function BookingsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 to-white pb-20 lg:pb-0">
-      <Header />
+      <CustomerHeader activeTab="bookings" user={user} customer={customer} />
 
       <section className="py-8 sm:py-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

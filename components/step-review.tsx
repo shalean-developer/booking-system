@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import type { ServiceType, PaystackVerificationResponse } from '@/types/booking';
 import { useBooking } from '@/lib/useBooking';
 import { calcTotal, calcTotalAsync, calcTotalSync, PRICING } from '@/lib/pricing';
@@ -29,9 +29,12 @@ function serviceTypeToSlug(serviceType: ServiceType): string {
 
 export function StepReview() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const rebookId = searchParams.get('rebookId');
   const { state, reset } = useBooking();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [previousBooking, setPreviousBooking] = useState<any | null>(null);
   const [errorDetails, setErrorDetails] = useState<string[]>([]);
   const [PaystackHook, setPaystackHook] = useState<any>(null);
   const [selectedCleaner, setSelectedCleaner] = useState<Cleaner | null>(null);
@@ -138,6 +141,27 @@ export function StepReview() {
   useEffect(() => {
     pricingDetailsRef.current = pricingDetails;
   }, [pricingDetails]);
+
+  // Load previous booking info for banner when rebooking
+  useEffect(() => {
+    const loadPrev = async () => {
+      if (!rebookId) return;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const resp = await fetch(`/api/dashboard/booking?id=${encodeURIComponent(rebookId)}`, {
+          headers: { 'Authorization': `Bearer ${session.access_token}` }
+        });
+        const json = await resp.json();
+        if (resp.ok && json.ok) {
+          setPreviousBooking(json.booking);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    loadPrev();
+  }, [rebookId]);
 
   // Fetch cleaner details when cleaner_id is available
   useEffect(() => {
@@ -350,6 +374,12 @@ export function StepReview() {
         <p className="text-sm md:text-base text-gray-600">
           Please review your booking details before confirming payment
         </p>
+        {rebookId && (
+          <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 text-blue-800 p-3 text-sm">
+            <p className="font-semibold">Rebooking previous booking</p>
+            <p className="mt-1">ID: {rebookId}{previousBooking?.total_amount ? ` • Previous total: R${(previousBooking.total_amount/100).toFixed(2)}` : ''}</p>
+          </div>
+        )}
       </div>
 
       {/* Review Content */}

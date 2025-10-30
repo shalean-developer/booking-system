@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { useRouter, usePathname } from 'next/navigation';
+import { motion, useReducedMotion } from 'framer-motion';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Header } from '@/components/header';
+// import { Header } from '@/components/header';
 import { supabase } from '@/lib/supabase-client';
 import { safeLogout, safeGetSession, handleRefreshTokenError } from '@/lib/logout-utils';
 import { toast } from 'sonner';
@@ -20,12 +21,20 @@ import { MobileBottomNav } from '@/components/dashboard/mobile-bottom-nav';
 import { MobileDrawer } from '@/components/dashboard/mobile-drawer';
 import { OverviewTab } from '@/components/dashboard/overview-tab';
 import { DashboardSidebar } from '@/components/dashboard/dashboard-sidebar';
+import { StatCard } from '@/components/dashboard/stat-card';
+import { UpcomingPanel } from '@/components/dashboard/upcoming-panel';
+import { MessagesPanel } from '@/components/dashboard/messages-panel';
+import { ActivityPanel } from '@/components/dashboard/activity-panel';
+import { LeftRail } from '@/components/dashboard/left-rail';
+import { CustomerHeader } from '@/components/dashboard/customer-header';
+import { UnifiedBookings } from '@/components/dashboard/unified-bookings';
 
 interface Booking {
   id: string;
   booking_date: string;
   booking_time: string;
   service_type: string;
+  notes?: string | null;
   status: string;
   total_amount: number;
   created_at: string;
@@ -47,6 +56,8 @@ interface CustomerData {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const shouldReduceMotion = useReducedMotion();
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [customer, setCustomer] = useState<CustomerData | null>(null);
@@ -56,6 +67,17 @@ export default function DashboardPage() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'reviews'>('overview');
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Derive active tab from current route for consistent state across desktop and mobile
+  useEffect(() => {
+    if (pathname === '/dashboard') {
+      setActiveTab('overview');
+    } else if (pathname === '/dashboard/bookings') {
+      setActiveTab('bookings');
+    } else if (pathname === '/dashboard/reviews') {
+      setActiveTab('reviews');
+    }
+  }, [pathname]);
 
   useEffect(() => {
     const checkAuthAndFetchData = async () => {
@@ -201,19 +223,7 @@ export default function DashboardPage() {
          b.cleaner_id !== 'manual'
   );
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-primary/5 to-white">
-        <Header />
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-            <p className="text-gray-600">Loading your dashboard...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // While loading, render the base layout with skeletons for a smoother experience
 
   if (error) {
     // Special case: Not authenticated
@@ -262,8 +272,14 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-primary/5 to-white pb-20 lg:pb-0">
-      <Header />
+    <div className="min-h-screen bg-gradient-to-b from-primary/5 to-white pb-32 lg:pb-0">
+      <CustomerHeader 
+        activeTab={activeTab}
+        onTabChange={(tab) => setActiveTab(tab)}
+        user={user}
+        customer={customer}
+        onOpenMobileDrawer={() => setDrawerOpen(true)}
+      />
 
       <section className="py-8 sm:py-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -271,46 +287,84 @@ export default function DashboardPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
+            transition={{ duration: shouldReduceMotion ? 0 : 0.4 }}
             className="mb-4 sm:mb-8"
           >
-            <div>
-              <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-2">
-                Welcome back, {customer?.firstName || user?.user_metadata?.first_name || 'there'}! 👋
-              </h1>
-              <p className="text-sm sm:text-base text-gray-600">
-                Manage your bookings and profile from your dashboard
-              </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="min-w-0 order-1 sm:order-none">
+                <h1 className="text-xl sm:text-4xl font-bold text-gray-900 mb-1 sm:mb-2 truncate">
+                  Welcome back, {customer?.firstName || user?.user_metadata?.first_name || 'there'}! <span className="hidden sm:inline">👋</span>
+                </h1>
+                <p className="text-sm sm:text-base text-gray-600">
+                  Manage your bookings and profile from your dashboard
+                </p>
+              </div>
+              <div className="hidden sm:block flex-shrink-0 order-0 sm:order-none">
+                <Button className="w-full sm:w-auto" asChild>
+                  <Link href="/booking/service/select">Book a Service</Link>
+                </Button>
+              </div>
             </div>
           </motion.div>
 
-          <div className="grid lg:grid-cols-3 gap-6 sm:gap-8">
-            {/* Main Content - Tabs */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.2 }}
-              className="lg:col-span-2"
-            >
-              <div className="hidden lg:block">
-                <DashboardTabs activeTab="overview" onTabChange={() => {}} />
-              </div>
+          <div className="lg:flex lg:items-start lg:gap-6">
+            {/* Left navigation rail (desktop) */}
+            <LeftRail />
 
-              {/* Tab Content - Only Overview on main dashboard */}
-              <OverviewTab
-                customer={customer}
-                bookings={bookings}
-                upcomingBookings={upcomingBookings}
-                completedBookings={completedBookings}
-                onOpenReviewDialog={handleOpenReviewDialog}
-              />
-            </motion.div>
+            {/* Main content column */}
+            <div className="flex-1 min-w-0">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: shouldReduceMotion ? 0 : 0.4, delay: shouldReduceMotion ? 0 : 0.2 }}
+              >
+                {/* Stat Cards - responsive grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                  <StatCard icon={User} label="Total Bookings" value={bookings.length} />
+                  <StatCard icon={Loader2} label="Pending" value={bookings.filter(b => b.status === 'pending').length} />
+                  <StatCard icon={AlertCircle} label="Upcoming" value={bookings.filter(b => new Date(b.booking_date) >= new Date()).length} />
+                  <StatCard icon={AlertCircle} label="Completed" value={bookings.filter(b => b.status === 'completed').length} />
+                </div>
 
-            {/* Sidebar - Profile & Quick Actions */}
-            <DashboardSidebar user={user} customer={customer} />
+                {/* Overview content (pending reviews etc.), recent list suppressed */}
+                <OverviewTab
+                  customer={customer}
+                  bookings={bookings}
+                  upcomingBookings={upcomingBookings}
+                  completedBookings={completedBookings}
+                  onOpenReviewDialog={handleOpenReviewDialog}
+                  isLoading={isLoading}
+                  hideRecentList
+                />
+
+                {/* Left: Bookings module. Right: Upcoming + Activity stacked */}
+                <div className="mt-6 lg:grid lg:grid-cols-3 lg:gap-6">
+                  <div className="lg:col-span-2">
+                    <UnifiedBookings bookings={bookings} />
+                  </div>
+                  <div className="space-y-6 mt-6 lg:mt-0 lg:col-span-1">
+                    <div className="hidden md:block">
+                      <MessagesPanel bookings={bookings} />
+                    </div>
+                    <div className="hidden md:block">
+                      <ActivityPanel bookings={bookings} />
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Right column reserved (empty for now) */}
           </div>
         </div>
       </section>
+
+      {/* Mobile bottom CTA - Book a Service */}
+      <div className="md:hidden fixed left-4 right-4 bottom-24 z-30">
+        <Button className="w-full h-10 rounded-full text-sm" asChild>
+          <Link href="/booking/service/select">Book a Service</Link>
+        </Button>
+      </div>
 
       {/* Review Dialog */}
       <CustomerReviewDialog
@@ -325,7 +379,7 @@ export default function DashboardPage() {
 
       {/* Mobile Bottom Navigation */}
       <MobileBottomNav 
-        activeTab="overview" 
+        activeTab={activeTab} 
         onTabChange={(tab) => {
           if (tab !== 'more') {
             setActiveTab(tab);

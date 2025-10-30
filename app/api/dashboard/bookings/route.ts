@@ -74,14 +74,15 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const limit = parseInt(url.searchParams.get('limit') || '10', 10);
 
-    // Fetch bookings for this customer
-    const { data: bookings, error: bookingsError } = await supabase
+    // Fetch bookings for this customer (with graceful fallback if `notes` column doesn't exist)
+    let bookingsQuery = supabase
       .from('bookings')
       .select(`
         id,
         booking_date,
         booking_time,
         service_type,
+        notes,
         status,
         total_amount,
         created_at,
@@ -100,11 +101,44 @@ export async function GET(request: Request) {
       .order('booking_date', { ascending: false })
       .limit(limit);
 
+    let { data: bookings, error: bookingsError } = await bookingsQuery;
+
+    // If the error indicates unknown column `notes`, retry without it
+    if (bookingsError && (bookingsError.message?.includes('notes') || bookingsError.details?.includes('notes'))) {
+      console.warn('Column `notes` not found on bookings; retrying without it');
+      const retry = await supabase
+        .from('bookings')
+        .select(`
+          id,
+          booking_date,
+          booking_time,
+          service_type,
+          status,
+          total_amount,
+          created_at,
+          address_line1,
+          address_suburb,
+          address_city,
+          cleaner_id,
+          customer_name,
+          customer_email,
+          customer_phone,
+          payment_reference,
+          customer_reviewed,
+          customer_review_id
+        `)
+        .eq('customer_id', customer.id)
+        .order('booking_date', { ascending: false })
+        .limit(limit);
+      bookings = retry.data;
+      bookingsError = retry.error || null;
+    }
+
     if (bookingsError) {
       console.error('Error fetching bookings:', bookingsError);
       return NextResponse.json(
-        { 
-          ok: false, 
+        {
+          ok: false,
           error: 'Failed to fetch bookings',
           details: bookingsError.message,
         },

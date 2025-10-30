@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import type { ServiceType } from '@/types/booking';
 import { useBooking } from '@/lib/useBooking';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import { Check, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { generateTimeSlots, getCurrentPricing, calcTotalAsync } from '@/lib/pricing';
 import { FrequencySelector } from '@/components/frequency-selector';
+import { supabase } from '@/lib/supabase-client';
 
 const timeSlots = generateTimeSlots();
 
@@ -29,6 +30,9 @@ function serviceTypeToSlug(serviceType: ServiceType): string {
 
 export function StepSchedule() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const rescheduleId = searchParams.get('rescheduleId');
+  const rebookId = searchParams.get('rebookId');
   const { state, updateField } = useBooking();
   const [discounts, setDiscounts] = useState<{ [key: string]: number }>({});
   const [visibleDates, setVisibleDates] = useState<Date[]>([]);
@@ -118,6 +122,47 @@ export function StepSchedule() {
     }
   }, [scrollDirection]);
 
+  // Prefill booking details when rebooking to skip earlier steps
+  useEffect(() => {
+    const loadPreviousBooking = async () => {
+      if (!rebookId) return;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const resp = await fetch(`/api/dashboard/booking?id=${encodeURIComponent(rebookId)}`, {
+          headers: { 'Authorization': `Bearer ${session.access_token}` }
+        });
+        const json = await resp.json();
+        if (resp.ok && json.ok && json.booking) {
+          const b = json.booking as any;
+          // Service
+          updateField('service', b.service_type);
+          // Property
+          updateField('bedrooms', b.bedrooms || 0);
+          updateField('bathrooms', b.bathrooms || 1);
+          updateField('extras', b.extras || []);
+          updateField('notes', b.notes || '');
+          // Contact
+          const name = (b.customer_name || '').split(' ');
+          updateField('firstName', name[0] || '');
+          updateField('lastName', name.slice(1).join(' ') || '');
+          updateField('email', b.customer_email || '');
+          updateField('phone', b.customer_phone || '');
+          // Address
+          updateField('address', {
+            line1: b.address_line1 || '',
+            suburb: b.address_suburb || '',
+            city: b.address_city || ''
+          });
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    loadPreviousBooking();
+  }, [rebookId, updateField]);
+
   // Fetch frequency discounts and pre-fetch pricing in parallel (optimization)
   useEffect(() => {
     // Fetch discounts on mount
@@ -180,13 +225,37 @@ export function StepSchedule() {
     }
   }, [state.service, router]);
 
-  const handleNext = useCallback(() => {
-    if (state.service) {
-      const slug = serviceTypeToSlug(state.service);
-      // Navigate immediately - step will be updated by the target page's useEffect
-      router.push(`/booking/service/${slug}/contact`);
+  const handleNext = useCallback(async () => {
+    if (!state.service) return;
+    // If rescheduling, update existing booking and go back to dashboard bookings
+    if (rescheduleId && state.date && state.time) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/login');
+        return;
+      }
+      const resp = await fetch('/api/dashboard/reschedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        body: JSON.stringify({ bookingId: rescheduleId, date: state.date, time: state.time })
+      });
+      // On success navigate back to bookings, otherwise stay here
+      if (resp.ok) {
+        const json = await resp.json();
+        if (json.ok) {
+          router.push('/dashboard/bookings');
+          return;
+        }
+      }
+      return; // Do not proceed to contact during reschedule flow
     }
-  }, [state.service, router]);
+    const slug = serviceTypeToSlug(state.service);
+    if (rebookId) {
+      router.push(`/booking/service/${slug}/review?rebookId=${encodeURIComponent(rebookId)}`);
+      return;
+    }
+    router.push(`/booking/service/${slug}/contact`);
+  }, [state.service, state.date, state.time, rescheduleId, rebookId, router]);
 
   return (
     <motion.div

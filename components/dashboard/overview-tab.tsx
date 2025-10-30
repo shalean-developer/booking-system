@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +38,8 @@ interface OverviewTabProps {
   upcomingBookings: number;
   completedBookings: number;
   onOpenReviewDialog: (booking: Booking) => void;
+  isLoading?: boolean;
+  hideRecentList?: boolean;
 }
 
 export function OverviewTab({
@@ -46,7 +48,10 @@ export function OverviewTab({
   upcomingBookings,
   completedBookings,
   onOpenReviewDialog,
+  isLoading,
+  hideRecentList,
 }: OverviewTabProps) {
+  const shouldReduceMotion = useReducedMotion();
   // Get pending reviews (completed bookings not yet reviewed)
   const pendingReviews = bookings.filter(
     b => b.status === 'completed' && 
@@ -60,62 +65,13 @@ export function OverviewTab({
 
   return (
     <div className="space-y-6">
-      {/* Stats Cards */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="grid grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-6"
-      >
-        <Card className="border-0 shadow-lg">
-          <CardContent className="p-3 sm:p-6">
-            <div className="flex flex-col items-center text-center sm:flex-row sm:justify-between sm:text-left">
-              <div className="sm:flex-1">
-                <p className="text-xs sm:text-sm text-gray-600 mb-1">Total</p>
-                <p className="text-lg sm:text-3xl font-bold text-gray-900">{customer?.totalBookings || 0}</p>
-              </div>
-              <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-primary/10 flex items-center justify-center mt-2 sm:mt-0">
-                <CheckCircle className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-0 shadow-lg">
-          <CardContent className="p-3 sm:p-6">
-            <div className="flex flex-col items-center text-center sm:flex-row sm:justify-between sm:text-left">
-              <div className="sm:flex-1">
-                <p className="text-xs sm:text-sm text-gray-600 mb-1">Upcoming</p>
-                <p className="text-lg sm:text-3xl font-bold text-gray-900">{upcomingBookings}</p>
-              </div>
-              <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-blue-100 flex items-center justify-center mt-2 sm:mt-0">
-                <Calendar className="h-4 w-4 sm:h-6 sm:w-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-0 shadow-lg">
-          <CardContent className="p-3 sm:p-6">
-            <div className="flex flex-col items-center text-center sm:flex-row sm:justify-between sm:text-left">
-              <div className="sm:flex-1">
-                <p className="text-xs sm:text-sm text-gray-600 mb-1">Completed</p>
-                <p className="text-lg sm:text-3xl font-bold text-gray-900">{completedBookings}</p>
-              </div>
-              <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-green-100 flex items-center justify-center mt-2 sm:mt-0">
-                <TrendingUp className="h-4 w-4 sm:h-6 sm:w-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
 
       {/* Pending Reviews Section */}
       {pendingReviews.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
+          transition={{ duration: shouldReduceMotion ? 0 : 0.4, delay: shouldReduceMotion ? 0 : 0.1 }}
         >
           <Card className="border-0 shadow-lg bg-gradient-to-r from-amber-50 to-yellow-50 border-l-4 border-l-amber-500">
             <CardContent className="p-6">
@@ -166,24 +122,42 @@ export function OverviewTab({
         </motion.div>
       )}
 
-      {/* Recent Bookings */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.2 }}
-      >
-        <Card className="border-0 shadow-lg">
-          <CardContent className="p-4 sm:p-6">
-            <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <h2 className="text-lg sm:text-2xl font-bold text-gray-900">Recent Bookings</h2>
-              {bookings.length > 5 && (
-                <Button variant="ghost" size="sm" className="text-primary" asChild>
-                  <Link href="/dashboard">View All</Link>
-                </Button>
-              )}
-            </div>
-
-            {recentBookings.length === 0 ? (
+      {/* Your Bookings - optional (hidden when unified module is used) */}
+      {!hideRecentList && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: shouldReduceMotion ? 0 : 0.4, delay: shouldReduceMotion ? 0 : 0.2 }}
+        >
+          <Card className="border-0 shadow-lg">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <h2 className="text-lg sm:text-2xl font-bold text-gray-900">Your Bookings</h2>
+                {bookings.length > 5 && (
+                  <Button variant="ghost" size="sm" className="text-primary" asChild>
+                    <Link href="/dashboard">View All</Link>
+                  </Button>
+                )}
+              </div>
+              {isLoading ? (
+              <div className="space-y-2 sm:space-y-4">
+                {Array.from({ length: 3 }).map((_, idx) => (
+                  <div key={idx} className="border border-gray-200 rounded-lg p-3 sm:p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 w-28 bg-gray-200 rounded animate-pulse" />
+                        <div className="h-3 w-48 bg-gray-200 rounded animate-pulse" />
+                        <div className="h-3 w-32 bg-gray-200 rounded animate-pulse" />
+                      </div>
+                      <div className="text-right space-y-2">
+                        <div className="h-5 w-16 bg-gray-200 rounded animate-pulse" />
+                        <div className="h-3 w-24 bg-gray-200 rounded animate-pulse" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : recentBookings.length === 0 ? (
               <div className="text-center py-12">
                 <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
                   <Calendar className="h-8 w-8 text-gray-400" />
@@ -243,20 +217,36 @@ export function OverviewTab({
                         {booking.total_amount ? (
                           <p className="text-lg sm:text-2xl font-bold text-primary">R{(booking.total_amount / 100).toFixed(2)}</p>
                         ) : (
-                          <p className="text-xs sm:text-sm text-gray-500">Price not available</p>
+                          <p className="text-lg sm:text-2xl font-bold text-gray-400">—</p>
                         )}
                         <p className="text-xs text-gray-500 mt-1">
                           Booked {new Date(booking.created_at).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
+
+                    {/* Quick actions */}
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href="/dashboard/bookings">View details</Link>
+                      </Button>
+                      <Button variant="secondary" size="sm" asChild>
+                        <Link href={{ pathname: '/booking/service/select', query: { rebookId: booking.id } as any }}>Rebook</Link>
+                      </Button>
+                      {booking.status === 'completed' && !booking.customer_reviewed && booking.cleaner_id && booking.cleaner_id !== 'manual' && (
+                        <Button size="sm" onClick={() => onOpenReviewDialog(booking)}>
+                          Leave review
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
             )}
-          </CardContent>
-        </Card>
-      </motion.div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
     </div>
   );
 }

@@ -46,11 +46,13 @@ export function DashboardTabs({ activeTab, onTabChange }: DashboardTabsProps) {
               key={tab.id}
               href={href}
               className={cn(
-                'flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors',
+                'flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-t',
                 isActive
                   ? 'border-primary text-primary'
                   : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
               )}
+              aria-current={isActive ? 'page' : undefined}
+              aria-label={tab.label}
             >
               <Icon className="h-4 w-4" />
               <span className="hidden sm:inline">{tab.label}</span>
