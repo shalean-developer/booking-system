@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { SocialShareButtons } from '@/components/social-share-buttons';
 import { BookingFooter } from '@/components/booking-footer';
-import { CheckCircle2, Home, Calendar, MapPin, Clock, Mail, Download, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { CheckCircle2, Home, Calendar, MapPin, Clock, Mail, Download, Loader2, AlertCircle, CheckCircle, LayoutGrid } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 
@@ -329,15 +329,22 @@ function ConfirmationContent() {
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row gap-3 pt-4 px-1">
-              <Button asChild variant="default" size="lg" className="w-full sm:flex-1">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 px-1">
+              <Button asChild variant="default" size="lg" className="w-full">
                 <Link href="/">
                   <Home className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
                   <span className="sm:hidden">Home</span>
                   <span className="hidden sm:inline">Back to Home</span>
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="lg" className="w-full sm:flex-1">
+              <Button asChild variant="outline" size="lg" className="w-full border-primary text-primary hover:bg-primary/10">
+                <Link href="/dashboard">
+                  <LayoutGrid className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+                  <span className="sm:hidden">Dashboard</span>
+                  <span className="hidden sm:inline">View Dashboard</span>
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="lg" className="w-full">
                 <Link href="/booking/service/select">
                   <Calendar className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
                   <span className="sm:hidden">Book Again</span>

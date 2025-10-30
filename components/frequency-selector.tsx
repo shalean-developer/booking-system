@@ -74,6 +74,19 @@ export function FrequencySelector({
 
           return (
             <div key={option.value} className="relative">
+              {/* Discount Badge - Positioned at top halfway across border */}
+              {discount && discount > 0 && (
+                <Badge 
+                  variant={isSelected ? "default" : "secondary"}
+                  className={cn(
+                    "absolute left-1/2 -translate-x-1/2 -top-3 z-10 text-xs font-semibold px-2 py-0.5",
+                    isSelected && "bg-primary text-white"
+                  )}
+                >
+                  Save {discount}%
+                </Badge>
+              )}
+              
               <RadioGroupItem
                 value={option.value}
                 id={`frequency-${option.value}`}
@@ -105,34 +118,11 @@ export function FrequencySelector({
                 <span className="text-xs text-gray-600 text-center mt-1">
                   {option.description}
                 </span>
-
-                {/* Discount Badge */}
-                {discount && discount > 0 && (
-                  <Badge 
-                    variant={isSelected ? "default" : "secondary"}
-                    className={cn(
-                      "mt-2 text-xs font-semibold",
-                      isSelected && "bg-primary text-white"
-                    )}
-                  >
-                    Save {discount}%
-                  </Badge>
-                )}
               </Label>
             </div>
           );
         })}
       </RadioGroup>
-
-      {/* Selected frequency info */}
-      {value !== 'one-time' && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
-          <p className="text-sm text-blue-900">
-            <span className="font-semibold">Great choice!</span> You'll save{' '}
-            {discounts[value as keyof typeof discounts] || 0}% on recurring {value} service.
-          </p>
-        </div>
-      )}
     </div>
   );
 }

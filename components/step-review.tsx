@@ -8,9 +8,12 @@ import { calcTotal, calcTotalAsync, calcTotalSync, PRICING } from '@/lib/pricing
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, MapPin, Clock, Home, User, Mail, Phone, FileText, Loader2, CreditCard, AlertCircle, Shield } from 'lucide-react';
+import { Calendar, MapPin, Clock, Home, User, Mail, Phone, FileText, Loader2, CreditCard, AlertCircle, Shield, Star, Award } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase-client';
+import type { Cleaner } from '@/types/booking';
+import Image from 'next/image';
 
 // Helper function to convert ServiceType to URL slug
 function serviceTypeToSlug(serviceType: ServiceType): string {
@@ -31,6 +34,8 @@ export function StepReview() {
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<string[]>([]);
   const [PaystackHook, setPaystackHook] = useState<any>(null);
+  const [selectedCleaner, setSelectedCleaner] = useState<Cleaner | null>(null);
+  const [isLoadingCleaner, setIsLoadingCleaner] = useState(false);
   
   // Calculate immediate fallback pricing for instant display
   const fallbackPricing = useMemo(() => {
@@ -134,6 +139,43 @@ export function StepReview() {
     pricingDetailsRef.current = pricingDetails;
   }, [pricingDetails]);
 
+  // Fetch cleaner details when cleaner_id is available
+  useEffect(() => {
+    const fetchCleanerDetails = async () => {
+      // Only fetch if cleaner_id exists and is not 'manual' or a team booking
+      if (!state.cleaner_id || state.cleaner_id === 'manual' || state.requires_team) {
+        setSelectedCleaner(null);
+        return;
+      }
+
+      try {
+        setIsLoadingCleaner(true);
+        const { data: cleaner, error } = await supabase
+          .from('cleaners')
+          .select('id, name, photo_url, rating, years_experience, bio')
+          .eq('id', state.cleaner_id)
+          .eq('is_active', true)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error fetching cleaner details:', error);
+          setSelectedCleaner(null);
+        } else if (cleaner) {
+          setSelectedCleaner(cleaner as Cleaner);
+        } else {
+          setSelectedCleaner(null);
+        }
+      } catch (err) {
+        console.error('Error fetching cleaner:', err);
+        setSelectedCleaner(null);
+      } finally {
+        setIsLoadingCleaner(false);
+      }
+    };
+
+    fetchCleanerDetails();
+  }, [state.cleaner_id, state.requires_team]);
+
   const total = pricingDetails?.total || 0;
 
   // Generate unique payment reference for each render
@@ -207,13 +249,14 @@ export function StepReview() {
       reset();
       
       // Redirect to confirmation page with booking reference
+      // Use replace to prevent back navigation to review page
       console.log('🚀 Redirecting to confirmation page...');
       console.log('🟦 [StepReview] REDIRECT_TO_CONFIRMATION:', { 
         target: '/booking/confirmation', 
         ref: reference.reference 
       });
       
-      router.push(`/booking/confirmation?ref=${reference.reference}`);
+      router.replace(`/booking/confirmation?ref=${reference.reference}`);
     } catch (error) {
       console.error('❌ Failed to save booking:', error);
       console.error('🟥 [StepReview] BOOKING_SAVE_FAILED:', {
@@ -310,49 +353,54 @@ export function StepReview() {
       </div>
 
       {/* Review Content */}
-      <div className="space-y-4 mb-8">
+      <div className="space-y-6 mb-8">
         {/* Service Type Section */}
-        <div className="rounded-xl bg-slate-50/50 p-5 border border-slate-200">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <Home className="h-4 w-4 text-primary" />
+        <div className="rounded-xl bg-slate-50/50 p-5 md:p-6 border border-slate-200 hover:border-slate-300 transition-colors">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <Home className="h-5 w-5 text-primary" />
             </div>
-            <h3 className="text-base font-bold text-gray-900">Service Type</h3>
+            <h3 className="text-base md:text-lg font-bold text-gray-900">Service Type</h3>
           </div>
-          <Badge variant="secondary" className="text-sm">
+          <Badge variant="secondary" className="text-sm px-3 py-1.5 font-medium">
             {state.service}
           </Badge>
         </div>
 
         {/* Home Details Section */}
-        <div className="rounded-xl bg-slate-50/50 p-5 border border-slate-200">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <Home className="h-4 w-4 text-primary" />
+        <div className="rounded-xl bg-slate-50/50 p-5 md:p-6 border border-slate-200 hover:border-slate-300 transition-colors">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <Home className="h-5 w-5 text-primary" />
             </div>
-            <h3 className="text-base font-bold text-gray-900">Home Details</h3>
+            <h3 className="text-base md:text-lg font-bold text-gray-900">Home Details</h3>
           </div>
-          <div className="grid gap-2 text-sm">
-            <div className="flex justify-between items-center">
-              <span className="text-slate-600">Bedrooms</span>
-              <span className="font-semibold text-gray-900">{state.bedrooms}</span>
+          <div className="grid gap-3 text-sm">
+            <div className="flex justify-between items-center py-1.5 px-2 bg-white/50 rounded-lg">
+              <span className="text-slate-700 font-medium">Bedrooms</span>
+              <span className="font-bold text-gray-900 text-base">{state.bedrooms}</span>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-slate-600">Bathrooms</span>
-              <span className="font-semibold text-gray-900">{state.bathrooms}</span>
+            <div className="flex justify-between items-center py-1.5 px-2 bg-white/50 rounded-lg">
+              <span className="text-slate-700 font-medium">Bathrooms</span>
+              <span className="font-bold text-gray-900 text-base">{state.bathrooms}</span>
             </div>
           </div>
         </div>
 
         {/* Additional Services Section */}
         {state.extras.length > 0 && (
-          <div className="rounded-xl bg-slate-50/50 p-5 border border-slate-200">
-            <h3 className="text-base font-bold text-gray-900 mb-3">Additional Services</h3>
-            <div className="space-y-2">
+          <div className="rounded-xl bg-slate-50/50 p-5 md:p-6 border border-slate-200 hover:border-slate-300 transition-colors">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Star className="h-5 w-5 text-primary" />
+              </div>
+              <h3 className="text-base md:text-lg font-bold text-gray-900">Additional Services</h3>
+            </div>
+            <div className="space-y-2.5">
               {state.extras.map((extra) => (
-                <div key={extra} className="flex items-center justify-between text-sm">
-                  <span className="text-slate-600">{extra}</span>
-                  <span className="font-semibold text-gray-900">
+                <div key={extra} className="flex items-center justify-between text-sm py-2 px-3 bg-white/50 rounded-lg">
+                  <span className="text-slate-700 font-medium">{extra}</span>
+                  <span className="font-bold text-gray-900">
                     +R{PRICING.extras[extra as keyof typeof PRICING.extras]}
                   </span>
                 </div>
@@ -363,75 +411,75 @@ export function StepReview() {
 
         {/* Special Instructions Section */}
         {state.notes && (
-          <div className="rounded-xl bg-slate-50/50 p-5 border border-slate-200">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <FileText className="h-4 w-4 text-primary" />
+          <div className="rounded-xl bg-slate-50/50 p-5 md:p-6 border border-slate-200 hover:border-slate-300 transition-colors">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <FileText className="h-5 w-5 text-primary" />
               </div>
-              <h3 className="text-base font-bold text-gray-900">Special Instructions</h3>
+              <h3 className="text-base md:text-lg font-bold text-gray-900">Special Instructions</h3>
             </div>
-            <p className="text-sm text-slate-700 leading-relaxed">{state.notes}</p>
+            <p className="text-sm text-slate-700 leading-relaxed bg-white/50 rounded-lg p-4">{state.notes}</p>
           </div>
         )}
 
         {/* Schedule Section */}
-        <div className="rounded-xl bg-slate-50/50 p-5 border border-slate-200">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <Calendar className="h-4 w-4 text-primary" />
+        <div className="rounded-xl bg-slate-50/50 p-5 md:p-6 border border-slate-200 hover:border-slate-300 transition-colors">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <Calendar className="h-5 w-5 text-primary" />
             </div>
-            <h3 className="text-base font-bold text-gray-900">Schedule</h3>
+            <h3 className="text-base md:text-lg font-bold text-gray-900">Schedule</h3>
           </div>
-          <div className="grid gap-2 text-sm">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-slate-500" />
-              <span className="text-slate-700">
+          <div className="grid gap-3 text-sm">
+            <div className="flex items-center gap-3 py-2 px-3 bg-white/50 rounded-lg">
+              <Calendar className="h-5 w-5 text-primary flex-shrink-0" />
+              <span className="text-slate-700 font-medium">
                 {state.date && format(new Date(state.date), 'EEEE, MMMM d, yyyy')}
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-slate-500" />
-              <span className="text-slate-700 font-medium">{state.time}</span>
+            <div className="flex items-center gap-3 py-2 px-3 bg-white/50 rounded-lg">
+              <Clock className="h-5 w-5 text-primary flex-shrink-0" />
+              <span className="text-slate-700 font-bold text-base">{state.time}</span>
             </div>
           </div>
         </div>
 
         {/* Contact Information Section */}
-        <div className="rounded-xl bg-slate-50/50 p-5 border border-slate-200">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <User className="h-4 w-4 text-primary" />
+        <div className="rounded-xl bg-slate-50/50 p-5 md:p-6 border border-slate-200 hover:border-slate-300 transition-colors">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <User className="h-5 w-5 text-primary" />
             </div>
-            <h3 className="text-base font-bold text-gray-900">Contact Information</h3>
+            <h3 className="text-base md:text-lg font-bold text-gray-900">Contact Information</h3>
           </div>
-          <div className="grid gap-2 text-sm">
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-slate-500" />
-              <span className="text-slate-700">
+          <div className="grid gap-2.5 text-sm">
+            <div className="flex items-center gap-3 py-2 px-3 bg-white/50 rounded-lg">
+              <User className="h-4 w-4 text-primary flex-shrink-0" />
+              <span className="text-slate-700 font-medium">
                 {state.firstName} {state.lastName}
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <Mail className="h-4 w-4 text-slate-500" />
-              <span className="text-slate-700">{state.email}</span>
+            <div className="flex items-center gap-3 py-2 px-3 bg-white/50 rounded-lg">
+              <Mail className="h-4 w-4 text-primary flex-shrink-0" />
+              <span className="text-slate-700 font-medium">{state.email}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Phone className="h-4 w-4 text-slate-500" />
-              <span className="text-slate-700">{state.phone}</span>
+            <div className="flex items-center gap-3 py-2 px-3 bg-white/50 rounded-lg">
+              <Phone className="h-4 w-4 text-primary flex-shrink-0" />
+              <span className="text-slate-700 font-medium">{state.phone}</span>
             </div>
           </div>
         </div>
 
         {/* Service Address Section */}
-        <div className="rounded-xl bg-slate-50/50 p-5 border border-slate-200">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <MapPin className="h-4 w-4 text-primary" />
+        <div className="rounded-xl bg-slate-50/50 p-5 md:p-6 border border-slate-200 hover:border-slate-300 transition-colors">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <MapPin className="h-5 w-5 text-primary" />
             </div>
-            <h3 className="text-base font-bold text-gray-900">Service Address</h3>
+            <h3 className="text-base md:text-lg font-bold text-gray-900">Service Address</h3>
           </div>
-          <div className="text-sm text-slate-700 space-y-1">
-            <p>{state.address.line1}</p>
+          <div className="text-sm text-slate-700 space-y-1.5 bg-white/50 rounded-lg p-4">
+            <p className="font-medium">{state.address.line1}</p>
             <p>{state.address.suburb}</p>
             <p>{state.address.city}</p>
           </div>
@@ -439,12 +487,12 @@ export function StepReview() {
 
         {/* Cleaner/Team Assignment Section */}
         {(state.cleaner_id || state.selected_team) && (
-          <div className="rounded-xl bg-slate-50/50 p-5 border border-slate-200">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <User className="h-4 w-4 text-primary" />
+          <div className="rounded-xl bg-slate-50/50 p-5 md:p-6 border border-slate-200 hover:border-slate-300 transition-colors">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <User className="h-5 w-5 text-primary" />
               </div>
-              <h3 className="text-base font-bold text-gray-900">
+              <h3 className="text-base md:text-lg font-bold text-gray-900">
                 {state.requires_team ? 'Team Assignment' : 'Cleaner Assignment'}
               </h3>
             </div>
@@ -466,6 +514,73 @@ export function StepReview() {
                   Our team will assign the best available cleaner for you and contact you within 24 hours to confirm.
                 </p>
               </div>
+            ) : isLoadingCleaner ? (
+              <div className="rounded-xl bg-green-50 border-2 border-green-200 p-4">
+                <div className="flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-green-700" />
+                  <p className="text-xs text-green-700">Loading cleaner details...</p>
+                </div>
+              </div>
+            ) : selectedCleaner ? (
+              <div className="rounded-xl bg-green-50 border-2 border-green-200 p-4">
+                <div className="flex items-start gap-4">
+                  {/* Cleaner Photo */}
+                  <div className="flex-shrink-0">
+                    {selectedCleaner.photo_url ? (
+                      <Image
+                        src={selectedCleaner.photo_url}
+                        alt={selectedCleaner.name}
+                        width={60}
+                        height={60}
+                        className="w-[60px] h-[60px] rounded-full object-cover border-2 border-green-300"
+                      />
+                    ) : (
+                      <div className="w-[60px] h-[60px] rounded-full bg-green-200 flex items-center justify-center border-2 border-green-300">
+                        <User className="h-8 w-8 text-green-600" />
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Cleaner Details */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-green-900 mb-1">
+                      {selectedCleaner.name}
+                    </p>
+                    
+                    {/* Rating */}
+                    <div className="flex items-center gap-1 mb-2">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-3 h-3 ${
+                            i < Math.floor(selectedCleaner.rating)
+                              ? 'fill-yellow-400 text-yellow-400'
+                              : 'text-gray-300'
+                          }`}
+                        />
+                      ))}
+                      <span className="text-xs text-green-700 ml-1">
+                        ({selectedCleaner.rating})
+                      </span>
+                    </div>
+
+                    {/* Experience */}
+                    {selectedCleaner.years_experience && (
+                      <div className="flex items-center gap-1 text-xs text-green-700 mb-1">
+                        <Award className="w-3 h-3" />
+                        <span>{selectedCleaner.years_experience} years experience</span>
+                      </div>
+                    )}
+
+                    {/* Bio Preview */}
+                    {selectedCleaner.bio && (
+                      <p className="text-xs text-green-700 line-clamp-2 mt-1">
+                        {selectedCleaner.bio}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
             ) : (
               <div className="rounded-xl bg-green-50 border-2 border-green-200 p-4">
                 <p className="text-sm font-semibold text-green-900 mb-1">
@@ -481,14 +596,19 @@ export function StepReview() {
       </div>
 
       {/* Total Amount Section */}
-      <div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-6">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-lg font-bold text-gray-900">Total Amount</span>
-          <span className="text-3xl font-bold text-primary">R{total}</span>
-        </div>
-        <div className="flex items-center gap-2 text-xs text-slate-600">
-          <Shield className="h-4 w-4 text-primary" />
-          <span>Secure payment powered by Paystack</span>
+      <div className="rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5 p-6 md:p-8 shadow-lg">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <span className="text-lg md:text-xl font-bold text-gray-900 block mb-1">Total Amount</span>
+            <div className="flex items-center gap-2 text-xs md:text-sm text-slate-600">
+              <Shield className="h-4 w-4 text-primary" />
+              <span>Secure payment powered by Paystack</span>
+            </div>
+          </div>
+          <div className="text-right">
+            <span className="text-3xl md:text-4xl font-bold text-primary block leading-tight">R{total}</span>
+            <span className="text-xs text-slate-500 mt-1 block">Includes all fees</span>
+          </div>
         </div>
       </div>
 
@@ -499,7 +619,7 @@ export function StepReview() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="rounded-2xl bg-red-50 border-2 border-red-200 p-5"
+            className="rounded-2xl bg-red-50 border-2 border-red-200 p-5 md:p-6 mb-6"
           >
             <div className="flex items-start gap-3">
               <div className="flex-shrink-0">
@@ -539,16 +659,18 @@ export function StepReview() {
       </AnimatePresence>
 
       {/* Navigation */}
-      <div className="flex justify-between gap-3 mt-8 pt-6 border-t">
+      <div className="flex flex-col sm:flex-row justify-between gap-4 mt-8 pt-6 border-t border-slate-200">
         <Button 
           variant="outline" 
           onClick={handleBack} 
           size="lg" 
           disabled={isSubmitting} 
           className={cn(
-            "rounded-full px-6 font-semibold",
+            "rounded-full px-6 py-3 font-semibold h-auto",
+            "border-2 border-slate-300 hover:border-slate-400 hover:bg-slate-50",
             "focus:ring-2 focus:ring-primary/30 focus:outline-none",
-            "transition-all duration-200"
+            "transition-all duration-200",
+            "w-full sm:w-auto"
           )}
           type="button"
         >
@@ -646,11 +768,12 @@ export function StepReview() {
           size="lg" 
           disabled={isSubmitting || !pricingDetails || pricingDetails.total <= 0} 
           className={cn(
-            "rounded-full px-8 py-3 font-semibold shadow-lg flex-1 sm:flex-none sm:min-w-[220px]",
+            "rounded-full px-8 py-3.5 font-bold text-base shadow-xl hover:shadow-2xl",
             "bg-primary hover:bg-primary/90 text-white",
-            "focus:ring-2 focus:ring-primary/30 focus:outline-none",
-            "transition-all duration-200",
-            "disabled:opacity-50 disabled:cursor-not-allowed"
+            "focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:outline-none",
+            "transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]",
+            "disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none",
+            "w-full sm:w-auto sm:min-w-[240px]"
           )}
           type="button"
         >

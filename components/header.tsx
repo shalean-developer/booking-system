@@ -77,11 +77,11 @@ export function Header({ variant = 'default' }: HeaderProps) {
   // Get booking state for stepper display
   const { state: bookingState, isLoaded: bookingLoaded } = useBooking();
   
-  // Check if on booking flow pages
+  // Check if on booking flow pages (includes confirmation, excludes quote and success)
   const isBookingPage = pathname?.startsWith('/booking/') && 
     !pathname.includes('/quote') && 
-    !pathname.includes('/success') && 
-    !pathname.includes('/confirmation');
+    !pathname.includes('/success') &&
+    (pathname.startsWith('/booking/service/') || pathname === '/booking/confirmation');
 
   // Check auth state and admin role
   useEffect(() => {
@@ -178,9 +178,6 @@ export function Header({ variant = 'default' }: HeaderProps) {
   };
 
   const currentPage = getCurrentPage();
-  
-  // Check if on booking/service/select page
-  const isServiceSelectionPage = pathname === '/booking/service/select';
 
   // Optimized Logo component - static import, no client-side detection
   const Logo = () => {
@@ -238,8 +235,8 @@ export function Header({ variant = 'default' }: HeaderProps) {
               <div className="w-full max-w-2xl">
                 <Stepper currentStep={bookingState.step} />
               </div>
-            ) : !isServiceSelectionPage ? (
-              /* Desktop Navigation for other pages */
+            ) : !isBookingPage ? (
+              /* Desktop Navigation for other pages - Hide during booking flow */
               <nav className="hidden md:flex items-center">
                 {/* Navigation Container */}
                 <div className="bg-gray-100 rounded-full p-1 flex items-center gap-1">
@@ -269,7 +266,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
 
           {/* Action Buttons - Desktop & Mobile */}
           <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
-            {!isServiceSelectionPage && (
+            {!isBookingPage && (
               <Button className="bg-primary hover:bg-primary/90 text-white rounded-full text-xs sm:text-sm px-3 sm:px-4 h-9 sm:h-10" asChild>
                 <Link href={user ? "/booking/service/select" : "/booking/quote"}>
                   {user ? "Book a Service" : "Get Free Quote"}

@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Check, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Check, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { generateTimeSlots, getCurrentPricing, calcTotalAsync } from '@/lib/pricing';
 import { FrequencySelector } from '@/components/frequency-selector';
 
@@ -68,6 +68,19 @@ export function StepSchedule() {
 
   const navigateDates = useCallback((direction: 'left' | 'right') => {
     setScrollDirection(direction);
+    
+    // Calculate scroll offset: card width (80px) + gap (8px) = 88px per card
+    // Scroll by 7 cards = 616px
+    const scrollOffset = direction === 'right' ? 616 : -616;
+    
+    // Scroll the container
+    if (dateCardsRef.current) {
+      dateCardsRef.current.scrollBy({
+        left: scrollOffset,
+        behavior: 'smooth'
+      });
+    }
+    
     setVisibleDates(prev => {
       if (prev.length === 0) return prev;
       
@@ -219,7 +232,7 @@ export function StepSchedule() {
             {/* Date Cards */}
             <div 
               ref={dateCardsRef}
-              className="flex gap-2 flex-1 justify-center overflow-x-hidden relative"
+              className="flex gap-2 flex-1 justify-center overflow-x-auto relative scrollbar-hide py-3"
             >
               <AnimatePresence mode="wait">
                 {(() => {
@@ -246,6 +259,7 @@ export function StepSchedule() {
                     >
                       {visibleDates.map((date) => {
                     const isSelected = selectedDate && format(date, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
+                    const isToday = date.getTime() === today.getTime();
                     const isDisabled = date < today;
                     
                     return (
@@ -259,11 +273,13 @@ export function StepSchedule() {
                           'focus:outline-none focus:ring-2 focus:ring-primary/30',
                           isSelected
                             ? 'bg-[#D0EEF2] text-gray-900'
+                            : isToday
+                            ? 'bg-blue-50 border-2 border-blue-400 text-gray-900 hover:border-blue-500'
                             : 'bg-white border border-[#E0E0E0] text-gray-900 hover:border-gray-300',
                           isDisabled && 'opacity-50 cursor-not-allowed'
                         )}
                       >
-                        <span className="text-sm font-medium">{format(date, 'EEE')}</span>
+                        <span className="text-sm font-bold">{format(date, 'EEE')}</span>
                         <span className="text-sm font-medium mt-1">{format(date, 'MMM d')}</span>
                       </button>
                     );
@@ -298,27 +314,51 @@ export function StepSchedule() {
           >
             {timeSlots.map((time) => {
               const isSelected = state.time === time;
+              
+              // Check if selected date is today
+              const isSelectedDateToday = selectedDate && 
+                selectedDate.getFullYear() === today.getFullYear() &&
+                selectedDate.getMonth() === today.getMonth() &&
+                selectedDate.getDate() === today.getDate();
+              
+              // Check if time slot is in the past (only if selected date is today)
+              let isPastTime = false;
+              if (isSelectedDateToday) {
+                const now = new Date();
+                const [hours, minutes] = time.split(':').map(Number);
+                const slotTime = new Date();
+                slotTime.setHours(hours, minutes, 0, 0);
+                isPastTime = slotTime < now;
+              }
+              
+              const isDisabled = isPastTime;
+              
               return (
                 <motion.button
                   key={time}
                   type="button"
-                  onClick={() => handleTimeSelect(time)}
+                  onClick={() => !isDisabled && handleTimeSelect(time)}
+                  disabled={isDisabled}
                   className={cn(
                     'relative rounded-xl border-2 p-3 min-h-[52px] font-medium text-sm transition-all',
                     'focus:outline-none focus:ring-2 focus:ring-primary/30',
-                    isSelected
+                    isDisabled && 'opacity-50 cursor-not-allowed',
+                    isSelected && !isDisabled
                       ? 'bg-primary/10 ring-4 ring-primary shadow-lg border-primary/30'
-                      : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md'
+                      : !isDisabled
+                      ? 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md'
+                      : 'border-gray-200 bg-gray-50'
                   )}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={!isDisabled ? { scale: 1.02 } : undefined}
+                  whileTap={!isDisabled ? { scale: 0.98 } : undefined}
                   transition={{ duration: 0.2 }}
                   role="radio"
                   aria-checked={isSelected}
+                  aria-disabled={isDisabled}
                 >
                   <div className="flex items-center justify-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    <span>{time}</span>
+                    <Clock className={cn('h-4 w-4', isDisabled && 'text-gray-400')} />
+                    <span className={cn(isDisabled && 'text-gray-400')}>{time}</span>
                   </div>
                   
                   {/* Selected Check Mark */}
@@ -343,55 +383,6 @@ export function StepSchedule() {
           onChange={(frequency) => updateField('frequency', frequency)}
           discounts={discounts}
         />
-
-        {/* Confirmation Cards */}
-        <AnimatePresence>
-          {state.date && state.time && (
-            <div className="space-y-3">
-              {/* Discount Confirmation - Show only for weekly recurring */}
-              {state.frequency === 'weekly' && discounts.weekly && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.3 }}
-                  className="rounded-lg border border-blue-200 bg-blue-50 p-4"
-                  role="status"
-                  aria-live="polite"
-                >
-                  <p className="text-sm font-medium text-blue-900">
-                    Great choice! You'll save {discounts.weekly}% on recurring weekly service.
-                  </p>
-                </motion.div>
-              )}
-
-              {/* Appointment Confirmation */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.2 }}
-                className="rounded-lg border border-gray-200 bg-white p-4"
-                role="status"
-                aria-live="polite"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
-                    <CalendarIcon className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-1">
-                      Appointment Scheduled
-                    </h3>
-                    <p className="text-sm text-gray-700">
-                      {format(selectedDate!, 'EEEE, MMMM d, yyyy')} at <span className="font-semibold">{state.time}</span>
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
       </div>
 
       {/* Navigation */}

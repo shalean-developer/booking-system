@@ -3,7 +3,6 @@
 import { motion } from 'framer-motion';
 import { Star, User, Award } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import Image from 'next/image';
 import type { Cleaner } from '@/types/booking';
@@ -88,22 +87,6 @@ export function CleanerCard({ cleaner, onSelect, isSelected, isLoading }: Cleane
               <p className="text-sm text-slate-600 line-clamp-2">
                 {cleaner.bio}
               </p>
-            )}
-
-            {/* Specialties */}
-            {cleaner.specialties && cleaner.specialties.length > 0 && (
-              <div className="flex flex-wrap gap-1 justify-center">
-                {cleaner.specialties.slice(0, 3).map((specialty, index) => (
-                  <Badge key={index} variant="secondary" className="text-xs">
-                    {specialty}
-                  </Badge>
-                ))}
-                {cleaner.specialties.length > 3 && (
-                  <Badge variant="outline" className="text-xs">
-                    +{cleaner.specialties.length - 3} more
-                  </Badge>
-                )}
-              </div>
             )}
 
             {/* Select Button */}

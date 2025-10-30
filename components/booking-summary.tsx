@@ -131,66 +131,8 @@ export function BookingSummary() {
   }, [isSlideOverOpen]);
 
   const SummaryContent = () => {
-    // Determine which groups are completed
-    const group1Completed = state.service && state.bathrooms >= 1;
-    const group2Completed = state.date && state.time && state.email && state.firstName && state.lastName;
-    const group3Completed = state.cleaner_id || state.selected_team;
-    
-    // Current group number (1-3)
-    const currentGroup = Math.ceil(state.step / 2);
-    
     return (
     <div className="space-y-6">
-      {/* Group Status Indicator */}
-      <div className="space-y-2 pb-4 border-b border-slate-200">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Progress</span>
-          <span className="text-xs text-slate-500">
-            {currentGroup === 1 && 'Setting up service...'}
-            {currentGroup === 2 && 'Schedule & contact...'}
-            {currentGroup === 3 && 'Finalizing...'}
-            {currentGroup >= 4 && 'Ready to confirm'}
-          </span>
-        </div>
-        <div className="space-y-1">
-          {/* Group 1 */}
-          <div className={cn(
-            "flex items-center gap-2 text-sm",
-            group1Completed ? "text-green-600" : "text-slate-400"
-          )}>
-            {group1Completed ? (
-              <Check className="h-4 w-4 text-green-600" />
-            ) : (
-              <div className="h-4 w-4 rounded-full border-2 border-slate-300" />
-            )}
-            <span className="font-medium">Service Setup</span>
-          </div>
-          {/* Group 2 */}
-          <div className={cn(
-            "flex items-center gap-2 text-sm",
-            group2Completed ? "text-green-600" : "text-slate-400"
-          )}>
-            {group2Completed ? (
-              <Check className="h-4 w-4 text-green-600" />
-            ) : (
-              <div className="h-4 w-4 rounded-full border-2 border-slate-300" />
-            )}
-            <span className="font-medium">Schedule & Contact</span>
-          </div>
-          {/* Group 3 */}
-          <div className={cn(
-            "flex items-center gap-2 text-sm",
-            group3Completed ? "text-green-600" : "text-slate-400"
-          )}>
-            {group3Completed ? (
-              <Check className="h-4 w-4 text-green-600" />
-            ) : (
-              <div className="h-4 w-4 rounded-full border-2 border-slate-300" />
-            )}
-            <span className="font-medium">Finalize</span>
-          </div>
-        </div>
-      </div>
 
       {/* Service */}
       {state.service && (

@@ -7,7 +7,7 @@ const KEY = 'booking_state_v1';
 
 const initial: BookingState = {
   step: 1,
-  service: 'Standard',
+  service: null,
   bedrooms: 2,
   bathrooms: 1,
   extras: [],

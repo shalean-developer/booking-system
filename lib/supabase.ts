@@ -338,22 +338,21 @@ export async function getAvailableCleaners(date: string, city: string) {
       return cleaners || [];
     }
 
-    // Add availability info to each cleaner
-    const cleanersWithSlots = cleaners?.map(cleaner => {
-      const bookedTimes = bookedSlots
-        ?.filter(slot => slot.cleaner_id === cleaner.id)
-        .map(slot => slot.time_slot) || [];
-      
-      return {
-        ...cleaner,
-        booked_times: bookedTimes,
-        has_availability: true // They're in the list, so they work this day
-      };
-    }) || [];
+    // Create a Set of cleaner IDs who have bookings on this date
+    const bookedCleanerIds = new Set(
+      bookedSlots?.map(slot => slot.cleaner_id) || []
+    );
 
-    console.log(`📋 Returning ${cleanersWithSlots.length} cleaners with time slot info`);
+    console.log(`🚫 Found ${bookedCleanerIds.size} cleaners with bookings on ${date}`);
 
-    return cleanersWithSlots;
+    // Filter out cleaners who have bookings on this date
+    const availableCleaners = cleaners?.filter(
+      cleaner => !bookedCleanerIds.has(cleaner.id)
+    ) || [];
+
+    console.log(`📋 Returning ${availableCleaners.length} available cleaners (filtered out ${(cleaners?.length || 0) - availableCleaners.length} booked cleaners)`);
+
+    return availableCleaners;
   } catch (error) {
     console.error('Error in getAvailableCleaners:', error);
     return [];

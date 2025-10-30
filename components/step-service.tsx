@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, startTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useBooking } from '@/lib/useBooking';
 import { motion } from 'framer-motion';
@@ -64,12 +64,15 @@ export function StepService() {
 
   const handleSelect = useCallback((serviceType: ServiceType) => {
     console.log('🎯 Service Selected:', serviceType);
-    updateField('service', serviceType);
     
-    // Navigate immediately to details page
+    // Navigate immediately - don't wait for state updates
     const slug = serviceTypeToSlug(serviceType);
-    // Navigate immediately - step will be updated by the target page's useEffect
     router.push(`/booking/service/${slug}/details`);
+    
+    // Update state in background (non-blocking)
+    startTransition(() => {
+      updateField('service', serviceType);
+    });
   }, [updateField, router]);
 
   return (
@@ -113,7 +116,7 @@ export function StepService() {
               )}
               whileHover={{ scale: 1.02, y: -2 }}
               whileTap={{ scale: 0.98 }}
-              transition={{ duration: 0.2 }}
+              transition={{ duration: 0 }}
               role="radio"
               aria-checked={isSelected}
               aria-labelledby={`service-${service.type}-label`}

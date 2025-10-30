@@ -6,8 +6,6 @@ import { useBooking } from '@/lib/useBooking';
 import { BookingSummary } from '@/components/booking-summary';
 import { StepContact } from '@/components/step-contact';
 import { motion } from 'framer-motion';
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
 import type { ServiceType } from '@/types/booking';
 
 // Helper function to convert URL slug back to ServiceType
@@ -63,21 +61,6 @@ export default function ContactPage() {
   return (
     <div className="min-h-screen bg-slate-50 py-6 lg:py-10">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-          className="mb-6"
-        >
-          <Link 
-            href={`/booking/service/${slug}/schedule`}
-            className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Schedule
-          </Link>
-        </motion.div>
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-12 gap-6 pb-24 lg:pb-8">

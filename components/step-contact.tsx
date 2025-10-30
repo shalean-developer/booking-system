@@ -14,6 +14,7 @@ import * as z from 'zod';
 import { User, MapPin, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getCachedCustomer, setCachedCustomer } from '@/lib/customer-cache';
+import { AddressAutocomplete } from '@/components/address-autocomplete';
 
 // Helper function to convert ServiceType to URL slug
 function serviceTypeToSlug(serviceType: ServiceType): string {
@@ -401,16 +402,29 @@ export function StepContact() {
             <Label htmlFor="line1" className="text-sm font-semibold text-gray-900">
               Street Address <span className="text-red-500">*</span>
             </Label>
-            <Input
+            <AddressAutocomplete
               id="line1"
+              value={watch('line1') || ''}
+              onChange={(address) => {
+                setValue('line1', address.line1, { shouldValidate: true });
+                if (address.suburb) {
+                  setValue('suburb', address.suburb, { shouldValidate: true });
+                }
+                if (address.city) {
+                  setValue('city', address.city, { shouldValidate: true });
+                }
+              }}
+              onInputChange={(value) => {
+                setValue('line1', value, { shouldValidate: false });
+              }}
               placeholder="e.g., 123 Nelson Mandela Avenue"
-              {...register('line1')}
               className={cn(
                 'h-11 rounded-xl border-2 transition-all',
                 'focus:ring-2 focus:ring-primary/30 focus:border-primary',
                 'hover:border-gray-300',
                 errors.line1 && 'border-red-500 ring-2 ring-red-500/20'
               )}
+              error={!!errors.line1}
               aria-describedby={errors.line1 ? 'line1-error' : undefined}
             />
             {errors.line1 && (
@@ -490,21 +504,7 @@ export function StepContact() {
         </div>
 
         {/* Navigation */}
-        <div className="flex justify-between gap-3 mt-8 pt-6 border-t">
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={handleBack} 
-            size="lg" 
-            className={cn(
-              "rounded-full px-6 font-semibold",
-              "focus:ring-2 focus:ring-primary/30 focus:outline-none",
-              "transition-all duration-200"
-            )}
-          >
-            <span className="sm:hidden">Back</span>
-            <span className="hidden sm:inline">Back to Schedule</span>
-          </Button>
+        <div className="flex justify-end gap-3 mt-8 pt-6 border-t">
           <Button 
             type="submit" 
             size="lg" 
