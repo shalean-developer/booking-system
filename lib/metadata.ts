@@ -44,32 +44,34 @@ export interface BlogPostMetadata extends PageMetadata {
 /**
  * Validates metadata length and logs warnings
  */
-export function validateMetadata(metadata: Partial<PageMetadata>): {
+export function validateMetadata(metadata: Partial<PageMetadata> | Metadata): {
   isValid: boolean;
   warnings: string[];
 } {
   const warnings: string[] = [];
   let isValid = true;
 
-  if (metadata.title) {
-    if (metadata.title.length > TITLE_MAX_LENGTH) {
-      warnings.push(`Title is ${metadata.title.length} characters (max: ${TITLE_MAX_LENGTH})`);
+  const titleValue = (metadata as any).title as string | undefined;
+  if (typeof titleValue === "string") {
+    if (titleValue.length > TITLE_MAX_LENGTH) {
+      warnings.push(`Title is ${titleValue.length} characters (max: ${TITLE_MAX_LENGTH})`);
       isValid = false;
-    } else if (metadata.title.length > 55) {
-      warnings.push(`Title is ${metadata.title.length} characters (recommended: ≤55)`);
+    } else if (titleValue.length > 55) {
+      warnings.push(`Title is ${titleValue.length} characters (recommended: ≤55)`);
     }
   }
 
-  if (metadata.description) {
-    if (metadata.description.length > DESCRIPTION_MAX_LENGTH) {
-      warnings.push(`Description is ${metadata.description.length} characters (max: ${DESCRIPTION_MAX_LENGTH})`);
+  const descriptionValue = (metadata as any).description as string | undefined;
+  if (typeof descriptionValue === "string") {
+    if (descriptionValue.length > DESCRIPTION_MAX_LENGTH) {
+      warnings.push(`Description is ${descriptionValue.length} characters (max: ${DESCRIPTION_MAX_LENGTH})`);
       isValid = false;
-    } else if (metadata.description.length > 150) {
-      warnings.push(`Description is ${metadata.description.length} characters (recommended: ≤150)`);
+    } else if (descriptionValue.length > 150) {
+      warnings.push(`Description is ${descriptionValue.length} characters (recommended: ≤150)`);
     }
   }
 
-  if (metadata.generatedMeta) {
+  if ((metadata as any).generatedMeta) {
     warnings.push("Metadata was auto-generated - please review and customize");
   }
 
