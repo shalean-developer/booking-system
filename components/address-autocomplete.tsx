@@ -83,26 +83,12 @@ export function AddressAutocomplete({
     );
     
     if (existingScript) {
-      // Script is already in DOM, wait for it to load
-      if ((existingScript as HTMLScriptElement).onload) {
-        // Already has onload handler, add ours to the existing one
-        const originalOnload = (existingScript as HTMLScriptElement).onload;
-        (existingScript as HTMLScriptElement).onload = (e) => {
-          if (originalOnload) {
-            originalOnload(e as any);
-          }
-          if (inputRef.current && window.google?.maps?.places) {
-            setIsLoaded(true);
-          }
-        };
-      } else {
-        // Wait for script to load
-        (existingScript as HTMLScriptElement).addEventListener('load', () => {
-          if (inputRef.current && window.google?.maps?.places) {
-            setIsLoaded(true);
-          }
-        });
-      }
+      // Script tag exists but may still be loading; add a listener
+      (existingScript as HTMLScriptElement).addEventListener('load', () => {
+        if (inputRef.current && window.google?.maps?.places) {
+          setIsLoaded(true);
+        }
+      });
       return;
     }
 
