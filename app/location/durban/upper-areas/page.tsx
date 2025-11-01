@@ -1,11 +1,11 @@
 import { AreaHubTemplate } from "@/components/area-hub-template";
 import type { Metadata } from "next";
-import { createMetadata } from "@/lib/metadata";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "Upper Areas Cleaning Services | Shalean",
   description: "Professional cleaning services in Durban's Upper Areas including Glenwood, Sherwood, and Durban CBD. Office and home specialists. Book today!",
-  canonical: "/location/durban/upper-areas",
+  canonical: generateCanonical("/location/durban/upper-areas"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/location-durban-upper-areas-1200x630.jpg",
     alt: "Professional cleaning services in Durban Upper Areas"

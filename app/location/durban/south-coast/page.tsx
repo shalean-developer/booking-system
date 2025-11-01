@@ -1,11 +1,11 @@
 import { AreaHubTemplate } from "@/components/area-hub-template";
 import type { Metadata } from "next";
-import { createMetadata } from "@/lib/metadata";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "South Coast Cleaning Services | Shalean",
   description: "Professional cleaning services in Durban's South Coast including Amanzimtoti, Umkomaas, and Warner Beach. Beach house specialists. Book today!",
-  canonical: "/location/durban/south-coast",
+  canonical: generateCanonical("/location/durban/south-coast"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/location-durban-south-coast-1200x630.jpg",
     alt: "Professional cleaning services in Durban South Coast"

@@ -1,11 +1,11 @@
 import { AreaHubTemplate } from "@/components/area-hub-template";
 import type { Metadata } from "next";
-import { createMetadata } from "@/lib/metadata";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "Eastern Suburbs Cleaning Services | Shalean",
   description: "Professional cleaning services in Johannesburg's Eastern Suburbs including Bedfordview, Edenvale, Kempton Park, Benoni, and Boksburg. Book today!",
-  canonical: "/location/johannesburg/eastern-suburbs",
+  canonical: generateCanonical("/location/johannesburg/eastern-suburbs"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/location-johannesburg-eastern-suburbs-1200x630.jpg",
     alt: "Professional cleaning services in Johannesburg Eastern Suburbs"

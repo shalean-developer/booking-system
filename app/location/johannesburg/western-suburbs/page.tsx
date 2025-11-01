@@ -1,11 +1,11 @@
 import { AreaHubTemplate } from "@/components/area-hub-template";
 import type { Metadata } from "next";
-import { createMetadata } from "@/lib/metadata";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "Western Suburbs Cleaning Services | Shalean",
   description: "Professional cleaning services in Johannesburg's Western Suburbs including Roodepoort, Florida, and Honeydew. Book today!",
-  canonical: "/location/johannesburg/western-suburbs",
+  canonical: generateCanonical("/location/johannesburg/western-suburbs"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/location-johannesburg-western-suburbs-1200x630.jpg",
     alt: "Professional cleaning services in Johannesburg Western Suburbs"

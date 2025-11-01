@@ -1,11 +1,11 @@
 import { AreaHubTemplate } from "@/components/area-hub-template";
 import type { Metadata } from "next";
-import { createMetadata } from "@/lib/metadata";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "Atlantic Seaboard Cleaning Services | Shalean",
   description: "Professional cleaning services across the Atlantic Seaboard including Camps Bay, Sea Point, Green Point, Clifton, Bantry Bay, and Fresnaye. Book your trusted cleaner today!",
-  canonical: "/location/cape-town/atlantic-seaboard",
+  canonical: generateCanonical("/location/cape-town/atlantic-seaboard"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/location-atlantic-seaboard-1200x630.jpg",
     alt: "Professional cleaning services on the Atlantic Seaboard"

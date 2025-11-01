@@ -1,11 +1,11 @@
 import { AreaHubTemplate } from "@/components/area-hub-template";
 import type { Metadata } from "next";
-import { createMetadata } from "@/lib/metadata";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "Central Pretoria Cleaning Services | Shalean",
   description: "Professional cleaning services in Central Pretoria including Centurion, Pretoria CBD, Arcadia, Sunnyside, and Hatfield. Book today!",
-  canonical: "/location/pretoria/central",
+  canonical: generateCanonical("/location/pretoria/central"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/location-pretoria-central-1200x630.jpg",
     alt: "Professional cleaning services in Central Pretoria"

@@ -1,11 +1,11 @@
 import { AreaHubTemplate } from "@/components/area-hub-template";
 import type { Metadata } from "next";
-import { createMetadata } from "@/lib/metadata";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "Northern Suburbs Cleaning Services | Shalean",
   description: "Professional cleaning services in Johannesburg's Northern Suburbs including Sandton, Rosebank, Fourways, Bryanston, Randburg, Hyde Park, Parktown North, and Melrose. Book today!",
-  canonical: "/location/johannesburg/northern-suburbs",
+  canonical: generateCanonical("/location/johannesburg/northern-suburbs"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/location-johannesburg-northern-suburbs-1200x630.jpg",
     alt: "Professional cleaning services in Johannesburg Northern Suburbs"

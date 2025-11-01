@@ -1,12 +1,12 @@
 import { ServicePageTemplate } from "@/components/service-page-template";
 import { Home, Calendar, Building, Users, Sparkles } from "lucide-react";
 import type { Metadata } from "next";
-import { createMetadata } from "@/lib/metadata";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "Regular Cleaning Services | Shalean",
   description: "Professional regular home cleaning services. Weekly and bi-weekly maintenance cleaning to keep your space fresh and organized. Book today!",
-  canonical: "/services/regular-cleaning",
+  canonical: generateCanonical("/services/regular-cleaning"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/services-regular-cleaning-1200x630.jpg",
     alt: "Professional regular cleaning services"

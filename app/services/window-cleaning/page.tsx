@@ -1,12 +1,12 @@
 import { ServicePageTemplate } from "@/components/service-page-template";
 import { Sparkles, Clock, Shield, Users } from "lucide-react";
 import type { Metadata } from "next";
-import { createMetadata } from "@/lib/metadata";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "Window Cleaning Services | Shalean",
   description: "Professional window cleaning services for homes and offices. Crystal clear windows with streak-free results. Book your window cleaner today!",
-  canonical: "/services/window-cleaning",
+  canonical: generateCanonical("/services/window-cleaning"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/services-window-cleaning-1200x630.jpg",
     alt: "Professional window cleaning services"

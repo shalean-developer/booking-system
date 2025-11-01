@@ -1,11 +1,11 @@
 import { AreaHubTemplate } from "@/components/area-hub-template";
 import type { Metadata } from "next";
-import { createMetadata } from "@/lib/metadata";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "False Bay Cleaning Services | Shalean",
   description: "Professional cleaning services in Cape Town's False Bay area including Muizenberg, Fish Hoek, Kalk Bay, Simon's Town, and Lakeside. Book your trusted cleaner today!",
-  canonical: "/location/cape-town/false-bay",
+  canonical: generateCanonical("/location/cape-town/false-bay"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/location-false-bay-1200x630.jpg",
     alt: "Professional cleaning services in Cape Town False Bay"

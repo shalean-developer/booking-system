@@ -1,11 +1,11 @@
 import { AreaHubTemplate } from "@/components/area-hub-template";
 import type { Metadata } from "next";
-import { createMetadata } from "@/lib/metadata";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "Coastal North Cleaning Services | Shalean",
   description: "Professional cleaning services in Durban's Coastal North including Umhlanga, Ballito, La Lucia, Durban North, and Umdloti. Book today!",
-  canonical: "/location/durban/coastal-north",
+  canonical: generateCanonical("/location/durban/coastal-north"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/location-durban-coastal-north-1200x630.jpg",
     alt: "Professional cleaning services in Durban Coastal North"

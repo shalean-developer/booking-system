@@ -1,11 +1,11 @@
 import { AreaHubTemplate } from "@/components/area-hub-template";
 import type { Metadata } from "next";
-import { createMetadata } from "@/lib/metadata";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "Central Durban Cleaning Services | Shalean",
   description: "Professional cleaning services in Central Durban including Morningside, Berea, Musgrave, Greyville, and Windermere. Book today!",
-  canonical: "/location/durban/central",
+  canonical: generateCanonical("/location/durban/central"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/location-durban-central-1200x630.jpg",
     alt: "Professional cleaning services in Central Durban"

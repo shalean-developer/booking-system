@@ -1,11 +1,11 @@
 import { AreaHubTemplate } from "@/components/area-hub-template";
 import type { Metadata } from "next";
-import { createMetadata } from "@/lib/metadata";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "Helderberg & Winelands Cleaning Services | Shalean",
   description: "Professional cleaning services in Cape Town's Helderberg and Winelands areas including Somerset West, Strand, and Stellenbosch. Book your trusted cleaner today!",
-  canonical: "/location/cape-town/helderberg-winelands",
+  canonical: generateCanonical("/location/cape-town/helderberg-winelands"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/location-helderberg-winelands-1200x630.jpg",
     alt: "Professional cleaning services in Helderberg and Winelands"

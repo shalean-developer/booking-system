@@ -1,11 +1,11 @@
 import { AreaHubTemplate } from "@/components/area-hub-template";
 import type { Metadata } from "next";
-import { createMetadata } from "@/lib/metadata";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "Eastern Suburbs Cleaning Services | Shalean",
   description: "Professional cleaning services in Pretoria's Eastern Suburbs including Menlyn, Lynnwood, Brooklyn, Waterkloof, Garsfontein, Faerie Glen, and Moreleta Park. Book today!",
-  canonical: "/location/pretoria/eastern-suburbs",
+  canonical: generateCanonical("/location/pretoria/eastern-suburbs"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/location-pretoria-eastern-suburbs-1200x630.jpg",
     alt: "Professional cleaning services in Pretoria Eastern Suburbs"

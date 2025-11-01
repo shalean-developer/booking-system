@@ -1,12 +1,12 @@
 import { ServicePageTemplate } from "@/components/service-page-template";
 import { Calendar, Clock, Shield, Users } from "lucide-react";
 import type { Metadata } from "next";
-import { createMetadata } from "@/lib/metadata";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "Airbnb Cleaning Services | Shalean",
   description: "Professional Airbnb turnover cleaning services. Fast, reliable cleaning between guests with same-day service. Book your trusted cleaner today!",
-  canonical: "/services/airbnb-cleaning",
+  canonical: generateCanonical("/services/airbnb-cleaning"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/services-airbnb-cleaning-1200x630.jpg",
     alt: "Professional Airbnb cleaning services"

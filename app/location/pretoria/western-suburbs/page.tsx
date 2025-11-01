@@ -1,11 +1,11 @@
 import { AreaHubTemplate } from "@/components/area-hub-template";
 import type { Metadata } from "next";
-import { createMetadata } from "@/lib/metadata";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "Western Suburbs Cleaning Services | Shalean",
   description: "Professional cleaning services in Pretoria's Western Suburbs including Constantia Park, Eldoraigne, and Heuwelsig. Book today!",
-  canonical: "/location/pretoria/western-suburbs",
+  canonical: generateCanonical("/location/pretoria/western-suburbs"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/location-pretoria-western-suburbs-1200x630.jpg",
     alt: "Professional cleaning services in Pretoria Western Suburbs"

@@ -12,12 +12,12 @@ import {
   MapPin
 } from "lucide-react";
 import type { Metadata } from "next";
-import { createMetadata } from "@/lib/metadata";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "Customer Testimonials | Shalean Cleaning Services",
   description: "Read real customer reviews and testimonials for Shalean cleaning services. See why our customers trust us with their home and office cleaning needs.",
-  canonical: "/testimonials",
+  canonical: generateCanonical("/testimonials"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/testimonials-1200x630.jpg",
     alt: "Customer testimonials for Shalean cleaning services"

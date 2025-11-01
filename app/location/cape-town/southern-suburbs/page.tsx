@@ -1,11 +1,11 @@
 import { AreaHubTemplate } from "@/components/area-hub-template";
 import type { Metadata } from "next";
-import { createMetadata } from "@/lib/metadata";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "Southern Suburbs Cleaning Services | Shalean",
   description: "Professional cleaning services in Cape Town's Southern Suburbs including Claremont, Newlands, Rondebosch, Wynberg, Kenilworth, Plumstead, Constantia, Bishopscourt, Tokai, and Bergvliet. Book today!",
-  canonical: "/location/cape-town/southern-suburbs",
+  canonical: generateCanonical("/location/cape-town/southern-suburbs"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/location-southern-suburbs-1200x630.jpg",
     alt: "Professional cleaning services in Cape Town Southern Suburbs"

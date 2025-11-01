@@ -1,11 +1,11 @@
 import { AreaHubTemplate } from "@/components/area-hub-template";
 import type { Metadata } from "next";
-import { createMetadata } from "@/lib/metadata";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "Golf Estates Cleaning Services | Shalean",
   description: "Professional cleaning services in Pretoria's Golf Estates including Silver Lakes, Woodhill, and Mooikloof. Luxury property specialists. Book today!",
-  canonical: "/location/pretoria/golf-estates",
+  canonical: generateCanonical("/location/pretoria/golf-estates"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/location-pretoria-golf-estates-1200x630.jpg",
     alt: "Professional cleaning services in Pretoria Golf Estates"

@@ -1,11 +1,11 @@
 import { AreaHubTemplate } from "@/components/area-hub-template";
 import type { Metadata } from "next";
-import { createMetadata } from "@/lib/metadata";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "Inner City Cleaning Services | Shalean",
   description: "Professional cleaning services in Johannesburg's Inner City including Johannesburg CBD, Braamfontein, Parktown, Houghton, and Westcliff. Book today!",
-  canonical: "/location/johannesburg/inner-city",
+  canonical: generateCanonical("/location/johannesburg/inner-city"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/location-johannesburg-inner-city-1200x630.jpg",
     alt: "Professional cleaning services in Johannesburg Inner City"
