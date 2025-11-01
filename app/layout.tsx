@@ -4,6 +4,7 @@ import Script from "next/script";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
+import { stringifyStructuredData } from "@/lib/structured-data-validator";
 
 const inter = Inter({ 
   subsets: ["latin"],
@@ -119,7 +120,7 @@ export default function RootLayout({
         {/* Organization Schema for Brand Name Display */}
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+          dangerouslySetInnerHTML={{ __html: stringifyStructuredData(organizationSchema, "Organization") }}
         />
       </head>
       <body className={cn(inter.className, "min-h-screen bg-slate-50")}>

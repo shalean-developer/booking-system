@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/header";
+import { stringifyStructuredData } from "@/lib/structured-data-validator";
 import { 
   MapPin, 
   Phone,
@@ -105,11 +106,11 @@ export function SuburbPageTemplate({
       {/* Structured Data */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        dangerouslySetInnerHTML={{ __html: stringifyStructuredData(structuredData, "LocalBusiness") }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
+        dangerouslySetInnerHTML={{ __html: stringifyStructuredData(breadcrumbData) }}
       />
       
       <Header />
@@ -300,7 +301,7 @@ export function SuburbPageTemplate({
                 </p>
                 <Button variant="outline" className="w-full" asChild>
                   <Link href="/services/regular-cleaning">
-                    Learn More
+                    Learn About Regular Cleaning
                   </Link>
                 </Button>
               </CardContent>
@@ -315,7 +316,7 @@ export function SuburbPageTemplate({
                 </p>
                 <Button variant="outline" className="w-full" asChild>
                   <Link href="/services/deep-specialty">
-                    Learn More
+                    Learn About Deep Cleaning
                   </Link>
                 </Button>
               </CardContent>
@@ -330,11 +331,36 @@ export function SuburbPageTemplate({
                 </p>
                 <Button variant="outline" className="w-full" asChild>
                   <Link href="/services/move-turnover">
-                    Learn More
+                    Learn About Move-In Cleaning
                   </Link>
                 </Button>
               </CardContent>
             </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* About Section */}
+      <section className="py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-4xl font-bold text-gray-900 mb-6 text-center">
+              Professional Cleaning Services in {suburb}
+            </h2>
+            <div className="prose prose-lg max-w-none">
+              <p className="text-lg text-gray-700 mb-4">
+                Shalean Cleaning Services brings professional, reliable cleaning solutions to {suburb}, {city}. With years of experience serving the {area} region, we understand the unique cleaning needs of homes and businesses in this area.
+              </p>
+              <p className="text-lg text-gray-700 mb-4">
+                Our team of vetted, professional cleaners is equipped with eco-friendly cleaning products and industry-standard equipment to deliver exceptional results. Whether you need regular maintenance cleaning, a comprehensive deep clean, or move-in/out services, we have the expertise to meet your requirements.
+              </p>
+              <p className="text-lg text-gray-700 mb-4">
+                We're committed to providing flexible scheduling that works around your lifestyle. Same-day service is available for urgent cleaning needs, and we offer recurring cleaning schedules for regular maintenance. All our services come with a 100% satisfaction guarantee, ensuring peace of mind with every booking.
+              </p>
+              <p className="text-lg text-gray-700">
+                Contact us today to discuss your cleaning needs in {suburb}. Our friendly team is ready to provide a customized quote and answer any questions you may have about our services.
+              </p>
+            </div>
           </div>
         </div>
       </section>
@@ -347,7 +373,7 @@ export function SuburbPageTemplate({
               We Also Serve Nearby Areas
             </h2>
             <p className="text-xl text-gray-600">
-              Professional cleaning services in surrounding neighborhoods
+              Professional cleaning services in surrounding neighborhoods across {city}
             </p>
           </div>
 

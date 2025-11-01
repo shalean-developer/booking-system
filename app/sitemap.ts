@@ -4,16 +4,18 @@ import { getPublishedPosts } from '@/lib/blog-server'
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://shalean.co.za'
   
-  // Get all published blog posts
+  // Get all published blog posts (only published posts are included)
   const blogPosts = await getPublishedPosts()
   
-  // Generate blog post entries
-  const blogEntries: MetadataRoute.Sitemap = blogPosts.map((post) => ({
-    url: `${baseUrl}/blog/${post.slug}`,
-    lastModified: post.updated_at ? new Date(post.updated_at) : new Date(),
-    changeFrequency: 'weekly',
-    priority: 0.7,
-  }))
+  // Generate blog post entries - filter out any null/undefined posts
+  const blogEntries: MetadataRoute.Sitemap = blogPosts
+    .filter((post) => post && post.slug && post.status === 'published')
+    .map((post) => ({
+      url: `${baseUrl}/blog/${post.slug}`,
+      lastModified: post.updated_at ? new Date(post.updated_at) : new Date(),
+      changeFrequency: 'weekly' as const,
+      priority: 0.7,
+    }))
 
   // Cape Town suburbs
   const capeTownSuburbs = [

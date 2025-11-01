@@ -46,7 +46,7 @@ export function HomeBlog() {
               </p>
               <Link href="/blog/10-essential-deep-cleaning-tips-for-every-home">
                 <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0 text-sm sm:text-base">
-                  Read More
+                  Read Deep Cleaning Tips
                   <ArrowRight className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
               </Link>
@@ -77,7 +77,7 @@ export function HomeBlog() {
               </p>
               <Link href="/blog/eco-friendly-products">
                 <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0 text-sm sm:text-base">
-                  Read More
+                  Learn About Eco-Friendly Cleaning
                   <ArrowRight className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
               </Link>
@@ -108,7 +108,7 @@ export function HomeBlog() {
               </p>
               <Link href="/blog/airbnb-cleaning-checklist">
                 <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0 text-sm sm:text-base">
-                  Read More
+                  View Airbnb Cleaning Checklist
                   <ArrowRight className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
               </Link>

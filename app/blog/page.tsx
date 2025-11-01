@@ -100,7 +100,7 @@ export default async function BlogPage() {
                       </span>
                       <Link href={`/blog/${post.slug}`}>
                         <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
-                          Read More
+                          Read {post.title.split(' ').slice(0, 2).join(' ')} Article
                           <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
                       </Link>

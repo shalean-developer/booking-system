@@ -62,7 +62,7 @@ export function BlogPostRelated({ posts }: BlogPostRelatedProps) {
                 </p>
                 <Link href={`/blog/${relatedPost.slug}`}>
                   <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0 group">
-                    Read More
+                    Read {relatedPost.title.split(' ').slice(0, 3).join(' ')}
                     <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform duration-200" />
                   </Button>
                 </Link>

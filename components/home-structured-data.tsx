@@ -1,3 +1,5 @@
+import { stringifyStructuredData } from "@/lib/structured-data-validator";
+
 export function HomeStructuredData() {
   const structuredData = {
     "@context": "https://schema.org",
@@ -84,10 +86,13 @@ export function HomeStructuredData() {
     ]
   };
 
+  // Use validator to clean and validate schema
+  const validatedSchema = stringifyStructuredData(structuredData, "LocalBusiness");
+
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      dangerouslySetInnerHTML={{ __html: validatedSchema }}
     />
   );
 }

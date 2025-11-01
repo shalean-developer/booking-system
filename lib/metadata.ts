@@ -204,17 +204,32 @@ export function createLocationMetadata(
   // Create optimized title (max 60 chars)
   const title = `Cleaning Services in ${suburb} | Shalean`;
   
-  // Create optimized description (120-170 chars)
+  // Create optimized description (120-160 chars)
   const serviceTypes = highlights.length > 0 
     ? highlights.slice(0, 3).join(', ').toLowerCase()
     : 'regular, deep, and move-in cleaning';
   
   const optimizedDescription = `Professional home and apartment cleaning services in ${suburb}, ${city}. Experienced cleaners available for ${serviceTypes}. Book same-day service in ${area}.`;
   
+  // Use the provided description if it's valid length, otherwise use optimized
+  let finalDescription = description;
+  if (description.length < 120 || description.length > DESCRIPTION_MAX_LENGTH) {
+    // If custom description is not optimal length, use the generated one
+    finalDescription = optimizedDescription;
+  }
+  
   // Ensure description is within optimal range
-  const finalDescription = optimizedDescription.length > DESCRIPTION_MAX_LENGTH 
-    ? truncateText(optimizedDescription, DESCRIPTION_MAX_LENGTH)
-    : optimizedDescription;
+  if (finalDescription.length > DESCRIPTION_MAX_LENGTH) {
+    finalDescription = truncateText(finalDescription, DESCRIPTION_MAX_LENGTH);
+  } else if (finalDescription.length < 120) {
+    // If still too short, expand it
+    finalDescription = `Professional home and apartment cleaning services in ${suburb}, ${city}. Expert cleaners available for ${serviceTypes}. Book same-day service throughout ${area}. Trusted local cleaning company.`;
+    
+    // Trim if over limit
+    if (finalDescription.length > DESCRIPTION_MAX_LENGTH) {
+      finalDescription = truncateText(finalDescription, DESCRIPTION_MAX_LENGTH);
+    }
+  }
   
   // Return full Next.js Metadata so pages using this directly get proper canonicals
   return createMetadata({

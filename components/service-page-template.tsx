@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/header";
+import { stringifyStructuredData } from "@/lib/structured-data-validator";
 import { 
   CheckCircle,
   ArrowRight,
@@ -73,7 +74,7 @@ export function ServicePageTemplate({
       {/* Structured Data */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        dangerouslySetInnerHTML={{ __html: stringifyStructuredData(structuredData, "Service") }}
       />
       
       <Header />
@@ -159,6 +160,71 @@ export function ServicePageTemplate({
                 </CardContent>
               </Card>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Detailed Description Section */}
+      <section className="py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-4xl font-bold text-gray-900 mb-6 text-center">
+              Comprehensive {title} Services
+            </h2>
+            <div className="prose prose-lg max-w-none">
+              <p className="text-lg text-gray-700 mb-4">
+                Our {title.toLowerCase()} service is designed to meet the highest standards of cleanliness and professionalism. We understand that every space is unique, and our trained team adapts their approach to ensure optimal results for your specific needs.
+              </p>
+              <p className="text-lg text-gray-700 mb-4">
+                {description} Our commitment to excellence means we use only premium cleaning products that are both effective and safe for your family, pets, and the environment. Each cleaning session is thoroughly planned and executed with attention to detail.
+              </p>
+              <p className="text-lg text-gray-700 mb-4">
+                When you book our {title.toLowerCase()} service, you can expect punctual arrival, respectful and professional service, and a thorough cleaning that exceeds expectations. We stand behind our work with a 100% satisfaction guarantee—if you're not completely happy, we'll return to make it right at no additional cost.
+              </p>
+              <p className="text-lg text-gray-700">
+                Whether you're looking for a one-time deep clean, regular maintenance, or specialized cleaning for a particular occasion, our {title.toLowerCase()} service is flexible and can be customized to your schedule and requirements. Contact us today to discuss your needs and get a personalized quote.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Service Areas Section */}
+      <section className="py-20 bg-gray-50">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              Available Throughout South Africa
+            </h2>
+            <p className="text-xl text-gray-600">
+              Our {title.toLowerCase()} service is available in major cities across South Africa
+            </p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Link href="/location/cape-town" className="text-center p-6 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-primary transition-colors">Cape Town</h3>
+              <p className="text-sm text-gray-600">Sea Point, Camps Bay, Claremont & more</p>
+            </Link>
+            <Link href="/location/johannesburg" className="text-center p-6 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-primary transition-colors">Johannesburg</h3>
+              <p className="text-sm text-gray-600">Sandton, Rosebank, Fourways & more</p>
+            </Link>
+            <Link href="/location/pretoria" className="text-center p-6 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-primary transition-colors">Pretoria</h3>
+              <p className="text-sm text-gray-600">Centurion, Menlyn, Lynnwood & more</p>
+            </Link>
+            <Link href="/location/durban" className="text-center p-6 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-primary transition-colors">Durban</h3>
+              <p className="text-sm text-gray-600">Umhlanga, Ballito, Morningside & more</p>
+            </Link>
+          </div>
+          <div className="text-center mt-8">
+            <Link href="/location">
+              <Button variant="outline" className="border-primary text-primary hover:bg-primary/10">
+                View All Service Locations
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
           </div>
         </div>
       </section>

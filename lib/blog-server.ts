@@ -246,15 +246,17 @@ export function truncateExcerpt(text: string, maxLength: number = 160): string {
 }
 
 // Generate JSON-LD Schema for blog post
+import { cleanStructuredData, normalizeImageUrl } from './structured-data-validator';
+
 export function generateBlogPostSchema(post: BlogPostWithDetails, authorName?: string) {
-  return {
+  const schema = {
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
     headline: post.title,
     description: post.excerpt,
-    image: post.featured_image,
-    datePublished: post.published_at,
-    dateModified: post.updated_at,
+    image: post.featured_image ? normalizeImageUrl(post.featured_image) : undefined,
+    datePublished: post.published_at || new Date().toISOString(),
+    dateModified: post.updated_at || post.published_at || new Date().toISOString(),
     author: {
       '@type': 'Person',
       name: authorName || 'Shalean Cleaning Services',
@@ -272,5 +274,8 @@ export function generateBlogPostSchema(post: BlogPostWithDetails, authorName?: s
       '@id': `https://shalean.co.za/blog/${post.slug}`,
     },
   };
+
+  // Clean undefined values before returning
+  return cleanStructuredData(schema);
 }
 

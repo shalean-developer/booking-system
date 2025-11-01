@@ -1,3 +1,5 @@
+import { stringifyStructuredData } from "@/lib/structured-data-validator";
+
 interface BlogPost {
   id: string;
   title: string;
@@ -26,8 +28,8 @@ export function BlogPostSchema({ post }: BlogPostSchemaProps) {
       "width": 1200,
       "height": 630
     } : undefined,
-    "datePublished": post.published_at,
-    "dateModified": post.published_at,
+    "datePublished": post.published_at || new Date().toISOString(),
+    "dateModified": post.published_at || new Date().toISOString(),
     "author": {
       "@type": "Organization",
       "name": "Shalean Cleaning Services",
@@ -50,10 +52,13 @@ export function BlogPostSchema({ post }: BlogPostSchemaProps) {
     "timeRequired": `PT${post.read_time}M`
   };
 
+  // Use validator to clean and validate schema
+  const validatedSchema = stringifyStructuredData(schema, "BlogPosting");
+
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      dangerouslySetInnerHTML={{ __html: validatedSchema }}
     />
   );
 }

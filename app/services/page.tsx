@@ -161,7 +161,7 @@ export default function ServicesPage() {
                       </div>
                       <Button asChild className="bg-primary hover:bg-primary/90">
                         <Link href={service.link}>
-                          Learn More
+                          View {service.title} Details
                           <ArrowRight className="ml-2 h-4 w-4" />
                         </Link>
                       </Button>
@@ -170,6 +170,82 @@ export default function ServicesPage() {
                 </Card>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      {/* Service Areas Section */}
+      <section className="py-20 bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              We Serve Across South Africa
+            </h2>
+            <p className="text-xl text-gray-600">
+              Professional cleaning services available in major cities
+            </p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <CardContent className="p-6 text-center">
+                <Link href="/location/cape-town" className="block">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2 hover:text-primary transition-colors">
+                    Cape Town
+                  </h3>
+                  <p className="text-gray-600 text-sm mb-4">
+                    Serving Sea Point, Camps Bay, Claremont, and more
+                  </p>
+                  <span className="text-primary text-sm font-medium">View Areas →</span>
+                </Link>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <CardContent className="p-6 text-center">
+                <Link href="/location/johannesburg" className="block">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2 hover:text-primary transition-colors">
+                    Johannesburg
+                  </h3>
+                  <p className="text-gray-600 text-sm mb-4">
+                    Professional cleaning across Jozi suburbs
+                  </p>
+                  <span className="text-primary text-sm font-medium">View Areas →</span>
+                </Link>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <CardContent className="p-6 text-center">
+                <Link href="/location/pretoria" className="block">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2 hover:text-primary transition-colors">
+                    Pretoria
+                  </h3>
+                  <p className="text-gray-600 text-sm mb-4">
+                    Quality cleaning services in the capital
+                  </p>
+                  <span className="text-primary text-sm font-medium">View Areas →</span>
+                </Link>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <CardContent className="p-6 text-center">
+                <Link href="/location/durban" className="block">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2 hover:text-primary transition-colors">
+                    Durban
+                  </h3>
+                  <p className="text-gray-600 text-sm mb-4">
+                    Expert cleaners along the coast
+                  </p>
+                  <span className="text-primary text-sm font-medium">View Areas →</span>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="text-center mt-8">
+            <Link href="/location">
+              <Button variant="outline" className="border-primary text-primary hover:bg-primary/10">
+                View All Service Areas
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
@@ -185,7 +261,7 @@ export default function ServicesPage() {
           </p>
           <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-8 py-4 text-lg" asChild>
             <Link href="/booking/service/select">
-              Book Now
+              Book Cleaning Service Now
               <ArrowRight className="ml-2 h-5 w-5" />
             </Link>
           </Button>

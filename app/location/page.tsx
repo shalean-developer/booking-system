@@ -15,6 +15,7 @@ import {
 import type { Metadata } from "next";
 import { createMetadata } from "@/lib/metadata";
 import { getSeoConfig } from "@/lib/seo-config";
+import { stringifyStructuredData } from "@/lib/structured-data-validator";
 
 // Location page metadata with canonical URL
 export const metadata: Metadata = createMetadata(getSeoConfig("location"));
@@ -139,7 +140,7 @@ export default function LocationPage() {
       {/* Structured Data for SEO */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        dangerouslySetInnerHTML={{ __html: stringifyStructuredData(structuredData, "LocalBusiness") }}
       />
       
       {/* Header */}
@@ -226,6 +227,34 @@ export default function LocationPage() {
               </Card>
             ))}
           </div>
+
+          {/* About Section */}
+          <section className="py-20 bg-white">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <div className="max-w-4xl mx-auto">
+                <h2 className="text-4xl font-bold text-gray-900 mb-6 text-center">
+                  Professional Cleaning Services Across South Africa
+                </h2>
+                <div className="prose prose-lg max-w-none">
+                  <p className="text-lg text-gray-700 mb-4">
+                    Shalean Cleaning Services is proud to offer comprehensive cleaning solutions across major cities in South Africa. From the scenic coastlines of Cape Town to the bustling urban centers of Johannesburg, Pretoria, and Durban, we bring professional-grade cleaning services directly to your doorstep.
+                  </p>
+                  <p className="text-lg text-gray-700 mb-4">
+                    Our extensive network of trained and vetted cleaners ensures consistent, high-quality service regardless of your location. Each cleaner undergoes thorough background checks and comprehensive training in our cleaning protocols, guaranteeing that you receive the same exceptional standard of service whether you're in Sea Point or Sandton.
+                  </p>
+                  <p className="text-lg text-gray-700 mb-4">
+                    We understand that different regions have unique cleaning challenges—from coastal properties dealing with sea salt and humidity, to urban apartments requiring efficient compact-space cleaning, to suburban homes needing regular maintenance. Our team adapts their approach to meet these specific needs, using appropriate techniques and eco-friendly products for each environment.
+                  </p>
+                  <p className="text-lg text-gray-700 mb-4">
+                    Our service areas are continuously expanding as we grow our team and infrastructure. If your suburb isn't currently listed, we encourage you to register your interest. We prioritize new service areas based on demand, so your request helps us plan our expansion strategically.
+                  </p>
+                  <p className="text-lg text-gray-700">
+                    All our services come with flexible scheduling options, competitive transparent pricing, and a 100% satisfaction guarantee. Whether you need a one-time deep clean, regular maintenance, move-in/out services, or specialized cleaning for your business, we're here to help make your space spotless.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
 
           {/* Contact Information */}
           <Card className="border-0 shadow-lg bg-gradient-to-br from-primary/5 to-primary/10">

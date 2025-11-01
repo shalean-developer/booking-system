@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/header";
+import { stringifyStructuredData } from "@/lib/structured-data-validator";
 import { 
   MapPin, 
   Phone,
@@ -112,11 +113,11 @@ export function AreaHubTemplate({
       {/* Structured Data */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        dangerouslySetInnerHTML={{ __html: stringifyStructuredData(structuredData, "LocalBusiness") }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
+        dangerouslySetInnerHTML={{ __html: stringifyStructuredData(breadcrumbData) }}
       />
       
       <Header />
@@ -200,8 +201,33 @@ export function AreaHubTemplate({
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* About Section */}
       <section className="py-20 bg-gray-50">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-4xl font-bold text-gray-900 mb-6 text-center">
+              Professional Cleaning Services in {areaName}
+            </h2>
+            <div className="prose prose-lg max-w-none">
+              <p className="text-lg text-gray-700 mb-4">
+                Shalean Cleaning Services is proud to serve {areaName} in {city}, providing comprehensive cleaning solutions to homes and businesses throughout this vibrant region. Our team of experienced, professional cleaners understands the unique needs of properties in {areaName}, from residential homes to commercial spaces.
+              </p>
+              <p className="text-lg text-gray-700 mb-4">
+                Whether you're located in one of the established suburbs or newer developments in {areaName}, we offer flexible scheduling and customized cleaning services to match your lifestyle and requirements. Our cleaners are fully equipped with eco-friendly products and professional-grade equipment to deliver exceptional results every time.
+              </p>
+              <p className="text-lg text-gray-700 mb-4">
+                We offer a full range of cleaning services tailored to the {areaName} area, including regular maintenance cleaning, deep cleaning services, move-in/out cleaning, and specialized services for properties with unique features or requirements. Our commitment to quality and customer satisfaction has made us a trusted choice for property owners throughout the region.
+              </p>
+              <p className="text-lg text-gray-700">
+                Contact us today to discuss your cleaning needs in {areaName}. Our team is ready to provide a personalized quote and answer any questions about our services, scheduling options, and pricing. We're committed to making your space spotless while respecting your time and property.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
