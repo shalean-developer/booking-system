@@ -5,7 +5,7 @@ export const SEO_CONFIG = {
   // Home page
   home: {
     title: "House Cleaning Services in Cape Town | Shalean",
-    description: "Leading cleaning companies in Cape Town. Professional house cleaning services, deep cleaning services, and home cleaning services near you. Book trusted house cleaners today.",
+    description: "Professional cleaning services in Cape Town with Shalean. Expert house cleaners offering deep cleaning, regular maintenance, and move-in cleaning services. Book today!",
     canonical: generateCanonical("/"),
     ogImage: {
       url: generateOgImageUrl("home"),
