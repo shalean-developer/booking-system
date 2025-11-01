@@ -25,6 +25,7 @@ export async function GET(req: Request) {
     const status = url.searchParams.get('status') || '';
     const serviceType = url.searchParams.get('serviceType') || '';
     const ids = url.searchParams.get('ids'); // For bulk export
+    const days = url.searchParams.get('days'); // Date range filter
     
     // Build query
     let query = supabase
@@ -46,6 +47,14 @@ export async function GET(req: Request) {
         cleaner_id,
         created_at
       `);
+    
+    // Apply date range filter if specified
+    if (days && !ids) {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - parseInt(days));
+      query = query.gte('created_at', startDate.toISOString());
+    }
     
     // Apply filters
     if (ids) {

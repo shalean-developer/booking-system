@@ -2,16 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { AdminSidebar } from '@/components/admin/admin-sidebar';
-import { AdminTopNav } from '@/components/admin/admin-top-nav';
-import { AdminWelcome } from '@/components/admin/admin-welcome';
-import { AdminQuickGrid } from '@/components/admin/admin-quick-grid';
-import { AdminBottomCards } from '@/components/admin/admin-bottom-cards';
+import { Header } from '@/components/header';
 import { Loader2 } from 'lucide-react';
 
 // Lazy load sections for better performance
-const AdminDashboardView = dynamic(
-  () => import('@/components/admin/admin-dashboard-view').then(m => ({ default: m.AdminDashboardView })),
+const StatsSection = dynamic(
+  () => import('@/components/admin/stats-section').then(m => ({ default: m.StatsSection })),
   { 
     loading: () => (
       <div className="flex items-center justify-center py-12">
@@ -144,12 +140,7 @@ const UsersSection = dynamic(
 
 type TabType = 'dashboard' | 'bookings' | 'recurring' | 'customers' | 'cleaners' | 'applications' | 'pricing' | 'blog' | 'quotes' | 'reviews' | 'users';
 
-interface AdminDashboardClientProps {
-  userName: string;
-  lastLogin?: string | null;
-}
-
-export function AdminDashboardClient({ userName, lastLogin }: AdminDashboardClientProps) {
+export function AdminDashboardClient() {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
 
   // Listen for tab change events from dashboard cards
@@ -169,43 +160,65 @@ export function AdminDashboardClient({ userName, lastLogin }: AdminDashboardClie
     };
   }, []);
 
-  const handleNavigate = (tab: string) => {
-    setActiveTab(tab as TabType);
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <AdminSidebar />
+    <div className="min-h-screen bg-gradient-subtle">
+      <Header />
       
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col ml-16">
-        {/* Top Navigation */}
-        <AdminTopNav onNavigate={handleNavigate} activeTab={activeTab} />
-        
-        {/* Page Content */}
-        <main className="flex-1 overflow-auto">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-            {activeTab === 'dashboard' ? (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <AdminDashboardView />
-              </div>
-            ) : (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                {activeTab === 'bookings' && <BookingsSection />}
-                {activeTab === 'recurring' && <RecurringSchedulesSection />}
-                {activeTab === 'quotes' && <QuotesSection />}
-                {activeTab === 'customers' && <CustomersSection />}
-                {activeTab === 'users' && <UsersSection />}
-                {activeTab === 'cleaners' && <CleanersSection />}
-                {activeTab === 'reviews' && <ReviewsSection />}
-                {activeTab === 'pricing' && <PricingSection />}
-                {activeTab === 'blog' && <BlogSection />}
-                {activeTab === 'applications' && <ApplicationsSection />}
-              </div>
-            )}
-          </div>
-        </main>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-1.5">Admin Dashboard</h1>
+          <p className="text-gray-600">Manage your cleaning service business</p>
+        </div>
+
+        {/* Navigation Tabs */}
+        <div className="mb-8">
+          <nav className="flex space-x-1 border-b border-gray-200 overflow-x-auto">
+            {[
+              { id: 'dashboard', label: 'Dashboard' },
+              { id: 'bookings', label: 'Bookings' },
+              { id: 'recurring', label: 'Recurring' },
+              { id: 'quotes', label: 'Quotes' },
+              { id: 'customers', label: 'Customers' },
+              { id: 'users', label: 'Users' },
+              { id: 'cleaners', label: 'Cleaners' },
+              { id: 'reviews', label: 'Reviews' },
+              { id: 'pricing', label: 'Pricing' },
+              { id: 'blog', label: 'Blog' },
+              { id: 'applications', label: 'Applications' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as TabType)}
+                className={`relative py-3 px-4 font-medium text-sm whitespace-nowrap transition-all duration-200 ease-out ${
+                  activeTab === tab.id
+                    ? 'text-primary'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <span className="relative z-10">{tab.label}</span>
+                {activeTab === tab.id && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
+                )}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        {/* Tab Content - Only render active tab */}
+        <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6">
+          {activeTab === 'dashboard' && <StatsSection />}
+          {activeTab === 'bookings' && <BookingsSection />}
+          {activeTab === 'recurring' && <RecurringSchedulesSection />}
+          {activeTab === 'quotes' && <QuotesSection />}
+          {activeTab === 'customers' && <CustomersSection />}
+          {activeTab === 'users' && <UsersSection />}
+          {activeTab === 'cleaners' && <CleanersSection />}
+          {activeTab === 'reviews' && <ReviewsSection />}
+          {activeTab === 'pricing' && <PricingSection />}
+          {activeTab === 'blog' && <BlogSection />}
+          {activeTab === 'applications' && <ApplicationsSection />}
+        </div>
       </div>
     </div>
   );

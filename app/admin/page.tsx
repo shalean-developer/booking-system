@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { isAdmin } from '@/lib/supabase-server';
+import { isAdmin, getAuthUserWithProfile } from '@/lib/supabase-server';
 import { AdminDashboardClient } from './admin-client';
 
 // Mark as dynamic since we use cookies for auth
@@ -14,6 +14,19 @@ export default async function AdminPage() {
     redirect('/login?returnTo=/admin');
   }
 
+  // Fetch user data for welcome section
+  const userProfile = await getAuthUserWithProfile();
+  const userName = userProfile?.name || 'Admin';
+  const lastLogin = userProfile?.last_login 
+    ? new Date(userProfile.last_login).toLocaleDateString('en-US', { 
+        day: 'numeric', 
+        month: 'short', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    : null;
+
   // If we get here, user is authenticated and is admin
-  return <AdminDashboardClient />;
+  return <AdminDashboardClient userName={userName} lastLogin={lastLogin} />;
 }

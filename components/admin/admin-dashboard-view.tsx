@@ -4,20 +4,16 @@ import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Loader2, DollarSign, Users, Calendar, Briefcase, CheckCircle, FileText, TrendingUp, TrendingDown, Percent, Receipt, Activity, Repeat, UserPlus, RefreshCw, ArrowUpRight, ArrowDownRight, Info } from 'lucide-react';
 import { ActivityFeed } from './activity-feed';
 import { DateRangeFilter } from './date-range-filter';
 import { RevenueChart } from './revenue-chart';
 import { BookingsChart } from './bookings-chart';
 import { MetricAlerts } from './metric-alerts';
-import { QuickActions } from './quick-actions';
 import { ExportDialog } from './export-dialog';
-import { GlobalSearch } from './global-search';
 import { PerformanceWidget } from './performance-widget';
-import { fetcher } from '@/lib/fetcher';
 import { formatCurrency, formatPercentage, formatPercentageChange } from '@/lib/utils/formatting';
-import { safePercentage, recentPeriodPercentage } from '@/lib/utils/calculations';
+import { recentPeriodPercentage } from '@/lib/utils/calculations';
 import { Tooltip } from '@/components/ui/tooltip';
 
 interface Stats {
@@ -72,8 +68,7 @@ interface Stats {
   }>;
 }
 
-export function StatsSection() {
-  // Use SWR for data fetching with automatic caching and revalidation
+export function AdminDashboardView() {
   const { data, error, isLoading, mutate } = useSWR<{
     ok: boolean;
     stats?: Stats;
@@ -93,8 +88,8 @@ export function StatsSection() {
     {
       revalidateOnFocus: true,
       revalidateOnReconnect: true,
-      refreshInterval: 60000, // Auto-refresh every 60 seconds
-      dedupingInterval: 5000, // Dedupe requests within 5 seconds
+      refreshInterval: 60000,
+      dedupingInterval: 5000,
     }
   );
 
@@ -144,7 +139,6 @@ export function StatsSection() {
 
   const handleRefresh = () => {
     mutate();
-    // Refresh chart data when main stats refresh
     const fetchChartData = async () => {
       setIsLoadingChart(true);
       try {
@@ -187,17 +181,6 @@ export function StatsSection() {
 
   if (!stats) return null;
 
-  // Helper function to calculate percentage change and determine trend
-  const calculateTrend = (current: number, previous: number) => {
-    if (previous === 0) return { value: 0, isPositive: current > 0, isNeutral: current === 0 };
-    const change = ((current - previous) / previous) * 100;
-    return {
-      value: Math.abs(change),
-      isPositive: change > 0,
-      isNeutral: change === 0,
-    };
-  };
-
   return (
     <div className="space-y-6">
       {/* Header with refresh button and date filter */}
@@ -212,7 +195,6 @@ export function StatsSection() {
             )}
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <GlobalSearch />
             <Button
               onClick={handleRefresh}
               variant="outline"
@@ -230,13 +212,6 @@ export function StatsSection() {
           selectedDays={dateRangeDays}
         />
       </div>
-
-      {/* Quick Actions */}
-      <QuickActions 
-        onNavigate={(tab) => {
-          window.dispatchEvent(new CustomEvent('admin-tab-change', { detail: tab }));
-        }}
-      />
 
       {/* Metric Alerts */}
       {stats && <MetricAlerts stats={stats} />}
@@ -368,7 +343,6 @@ export function StatsSection() {
         <Card 
           className="metric-card cursor-pointer"
           onClick={() => {
-            // Trigger navigation to bookings tab by dispatching custom event
             window.dispatchEvent(new CustomEvent('admin-tab-change', { detail: 'bookings' }));
           }}
         >
@@ -396,7 +370,6 @@ export function StatsSection() {
         <Card 
           className="metric-card cursor-pointer"
           onClick={() => {
-            // Trigger navigation to cleaners tab by dispatching custom event
             window.dispatchEvent(new CustomEvent('admin-tab-change', { detail: 'cleaners' }));
           }}
         >

@@ -45,6 +45,8 @@ interface Cleaner {
   available_friday?: boolean;
   available_saturday?: boolean;
   available_sunday?: boolean;
+  monthly_earnings?: number;
+  completed_bookings_count?: number;
 }
 
 export function CleanersSection() {
@@ -355,6 +357,8 @@ export function CleanersSection() {
                     <TableHead>Experience</TableHead>
                     <TableHead>Weekly Schedule</TableHead>
                     <TableHead>Areas</TableHead>
+                    <TableHead>Monthly Earnings</TableHead>
+                    <TableHead>Completed Bookings</TableHead>
                     <TableHead>Auth</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
@@ -395,6 +399,24 @@ export function CleanersSection() {
                         <div className="text-sm">
                           {cleaner.areas?.slice(0, 2).join(', ')}
                           {cleaner.areas?.length > 2 && ` +${cleaner.areas.length - 2}`}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium text-sm">
+                          {cleaner.monthly_earnings 
+                            ? `R${(cleaner.monthly_earnings / 100).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                            : 'R0.00'}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {new Date().toLocaleString('en-US', { month: 'short', year: 'numeric' })}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium text-sm">
+                          {cleaner.completed_bookings_count || 0}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          This month
                         </div>
                       </TableCell>
                       <TableCell>

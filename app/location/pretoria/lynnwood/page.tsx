@@ -7,7 +7,7 @@ export async function generateMetadata(): Promise<Metadata> {
     "Lynnwood",
     "Pretoria", 
     "Eastern Suburbs",
-    "Professional cleaning services in Lynnwood, Pretoria. Reliable home and apartment cleaning with experienced cleaners. Book same-day service in the Eastern Suburbs.",
+    "Professional cleaning services in Lynnwood, Pretoria. Reliable home and apartment cleaning with experienced cleaners. Book same-day service today.",
     [
       "Home cleaning specialists",
       "Apartment cleaning",

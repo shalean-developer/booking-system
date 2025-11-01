@@ -10,8 +10,8 @@ import { AdminBottomCards } from '@/components/admin/admin-bottom-cards';
 import { Loader2 } from 'lucide-react';
 
 // Lazy load sections for better performance
-const AdminDashboardView = dynamic(
-  () => import('@/components/admin/admin-dashboard-view').then(m => ({ default: m.AdminDashboardView })),
+const StatsSection = dynamic(
+  () => import('@/components/admin/stats-section').then(m => ({ default: m.StatsSection })),
   { 
     loading: () => (
       <div className="flex items-center justify-center py-12">
@@ -187,9 +187,16 @@ export function AdminDashboardClient({ userName, lastLogin }: AdminDashboardClie
         <main className="flex-1 overflow-auto">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
             {activeTab === 'dashboard' ? (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <AdminDashboardView />
-              </div>
+              <>
+                {/* Welcome Section */}
+                <AdminWelcome userName={userName} lastLogin={lastLogin} />
+                
+                {/* Quick Actions Grid */}
+                <AdminQuickGrid onNavigate={handleNavigate} />
+                
+                {/* Bottom Cards */}
+                <AdminBottomCards onNavigate={handleNavigate} />
+              </>
             ) : (
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 {activeTab === 'bookings' && <BookingsSection />}

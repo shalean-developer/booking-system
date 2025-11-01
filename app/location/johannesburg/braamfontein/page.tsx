@@ -7,7 +7,7 @@ export async function generateMetadata(): Promise<Metadata> {
     "Braamfontein",
     "Johannesburg",
     "Inner City",
-    "Professional cleaning services in Braamfontein, Johannesburg. Expert cleaners for student accommodation, offices, and apartments in this vibrant inner city area.",
+    "Professional cleaning services in Braamfontein, Johannesburg. Expert cleaners for student accommodation, offices, and apartments in this vibrant area.",
     [
       "Student accommodation specialists",
       "Office cleaning experts",

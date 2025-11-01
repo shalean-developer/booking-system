@@ -138,17 +138,44 @@ export async function PATCH(
 
     console.log('✅ Booking status updated:', bookingId, '→', newStatus);
 
+    // Get cleaner name for activity log and email
+    const { data: cleaner } = await supabase
+      .from('cleaners')
+      .select('name')
+      .eq('id', cleanerUuid)
+      .single();
+
+    // Log activity for admin dashboard
+    if (cleaner) {
+      try {
+        // Insert activity log record
+        const { error: activityError } = await supabase
+          .from('booking_activities')
+          .insert({
+            booking_id: bookingId,
+            cleaner_id: cleanerUuid,
+            cleaner_name: cleaner.name,
+            old_status: booking.status,
+            new_status: newStatus,
+            action_type: 'status_change',
+          });
+
+        if (activityError) {
+          // Log error but don't fail the status update
+          console.error('⚠️ Failed to log activity:', activityError);
+        } else {
+          console.log('✅ Activity logged:', cleaner.name, booking.status, '→', newStatus);
+        }
+      } catch (activityLogError) {
+        // Log error but don't fail the status update
+        console.error('⚠️ Error logging activity:', activityLogError);
+      }
+    }
+
     // Send review request email if booking is completed
-    if (newStatus === 'completed' && process.env.RESEND_API_KEY) {
+    if (newStatus === 'completed' && process.env.RESEND_API_KEY && cleaner) {
       try {
         console.log('📧 Sending review request email to customer...');
-        
-        // Get cleaner name for the email
-        const { data: cleaner } = await supabase
-          .from('cleaners')
-          .select('name')
-          .eq('id', session.id)
-          .single();
 
         const emailData = generateReviewRequestEmail({
           customerEmail: updatedBooking.customer_email,

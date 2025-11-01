@@ -54,7 +54,13 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+  }
+  
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
   }
 }
 
@@ -224,6 +230,87 @@
 
   .touch-pan-x {
     touch-action: pan-x;
+  }
+
+  /* Enhanced card interactions */
+  .card-interactive {
+    @apply transition-all duration-300 ease-out;
+  }
+
+  .card-interactive:hover {
+    @apply shadow-card-hover -translate-y-0.5;
+  }
+
+  /* Refined section headers */
+  .section-header {
+    @apply flex items-center gap-2 mb-4;
+  }
+
+  .section-header-icon {
+    @apply h-5 w-5 text-primary;
+  }
+
+  .section-header-title {
+    @apply text-lg font-semibold text-gray-900;
+  }
+
+  /* Smooth transitions for all interactive elements */
+  .transition-smooth {
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
+  }
+
+  /* Refined metric card styles */
+  .metric-card {
+    @apply bg-white border border-gray-100 rounded-xl shadow-card transition-all duration-300 ease-out;
+  }
+
+  .metric-card:hover {
+    @apply shadow-card-hover border-gray-200;
+  }
+
+  /* Modern button refinements */
+  .btn-refined {
+    @apply transition-all duration-200 ease-out;
+  }
+
+  .btn-refined:hover:not(:disabled) {
+    @apply shadow-md -translate-y-0.5;
+  }
+
+  .btn-refined:active:not(:disabled) {
+    @apply translate-y-0 shadow-sm;
+  }
+
+  /* Subtle background gradients */
+  .bg-gradient-subtle {
+    background: linear-gradient(to bottom, rgba(59, 130, 246, 0.03), rgba(255, 255, 255, 0));
+  }
+
+  .bg-gradient-subtle-gray {
+    background: linear-gradient(to bottom, rgba(243, 244, 246, 0.5), rgba(255, 255, 255, 0));
+  }
+
+  /* Banking-style utilities */
+  .banking-border {
+    border: 1px solid #E5E7EB;
+  }
+
+  .banking-card {
+    @apply bg-white border border-gray-200 rounded-lg shadow-sm;
+  }
+
+  .banking-nav-link {
+    @apply text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors;
+  }
+
+  .banking-nav-link-active {
+    @apply text-primary border-b-2 border-primary pb-1;
+  }
+
+  .banking-icon-button {
+    @apply flex flex-col items-center justify-center p-6 bg-white border border-gray-200 rounded-lg hover:border-primary hover:bg-gray-50 transition-all duration-200;
   }
 }
 

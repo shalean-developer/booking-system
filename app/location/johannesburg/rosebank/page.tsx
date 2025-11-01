@@ -7,7 +7,7 @@ export async function generateMetadata(): Promise<Metadata> {
     "Rosebank",
     "Johannesburg", 
     "Northern Suburbs",
-    "Professional cleaning services in Rosebank, Johannesburg. Reliable home and apartment cleaning with experienced cleaners. Book same-day service in the Northern Suburbs.",
+    "Professional cleaning services in Rosebank, Johannesburg. Reliable home and apartment cleaning with experienced cleaners. Book same-day service available.",
     [
       "Apartment cleaning specialists",
       "Flexible scheduling",
