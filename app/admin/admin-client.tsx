@@ -7,11 +7,36 @@ import { AdminTopNav } from '@/components/admin/admin-top-nav';
 import { AdminWelcome } from '@/components/admin/admin-welcome';
 import { AdminQuickGrid } from '@/components/admin/admin-quick-grid';
 import { AdminBottomCards } from '@/components/admin/admin-bottom-cards';
-import { Loader2 } from 'lucide-react';
+import { Loader2, LayoutDashboard } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 // Lazy load sections for better performance
 const AdminDashboardView = dynamic(
   () => import('@/components/admin/admin-dashboard-view').then(m => ({ default: m.AdminDashboardView })),
+  { 
+    loading: () => (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    ),
+    ssr: false 
+  }
+);
+
+const AdminDashboardViewV2 = dynamic(
+  () => import('@/components/admin/admin-dashboard-view-v2').then(m => ({ default: m.AdminDashboardViewV2 })),
+  { 
+    loading: () => (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    ),
+    ssr: false 
+  }
+);
+
+const DashboardPageNew = dynamic(
+  () => import('@/components/admin/dashboard-page-new').then(m => ({ default: m.default })),
   { 
     loading: () => (
       <div className="flex items-center justify-center py-12">
@@ -143,6 +168,7 @@ const UsersSection = dynamic(
 );
 
 type TabType = 'dashboard' | 'bookings' | 'recurring' | 'customers' | 'cleaners' | 'applications' | 'pricing' | 'blog' | 'quotes' | 'reviews' | 'users';
+type DashboardViewType = 'new' | 'v2';
 
 interface AdminDashboardClientProps {
   userName: string;
@@ -151,6 +177,20 @@ interface AdminDashboardClientProps {
 
 export function AdminDashboardClient({ userName, lastLogin }: AdminDashboardClientProps) {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
+  const [dashboardView, setDashboardView] = useState<DashboardViewType>('new');
+
+  // Load dashboard view preference from localStorage
+  useEffect(() => {
+    const savedView = localStorage.getItem('admin-dashboard-view') as DashboardViewType;
+    if (savedView === 'new' || savedView === 'v2') {
+      setDashboardView(savedView);
+    }
+  }, []);
+
+  // Save dashboard view preference to localStorage
+  useEffect(() => {
+    localStorage.setItem('admin-dashboard-view', dashboardView);
+  }, [dashboardView]);
 
   // Listen for tab change events from dashboard cards
   useEffect(() => {
@@ -187,8 +227,34 @@ export function AdminDashboardClient({ userName, lastLogin }: AdminDashboardClie
         <main className="flex-1 overflow-auto">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
             {activeTab === 'dashboard' ? (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <AdminDashboardView />
+              <div className="space-y-4">
+                {/* Dashboard View Switcher */}
+                <div className="flex items-center justify-between bg-white rounded-lg border border-gray-200 px-4 py-3 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <LayoutDashboard className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm font-medium text-gray-700">Dashboard View:</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={dashboardView === 'new' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setDashboardView('new')}
+                      className="text-xs"
+                    >
+                      View New
+                    </Button>
+                    <Button
+                      variant={dashboardView === 'v2' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setDashboardView('v2')}
+                      className="text-xs"
+                    >
+                      View V2
+                    </Button>
+                  </div>
+                </div>
+                {/* Render selected dashboard view */}
+                {dashboardView === 'new' ? <DashboardPageNew /> : <AdminDashboardViewV2 />}
               </div>
             ) : (
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">

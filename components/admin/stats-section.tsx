@@ -73,13 +73,25 @@ interface Stats {
 }
 
 export function StatsSection() {
+  // Calculate days from start of current month to today
+  const getCurrentMonthDays = () => {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const daysDifference = Math.ceil((now.getTime() - startOfMonth.getTime()) / (1000 * 60 * 60 * 24));
+    return daysDifference + 1; // +1 to include today
+  };
+
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [dateRangeDays, setDateRangeDays] = useState(getCurrentMonthDays());
+  const [chartData, setChartData] = useState<any[]>([]);
+  
   // Use SWR for data fetching with automatic caching and revalidation
   const { data, error, isLoading, mutate } = useSWR<{
     ok: boolean;
     stats?: Stats;
     error?: string;
   }>(
-    '/api/admin/stats',
+    `/api/admin/stats?days=${dateRangeDays}`,
     async (url) => {
       const response = await fetch(url, {
         credentials: 'include',
@@ -99,9 +111,6 @@ export function StatsSection() {
   );
 
   const stats = data?.stats || null;
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [dateRangeDays, setDateRangeDays] = useState(30);
-  const [chartData, setChartData] = useState<any[]>([]);
   const [comparisonData, setComparisonData] = useState<any>(null);
   const [isLoadingChart, setIsLoadingChart] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
@@ -187,6 +196,18 @@ export function StatsSection() {
 
   if (!stats) return null;
 
+  // Helper function to get period label based on days
+  const getPeriodLabel = (days: number): string => {
+    const currentMonthDays = getCurrentMonthDays();
+    if (days === currentMonthDays) return 'current month';
+    if (days === 1) return 'today';
+    if (days === 7) return 'last 7 days';
+    if (days === 30) return 'last 30 days';
+    if (days === 90) return 'last 90 days';
+    if (days === 180) return 'last 6 months';
+    return `last ${days} days`;
+  };
+
   // Helper function to calculate percentage change and determine trend
   const calculateTrend = (current: number, previous: number) => {
     if (previous === 0) return { value: 0, isPositive: current > 0, isNeutral: current === 0 };
@@ -266,12 +287,12 @@ export function StatsSection() {
             </div>
             <div className="flex flex-col gap-1 mt-2">
               <p className="text-sm text-muted-foreground">
-                {formatCurrency(stats.revenue.recent)} from last 30 days
+                {formatCurrency(stats.revenue.recent)} from {getPeriodLabel(dateRangeDays)}
               </p>
               {stats.revenue.total > 0 && stats.revenue.recent > 0 && (
-                <Tooltip content={`${formatPercentage(recentPeriodPercentage(stats.revenue.recent, stats.revenue.total, 1))} of total revenue comes from the last 30 days`}>
+                <Tooltip content={`${formatPercentage(recentPeriodPercentage(stats.revenue.recent, stats.revenue.total, 1))} of total revenue comes from the ${getPeriodLabel(dateRangeDays)}`}>
                   <span className="text-sm text-green-600 font-medium cursor-help">
-                    {formatPercentage(recentPeriodPercentage(stats.revenue.recent, stats.revenue.total, 1))} from last 30 days
+                    {formatPercentage(recentPeriodPercentage(stats.revenue.recent, stats.revenue.total, 1))} from {getPeriodLabel(dateRangeDays)}
                   </span>
                 </Tooltip>
               )}
@@ -297,12 +318,12 @@ export function StatsSection() {
             </div>
             <div className="flex flex-col gap-1 mt-2">
               <p className="text-sm text-muted-foreground">
-                {formatCurrency(stats.revenue.recentCompanyEarnings)} from last 30 days
+                {formatCurrency(stats.revenue.recentCompanyEarnings)} from {getPeriodLabel(dateRangeDays)}
               </p>
               {stats.revenue.companyEarnings > 0 && (
-                <Tooltip content={`${formatPercentage(recentPeriodPercentage(stats.revenue.recentCompanyEarnings, stats.revenue.companyEarnings, 1))} of total company earnings come from the last 30 days`}>
+                <Tooltip content={`${formatPercentage(recentPeriodPercentage(stats.revenue.recentCompanyEarnings, stats.revenue.companyEarnings, 1))} of total company earnings come from the ${getPeriodLabel(dateRangeDays)}`}>
                   <span className="text-sm text-green-600 font-medium cursor-help">
-                    {formatPercentage(recentPeriodPercentage(stats.revenue.recentCompanyEarnings, stats.revenue.companyEarnings, 1))} from last 30 days
+                    {formatPercentage(recentPeriodPercentage(stats.revenue.recentCompanyEarnings, stats.revenue.companyEarnings, 1))} from {getPeriodLabel(dateRangeDays)}
                   </span>
                 </Tooltip>
               )}
@@ -335,7 +356,7 @@ export function StatsSection() {
             </div>
             <div className="flex items-center gap-2 mt-2">
               <p className="text-sm text-muted-foreground">
-                {stats.revenue.recentProfitMargin}% last 30 days
+                {stats.revenue.recentProfitMargin}% {getPeriodLabel(dateRangeDays)}
               </p>
             </div>
           </CardContent>
@@ -351,7 +372,7 @@ export function StatsSection() {
               {formatCurrency(stats.revenue.serviceFees)}
             </div>
             <p className="text-sm text-muted-foreground mt-2">
-              {formatCurrency(stats.revenue.recentServiceFees)} last 30 days
+              {formatCurrency(stats.revenue.recentServiceFees)} {getPeriodLabel(dateRangeDays)}
             </p>
           </CardContent>
         </Card>
@@ -382,7 +403,7 @@ export function StatsSection() {
             </div>
             <div className="flex flex-col gap-1 mt-2">
               <p className="text-sm text-muted-foreground">
-                {stats.bookings.recent} in last 30 days
+                {stats.bookings.recent} in {getPeriodLabel(dateRangeDays)}
               </p>
               {stats.bookings.total > 0 && (
                 <span className="text-sm text-blue-600 font-medium">
@@ -436,7 +457,7 @@ export function StatsSection() {
               {stats.cleaners.utilization}
             </div>
             <p className="text-sm text-muted-foreground mt-2">
-              bookings per cleaner (last 30 days)
+              bookings per cleaner ({getPeriodLabel(dateRangeDays)})
             </p>
           </CardContent>
         </Card>
@@ -451,7 +472,7 @@ export function StatsSection() {
               {formatCurrency(stats.revenue.cleanerEarnings)}
             </div>
             <p className="text-sm text-muted-foreground mt-2">
-              {formatCurrency(stats.revenue.recentCleanerEarnings)} last 30 days
+              {formatCurrency(stats.revenue.recentCleanerEarnings)} {getPeriodLabel(dateRangeDays)}
             </p>
           </CardContent>
         </Card>

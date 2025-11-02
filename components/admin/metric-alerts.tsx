@@ -3,6 +3,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, TrendingDown, TrendingUp, ArrowRight } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface Alert {
   id: string;
@@ -18,10 +19,12 @@ interface MetricAlertsProps {
     bookings: {
       pending: number;
       accepted: number;
+      unassigned?: number;
     };
     cleaners: {
       active: number;
       total: number;
+      availableToday?: number;
     };
     applications: {
       pending: number;
@@ -30,11 +33,30 @@ interface MetricAlertsProps {
       recent: number;
       total: number;
     };
+    quotes?: {
+      oldPending?: number;
+      total?: number;
+      pending?: number;
+      contacted?: number;
+      converted?: number;
+    };
   };
 }
 
 export function MetricAlerts({ stats }: MetricAlertsProps) {
   const alerts: Alert[] = [];
+
+  // Check for unassigned bookings (URGENT)
+  if (stats.bookings.unassigned && stats.bookings.unassigned > 0) {
+    alerts.push({
+      id: 'unassigned-bookings',
+      type: 'error',
+      title: 'Unassigned Bookings',
+      message: `${stats.bookings.unassigned} bookings need cleaner assignment`,
+      value: stats.bookings.unassigned,
+      threshold: 0,
+    });
+  }
 
   // Check for pending bookings that need attention
   if (stats.bookings.pending > 10) {
@@ -90,6 +112,30 @@ export function MetricAlerts({ stats }: MetricAlertsProps) {
     });
   }
 
+  // Check for old pending quotes (>48 hours)
+  if (stats.quotes?.oldPending && stats.quotes.oldPending > 0) {
+    alerts.push({
+      id: 'old-pending-quotes',
+      type: 'warning',
+      title: 'Old Pending Quotes',
+      message: `${stats.quotes.oldPending} quotes pending > 48 hours need follow-up`,
+      value: stats.quotes.oldPending,
+      threshold: 0,
+    });
+  }
+
+  // Check for low cleaner availability
+  if (stats.cleaners.availableToday !== undefined && stats.cleaners.availableToday < 3 && stats.cleaners.active > 0) {
+    alerts.push({
+      id: 'low-cleaner-availability',
+      type: 'warning',
+      title: 'Low Cleaner Availability',
+      message: `Only ${stats.cleaners.availableToday} cleaners available today`,
+      value: stats.cleaners.availableToday,
+      threshold: 3,
+    });
+  }
+
   if (alerts.length === 0) {
     return null;
   }
@@ -127,16 +173,26 @@ export function MetricAlerts({ stats }: MetricAlertsProps) {
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-900 mb-4">Metric Alerts</h3>
           {alerts.map((alert) => {
-            const isClickable = alert.id === 'pending-applications';
+            const clickableAlerts = ['pending-applications', 'unassigned-bookings', 'old-pending-quotes'];
+            const isClickable = clickableAlerts.includes(alert.id);
             const handleClick = () => {
               if (isClickable) {
-                window.dispatchEvent(new CustomEvent('admin-tab-change', { detail: 'applications' }));
+                if (alert.id === 'pending-applications') {
+                  window.dispatchEvent(new CustomEvent('admin-tab-change', { detail: 'applications' }));
+                } else if (alert.id === 'unassigned-bookings') {
+                  window.dispatchEvent(new CustomEvent('admin-tab-change', { detail: 'bookings' }));
+                } else if (alert.id === 'old-pending-quotes') {
+                  window.dispatchEvent(new CustomEvent('admin-tab-change', { detail: 'quotes' }));
+                }
               }
             };
             
             return (
-              <div
+              <motion.div
                 key={alert.id}
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: alerts.indexOf(alert) * 0.1 }}
                 onClick={handleClick}
                 className={`flex items-start gap-3 p-3 rounded-lg border ${getAlertColor(alert.type)} ${
                   isClickable ? 'cursor-pointer hover:shadow-md transition-shadow group' : ''
@@ -170,7 +226,7 @@ export function MetricAlerts({ stats }: MetricAlertsProps) {
                     )}
                   </p>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>

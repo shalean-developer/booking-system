@@ -52,6 +52,7 @@ export async function GET(request: Request) {
       revenue: number;
       bookings: number;
       completed: number;
+      cancelled: number;
       companyEarnings: number;
     }>();
     
@@ -64,20 +65,24 @@ export async function GET(request: Request) {
           revenue: 0,
           bookings: 0,
           completed: 0,
+          cancelled: 0,
           companyEarnings: 0,
         });
       }
       
       const dayData = dailyData.get(date)!;
-      dayData.revenue += (booking.total_amount || 0) / 100; // Convert cents to rands
       dayData.bookings += 1;
       
       if (booking.status === 'completed') {
         dayData.completed += 1;
+        dayData.revenue += (booking.total_amount || 0) / 100; // Convert cents to rands - only from completed
+        const cleanerEarnings = (booking.cleaner_earnings || 0) / 100;
+        dayData.companyEarnings += (booking.total_amount || 0) / 100 - cleanerEarnings;
       }
       
-      const cleanerEarnings = (booking.cleaner_earnings || 0) / 100;
-      dayData.companyEarnings += (booking.total_amount || 0) / 100 - cleanerEarnings;
+      if (booking.status === 'cancelled') {
+        dayData.cancelled += 1;
+      }
     });
     
     // Convert to array and sort by date

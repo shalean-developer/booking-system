@@ -21,7 +21,7 @@ import { MobileBottomNav } from '@/components/dashboard/mobile-bottom-nav';
 import { MobileDrawer } from '@/components/dashboard/mobile-drawer';
 import { OverviewTab } from '@/components/dashboard/overview-tab';
 import { DashboardSidebar } from '@/components/dashboard/dashboard-sidebar';
-import { StatCard } from '@/components/dashboard/stat-card';
+import { StatCard } from '@/components/dashboard/StatCard';
 import { UpcomingPanel } from '@/components/dashboard/upcoming-panel';
 import { MessagesPanel } from '@/components/dashboard/messages-panel';
 import { ActivityPanel } from '@/components/dashboard/activity-panel';

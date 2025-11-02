@@ -12,6 +12,10 @@ import { BookingsChart } from './bookings-chart';
 import { MetricAlerts } from './metric-alerts';
 import { ExportDialog } from './export-dialog';
 import { PerformanceWidget } from './performance-widget';
+import { OperationsCommand } from './operations-command';
+import { ServicePerformance } from './service-performance';
+import { PipelineSection } from './pipeline-section';
+import { TodaySnapshot } from './today-snapshot';
 import { formatCurrency, formatPercentage, formatPercentageChange } from '@/lib/utils/formatting';
 import { recentPeriodPercentage } from '@/lib/utils/calculations';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -20,13 +24,18 @@ interface Stats {
   bookings: {
     total: number;
     recent: number;
+    today?: number;
     pending: number;
     accepted: number;
     completed: number;
+    unassigned?: number;
+    unassignedList?: any[];
+    todayBookings?: any[];
   };
   revenue: {
     total: number;
     recent: number;
+    today?: number;
     cleanerEarnings: number;
     recentCleanerEarnings: number;
     companyEarnings: number;
@@ -47,6 +56,8 @@ interface Stats {
     total: number;
     active: number;
     utilization: number;
+    availableToday?: number;
+    availableTomorrow?: number;
   };
   applications: {
     total: number;
@@ -57,6 +68,8 @@ interface Stats {
     pending: number;
     contacted: number;
     converted: number;
+    oldPending?: number;
+    oldPendingList?: any[];
   };
   tomorrowBookings: Array<{
     id: string;
@@ -66,15 +79,29 @@ interface Stats {
     status: string;
     cleaner_name?: string | null;
   }>;
+  serviceTypeBreakdown?: Record<string, { bookings: number; revenue: number }>;
+  recentServiceTypeBreakdown?: Record<string, { bookings: number; revenue: number }>;
 }
 
 export function AdminDashboardView() {
+  // Calculate days from start of current month to today
+  const getCurrentMonthDays = () => {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const daysDifference = Math.ceil((now.getTime() - startOfMonth.getTime()) / (1000 * 60 * 60 * 24));
+    return daysDifference + 1; // +1 to include today
+  };
+
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [dateRangeDays, setDateRangeDays] = useState(getCurrentMonthDays());
+  const [chartData, setChartData] = useState<any[]>([]);
+
   const { data, error, isLoading, mutate } = useSWR<{
     ok: boolean;
     stats?: Stats;
     error?: string;
   }>(
-    '/api/admin/stats',
+    `/api/admin/stats?days=${dateRangeDays}`,
     async (url) => {
       const response = await fetch(url, {
         credentials: 'include',
@@ -94,9 +121,6 @@ export function AdminDashboardView() {
   );
 
   const stats = data?.stats || null;
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [dateRangeDays, setDateRangeDays] = useState(30);
-  const [chartData, setChartData] = useState<any[]>([]);
   const [comparisonData, setComparisonData] = useState<any>(null);
   const [isLoadingChart, setIsLoadingChart] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
@@ -181,6 +205,18 @@ export function AdminDashboardView() {
 
   if (!stats) return null;
 
+  // Helper function to get period label based on days
+  const getPeriodLabel = (days: number): string => {
+    const currentMonthDays = getCurrentMonthDays();
+    if (days === currentMonthDays) return 'current month';
+    if (days === 1) return 'today';
+    if (days === 7) return 'last 7 days';
+    if (days === 30) return 'last 30 days';
+    if (days === 90) return 'last 90 days';
+    if (days === 180) return 'last 6 months';
+    return `last ${days} days`;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header with refresh button and date filter */}
@@ -216,13 +252,19 @@ export function AdminDashboardView() {
       {/* Metric Alerts */}
       {stats && <MetricAlerts stats={stats} />}
       
+      {/* Today's Snapshot */}
+      {stats && <TodaySnapshot stats={stats} />}
+      
+      {/* Operations Command Center */}
+      {stats && <OperationsCommand stats={stats} />}
+      
       {/* Financial Health Section */}
       <div className="space-y-4">
         <div className="section-header">
           <DollarSign className="section-header-icon" />
           <h3 className="section-header-title">Financial Health</h3>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         <Card className="metric-card cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
             <CardTitle className="text-sm font-medium flex items-center gap-1.5">
@@ -240,13 +282,18 @@ export function AdminDashboardView() {
               </div>
             </div>
             <div className="flex flex-col gap-1 mt-2">
+              {stats.revenue.today !== undefined && stats.revenue.today > 0 && (
+                <p className="text-sm font-medium text-blue-600">
+                  {formatCurrency(stats.revenue.today)} today
+                </p>
+              )}
               <p className="text-sm text-muted-foreground">
-                {formatCurrency(stats.revenue.recent)} from last 30 days
+                {formatCurrency(stats.revenue.recent)} from {getPeriodLabel(dateRangeDays)}
               </p>
               {stats.revenue.total > 0 && stats.revenue.recent > 0 && (
-                <Tooltip content={`${formatPercentage(recentPeriodPercentage(stats.revenue.recent, stats.revenue.total, 1))} of total revenue comes from the last 30 days`}>
+                <Tooltip content={`${formatPercentage(recentPeriodPercentage(stats.revenue.recent, stats.revenue.total, 1))} of total revenue comes from the ${getPeriodLabel(dateRangeDays)}`}>
                   <span className="text-sm text-green-600 font-medium cursor-help">
-                    {formatPercentage(recentPeriodPercentage(stats.revenue.recent, stats.revenue.total, 1))} from last 30 days
+                    {formatPercentage(recentPeriodPercentage(stats.revenue.recent, stats.revenue.total, 1))} from {getPeriodLabel(dateRangeDays)}
                   </span>
                 </Tooltip>
               )}
@@ -272,12 +319,12 @@ export function AdminDashboardView() {
             </div>
             <div className="flex flex-col gap-1 mt-2">
               <p className="text-sm text-muted-foreground">
-                {formatCurrency(stats.revenue.recentCompanyEarnings)} from last 30 days
+                {formatCurrency(stats.revenue.recentCompanyEarnings)} from {getPeriodLabel(dateRangeDays)}
               </p>
               {stats.revenue.companyEarnings > 0 && (
-                <Tooltip content={`${formatPercentage(recentPeriodPercentage(stats.revenue.recentCompanyEarnings, stats.revenue.companyEarnings, 1))} of total company earnings come from the last 30 days`}>
+                <Tooltip content={`${formatPercentage(recentPeriodPercentage(stats.revenue.recentCompanyEarnings, stats.revenue.companyEarnings, 1))} of total company earnings come from the ${getPeriodLabel(dateRangeDays)}`}>
                   <span className="text-sm text-green-600 font-medium cursor-help">
-                    {formatPercentage(recentPeriodPercentage(stats.revenue.recentCompanyEarnings, stats.revenue.companyEarnings, 1))} from last 30 days
+                    {formatPercentage(recentPeriodPercentage(stats.revenue.recentCompanyEarnings, stats.revenue.companyEarnings, 1))} from {getPeriodLabel(dateRangeDays)}
                   </span>
                 </Tooltip>
               )}
@@ -310,34 +357,19 @@ export function AdminDashboardView() {
             </div>
             <div className="flex items-center gap-2 mt-2">
               <p className="text-sm text-muted-foreground">
-                {stats.revenue.recentProfitMargin}% last 30 days
+                {stats.revenue.recentProfitMargin}% {getPeriodLabel(dateRangeDays)}
               </p>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
-            <CardTitle className="text-sm font-medium">Service Fees</CardTitle>
-            <Receipt className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="text-2xl font-bold">
-              {formatCurrency(stats.revenue.serviceFees)}
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              {formatCurrency(stats.revenue.recentServiceFees)} last 30 days
-            </p>
           </CardContent>
         </Card>
         </div>
       </div>
 
-      {/* Operational Capacity Section */}
+      {/* Key Metrics */}
       <div className="space-y-4">
         <div className="section-header">
-          <Briefcase className="section-header-icon" />
-          <h3 className="section-header-title">Operational Capacity</h3>
+          <Activity className="section-header-icon" />
+          <h3 className="section-header-title">Key Metrics</h3>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <Card 
@@ -356,13 +388,8 @@ export function AdminDashboardView() {
             </div>
             <div className="flex flex-col gap-1 mt-2">
               <p className="text-sm text-muted-foreground">
-                {stats.bookings.recent} in last 30 days
+                {stats.bookings.recent} in {getPeriodLabel(dateRangeDays)}
               </p>
-              {stats.bookings.total > 0 && (
-                <span className="text-sm text-blue-600 font-medium">
-                  {((stats.bookings.recent / stats.bookings.total) * 100).toFixed(0)}%
-                </span>
-              )}
             </div>
           </CardContent>
         </Card>
@@ -378,74 +405,10 @@ export function AdminDashboardView() {
             <Briefcase className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="px-6 pb-6">
-            <div className="flex items-center justify-between">
-              <div className="text-2xl font-bold">{stats.cleaners.active}</div>
-              {stats.cleaners.active < stats.cleaners.total && (
-                <div className="flex items-center gap-1 text-sm text-gray-500">
-                  <span>{stats.cleaners.total - stats.cleaners.active} inactive</span>
-                </div>
-              )}
-            </div>
-            <div className="flex flex-col gap-1 mt-2">
-              <p className="text-sm text-muted-foreground">
-                {stats.cleaners.total} total cleaners
-              </p>
-              {stats.cleaners.total > 0 && (
-                <span className="text-sm text-green-600 font-medium">
-                  {((stats.cleaners.active / stats.cleaners.total) * 100).toFixed(0)}% active
-                </span>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
-            <CardTitle className="text-sm font-medium">Cleaner Utilization</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="text-2xl font-bold">
-              {stats.cleaners.utilization}
-            </div>
+            <div className="text-2xl font-bold">{stats.cleaners.active}</div>
             <p className="text-sm text-muted-foreground mt-2">
-              bookings per cleaner (last 30 days)
+              {stats.cleaners.total} total cleaners
             </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
-            <CardTitle className="text-sm font-medium">Cleaner Earnings</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="text-2xl font-bold">
-              {formatCurrency(stats.revenue.cleanerEarnings)}
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              {formatCurrency(stats.revenue.recentCleanerEarnings)} last 30 days
-            </p>
-          </CardContent>
-        </Card>
-        </div>
-      </div>
-
-      {/* Growth Indicators Section */}
-      <div className="space-y-4">
-        <div className="section-header">
-          <TrendingUp className="section-header-icon" />
-          <h3 className="section-header-title">Growth Indicators</h3>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
-            <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="text-2xl font-bold">{stats.customers.total}</div>
-            <p className="text-sm text-muted-foreground mt-2">Registered users</p>
           </CardContent>
         </Card>
 
@@ -478,169 +441,19 @@ export function AdminDashboardView() {
             </p>
           </CardContent>
         </Card>
-
-        <Card 
-          className="metric-card cursor-pointer"
-          onClick={() => {
-            window.dispatchEvent(new CustomEvent('admin-tab-change', { detail: 'applications' }));
-          }}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
-            <CardTitle className="text-sm font-medium">Cleaner Pipeline</CardTitle>
-            <UserPlus className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="flex items-center justify-between">
-              <div className="text-2xl font-bold text-orange-600">
-                {stats.applications.pending}
-              </div>
-              {stats.applications.pending > 0 && (
-                <div className="flex items-center gap-1 text-sm text-orange-600 font-medium">
-                  <span>Requires attention</span>
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-2 mt-2">
-              <p className="text-sm text-muted-foreground">
-                {stats.applications.total} total applications
-              </p>
-            </div>
-          </CardContent>
-        </Card>
         </div>
       </div>
 
-      {/* Booking Status Breakdown */}
-      <div className="space-y-4">
-        <div className="section-header">
-          <Calendar className="section-header-icon" />
-          <h3 className="section-header-title">Booking Status</h3>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
-            <CardTitle className="text-sm font-medium">Pending Bookings</CardTitle>
-            <Calendar className="h-4 w-4 text-yellow-600" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="text-2xl font-bold text-yellow-600">
-              {stats.bookings.pending}
-            </div>
-          </CardContent>
-        </Card>
+      {/* Service Performance */}
+      {stats && stats.serviceTypeBreakdown && (
+        <ServicePerformance 
+          serviceTypeBreakdown={stats.serviceTypeBreakdown}
+          recentServiceTypeBreakdown={stats.recentServiceTypeBreakdown}
+        />
+      )}
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
-            <CardTitle className="text-sm font-medium">Accepted Bookings</CardTitle>
-            <CheckCircle className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="text-2xl font-bold text-blue-600">
-              {stats.bookings.accepted}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
-            <CardTitle className="text-sm font-medium">Completed Bookings</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="text-2xl font-bold text-green-600">
-              {stats.bookings.completed}
-            </div>
-          </CardContent>
-        </Card>
-        </div>
-      </div>
-
-      {/* Tomorrow's Bookings */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Tomorrow's Bookings - {new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            })}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {stats.tomorrowBookings.length === 0 ? (
-            <div className="text-center py-8">
-              <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No bookings scheduled for tomorrow</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="text-sm text-muted-foreground mb-4">
-                {stats.tomorrowBookings.length} booking{stats.tomorrowBookings.length !== 1 ? 's' : ''} scheduled
-              </div>
-              <div className="space-y-2">
-                {stats.tomorrowBookings.map((booking) => (
-                  <div key={booking.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center space-x-4">
-                      <div className="text-sm font-medium text-gray-900 min-w-[60px]">
-                        {booking.booking_time}
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-medium text-gray-900">{booking.customer_name}</div>
-                        <div className="text-sm text-gray-500">{booking.service_type}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                        booking.status === 'accepted' ? 'bg-blue-100 text-blue-800' :
-                        booking.status === 'completed' ? 'bg-green-100 text-green-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {booking.status}
-                      </span>
-                      {booking.cleaner_name && (
-                        <span className="text-sm text-gray-600">{booking.cleaner_name}</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Quotes Overview */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Quote Requests
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Total</p>
-              <div className="text-2xl font-bold">{stats.quotes.total}</div>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Pending</p>
-              <div className="text-2xl font-bold text-yellow-600">{stats.quotes.pending}</div>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Contacted</p>
-              <div className="text-2xl font-bold text-blue-600">{stats.quotes.contacted}</div>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Converted</p>
-              <div className="text-2xl font-bold text-green-600">{stats.quotes.converted}</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Pipeline Section */}
+      {stats && <PipelineSection stats={stats} />}
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
