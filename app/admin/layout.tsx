@@ -18,7 +18,7 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-100/50 flex">
       {/* Sidebar */}
       <AdminSidebarV3 />
       

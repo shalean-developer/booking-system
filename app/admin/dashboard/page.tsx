@@ -1,36 +1,25 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Calendar,
   UserCheck,
   DollarSign,
   AlertCircle,
-  Clock,
+  LayoutDashboard,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { ServiceMetricCard } from '@/components/admin/service-metric-card';
-import { BookingsTimelineChart } from '@/components/admin/bookings-timeline-chart';
-import { ServiceTypeChart } from '@/components/admin/service-type-chart';
 import { UpcomingBookingsWidget } from '@/components/admin/upcoming-bookings-widget';
 import { ActiveCleanersWidget } from '@/components/admin/active-cleaners-widget';
 import { RecentActivityWidget } from '@/components/admin/recent-activity-widget';
 import { QuotesWidget } from '@/components/admin/quotes-widget';
 import { SkeletonCard } from '@/components/admin/skeleton-card';
+import { AdminDashboardViewV2 } from '@/components/admin/admin-dashboard-view-v2';
 import { toast } from 'sonner';
 
-interface BookingsTimelineData {
-  date: string;
-  bookings: number;
-  completed: number;
-  cancelled: number;
-}
-
-interface ServiceTypeData {
-  serviceType: string;
-  bookings: number;
-  revenue: number;
-}
+type DashboardViewType = 'v2' | 'simple';
 
 interface UpcomingBooking {
   id: string;
@@ -58,15 +47,6 @@ interface ActivityItem {
   metadata?: any;
 }
 
-interface ServiceRequest {
-  id: string;
-  name: string;
-  assignedTo: string;
-  hours: string;
-  budgetHours: string;
-  unbilledExpenses: number;
-}
-
 interface Quote {
   id: string;
   first_name: string;
@@ -77,6 +57,7 @@ interface Quote {
 }
 
 export default function DashboardPage() {
+  const [dashboardView, setDashboardView] = useState<DashboardViewType>('simple');
   const [loading, setLoading] = useState(true);
   
   // Service metrics
@@ -85,21 +66,34 @@ export default function DashboardPage() {
   const [pendingRequests, setPendingRequests] = useState(0);
   const [revenueToday, setRevenueToday] = useState(0);
   
-  // Charts data
-  const [bookingsTimelineData, setBookingsTimelineData] = useState<BookingsTimelineData[]>([]);
-  const [bookingsSummary, setBookingsSummary] = useState({ total: 0, completed: 0, cancelled: 0 });
-  const [serviceTypeData, setServiceTypeData] = useState<ServiceTypeData[]>([]);
-  
   // Widgets data
   const [upcomingBookings, setUpcomingBookings] = useState<UpcomingBooking[]>([]);
   const [cleaners, setCleaners] = useState<ActiveCleaner[]>([]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
-  const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
 
+  // Load dashboard view preference from localStorage
   useEffect(() => {
-    fetchDashboardData();
+    const savedView = localStorage.getItem('admin-dashboard-view');
+    if (savedView === 'v2') {
+      setDashboardView('v2');
+    } else {
+      setDashboardView('simple');
+    }
   }, []);
+
+  // Save dashboard view preference to localStorage
+  useEffect(() => {
+    if (dashboardView !== 'simple') {
+      localStorage.setItem('admin-dashboard-view', dashboardView);
+    }
+  }, [dashboardView]);
+
+  useEffect(() => {
+    if (dashboardView === 'simple') {
+      fetchDashboardData();
+    }
+  }, [dashboardView]);
 
   const fetchDashboardData = async () => {
     try {
@@ -141,14 +135,6 @@ export default function DashboardPage() {
         setPendingRequests(stats.bookings?.pending || 0);
         setRevenueToday(stats.revenue?.today || 0);
         
-        // Set bookings summary (calculate cancelled from stats if available)
-        const cancelledCount = stats.bookings?.cancelled || 0;
-        setBookingsSummary({
-          total: stats.bookings?.total || 0,
-          completed: stats.bookings?.completed || 0,
-          cancelled: cancelledCount,
-        });
-        
         // Set today's bookings for the upcoming bookings widget
         if (stats.bookings?.todayBookings) {
           const todayBookingList = stats.bookings.todayBookings.slice(0, 5).map((b: any) => ({
@@ -162,28 +148,6 @@ export default function DashboardPage() {
           }));
           setUpcomingBookings(todayBookingList);
         }
-      }
-
-      // Fetch bookings timeline data
-      const timelineRes = await safeFetch('/api/admin/stats/chart?days=30');
-      if (timelineRes?.ok && timelineRes.chartData) {
-        const timelineData = timelineRes.chartData.map((d: any) => ({
-          date: d.date,
-          bookings: d.bookings || 0,
-          completed: d.completed || 0,
-          cancelled: d.cancelled || 0,
-        }));
-        setBookingsTimelineData(timelineData);
-      }
-
-      // Fetch service type breakdown
-      if (statsData?.ok && statsData.stats?.serviceTypeBreakdown) {
-        const serviceTypes = Object.entries(statsData.stats.serviceTypeBreakdown || {}).map(([type, data]: [string, any]) => ({
-          serviceType: type,
-          bookings: data.bookings || 0,
-          revenue: data.revenue || 0,
-        }));
-        setServiceTypeData(serviceTypes);
       }
 
       // Fetch active cleaners status
@@ -244,20 +208,6 @@ export default function DashboardPage() {
       }
       setActivities(activityList.slice(0, 5));
 
-      // Fetch active service requests (accepted bookings)
-      const activeBookingsRes = await safeFetch('/api/admin/bookings?status=accepted&limit=5');
-      if (activeBookingsRes?.ok && activeBookingsRes.bookings) {
-        const requests = (activeBookingsRes.bookings || []).map((b: any) => ({
-          id: b.id,
-          name: `${b.service_type || 'Service'} - ${b.customer_name || 'Customer'}`,
-          assignedTo: b.cleaner_name || 'Unassigned',
-          hours: '00:00',
-          budgetHours: '02:00',
-          unbilledExpenses: 0,
-        }));
-        setServiceRequests(requests);
-      }
-
       // Fetch pending quotes
       const pendingQuotesRes = await safeFetch('/api/admin/quotes?status=pending&limit=5');
       // Fetch contacted quotes
@@ -303,9 +253,10 @@ export default function DashboardPage() {
           <SkeletonCard key={i} />
         ))}
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <SkeletonCard />
-        <SkeletonCard />
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
+        {[1, 2, 3, 4].map((i) => (
+          <SkeletonCard key={i} />
+        ))}
       </div>
     </div>
   );
@@ -316,101 +267,112 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Hello, Shalean Cleaning Services</h1>
-        <p className="text-gray-600 mt-1 text-sm">Welcome back! Here's what's happening today.</p>
+      {/* Dashboard View Switcher */}
+      <div className="flex items-center justify-between bg-white rounded-lg border border-gray-200 px-4 py-3 shadow-sm">
+        <div className="flex items-center gap-2">
+          <LayoutDashboard className="h-4 w-4 text-gray-500" />
+          <span className="text-sm font-medium text-gray-700">Dashboard View:</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={dashboardView === 'simple' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setDashboardView('simple')}
+            className="text-xs"
+          >
+            Simple
+          </Button>
+          <Button
+            variant={dashboardView === 'v2' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setDashboardView('v2')}
+            className="text-xs"
+          >
+            Enhanced
+          </Button>
+        </div>
       </div>
 
-      {/* Service Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <ServiceMetricCard
-          title="Today's Bookings"
-          value={todayBookings}
-          subtitle="Scheduled for today"
-          icon={<Calendar className="h-4 w-4" />}
-          badge={{ label: 'Today', variant: 'default' }}
-        />
-        <ServiceMetricCard
-          title="Active Cleaners"
-          value={activeCleaners}
-          subtitle="Currently working"
-          icon={<UserCheck className="h-4 w-4" />}
-          badge={{ label: 'Available', variant: 'secondary' }}
-        />
-        <ServiceMetricCard
-          title="Pending Requests"
-          value={pendingRequests}
-          subtitle="Need attention"
-          icon={<AlertCircle className="h-4 w-4" />}
-          badge={{ label: 'Action Required', variant: 'destructive' }}
-        />
-        <ServiceMetricCard
-          title="Revenue Today"
-          value={formatCurrency(revenueToday)}
-          subtitle="Earnings today"
-          icon={<DollarSign className="h-4 w-4" />}
-        />
-      </div>
+      {/* Render selected dashboard view */}
+      {dashboardView === 'v2' && <AdminDashboardViewV2 />}
+      {dashboardView === 'simple' && (
+        <>
+          {/* Page Header */}
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Hello, Shalean Cleaning Services</h1>
+            <p className="text-gray-600 mt-1 text-sm">Welcome back! Here's what's happening today.</p>
+          </div>
 
-      {/* Charts: Bookings Timeline and Service Type Breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <BookingsTimelineChart
-            data={bookingsTimelineData}
-            totalBookings={bookingsSummary.total}
-            totalCompleted={bookingsSummary.completed}
-            totalPending={bookingsSummary.cancelled}
-          />
-        </motion.div>
+          {/* Service Metrics Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <ServiceMetricCard
+              title="Today's Bookings"
+              value={todayBookings}
+              subtitle="Scheduled for today"
+              icon={<Calendar className="h-4 w-4" />}
+              badge={{ label: 'Today', variant: 'default' }}
+              href="/admin/bookings?date=today"
+            />
+            <ServiceMetricCard
+              title="Active Cleaners"
+              value={activeCleaners}
+              subtitle="Currently working"
+              icon={<UserCheck className="h-4 w-4" />}
+              badge={{ label: 'Available', variant: 'secondary' }}
+              href="/admin/cleaners?status=active"
+            />
+            <ServiceMetricCard
+              title="Pending Requests"
+              value={pendingRequests}
+              subtitle="Need attention"
+              icon={<AlertCircle className="h-4 w-4" />}
+              badge={{ label: 'Action Required', variant: 'destructive' }}
+              href="/admin/bookings?status=pending"
+            />
+            <ServiceMetricCard
+              title="Revenue Today"
+              value={formatCurrency(revenueToday)}
+              subtitle="Earnings today"
+              icon={<DollarSign className="h-4 w-4" />}
+            />
+          </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-        >
-          <ServiceTypeChart data={serviceTypeData} />
-        </motion.div>
-      </div>
+          {/* Bottom Row: Today's Bookings, Active Cleaners, Recent Activity, Quotes */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <UpcomingBookingsWidget bookings={upcomingBookings} />
+            </motion.div>
 
-      {/* Bottom Row: Today's Bookings, Active Cleaners, Recent Activity, Quotes */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-        >
-          <UpcomingBookingsWidget bookings={upcomingBookings} />
-        </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+            >
+              <ActiveCleanersWidget cleaners={cleaners} />
+            </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-        >
-          <ActiveCleanersWidget cleaners={cleaners} />
-        </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+            >
+              <RecentActivityWidget activities={activities} />
+            </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-        >
-          <RecentActivityWidget activities={activities} />
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.5 }}
-        >
-          <QuotesWidget quotes={quotes} />
-        </motion.div>
-      </div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.5 }}
+            >
+              <QuotesWidget quotes={quotes} />
+            </motion.div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

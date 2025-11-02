@@ -57,7 +57,7 @@ export function RecentActivityWidget({ activities }: RecentActivityWidgetProps) 
 
   if (activities.length === 0) {
     return (
-      <Card className="bg-white rounded-lg shadow-sm border border-gray-200">
+      <Card className="bg-white rounded-xl shadow-card border border-gray-200">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg font-semibold text-gray-900">Recent Activity</CardTitle>
         </CardHeader>
@@ -71,7 +71,7 @@ export function RecentActivityWidget({ activities }: RecentActivityWidgetProps) 
   }
 
   return (
-    <Card className="bg-white rounded-lg shadow-sm border border-gray-200">
+    <Card className="bg-white rounded-xl shadow-card border border-gray-200 hover:shadow-card-hover transition-shadow duration-300">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg font-semibold text-gray-900">Recent Activity</CardTitle>
       </CardHeader>
@@ -80,13 +80,13 @@ export function RecentActivityWidget({ activities }: RecentActivityWidgetProps) 
           {activities.map((activity) => (
             <div
               key={activity.id}
-              className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-all duration-200"
+              className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 hover:border-gray-300 hover:shadow-sm transition-all duration-200"
             >
-              <div className="mt-0.5">
+              <div className="mt-0.5 flex-shrink-0">
                 {getActivityIcon(activity.type)}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm text-gray-900">{activity.message}</div>
+                <div className="text-sm text-gray-900 break-words">{activity.message}</div>
                 <div className="text-xs text-gray-500 mt-1">
                   {formatActivityTimestamp(activity.timestamp)}
                 </div>

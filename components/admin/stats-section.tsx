@@ -100,6 +100,14 @@ export function StatsSection() {
       if (!data.ok) {
         throw new Error(data.error || 'Failed to fetch stats');
       }
+      // Debug logging for active cleaners count
+      if (data.stats?.cleaners) {
+        console.log('🔍 Active Cleaners Debug (Client-side):');
+        console.log('  Total cleaners:', data.stats.cleaners.total);
+        console.log('  Active cleaners:', data.stats.cleaners.active);
+        console.log('  Available today:', data.stats.cleaners.availableToday);
+        console.log('  Full cleaners stats:', data.stats.cleaners);
+      }
       return data;
     },
     {
@@ -107,6 +115,8 @@ export function StatsSection() {
       revalidateOnReconnect: true,
       refreshInterval: 60000, // Auto-refresh every 60 seconds
       dedupingInterval: 5000, // Dedupe requests within 5 seconds
+      // Force revalidation to ensure fresh data
+      revalidateIfStale: true,
     }
   );
 

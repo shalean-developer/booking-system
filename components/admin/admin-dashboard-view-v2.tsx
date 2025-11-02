@@ -5,6 +5,7 @@ import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { MetricAlerts } from './metric-alerts';
+import { CriticalAlertsPanel } from './critical-alerts-panel';
 import { TodaySnapshot } from './today-snapshot';
 import { OperationsCommand } from './operations-command';
 import { ServicePerformance } from './service-performance';
@@ -16,6 +17,10 @@ import { PerformanceWidget } from './performance-widget';
 import { ExportDialog } from './export-dialog';
 import { StatCard } from './stat-card';
 import { DateRangeFilter } from './date-range-filter';
+import { PaymentStatusWidget } from './payment-status-widget';
+import { ServiceRevenueChart } from './service-revenue-chart';
+import { RevenueTrendsWidget } from './revenue-trends-widget';
+import { CleanerPerformanceWidget } from './cleaner-performance-widget';
 import { DollarSign, Calendar, Percent, TrendingUp } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils/formatting';
 
@@ -207,6 +212,9 @@ export function AdminDashboardViewV2() {
         />
       </div>
 
+      {/* Critical Alerts Panel - Priority Position */}
+      <CriticalAlertsPanel />
+
       {/* Top Section: Alerts + Quick Stats */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
@@ -271,11 +279,29 @@ export function AdminDashboardViewV2() {
             <BookingsChartEnhanced data={chartData} isLoading={isLoadingChart} />
           </div>
 
+          {/* Service Revenue Breakdown */}
+          {stats && stats.serviceTypeBreakdown && (
+            <ServiceRevenueChart 
+              data={Object.entries(stats.serviceTypeBreakdown).map(([key, value]: [string, any]) => ({
+                service_type: key,
+                revenue: value.revenue,
+                bookings: value.bookings,
+                avgValue: value.bookings > 0 ? value.revenue / value.bookings : 0,
+              }))}
+            />
+          )}
+
           {/* Activity Feed */}
           <ActivityFeed />
         </div>
 
         <div className="space-y-6">
+          {/* Payment Status */}
+          <PaymentStatusWidget />
+          
+          {/* Cleaner Performance */}
+          <CleanerPerformanceWidget limit={5} />
+          
           <PerformanceWidget />
         </div>
       </div>

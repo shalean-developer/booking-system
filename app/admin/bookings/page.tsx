@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,13 +34,15 @@ export default function BookingsPage() {
       </div>
 
       {/* Bookings Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <BookingsSection />
-      </motion.div>
+      <Suspense fallback={<div className="text-center py-12">Loading bookings...</div>}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <BookingsSection />
+        </motion.div>
+      </Suspense>
     </div>
   );
 }

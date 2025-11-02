@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import {
   LineChart,
   Line,
@@ -11,7 +13,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { DollarSign, Loader2 } from 'lucide-react';
+import { DollarSign, Loader2, Download, ZoomIn } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { AnimatedCard } from './animated-card';
 
@@ -42,6 +44,41 @@ const formatCurrency = (value: number) => {
 };
 
 export function RevenueChartEnhanced({ data, isLoading }: RevenueChartEnhancedProps) {
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  const handleExport = () => {
+    const headers = ['Date', 'Revenue', 'Company Earnings'];
+    const rows = data.map(d => [
+      d.date,
+      d.revenue.toFixed(2),
+      d.companyEarnings.toFixed(2),
+    ]);
+    
+    const csv = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `revenue-data-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleChartClick = (data: any) => {
+    if (data && data.activePayload && data.activePayload[0]) {
+      setSelectedDate(data.activePayload[0].payload.date);
+    }
+  };
+
+  const handleResetZoom = () => {
+    setSelectedDate(null);
+  };
+
+  // Filter data if date selected (drill-down)
+  const displayData = selectedDate 
+    ? data.filter(d => d.date === selectedDate)
+    : data;
+
   if (isLoading) {
     return (
       <AnimatedCard>
@@ -86,14 +123,36 @@ export function RevenueChartEnhanced({ data, isLoading }: RevenueChartEnhancedPr
     <AnimatedCard>
       <Card className="overflow-hidden">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <DollarSign className="h-5 w-5 text-blue-600" />
-            Revenue Trend
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-blue-600" />
+              Revenue Trend
+              {selectedDate && (
+                <span className="text-xs text-gray-500 font-normal">
+                  ({format(parseISO(selectedDate), 'MMM dd, yyyy')})
+                </span>
+              )}
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              {selectedDate && (
+                <Button variant="outline" size="sm" onClick={handleResetZoom}>
+                  <ZoomIn className="h-4 w-4 mr-1" />
+                  Reset
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={handleExport}>
+                <Download className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="p-4">
           <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+            <LineChart 
+              data={displayData} 
+              margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+              onClick={handleChartClick}
+            >
               <defs>
                 <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>

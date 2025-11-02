@@ -86,9 +86,42 @@ export async function GET(request: Request) {
     });
     
     // Convert to array and sort by date
-    const chartData = Array.from(dailyData.values()).sort((a, b) => 
+    let chartData = Array.from(dailyData.values()).sort((a, b) => 
       new Date(a.date).getTime() - new Date(b.date).getTime()
     );
+    
+    // Fill in missing dates with zero values to ensure complete timeline
+    const filledChartData: typeof chartData = [];
+    const currentDate = new Date(startDate);
+    const endDateObj = new Date(endDate);
+    
+    // Create a map of existing data for quick lookup
+    const dataMap = new Map(chartData.map(d => [d.date, d]));
+    
+    // Iterate through each day in the range
+    while (currentDate <= endDateObj) {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      
+      if (dataMap.has(dateStr)) {
+        // Use existing data
+        filledChartData.push(dataMap.get(dateStr)!);
+      } else {
+        // Fill with zero values for missing dates
+        filledChartData.push({
+          date: dateStr,
+          revenue: 0,
+          bookings: 0,
+          completed: 0,
+          cancelled: 0,
+          companyEarnings: 0,
+        });
+      }
+      
+      // Move to next day
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    chartData = filledChartData;
     
     // Calculate comparison period (previous period of same length)
     const prevStartDate = new Date(startDate);

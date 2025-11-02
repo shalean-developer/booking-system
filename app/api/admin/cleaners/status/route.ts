@@ -18,11 +18,12 @@ export async function GET(req: Request) {
 
     const supabase = await createClient();
 
-    // Fetch active cleaners
+    // Fetch active cleaners (both is_active AND is_available must be true)
     const { data: cleaners, error } = await supabase
       .from('cleaners')
       .select('id, name, is_active, is_available')
       .eq('is_active', true)
+      .eq('is_available', true)
       .order('name', { ascending: true });
 
     if (error) throw error;
@@ -50,7 +51,9 @@ export async function GET(req: Request) {
         return {
           id: cleaner.id,
           name: cleaner.name,
-          status: cleaner.is_available ? (activeBookingsCount && activeBookingsCount > 0 ? 'busy' : 'available') : 'offline',
+          // All cleaners returned have both is_active=true and is_available=true
+          // Status is determined by whether they have active bookings
+          status: activeBookingsCount && activeBookingsCount > 0 ? 'busy' : 'available',
           currentBookings: activeBookingsCount || 0,
           rating: parseFloat(rating.toFixed(1)),
         };

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -73,9 +74,21 @@ interface Booking {
 }
 
 export function BookingsSection() {
+  const searchParams = useSearchParams();
   const [searchInput, setSearchInput] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState(() => {
+    // Initialize from URL params if available
+    return searchParams?.get('status') || 'all';
+  });
   const [page, setPage] = useState(1);
+  
+  // Update filter when URL params change
+  useEffect(() => {
+    const statusFromUrl = searchParams?.get('status');
+    if (statusFromUrl && statusFromUrl !== statusFilter) {
+      setStatusFilter(statusFromUrl);
+    }
+  }, [searchParams, statusFilter]);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [deletingBooking, setDeleteingBooking] = useState<Booking | null>(null);
   const [editStatus, setEditStatus] = useState('');

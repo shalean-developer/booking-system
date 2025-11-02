@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import {
   BarChart,
   Bar,
@@ -11,7 +13,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { Calendar, Loader2 } from 'lucide-react';
+import { Calendar, Loader2, Download, ZoomIn } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { AnimatedCard } from './animated-card';
 
@@ -38,6 +40,41 @@ const formatDate = (dateStr: string) => {
 };
 
 export function BookingsChartEnhanced({ data, isLoading }: BookingsChartEnhancedProps) {
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  const handleExport = () => {
+    const headers = ['Date', 'Total Bookings', 'Completed'];
+    const rows = data.map(d => [
+      d.date,
+      d.bookings,
+      d.completed,
+    ]);
+    
+    const csv = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bookings-data-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleChartClick = (data: any) => {
+    if (data && data.activePayload && data.activePayload[0]) {
+      setSelectedDate(data.activePayload[0].payload.date);
+    }
+  };
+
+  const handleResetZoom = () => {
+    setSelectedDate(null);
+  };
+
+  // Filter data if date selected (drill-down)
+  const displayData = selectedDate 
+    ? data.filter(d => d.date === selectedDate)
+    : data;
+
   if (isLoading) {
     return (
       <AnimatedCard>
@@ -82,14 +119,36 @@ export function BookingsChartEnhanced({ data, isLoading }: BookingsChartEnhanced
     <AnimatedCard>
       <Card className="overflow-hidden">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-blue-600" />
-            Bookings Volume
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-blue-600" />
+              Bookings Volume
+              {selectedDate && (
+                <span className="text-xs text-gray-500 font-normal">
+                  ({format(parseISO(selectedDate), 'MMM dd, yyyy')})
+                </span>
+              )}
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              {selectedDate && (
+                <Button variant="outline" size="sm" onClick={handleResetZoom}>
+                  <ZoomIn className="h-4 w-4 mr-1" />
+                  Reset
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={handleExport}>
+                <Download className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="p-4">
           <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+            <BarChart 
+              data={displayData} 
+              margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+              onClick={handleChartClick}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
               <XAxis 
                 dataKey="date"

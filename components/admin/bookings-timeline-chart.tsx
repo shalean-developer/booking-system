@@ -37,18 +37,26 @@ export function BookingsTimelineChart({
   const chartData = data.length > 0 ? data : [
     { date: new Date().toISOString().slice(0, 10), bookings: 0, completed: 0, cancelled: 0 }
   ];
+  
+  // Calculate interval for x-axis labels to prevent crowding
+  // Show approximately 7-10 labels regardless of data length
+  const labelInterval = chartData.length > 14 
+    ? Math.floor(chartData.length / 8) 
+    : chartData.length > 7 
+    ? Math.floor(chartData.length / 5)
+    : 0;
 
   return (
-    <Card className="bg-white rounded-lg shadow-sm border border-gray-200">
-      <CardHeader className="pb-3">
+    <Card className="bg-white rounded-xl shadow-card border border-gray-200 hover:shadow-card-hover transition-shadow duration-300">
+      <CardHeader className="pb-2 px-6 pt-4">
         <CardTitle className="text-lg font-semibold text-gray-900">Bookings Timeline</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
+      <CardContent className="px-6 pb-4 pt-0">
+        <div>
           {/* Chart */}
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+          <ResponsiveContainer width="100%" height={320}>
+            <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 10 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
               <XAxis
                 dataKey="date"
                 tickFormatter={(value) => {
@@ -58,12 +66,16 @@ export function BookingsTimelineChart({
                     return value;
                   }
                 }}
+                interval={labelInterval}
+                angle={-45}
+                textAnchor="end"
+                height={50}
                 stroke="#6b7280"
-                style={{ fontSize: '12px' }}
+                tick={{ fontSize: 11, fill: '#6b7280' }}
               />
               <YAxis
                 stroke="#6b7280"
-                style={{ fontSize: '12px' }}
+                tick={{ fontSize: 12, fill: '#6b7280' }}
                 domain={[0, 'auto']}
               />
               <Tooltip
@@ -71,6 +83,7 @@ export function BookingsTimelineChart({
                   backgroundColor: '#fff',
                   border: '1px solid #e5e7eb',
                   borderRadius: '8px',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                 }}
                 labelFormatter={(value) => {
                   try {
@@ -80,47 +93,53 @@ export function BookingsTimelineChart({
                   }
                 }}
               />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="bookings"
-                stroke="#3b82f6"
-                strokeWidth={2}
-                name="Total Bookings"
-                dot={false}
-              />
-              <Line
-                type="monotone"
-                dataKey="completed"
-                stroke="#10b981"
-                strokeWidth={2}
-                name="Completed"
-                dot={false}
+              <Legend 
+                wrapperStyle={{ paddingTop: '4px' }}
+                iconType="line"
               />
               <Line
                 type="monotone"
                 dataKey="cancelled"
                 stroke="#ef4444"
-                strokeWidth={2}
+                strokeWidth={2.5}
                 name="Cancelled"
                 dot={false}
+                activeDot={{ r: 4 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="completed"
+                stroke="#10b981"
+                strokeWidth={2.5}
+                name="Completed"
+                dot={false}
+                activeDot={{ r: 4 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="bookings"
+                stroke="#3b82f6"
+                strokeWidth={2.5}
+                name="Total Bookings"
+                dot={false}
+                activeDot={{ r: 4 }}
               />
             </LineChart>
           </ResponsiveContainer>
 
           {/* Summary Stats */}
-          <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-200">
+          <div className="grid grid-cols-3 gap-4 pt-3 border-t border-gray-200 mt-2">
             <div>
-              <div className="text-xs text-gray-600 mb-1">Total Bookings</div>
-              <div className="text-lg font-semibold text-gray-900">{totalBookings}</div>
+              <div className="text-xs font-medium text-gray-500 mb-0.5 uppercase tracking-wide">Total Bookings</div>
+              <div className="text-lg font-bold text-gray-900">{totalBookings}</div>
             </div>
             <div>
-              <div className="text-xs text-gray-600 mb-1">Completed</div>
-              <div className="text-lg font-semibold text-green-600">{totalCompleted}</div>
+              <div className="text-xs font-medium text-gray-500 mb-0.5 uppercase tracking-wide">Completed</div>
+              <div className="text-lg font-bold text-green-600">{totalCompleted}</div>
             </div>
             <div>
-              <div className="text-xs text-gray-600 mb-1">Cancelled</div>
-              <div className="text-lg font-semibold text-red-600">{totalPending}</div>
+              <div className="text-xs font-medium text-gray-500 mb-0.5 uppercase tracking-wide">Cancelled</div>
+              <div className="text-lg font-bold text-red-600">{totalPending}</div>
             </div>
           </div>
         </div>

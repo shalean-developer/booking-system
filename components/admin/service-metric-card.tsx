@@ -2,6 +2,10 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { motion } from 'framer-motion';
+import { useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
+import { ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface ServiceMetricCardProps {
   title: string;
@@ -17,6 +21,9 @@ interface ServiceMetricCardProps {
     label: string;
     variant?: 'default' | 'secondary' | 'destructive' | 'outline';
   };
+  onClick?: () => void;
+  href?: string;
+  className?: string;
 }
 
 export function ServiceMetricCard({
@@ -26,7 +33,12 @@ export function ServiceMetricCard({
   icon,
   trend,
   badge,
+  onClick,
+  href,
+  className,
 }: ServiceMetricCardProps) {
+  const router = useRouter();
+  
   // Get badge styling based on variant
   const getBadgeClassName = (variant?: string) => {
     switch (variant) {
@@ -41,8 +53,33 @@ export function ServiceMetricCard({
     }
   };
 
-  return (
-    <Card className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200">
+  const handleClick = () => {
+    if (onClick) {
+      onClick();
+    } else if (href) {
+      router.push(href);
+    }
+  };
+
+  const isClickable = onClick || href;
+
+  const cardContent = (
+    <Card 
+      className={cn(
+        'bg-white rounded-xl shadow-card border border-gray-200 transition-all duration-300',
+        isClickable && 'hover:shadow-card-hover hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        className
+      )}
+      onClick={handleClick}
+      role={isClickable ? 'button' : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onKeyDown={(e) => {
+        if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
+    >
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-semibold text-gray-700 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -52,7 +89,7 @@ export function ServiceMetricCard({
           {badge && (
             <Badge 
               variant={badge.variant || 'default'}
-              className={`${getBadgeClassName(badge.variant)} text-xs font-medium px-2 py-0.5`}
+              className={`${getBadgeClassName(badge.variant)} text-xs font-medium px-2 py-0.5 whitespace-nowrap`}
             >
               {badge.label}
             </Badge>
@@ -61,21 +98,40 @@ export function ServiceMetricCard({
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          <div className="text-3xl font-bold text-gray-900 tracking-tight">{value}</div>
+          <motion.div 
+            className="text-3xl font-bold text-gray-900 tracking-tight"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            {value}
+          </motion.div>
           {subtitle && (
             <div className="text-sm text-gray-600 font-normal">{subtitle}</div>
           )}
           {trend && (
-            <div className={`text-xs font-medium flex items-center gap-1 ${
-              trend.isPositive ? 'text-green-600' : 'text-red-600'
-            }`}>
-              <span>{trend.isPositive ? '↑' : '↓'}</span>
+            <motion.div 
+              className={cn(
+                'text-xs font-medium flex items-center gap-1',
+                trend.isPositive ? 'text-green-600' : 'text-red-600'
+              )}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+            >
+              {trend.isPositive ? (
+                <TrendingUp className="h-3 w-3" />
+              ) : (
+                <TrendingDown className="h-3 w-3" />
+              )}
               <span>{Math.abs(trend.value)}% {trend.label}</span>
-            </div>
+            </motion.div>
           )}
         </div>
       </CardContent>
     </Card>
   );
+
+  return cardContent;
 }
 

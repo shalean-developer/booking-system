@@ -8,9 +8,13 @@ import { DollarSign, Loader2, RefreshCw, Calendar } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils/formatting';
 import useSWR from 'swr';
 import { DateRangeFilter } from './date-range-filter';
+import { CriticalAlertsPanel } from './critical-alerts-panel';
 import { OperationsCommand } from './operations-command';
 import { PerformanceWidget } from './performance-widget';
 import { ExportDialog } from './export-dialog';
+import { PaymentStatusWidget } from './payment-status-widget';
+import { ServiceRevenueChart } from './service-revenue-chart';
+import { RevenueTrendsWidget } from './revenue-trends-widget';
 // Enhanced dashboard components
 import { StatCard } from '@/components/dashboard/StatCard';
 import { MetricAlerts } from '@/components/dashboard/MetricAlerts';
@@ -369,6 +373,9 @@ export default function DashboardPageNew() {
         />
       </div>
 
+      {/* Critical Alerts Panel - Priority Position */}
+      <CriticalAlertsPanel />
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="md:col-span-2">
           <MetricAlerts alerts={alerts} />
@@ -400,6 +407,19 @@ export default function DashboardPageNew() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="space-y-4">
           <TrendsCharts chartData={transformedChartData} isLoadingChart={isLoadingChart} />
+          
+          {/* Service Revenue Breakdown */}
+          {stats && stats.serviceTypeBreakdown && (
+            <ServiceRevenueChart 
+              data={Object.entries(stats.serviceTypeBreakdown).map(([key, value]: [string, any]) => ({
+                service_type: key,
+                revenue: value.revenue,
+                bookings: value.bookings,
+                avgValue: value.bookings > 0 ? value.revenue / value.bookings : 0,
+              }))}
+            />
+          )}
+          
           <BusinessPipeline pipeline={pipeline} />
         </div>
 
@@ -433,6 +453,9 @@ export default function DashboardPageNew() {
               />
             </div>
           </div>
+
+          {/* Payment Status Widget */}
+          <PaymentStatusWidget />
 
           <div className="space-y-2">
             <h3 className="text-sm font-medium">Service Performance</h3>

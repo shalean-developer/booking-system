@@ -10,6 +10,7 @@ import {
   LogOut,
   Settings,
   ChevronDown,
+  RefreshCw,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,7 @@ export function AdminNavbarV3() {
   const [searchQuery, setSearchQuery] = useState('');
   const [user, setUser] = useState<any>(null);
   const [notifications, setNotifications] = useState(0);
+  const [lastSync, setLastSync] = useState<Date>(new Date());
   const router = useRouter();
 
   useEffect(() => {
@@ -45,6 +47,13 @@ export function AdminNavbarV3() {
     };
 
     getProfile();
+
+    // Update last sync time every minute
+    const interval = setInterval(() => {
+      setLastSync(new Date());
+    }, 60000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -64,6 +73,16 @@ export function AdminNavbarV3() {
 
   const userInitials = user?.email?.charAt(0).toUpperCase() || 'A';
 
+  const formatLastSync = () => {
+    const now = new Date();
+    const diffMs = now.getTime() - lastSync.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins === 1) return '1 min ago';
+    return `${diffMins} min ago`;
+  };
+
   return (
     <motion.div
       initial={{ y: -20, opacity: 0 }}
@@ -74,30 +93,46 @@ export function AdminNavbarV3() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Search Bar */}
-          <form onSubmit={handleSearch} className="flex-1 max-w-lg">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Search bookings, customers, cleaners..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 w-full"
-              />
-            </div>
-          </form>
+          <div className="flex-1 max-w-lg">
+            <form onSubmit={handleSearch}>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Search bookings, customers, cleaners..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 pr-4 w-full focus-visible:ring-2 focus-visible:ring-primary"
+                />
+              </div>
+            </form>
+            {/* Last Sync Timestamp */}
+            <p className="text-xs text-gray-500 mt-1 ml-2">{formatLastSync()}</p>
+          </div>
 
           {/* Right Side Actions */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            {/* Refresh Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => window.location.reload()}
+              aria-label="Refresh data"
+              className="hidden md:flex"
+            >
+              <RefreshCw className="h-5 w-5" />
+            </Button>
+
             {/* Notifications */}
             <Button
               variant="ghost"
               size="icon"
               className="relative"
+              aria-label="Notifications"
             >
               <Bell className="h-5 w-5" />
               {notifications > 0 && (
-                <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full" />
+                <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full border border-white" />
               )}
             </Button>
 
@@ -132,6 +167,19 @@ export function AdminNavbarV3() {
                 <DropdownMenuItem onClick={() => router.push('/admin/settings')}>
                   <Settings className="mr-2 h-4 w-4" />
                   <span>Settings</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Switch Role</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setNotifications(0)}>
+                  <Bell className="mr-2 h-4 w-4" />
+                  <span>Notifications</span>
+                  {notifications > 0 && (
+                    <span className="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
+                      {notifications}
+                    </span>
+                  )}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
   Calendar,
@@ -42,12 +42,28 @@ const navigation = [
 
 export function AdminSidebarV3() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => 
+    typeof window !== 'undefined' ? window.innerWidth < 1024 : false
+  );
   const pathname = usePathname();
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024); // lg breakpoint
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   return (
     <>
-      {/* Collapsed Sidebar - Always visible on mobile, toggleable on desktop */}
-      <div className="fixed left-0 top-0 h-full w-16 bg-slate-800 flex flex-col items-center py-6 z-40 lg:fixed lg:w-16">
+      {/* Collapsed Sidebar - Hidden on mobile when expanded, always visible on desktop */}
+      <div className={cn(
+        "fixed left-0 top-0 h-full w-16 bg-slate-800 flex flex-col items-center py-6 z-40 lg:fixed lg:w-16",
+        isOpen && "hidden lg:flex"
+      )}>
         <Button
           variant="ghost"
           size="icon"
@@ -113,15 +129,21 @@ export function AdminSidebarV3() {
       {/* Expanded Sidebar - Slides in from left */}
       {isOpen && (
         <>
-          {/* Overlay */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/20 z-30 lg:hidden"
-            onClick={() => setIsOpen(false)}
-          />
+          {/* Overlay - Only visible on mobile, completely hidden on desktop */}
+          <AnimatePresence>
+            {isMobile && (
+              <motion.div
+                key="sidebar-overlay"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="fixed inset-0 bg-black/20 z-30 lg:hidden"
+                style={{ display: isMobile ? undefined : 'none' }}
+                onClick={() => setIsOpen(false)}
+              />
+            )}
+          </AnimatePresence>
           
           {/* Sidebar Panel */}
           <motion.div
