@@ -47,7 +47,7 @@ export function AdminSidebarV3() {
   return (
     <>
       {/* Collapsed Sidebar - Always visible on mobile, toggleable on desktop */}
-      <div className="fixed left-0 top-0 h-full w-16 bg-slate-800 flex flex-col items-center py-6 z-40 lg:relative lg:w-16">
+      <div className="fixed left-0 top-0 h-full w-16 bg-slate-800 flex flex-col items-center py-6 z-40 lg:fixed lg:w-16">
         <Button
           variant="ghost"
           size="icon"
