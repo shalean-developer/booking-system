@@ -680,7 +680,7 @@ export async function GET(request: Request) {
     if (todayBookingsOnly.length > 0) {
       console.log(`   - Booking details (${todayBookingsOnly.length} booking(s) for ${todayISO}):`);
       
-      todayBookingsOnly.forEach((b, idx) => {
+      todayBookingsOnly.forEach((b: any, idx) => {
         const amount = b.total_amount || 0;
         const amountRands = amount / 100;
         const amountStatus = b.total_amount === null ? 'NULL' : b.total_amount === 0 ? 'ZERO' : 'OK';
@@ -703,7 +703,8 @@ export async function GET(request: Request) {
               snapshotStatus = ` ⚠️ price_snapshot exists but no amount found`;
             }
           } catch (e) {
-            snapshotStatus = ` ❌ Error parsing price_snapshot: ${e.message}`;
+            const errorMessage = e instanceof Error ? e.message : String(e);
+            snapshotStatus = ` ❌ Error parsing price_snapshot: ${errorMessage}`;
           }
         } else if ((!b.total_amount || b.total_amount === 0) && !b.price_snapshot) {
           snapshotStatus = ` ❌ No price_snapshot available`;
@@ -740,8 +741,8 @@ export async function GET(request: Request) {
       }
     }
     // Calculate breakdown for detailed logging (using only today's bookings)
-    const totalFromAmountOnly = todayBookingsOnly.reduce((sum, b) => sum + (b.total_amount || 0), 0);
-    const totalFromSnapshot = todayBookingsOnly.reduce((sum, b) => {
+    const totalFromAmountOnly = todayBookingsOnly.reduce((sum, b: any) => sum + (b.total_amount || 0), 0);
+    const totalFromSnapshot = todayBookingsOnly.reduce((sum, b: any) => {
       if ((!b.total_amount || b.total_amount === 0) && b.price_snapshot) {
         try {
           const snapshot = typeof b.price_snapshot === 'string' 

@@ -95,7 +95,7 @@ export function BookingsChart({ data, isLoading }: BookingsChartProps) {
       <CardContent className="overflow-x-auto">
         <div className="min-w-[300px] pb-4">
           <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={data} margin={{ bottom: 60, top: 10, right: 10, left: 10 }}>
+          <BarChart data={data} margin={{ bottom: 30, top: 10, right: 10, left: 10 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200" />
             <XAxis
               dataKey="date"

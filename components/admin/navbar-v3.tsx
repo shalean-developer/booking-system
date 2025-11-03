@@ -23,20 +23,18 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { createClient } from '@/lib/supabase-browser';
+import { supabase } from '@/lib/supabase-client';
 
 export function AdminNavbarV3() {
   const [searchQuery, setSearchQuery] = useState('');
   const [user, setUser] = useState<any>(null);
   const [notifications, setNotifications] = useState(0);
-  const [lastSync, setLastSync] = useState<Date>(new Date());
   const router = useRouter();
 
   useEffect(() => {
     // Get user profile
     const getProfile = async () => {
-      const supabaseClient = createClient();
-      const { data: { user: authUser } } = await supabaseClient.auth.getUser();
+      const { data: { user: authUser } } = await supabase.auth.getUser();
       
       if (authUser) {
         setUser(authUser);
@@ -47,13 +45,6 @@ export function AdminNavbarV3() {
     };
 
     getProfile();
-
-    // Update last sync time every minute
-    const interval = setInterval(() => {
-      setLastSync(new Date());
-    }, 60000);
-
-    return () => clearInterval(interval);
   }, []);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -66,22 +57,11 @@ export function AdminNavbarV3() {
   };
 
   const handleLogout = async () => {
-    const supabaseClient = createClient();
-    await supabaseClient.auth.signOut();
+    await supabase.auth.signOut();
     router.push('/login');
   };
 
   const userInitials = user?.email?.charAt(0).toUpperCase() || 'A';
-
-  const formatLastSync = () => {
-    const now = new Date();
-    const diffMs = now.getTime() - lastSync.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    
-    if (diffMins < 1) return 'Just now';
-    if (diffMins === 1) return '1 min ago';
-    return `${diffMins} min ago`;
-  };
 
   return (
     <motion.div
@@ -106,8 +86,6 @@ export function AdminNavbarV3() {
                 />
               </div>
             </form>
-            {/* Last Sync Timestamp */}
-            <p className="text-xs text-gray-500 mt-1 ml-2">{formatLastSync()}</p>
           </div>
 
           {/* Right Side Actions */}

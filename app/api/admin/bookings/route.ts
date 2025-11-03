@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient, isAdmin } from '@/lib/supabase-server';
+import { createClient, createServiceClient, isAdmin } from '@/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +22,8 @@ export async function GET(req: Request) {
       );
     }
     
-    const supabase = await createClient();
+    // Use service client to bypass RLS after admin check
+    const supabase = createServiceClient();
     const url = new URL(req.url);
     
     // Get query parameters
@@ -178,7 +179,8 @@ export async function POST(req: Request) {
     }
     
     const body = await req.json();
-    const supabase = await createClient();
+    // Use service client to bypass RLS after admin check
+    const supabase = createServiceClient();
     
     // Generate booking ID
     const bookingId = `BK-${Date.now()}`;
@@ -229,7 +231,8 @@ export async function PUT(req: Request) {
       );
     }
     
-    const supabase = await createClient();
+    // Use service client to bypass RLS after admin check
+    const supabase = createServiceClient();
     
     const { data: booking, error } = await supabase
       .from('bookings')
@@ -279,7 +282,8 @@ export async function DELETE(req: Request) {
       );
     }
     
-    const supabase = await createClient();
+    // Use service client to bypass RLS after admin check
+    const supabase = createServiceClient();
     
     const { error } = await supabase
       .from('bookings')

@@ -19,6 +19,16 @@ export async function createClient() {
         get(name: string) {
           return cookieStore.get(name)?.value;
         },
+        set(name: string, value: string, options: any) {
+          // In API routes, cookies() returns ReadonlyRequestCookies which doesn't support set
+          // Cookie setting is handled client-side by Supabase
+          // This is a no-op for API routes
+        },
+        remove(name: string, options: any) {
+          // In API routes, cookies() returns ReadonlyRequestCookies which doesn't support delete
+          // Cookie removal is handled client-side by Supabase
+          // This is a no-op for API routes
+        },
       },
     }
   );

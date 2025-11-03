@@ -99,7 +99,7 @@ export function RevenueChart({ data, isLoading }: RevenueChartProps) {
       <CardContent className="overflow-x-auto">
         <div className="min-w-[300px] pb-4">
           <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={data} margin={{ bottom: 60, top: 10, right: 10, left: 10 }}>
+          <LineChart data={data} margin={{ bottom: 30, top: 10, right: 10, left: 10 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200" />
             <XAxis
               dataKey="date"

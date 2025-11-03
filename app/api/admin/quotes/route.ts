@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient, isAdmin } from '@/lib/supabase-server';
+import { createClient, createServiceClient, isAdmin } from '@/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +21,8 @@ export async function GET(req: Request) {
     const search = searchParams.get('search') || '';
     const statusFilter = searchParams.get('status') || '';
 
-    const supabase = await createClient();
+    // Use service client to bypass RLS after admin check
+    const supabase = createServiceClient();
 
     // Build query
     let query = supabase
@@ -94,7 +95,8 @@ export async function PUT(req: Request) {
       );
     }
 
-    const supabase = await createClient();
+    // Use service client to bypass RLS after admin check
+    const supabase = createServiceClient();
 
     // Build update object
     const updateData: any = {
@@ -152,7 +154,8 @@ export async function DELETE(req: Request) {
       );
     }
 
-    const supabase = await createClient();
+    // Use service client to bypass RLS after admin check
+    const supabase = createServiceClient();
 
     const { error } = await supabase
       .from('quotes')
