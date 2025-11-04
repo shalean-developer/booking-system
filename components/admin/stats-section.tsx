@@ -15,6 +15,10 @@ import { QuickActions } from './quick-actions';
 import { ExportDialog } from './export-dialog';
 import { GlobalSearch } from './global-search';
 import { PerformanceWidget } from './performance-widget';
+import { TodaysBookingsWidget } from './todays-bookings-widget';
+import { ActiveCleanersWidget } from './active-cleaners-widget';
+import { RecentActivityWidget } from './recent-activity-widget';
+import { QuotesWidgetDashboard } from './quotes-widget-dashboard';
 import { fetcher } from '@/lib/fetcher';
 import { formatCurrency, formatPercentage, formatPercentageChange } from '@/lib/utils/formatting';
 import { safePercentage, recentPeriodPercentage } from '@/lib/utils/calculations';
@@ -24,9 +28,19 @@ interface Stats {
   bookings: {
     total: number;
     recent: number;
+    today?: number;
     pending: number;
     accepted: number;
     completed: number;
+    todayBookings?: Array<{
+      id: string;
+      customer_name: string;
+      booking_date?: string;
+      booking_time: string;
+      service_type: string;
+      status: string;
+      cleaner_name?: string | null;
+    }>;
   };
   revenue: {
     total: number;
@@ -204,7 +218,7 @@ export function StatsSection() {
     );
   }
 
-  if (!stats) return null;
+  // Continue rendering even if stats is not loaded yet
 
   // Helper function to get period label based on days
   const getPeriodLabel = (days: number): string => {
@@ -272,433 +286,469 @@ export function StatsSection() {
       {/* Metric Alerts */}
       {stats && <MetricAlerts stats={stats} />}
       
-      {/* Financial Health Section */}
-      <div className="space-y-4">
-        <div className="section-header">
-          <DollarSign className="section-header-icon" />
-          <h3 className="section-header-title">Financial Health</h3>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <Card className="metric-card cursor-pointer">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
-            <CardTitle className="text-sm font-medium flex items-center gap-1.5">
-              Total Revenue
-              <Tooltip content="Total revenue from all bookings (including cleaner earnings and service fees)">
-                <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-              </Tooltip>
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="flex items-center justify-between">
-              <div className="text-2xl font-bold">
-                {formatCurrency(stats.revenue.total)}
-              </div>
-            </div>
-            <div className="flex flex-col gap-1 mt-2">
-              <p className="text-sm text-muted-foreground">
-                {formatCurrency(stats.revenue.recent)} from {getPeriodLabel(dateRangeDays)}
-              </p>
-              {stats.revenue.total > 0 && stats.revenue.recent > 0 && (
-                <Tooltip content={`${formatPercentage(recentPeriodPercentage(stats.revenue.recent, stats.revenue.total, 1))} of total revenue comes from the ${getPeriodLabel(dateRangeDays)}`}>
-                  <span className="text-sm text-green-600 font-medium cursor-help">
-                    {formatPercentage(recentPeriodPercentage(stats.revenue.recent, stats.revenue.total, 1))} from {getPeriodLabel(dateRangeDays)}
-                  </span>
-                </Tooltip>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="metric-card cursor-pointer">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
-            <CardTitle className="text-sm font-medium flex items-center gap-1.5">
-              Company Earnings
-              <Tooltip content="Company earnings after paying cleaner commissions (total revenue minus cleaner earnings)">
-                <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-              </Tooltip>
-            </CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="flex items-center justify-between">
-              <div className="text-2xl font-bold text-green-600">
-                {formatCurrency(stats.revenue.companyEarnings)}
-              </div>
-            </div>
-            <div className="flex flex-col gap-1 mt-2">
-              <p className="text-sm text-muted-foreground">
-                {formatCurrency(stats.revenue.recentCompanyEarnings)} from {getPeriodLabel(dateRangeDays)}
-              </p>
-              {stats.revenue.companyEarnings > 0 && (
-                <Tooltip content={`${formatPercentage(recentPeriodPercentage(stats.revenue.recentCompanyEarnings, stats.revenue.companyEarnings, 1))} of total company earnings come from the ${getPeriodLabel(dateRangeDays)}`}>
-                  <span className="text-sm text-green-600 font-medium cursor-help">
-                    {formatPercentage(recentPeriodPercentage(stats.revenue.recentCompanyEarnings, stats.revenue.companyEarnings, 1))} from {getPeriodLabel(dateRangeDays)}
-                  </span>
-                </Tooltip>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
-            <CardTitle className="text-sm font-medium">Profit Margin</CardTitle>
-            <Percent className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="flex items-center justify-between">
-              <div className="text-2xl font-bold">
-                {stats.revenue.profitMargin}%
-              </div>
-              {stats.revenue.profitMargin !== stats.revenue.recentProfitMargin && (
-                <div className={`flex items-center gap-1 text-sm font-medium ${
-                  stats.revenue.profitMargin > stats.revenue.recentProfitMargin ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {stats.revenue.profitMargin > stats.revenue.recentProfitMargin ? (
-                    <ArrowUpRight className="h-4 w-4" />
-                  ) : (
-                    <ArrowDownRight className="h-4 w-4" />
-                  )}
-                  <span>{stats.revenue.profitMargin > stats.revenue.recentProfitMargin ? '+' : ''}{(stats.revenue.profitMargin - stats.revenue.recentProfitMargin).toFixed(1)}%</span>
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-2 mt-2">
-              <p className="text-sm text-muted-foreground">
-                {stats.revenue.recentProfitMargin}% {getPeriodLabel(dateRangeDays)}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
-            <CardTitle className="text-sm font-medium">Service Fees</CardTitle>
-            <Receipt className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="text-2xl font-bold">
-              {formatCurrency(stats.revenue.serviceFees)}
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              {formatCurrency(stats.revenue.recentServiceFees)} {getPeriodLabel(dateRangeDays)}
-            </p>
-          </CardContent>
-        </Card>
+      {/* Dashboard Widgets */}
+      <div className="w-full py-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <TodaysBookingsWidget 
+            bookings={stats?.bookings?.todayBookings || []} 
+          />
+          <ActiveCleanersWidget 
+            totalCleaners={stats?.cleaners?.total || 0}
+          />
+          <RecentActivityWidget 
+            stats={{
+              bookings: {
+                today: stats?.bookings?.today || stats?.bookings?.todayBookings?.length || 0,
+                pending: stats?.bookings?.pending || 0,
+                completed: stats?.bookings?.completed || 0,
+              }
+            }}
+          />
+          <QuotesWidgetDashboard 
+            pendingCount={stats?.quotes?.pending || 0}
+          />
         </div>
       </div>
+
+      {/* Financial Health Section */}
+      {stats && (
+        <div className="space-y-4">
+          <div className="section-header">
+            <DollarSign className="section-header-icon" />
+            <h3 className="section-header-title">Financial Health</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <Card className="metric-card cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
+              <CardTitle className="text-sm font-medium flex items-center gap-1.5">
+                Total Revenue
+                <Tooltip content="Total revenue from all bookings (including cleaner earnings and service fees)">
+                  <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                </Tooltip>
+              </CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="px-6 pb-6">
+              <div className="flex items-center justify-between">
+                <div className="text-2xl font-bold">
+                  {formatCurrency(stats.revenue.total)}
+                </div>
+              </div>
+              <div className="flex flex-col gap-1 mt-2">
+                <p className="text-sm text-muted-foreground">
+                  {formatCurrency(stats.revenue.recent)} from {getPeriodLabel(dateRangeDays)}
+                </p>
+                {stats.revenue.total > 0 && stats.revenue.recent > 0 && (
+                  <Tooltip content={`${formatPercentage(recentPeriodPercentage(stats.revenue.recent, stats.revenue.total, 1))} of total revenue comes from the ${getPeriodLabel(dateRangeDays)}`}>
+                    <span className="text-sm text-green-600 font-medium cursor-help">
+                      {formatPercentage(recentPeriodPercentage(stats.revenue.recent, stats.revenue.total, 1))} from {getPeriodLabel(dateRangeDays)}
+                    </span>
+                  </Tooltip>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="metric-card cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
+              <CardTitle className="text-sm font-medium flex items-center gap-1.5">
+                Company Earnings
+                <Tooltip content="Company earnings after paying cleaner commissions (total revenue minus cleaner earnings)">
+                  <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                </Tooltip>
+              </CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="px-6 pb-6">
+              <div className="flex items-center justify-between">
+                <div className="text-2xl font-bold text-green-600">
+                  {formatCurrency(stats.revenue.companyEarnings)}
+                </div>
+              </div>
+              <div className="flex flex-col gap-1 mt-2">
+                <p className="text-sm text-muted-foreground">
+                  {formatCurrency(stats.revenue.recentCompanyEarnings)} from {getPeriodLabel(dateRangeDays)}
+                </p>
+                {stats.revenue.companyEarnings > 0 && (
+                  <Tooltip content={`${formatPercentage(recentPeriodPercentage(stats.revenue.recentCompanyEarnings, stats.revenue.companyEarnings, 1))} of total company earnings come from the ${getPeriodLabel(dateRangeDays)}`}>
+                    <span className="text-sm text-green-600 font-medium cursor-help">
+                      {formatPercentage(recentPeriodPercentage(stats.revenue.recentCompanyEarnings, stats.revenue.companyEarnings, 1))} from {getPeriodLabel(dateRangeDays)}
+                    </span>
+                  </Tooltip>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
+              <CardTitle className="text-sm font-medium">Profit Margin</CardTitle>
+              <Percent className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="px-6 pb-6">
+              <div className="flex items-center justify-between">
+                <div className="text-2xl font-bold">
+                  {stats.revenue.profitMargin}%
+                </div>
+                {stats.revenue.profitMargin !== stats.revenue.recentProfitMargin && (
+                  <div className={`flex items-center gap-1 text-sm font-medium ${
+                    stats.revenue.profitMargin > stats.revenue.recentProfitMargin ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {stats.revenue.profitMargin > stats.revenue.recentProfitMargin ? (
+                      <ArrowUpRight className="h-4 w-4" />
+                    ) : (
+                      <ArrowDownRight className="h-4 w-4" />
+                    )}
+                    <span>{stats.revenue.profitMargin > stats.revenue.recentProfitMargin ? '+' : ''}{(stats.revenue.profitMargin - stats.revenue.recentProfitMargin).toFixed(1)}%</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                <p className="text-sm text-muted-foreground">
+                  {stats.revenue.recentProfitMargin}% {getPeriodLabel(dateRangeDays)}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
+              <CardTitle className="text-sm font-medium">Service Fees</CardTitle>
+              <Receipt className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="px-6 pb-6">
+              <div className="text-2xl font-bold">
+                {formatCurrency(stats.revenue.serviceFees)}
+              </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                {formatCurrency(stats.revenue.recentServiceFees)} {getPeriodLabel(dateRangeDays)}
+              </p>
+            </CardContent>
+          </Card>
+          </div>
+        </div>
+      )}
 
       {/* Operational Capacity Section */}
-      <div className="space-y-4">
-        <div className="section-header">
-          <Briefcase className="section-header-icon" />
-          <h3 className="section-header-title">Operational Capacity</h3>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <Card 
-          className="metric-card cursor-pointer"
-          onClick={() => {
-            // Trigger navigation to bookings tab by dispatching custom event
-            window.dispatchEvent(new CustomEvent('admin-tab-change', { detail: 'bookings' }));
-          }}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
-            <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="flex items-center justify-between">
-              <div className="text-2xl font-bold">{stats.bookings.total}</div>
-            </div>
-            <div className="flex flex-col gap-1 mt-2">
-              <p className="text-sm text-muted-foreground">
-                {stats.bookings.recent} in {getPeriodLabel(dateRangeDays)}
+      {stats && (
+        <div className="space-y-4">
+          <div className="section-header">
+            <Briefcase className="section-header-icon" />
+            <h3 className="section-header-title">Operational Capacity</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <Card 
+            className="metric-card cursor-pointer"
+            onClick={() => {
+              // Trigger navigation to bookings tab by dispatching custom event
+              window.dispatchEvent(new CustomEvent('admin-tab-change', { detail: 'bookings' }));
+            }}
+          >
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
+              <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="px-6 pb-6">
+              <div className="flex items-center justify-between">
+                <div className="text-2xl font-bold">{stats.bookings.total}</div>
+              </div>
+              <div className="flex flex-col gap-1 mt-2">
+                <p className="text-sm text-muted-foreground">
+                  {stats.bookings.recent} in {getPeriodLabel(dateRangeDays)}
+                </p>
+                {stats.bookings.total > 0 && (
+                  <span className="text-sm text-blue-600 font-medium">
+                    {((stats.bookings.recent / stats.bookings.total) * 100).toFixed(0)}%
+                  </span>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="metric-card cursor-pointer"
+            onClick={() => {
+              // Trigger navigation to cleaners tab by dispatching custom event
+              window.dispatchEvent(new CustomEvent('admin-tab-change', { detail: 'cleaners' }));
+            }}
+          >
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
+              <CardTitle className="text-sm font-medium">Active Cleaners</CardTitle>
+              <Briefcase className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="px-6 pb-6">
+              <div className="flex items-center justify-between">
+                <div className="text-2xl font-bold">{stats.cleaners.active}</div>
+                {stats.cleaners.active < stats.cleaners.total && (
+                  <div className="flex items-center gap-1 text-sm text-gray-500">
+                    <span>{stats.cleaners.total - stats.cleaners.active} inactive</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col gap-1 mt-2">
+                <p className="text-sm text-muted-foreground">
+                  {stats.cleaners.total} total cleaners
+                </p>
+                {stats.cleaners.total > 0 && (
+                  <span className="text-sm text-green-600 font-medium">
+                    {((stats.cleaners.active / stats.cleaners.total) * 100).toFixed(0)}% active
+                  </span>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
+              <CardTitle className="text-sm font-medium">Cleaner Utilization</CardTitle>
+              <Activity className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="px-6 pb-6">
+              <div className="text-2xl font-bold">
+                {stats.cleaners.utilization}
+              </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                bookings per cleaner ({getPeriodLabel(dateRangeDays)})
               </p>
-              {stats.bookings.total > 0 && (
-                <span className="text-sm text-blue-600 font-medium">
-                  {((stats.bookings.recent / stats.bookings.total) * 100).toFixed(0)}%
-                </span>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <Card 
-          className="metric-card cursor-pointer"
-          onClick={() => {
-            // Trigger navigation to cleaners tab by dispatching custom event
-            window.dispatchEvent(new CustomEvent('admin-tab-change', { detail: 'cleaners' }));
-          }}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
-            <CardTitle className="text-sm font-medium">Active Cleaners</CardTitle>
-            <Briefcase className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="flex items-center justify-between">
-              <div className="text-2xl font-bold">{stats.cleaners.active}</div>
-              {stats.cleaners.active < stats.cleaners.total && (
-                <div className="flex items-center gap-1 text-sm text-gray-500">
-                  <span>{stats.cleaners.total - stats.cleaners.active} inactive</span>
-                </div>
-              )}
-            </div>
-            <div className="flex flex-col gap-1 mt-2">
-              <p className="text-sm text-muted-foreground">
-                {stats.cleaners.total} total cleaners
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
+              <CardTitle className="text-sm font-medium">Cleaner Earnings</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="px-6 pb-6">
+              <div className="text-2xl font-bold">
+                {formatCurrency(stats.revenue.cleanerEarnings)}
+              </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                {formatCurrency(stats.revenue.recentCleanerEarnings)} {getPeriodLabel(dateRangeDays)}
               </p>
-              {stats.cleaners.total > 0 && (
-                <span className="text-sm text-green-600 font-medium">
-                  {((stats.cleaners.active / stats.cleaners.total) * 100).toFixed(0)}% active
-                </span>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
-            <CardTitle className="text-sm font-medium">Cleaner Utilization</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="text-2xl font-bold">
-              {stats.cleaners.utilization}
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              bookings per cleaner ({getPeriodLabel(dateRangeDays)})
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
-            <CardTitle className="text-sm font-medium">Cleaner Earnings</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="text-2xl font-bold">
-              {formatCurrency(stats.revenue.cleanerEarnings)}
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              {formatCurrency(stats.revenue.recentCleanerEarnings)} {getPeriodLabel(dateRangeDays)}
-            </p>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Growth Indicators Section */}
-      <div className="space-y-4">
-        <div className="section-header">
-          <TrendingUp className="section-header-icon" />
-          <h3 className="section-header-title">Growth Indicators</h3>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
-            <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="text-2xl font-bold">{stats.customers.total}</div>
-            <p className="text-sm text-muted-foreground mt-2">Registered users</p>
-          </CardContent>
-        </Card>
+      {stats && (
+        <div className="space-y-4">
+          <div className="section-header">
+            <TrendingUp className="section-header-icon" />
+            <h3 className="section-header-title">Growth Indicators</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
+              <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="px-6 pb-6">
+              <div className="text-2xl font-bold">{stats.customers.total}</div>
+              <p className="text-sm text-muted-foreground mt-2">Registered users</p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
-            <CardTitle className="text-sm font-medium">Customer Retention</CardTitle>
-            <Repeat className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="text-2xl font-bold">
-              {stats.customers.retentionRate}%
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              {stats.customers.repeat} repeat customers
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
-            <CardTitle className="text-sm font-medium">Avg Booking Value</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="text-2xl font-bold">
-              {formatCurrency(stats.revenue.avgBookingValue)}
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              {formatCurrency(stats.revenue.recentAvgBookingValue)} recent
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card 
-          className="metric-card cursor-pointer"
-          onClick={() => {
-            window.dispatchEvent(new CustomEvent('admin-tab-change', { detail: 'applications' }));
-          }}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
-            <CardTitle className="text-sm font-medium">Cleaner Pipeline</CardTitle>
-            <UserPlus className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="flex items-center justify-between">
-              <div className="text-2xl font-bold text-orange-600">
-                {stats.applications.pending}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
+              <CardTitle className="text-sm font-medium">Customer Retention</CardTitle>
+              <Repeat className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="px-6 pb-6">
+              <div className="text-2xl font-bold">
+                {stats.customers.retentionRate}%
               </div>
-              {stats.applications.pending > 0 && (
-                <div className="flex items-center gap-1 text-sm text-orange-600 font-medium">
-                  <span>Requires attention</span>
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-2 mt-2">
-              <p className="text-sm text-muted-foreground">
-                {stats.applications.total} total applications
+              <p className="text-sm text-muted-foreground mt-2">
+                {stats.customers.repeat} repeat customers
               </p>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
+              <CardTitle className="text-sm font-medium">Avg Booking Value</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="px-6 pb-6">
+              <div className="text-2xl font-bold">
+                {formatCurrency(stats.revenue.avgBookingValue)}
+              </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                {formatCurrency(stats.revenue.recentAvgBookingValue)} recent
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="metric-card cursor-pointer"
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent('admin-tab-change', { detail: 'applications' }));
+            }}
+          >
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
+              <CardTitle className="text-sm font-medium">Cleaner Pipeline</CardTitle>
+              <UserPlus className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="px-6 pb-6">
+              <div className="flex items-center justify-between">
+                <div className="text-2xl font-bold text-orange-600">
+                  {stats.applications.pending}
+                </div>
+                {stats.applications.pending > 0 && (
+                  <div className="flex items-center gap-1 text-sm text-orange-600 font-medium">
+                    <span>Requires attention</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                <p className="text-sm text-muted-foreground">
+                  {stats.applications.total} total applications
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Booking Status Breakdown */}
-      <div className="space-y-4">
-        <div className="section-header">
-          <Calendar className="section-header-icon" />
-          <h3 className="section-header-title">Booking Status</h3>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
-            <CardTitle className="text-sm font-medium">Pending Bookings</CardTitle>
-            <Calendar className="h-4 w-4 text-yellow-600" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="text-2xl font-bold text-yellow-600">
-              {stats.bookings.pending}
-            </div>
-          </CardContent>
-        </Card>
+      {stats && (
+        <div className="space-y-4">
+          <div className="section-header">
+            <Calendar className="section-header-icon" />
+            <h3 className="section-header-title">Booking Status</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
+              <CardTitle className="text-sm font-medium">Pending Bookings</CardTitle>
+              <Calendar className="h-4 w-4 text-yellow-600" />
+            </CardHeader>
+            <CardContent className="px-6 pb-6">
+              <div className="text-2xl font-bold text-yellow-600">
+                {stats.bookings.pending}
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
-            <CardTitle className="text-sm font-medium">Accepted Bookings</CardTitle>
-            <CheckCircle className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="text-2xl font-bold text-blue-600">
-              {stats.bookings.accepted}
-            </div>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
+              <CardTitle className="text-sm font-medium">Accepted Bookings</CardTitle>
+              <CheckCircle className="h-4 w-4 text-blue-600" />
+            </CardHeader>
+            <CardContent className="px-6 pb-6">
+              <div className="text-2xl font-bold text-blue-600">
+                {stats.bookings.accepted}
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
-            <CardTitle className="text-sm font-medium">Completed Bookings</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="text-2xl font-bold text-green-600">
-              {stats.bookings.completed}
-            </div>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-6 pt-6">
+              <CardTitle className="text-sm font-medium">Completed Bookings</CardTitle>
+              <CheckCircle className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent className="px-6 pb-6">
+              <div className="text-2xl font-bold text-green-600">
+                {stats.bookings.completed}
+              </div>
+            </CardContent>
+          </Card>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Tomorrow's Bookings */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Tomorrow's Bookings - {new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            })}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {stats.tomorrowBookings.length === 0 ? (
-            <div className="text-center py-8">
-              <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No bookings scheduled for tomorrow</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="text-sm text-muted-foreground mb-4">
-                {stats.tomorrowBookings.length} booking{stats.tomorrowBookings.length !== 1 ? 's' : ''} scheduled
+      {stats && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Tomorrow's Bookings - {new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {stats.tomorrowBookings.length === 0 ? (
+              <div className="text-center py-8">
+                <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">No bookings scheduled for tomorrow</p>
               </div>
-              <div className="space-y-2">
-                {stats.tomorrowBookings.map((booking) => (
-                  <div key={booking.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center space-x-4">
-                      <div className="text-sm font-medium text-gray-900 min-w-[60px]">
-                        {booking.booking_time}
+            ) : (
+              <div className="space-y-4">
+                <div className="text-sm text-muted-foreground mb-4">
+                  {stats.tomorrowBookings.length} booking{stats.tomorrowBookings.length !== 1 ? 's' : ''} scheduled
+                </div>
+                <div className="space-y-2">
+                  {stats.tomorrowBookings.map((booking) => (
+                    <div key={booking.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center space-x-4">
+                        <div className="text-sm font-medium text-gray-900 min-w-[60px]">
+                          {booking.booking_time}
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900">{booking.customer_name}</div>
+                          <div className="text-sm text-gray-500">{booking.service_type}</div>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <div className="font-medium text-gray-900">{booking.customer_name}</div>
-                        <div className="text-sm text-gray-500">{booking.service_type}</div>
+                      <div className="flex items-center space-x-3">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                          booking.status === 'accepted' ? 'bg-blue-100 text-blue-800' :
+                          booking.status === 'completed' ? 'bg-green-100 text-green-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {booking.status}
+                        </span>
+                        {booking.cleaner_name && (
+                          <span className="text-sm text-gray-600">{booking.cleaner_name}</span>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center space-x-3">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                        booking.status === 'accepted' ? 'bg-blue-100 text-blue-800' :
-                        booking.status === 'completed' ? 'bg-green-100 text-green-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {booking.status}
-                      </span>
-                      {booking.cleaner_name && (
-                        <span className="text-sm text-gray-600">{booking.cleaner_name}</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Quotes Overview */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Quote Requests
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Total</p>
-              <div className="text-2xl font-bold">{stats.quotes.total}</div>
+      {stats && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Quote Requests
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Total</p>
+                <div className="text-2xl font-bold">{stats.quotes.total}</div>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Pending</p>
+                <div className="text-2xl font-bold text-yellow-600">{stats.quotes.pending}</div>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Contacted</p>
+                <div className="text-2xl font-bold text-blue-600">{stats.quotes.contacted}</div>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Converted</p>
+                <div className="text-2xl font-bold text-green-600">{stats.quotes.converted}</div>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Pending</p>
-              <div className="text-2xl font-bold text-yellow-600">{stats.quotes.pending}</div>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Contacted</p>
-              <div className="text-2xl font-bold text-blue-600">{stats.quotes.contacted}</div>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Converted</p>
-              <div className="text-2xl font-bold text-green-600">{stats.quotes.converted}</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">

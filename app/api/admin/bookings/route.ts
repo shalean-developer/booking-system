@@ -22,20 +22,71 @@ export async function GET(req: Request) {
       );
     }
     
-    // Use service client to bypass RLS after admin check
-    const supabase = createServiceClient();
-    const url = new URL(req.url);
+    // Validate environment variables
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('❌ Missing Supabase environment variables');
+      return NextResponse.json(
+        { ok: false, error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
     
-    // Get query parameters
-    const page = parseInt(url.searchParams.get('page') || '1');
-    const limit = parseInt(url.searchParams.get('limit') || '50');
+    // Use service client to bypass RLS after admin check
+    let supabase;
+    try {
+      supabase = createServiceClient();
+    } catch (clientError) {
+      console.error('❌ Failed to create Supabase service client:', clientError);
+      return NextResponse.json(
+        { ok: false, error: 'Failed to initialize database connection' },
+        { status: 500 }
+      );
+    }
+    
+    // Parse URL - handle both full URLs and relative paths
+    let url: URL;
+    try {
+      url = new URL(req.url);
+    } catch (urlError) {
+      console.error('❌ Failed to parse URL:', req.url, urlError);
+      return NextResponse.json(
+        { ok: false, error: 'Invalid request URL' },
+        { status: 400 }
+      );
+    }
+    
+    // Get query parameters with safe defaults
+    const pageParam = url.searchParams.get('page') || '1';
+    const limitParam = url.searchParams.get('limit') || '50';
+    const page = parseInt(pageParam, 10);
+    const limit = parseInt(limitParam, 10);
     const search = url.searchParams.get('search') || '';
     const status = url.searchParams.get('status') || '';
     const serviceType = url.searchParams.get('serviceType') || '';
     
+    // Log parameters for debugging
+    console.log('📋 Request parameters:', { page, limit, search, status, serviceType });
+    
+    // Validate numeric parameters
+    if (isNaN(page) || page < 1) {
+      console.error('❌ Invalid page parameter:', pageParam);
+      return NextResponse.json(
+        { ok: false, error: `Invalid page parameter: ${pageParam}` },
+        { status: 400 }
+      );
+    }
+    if (isNaN(limit) || limit < 1 || limit > 50000) {
+      console.error('❌ Invalid limit parameter:', limitParam);
+      return NextResponse.json(
+        { ok: false, error: `Invalid limit parameter: ${limitParam} (must be between 1 and 50000)` },
+        { status: 400 }
+      );
+    }
+    
     const offset = (page - 1) * limit;
     
-    // Build query
+    // Build query - using safe column selection
+    // Note: Some columns may not exist in all database versions, so we use a safe subset
     let query = supabase
       .from('bookings')
       .select(`
@@ -50,13 +101,13 @@ export async function GET(req: Request) {
         address_suburb,
         address_city,
         status,
+        frequency,
         total_amount,
         service_fee,
         cleaner_earnings,
         payment_reference,
         cleaner_id,
         customer_id,
-        requires_team,
         created_at
       `, { count: 'exact' });
     
@@ -78,7 +129,14 @@ export async function GET(req: Request) {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
     
-    if (error) throw error;
+    if (error) {
+      console.error('=== SUPABASE QUERY ERROR ===', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      console.error('Error details:', error.details);
+      console.error('Error hint:', error.hint);
+      throw error;
+    }
     
     // Fetch cleaner names for bookings
     const cleanerIds = bookings
@@ -115,18 +173,15 @@ export async function GET(req: Request) {
       }, {} as Record<string, number>);
     }
     
-    // Fetch team assignments for bookings that require teams
-    const teamBookingIds = bookings
-      ?.filter(b => b.requires_team)
-      .map(b => b.id) || [];
-    
+    // Fetch team assignments for bookings
+    // Check all bookings for team assignments (since requires_team column may not exist)
     let teamAssignments: Record<string, boolean> = {};
     
-    if (teamBookingIds.length > 0) {
+    if (bookingIds.length > 0) {
       const { data: teams } = await supabase
         .from('booking_teams')
         .select('booking_id')
-        .in('booking_id', teamBookingIds);
+        .in('booking_id', bookingIds);
       
       teamAssignments = (teams || []).reduce((acc, team) => {
         acc[team.booking_id] = true;
@@ -159,9 +214,31 @@ export async function GET(req: Request) {
     
   } catch (error) {
     console.error('=== ADMIN BOOKINGS GET ERROR ===', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    const errorName = error instanceof Error ? error.name : 'UnknownError';
+    
+    console.error('Error details:', { 
+      name: errorName,
+      message: errorMessage, 
+      stack: errorStack,
+      error: error
+    });
+    
+    // Always return JSON, never HTML
     return NextResponse.json(
-      { ok: false, error: 'Failed to fetch bookings' },
-      { status: 500 }
+      { 
+        ok: false, 
+        error: errorMessage,
+        errorName: errorName,
+        ...(process.env.NODE_ENV === 'development' && { details: errorStack })
+      },
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
     );
   }
 }

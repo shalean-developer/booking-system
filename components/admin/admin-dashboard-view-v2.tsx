@@ -21,6 +21,10 @@ import { PaymentStatusWidget } from './payment-status-widget';
 import { ServiceRevenueChart } from './service-revenue-chart';
 import { RevenueTrendsWidget } from './revenue-trends-widget';
 import { CleanerPerformanceWidget } from './cleaner-performance-widget';
+import { TodaysBookingsWidget } from './todays-bookings-widget';
+import { ActiveCleanersWidget } from './active-cleaners-widget';
+import { RecentActivityWidget } from './recent-activity-widget';
+import { QuotesWidgetDashboard } from './quotes-widget-dashboard';
 import { DollarSign, Calendar, Percent, TrendingUp } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils/formatting';
 
@@ -257,6 +261,28 @@ export function AdminDashboardViewV2() {
             />
           </div>
         </div>
+      </div>
+
+      {/* Dashboard Widgets */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <TodaysBookingsWidget 
+          bookings={stats?.bookings?.todayBookings || []} 
+        />
+        <ActiveCleanersWidget 
+          totalCleaners={stats?.cleaners?.total || 0}
+        />
+        <RecentActivityWidget 
+          stats={{
+            bookings: {
+              today: stats?.bookings?.today || stats?.bookings?.todayBookings?.length || 0,
+              pending: stats?.bookings?.pending || 0,
+              completed: stats?.bookings?.completed || 0,
+            }
+          }}
+        />
+        <QuotesWidgetDashboard 
+          pendingCount={stats?.quotes?.pending || 0}
+        />
       </div>
 
       {/* Main Content Grid */}

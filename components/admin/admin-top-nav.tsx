@@ -1,7 +1,8 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
-import { LogOut, Download } from 'lucide-react';
+import { MoreHorizontal, Bell } from 'lucide-react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 
 interface AdminTopNavProps {
   onNavigate?: (tab: string) => void;
@@ -12,77 +13,62 @@ export function AdminTopNav({ onNavigate, activeTab = 'dashboard' }: AdminTopNav
   const tabs = [
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'bookings', label: 'Bookings' },
-    { id: 'recurring', label: 'Recurring' },
-    { id: 'quotes', label: 'Quotes' },
     { id: 'customers', label: 'Customers' },
+    { id: 'quotes', label: 'Quotes' },
+    { id: 'schedule', label: 'Schedule' },
     { id: 'cleaners', label: 'Cleaners' },
-    { id: 'reviews', label: 'Reviews' },
-    { id: 'applications', label: 'Applications' },
+    { id: 'payments', label: 'Payments' },
   ];
 
-  const handleLogout = async () => {
-    // Handle logout
-    window.location.href = '/login';
-  };
-
-  const handleExport = () => {
-    // Dispatch custom event to open export dialog
-    window.dispatchEvent(new CustomEvent('admin-show-export'));
-  };
-
   return (
-    <div className="w-full border-b border-gray-200 bg-white">
+    <div className="w-full border-b border-gray-200 bg-white shadow-sm">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold">S</span>
-            </div>
-            <span className="text-sm font-semibold text-gray-900">Menu</span>
+          {/* Logo Icon */}
+          <div className="flex items-center">
+            <div className="h-8 w-8 rounded bg-gray-300"></div>
           </div>
 
           {/* Navigation Links */}
-          <nav className="flex items-center gap-6 flex-1 justify-center">
-            {tabs.map((tab, index) => (
-              <div key={tab.id} className="flex items-center gap-6">
-                <button
-                  onClick={() => onNavigate?.(tab.id)}
-                  className={`text-sm font-medium transition-colors pb-1 border-b-2 ${
-                    activeTab === tab.id
-                      ? 'text-primary border-primary'
-                      : 'text-gray-600 border-transparent hover:text-gray-900 hover:border-gray-300'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-                {index < tabs.length - 1 && (
-                  <div className="h-4 w-px bg-gray-300" />
-                )}
-              </div>
+          <nav className="flex items-center gap-8 flex-1 justify-center">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => onNavigate?.(tab.id)}
+                className={`text-sm font-medium transition-colors pb-1 border-b-2 ${
+                  activeTab === tab.id
+                    ? 'text-blue-600 border-blue-600'
+                    : 'text-gray-400 border-transparent hover:text-gray-600'
+                }`}
+              >
+                {tab.label}
+              </button>
             ))}
+            {/* Ellipsis Menu */}
+            <button className="p-1 hover:bg-gray-100 rounded">
+              <MoreHorizontal className="h-5 w-5 text-gray-600" />
+            </button>
           </nav>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExport}
-              className="text-sm"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleLogout}
-              className="text-sm"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Log off
-            </Button>
+          {/* Right Side Actions */}
+          <div className="flex items-center gap-4">
+            {/* Notification Badge */}
+            <div className="relative">
+              <button className="p-1 hover:bg-gray-100 rounded">
+                <Bell className="h-5 w-5 text-gray-600" />
+              </button>
+              <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-rose-500 text-white text-xs border-0 rounded">
+                12
+              </Badge>
+            </div>
+
+            {/* User Avatar */}
+            <Avatar className="h-8 w-8 rounded-md">
+              <AvatarImage src="/placeholder-avatar.jpg" alt="User" />
+              <AvatarFallback className="rounded-md bg-gray-200 text-gray-600">
+                U
+              </AvatarFallback>
+            </Avatar>
           </div>
         </div>
       </div>

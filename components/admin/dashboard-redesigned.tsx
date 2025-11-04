@@ -45,7 +45,7 @@ export function DashboardRedesigned() {
   );
 
   // Transform booking chart data by service type
-  const transformBookingData = (data: any[]): ChartDataPoint[] => {
+  const transformBookingData = (data: any[]): Array<{ date: string; moveInMoveOut: number; standardCleaning: number; deepCleaning: number }> => {
     if (!data || data.length === 0) return [];
     
     // Group by date and service type
@@ -73,7 +73,9 @@ export function DashboardRedesigned() {
     
     return Object.entries(grouped).map(([date, counts]) => ({
       date,
-      ...counts,
+      moveInMoveOut: counts.moveInMoveOut || 0,
+      standardCleaning: counts.standardCleaning || 0,
+      deepCleaning: counts.deepCleaning || 0,
     }));
   };
 
@@ -105,7 +107,7 @@ export function DashboardRedesigned() {
   const quotes = statsData?.quotes?.pending || 58;
 
   // Customer data (simplified - would need separate API endpoint)
-  const customerData: ChartDataPoint[] = Array.from({ length: 30 }, (_, i) => {
+  const customerData: Array<{ date: string; newCustomers: number; recurringCustomers: number; returningCustomers: number }> = Array.from({ length: 30 }, (_, i) => {
     const date = new Date();
     date.setDate(date.getDate() - (29 - i));
     return {

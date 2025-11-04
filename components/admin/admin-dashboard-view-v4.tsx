@@ -44,12 +44,25 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils/formatting';
 import { supabase } from '@/lib/supabase-client';
+import { TodaysBookingsWidget } from './todays-bookings-widget';
+import { ActiveCleanersWidget } from './active-cleaners-widget';
+import { RecentActivityWidget } from './recent-activity-widget';
+import { QuotesWidgetDashboard } from './quotes-widget-dashboard';
 
 interface Stats {
   bookings: {
     total: number;
     today: number;
     pending: number;
+    todayBookings?: Array<{
+      id: string;
+      customer_name: string;
+      booking_date?: string;
+      booking_time: string;
+      service_type: string;
+      status: string;
+      cleaner_name?: string | null;
+    }>;
   };
   revenue: {
     total: number;
@@ -66,6 +79,10 @@ interface Stats {
     new?: number;
     recurring?: number;
     returning?: number;
+  };
+  cleaners?: {
+    total: number;
+    active?: number;
   };
 }
 
@@ -580,7 +597,8 @@ export function AdminDashboardViewV4() {
       let convertedBookings = 0;
       
       if (!bookingsRes.ok) {
-        console.error('Bookings API response not OK:', bookingsRes.status, bookingsRes.statusText);
+        const errorData = await bookingsRes.json().catch(() => ({ error: 'Failed to parse error response' }));
+        console.error('Bookings API response not OK:', bookingsRes.status, bookingsRes.statusText, errorData);
         // Continue with default values
       } else {
         const bookingsData = await bookingsRes.json();
@@ -686,7 +704,8 @@ export function AdminDashboardViewV4() {
       });
       
       if (!bookingsRes.ok) {
-        console.error('Bookings API response not OK:', bookingsRes.status, bookingsRes.statusText);
+        const errorData = await bookingsRes.json().catch(() => ({ error: 'Failed to parse error response' }));
+        console.error('Bookings API response not OK:', bookingsRes.status, bookingsRes.statusText, errorData);
         // Don't throw - just set defaults and continue to prevent breaking the dashboard
         setBookingsToday(0);
         setBookingsYesterday(0);
@@ -1269,6 +1288,28 @@ export function AdminDashboardViewV4() {
           </div>
         </div>
       )}
+
+      {/* Dashboard Widgets */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 my-6">
+        <TodaysBookingsWidget 
+          bookings={stats?.bookings?.todayBookings || []} 
+        />
+        <ActiveCleanersWidget 
+          totalCleaners={stats?.cleaners?.total || 0}
+        />
+        <RecentActivityWidget 
+          stats={{
+            bookings: {
+              today: stats?.bookings?.today || 0,
+              pending: stats?.bookings?.pending || 0,
+              completed: 0,
+            }
+          }}
+        />
+        <QuotesWidgetDashboard 
+          pendingCount={stats?.quotes?.pending || 0}
+        />
+      </div>
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 lg:grid-rows-2 gap-6">

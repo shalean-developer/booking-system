@@ -1,35 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import {
-  Search,
-  Bell,
-  User,
-  LogOut,
-  Settings,
-  ChevronDown,
-  RefreshCw,
-} from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useRouter, usePathname } from 'next/navigation';
+import { MoreHorizontal, Bell } from 'lucide-react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase-client';
 
 export function AdminNavbarV3() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [user, setUser] = useState<any>(null);
-  const [notifications, setNotifications] = useState(0);
   const router = useRouter();
+  const pathname = usePathname();
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
     // Get user profile
@@ -38,138 +19,93 @@ export function AdminNavbarV3() {
       
       if (authUser) {
         setUser(authUser);
-        // You can fetch notifications count here
-        // For now, we'll set a placeholder
-        setNotifications(0);
       }
     };
 
     getProfile();
   }, []);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      // Navigate to search results or filter current page
-      // For now, just log it
-      console.log('Search:', searchQuery);
-    }
+  const tabs = [
+    { id: 'dashboard', label: 'Dashboard', path: '/admin/dashboard' },
+    { id: 'bookings', label: 'Bookings', path: '/admin/bookings' },
+    { id: 'customers', label: 'Customers', path: '/admin/customers' },
+    { id: 'quotes', label: 'Quotes', path: '/admin/quotes' },
+    { id: 'schedule', label: 'Schedule', path: '/admin/schedule' },
+    { id: 'cleaners', label: 'Cleaners', path: '/admin/cleaners' },
+    { id: 'payments', label: 'Payments', path: '/admin/payments' },
+  ];
+
+  // Determine active tab based on current pathname
+  const getActiveTab = () => {
+    if (pathname?.includes('/dashboard')) return 'dashboard';
+    if (pathname?.includes('/bookings')) return 'bookings';
+    if (pathname?.includes('/customers')) return 'customers';
+    if (pathname?.includes('/quotes')) return 'quotes';
+    if (pathname?.includes('/schedule')) return 'schedule';
+    if (pathname?.includes('/cleaners')) return 'cleaners';
+    if (pathname?.includes('/payments')) return 'payments';
+    return 'dashboard';
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
-  };
+  const activeTab = getActiveTab();
 
-  const userInitials = user?.email?.charAt(0).toUpperCase() || 'A';
+  const handleNavigate = (path: string) => {
+    router.push(path);
+  };
 
   return (
-    <motion.div
-      initial={{ y: -20, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.3 }}
-      className="sticky top-0 z-20 w-full border-b border-gray-200 bg-white shadow-sm"
-    >
+    <div className="w-full border-b border-gray-200 bg-white shadow-sm">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Search Bar */}
-          <div className="flex-1 max-w-lg">
-            <form onSubmit={handleSearch}>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder="Search bookings, customers, cleaners..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 w-full focus-visible:ring-2 focus-visible:ring-primary"
-                />
-              </div>
-            </form>
+          {/* Logo Icon */}
+          <div className="flex items-center">
+            <div className="h-8 w-8 rounded bg-gray-300"></div>
           </div>
 
+          {/* Navigation Links */}
+          <nav className="flex items-center gap-8 flex-1 justify-center">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => handleNavigate(tab.path)}
+                className={`text-sm font-medium transition-colors pb-1 border-b-2 ${
+                  activeTab === tab.id
+                    ? 'text-blue-600 border-blue-600'
+                    : 'text-gray-400 border-transparent hover:text-gray-600'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+            {/* Ellipsis Menu */}
+            <button className="p-1 hover:bg-gray-100 rounded">
+              <MoreHorizontal className="h-5 w-5 text-gray-600" />
+            </button>
+          </nav>
+
           {/* Right Side Actions */}
-          <div className="flex items-center gap-2">
-            {/* Refresh Button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => window.location.reload()}
-              aria-label="Refresh data"
-              className="hidden md:flex"
-            >
-              <RefreshCw className="h-5 w-5" />
-            </Button>
+          <div className="flex items-center gap-4">
+            {/* Notification Badge */}
+            <div className="relative">
+              <button className="p-1 hover:bg-gray-100 rounded">
+                <Bell className="h-5 w-5 text-gray-600" />
+              </button>
+              <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-rose-500 text-white text-xs border-0 rounded">
+                12
+              </Badge>
+            </div>
 
-            {/* Notifications */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative"
-              aria-label="Notifications"
-            >
-              <Bell className="h-5 w-5" />
-              {notifications > 0 && (
-                <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full border border-white" />
-              )}
-            </Button>
-
-            {/* Profile Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="flex items-center gap-2 px-2"
-                >
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-primary text-primary-foreground">
-                      {userInitials}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="hidden md:block text-sm font-medium">
-                    {user?.email?.split('@')[0] || 'Admin'}
-                  </span>
-                  <ChevronDown className="h-4 w-4 hidden md:block" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">Admin Account</p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {user?.email || 'admin@shalean.com'}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => router.push('/admin/settings')}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Switch Role</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setNotifications(0)}>
-                  <Bell className="mr-2 h-4 w-4" />
-                  <span>Notifications</span>
-                  {notifications > 0 && (
-                    <span className="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
-                      {notifications}
-                    </span>
-                  )}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* User Avatar */}
+            <Avatar className="h-8 w-8 rounded-md">
+              <AvatarImage src="/placeholder-avatar.jpg" alt="User" />
+              <AvatarFallback className="rounded-md bg-gray-200 text-gray-600">
+                {user?.email?.charAt(0).toUpperCase() || 'U'}
+              </AvatarFallback>
+            </Avatar>
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
