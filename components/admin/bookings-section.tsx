@@ -25,6 +25,7 @@ import {
   UserMinus,
   RefreshCw,
   Plus,
+  Trash2,
 } from 'lucide-react';
 import {
   Select,
@@ -144,6 +145,9 @@ export function BookingsSection() {
   const [availableCleaners, setAvailableCleaners] = useState<Array<{ id: string; name: string }>>([]);
   const [isLoadingBookingDetails, setIsLoadingBookingDetails] = useState(false);
   const [isCreateBookingDialogOpen, setIsCreateBookingDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [bookingToDelete, setBookingToDelete] = useState<Booking | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Debounce search input
   const search = useDebouncedValue(searchInput, 500);
@@ -395,6 +399,31 @@ export function BookingsSection() {
       alert(error instanceof Error ? error.message : 'Failed to remove cleaner');
     } finally {
       setIsRemovingCleaner(false);
+    }
+  };
+
+  const handleDeleteBooking = async (bookingId: string) => {
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/admin/bookings?id=${bookingId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (!data.ok) {
+        throw new Error(data.error || 'Failed to delete booking');
+      }
+
+      mutate(); // Refresh bookings data
+      setIsDeleteDialogOpen(false);
+      setBookingToDelete(null);
+      setViewingBooking(null); // Close viewing dialog if open
+    } catch (error) {
+      console.error('Error deleting booking:', error);
+      alert(error instanceof Error ? error.message : 'Failed to delete booking');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -888,6 +917,18 @@ export function BookingsSection() {
                           Team Assigned
                         </Badge>
                       )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setBookingToDelete(booking);
+                          setIsDeleteDialogOpen(true);
+                        }}
+                        className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
                     </div>
                     
                     {/* Price and Payment Status Block */}
@@ -1563,6 +1604,16 @@ export function BookingsSection() {
                     <Edit className="h-4 w-4 mr-2" />
                     Edit
                   </Button>
+                  <Button 
+                    variant="destructive"
+                    onClick={() => {
+                      setBookingToDelete(viewingBooking);
+                      setIsDeleteDialogOpen(true);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
                 </DialogFooter>
               </div>
             );
@@ -1753,6 +1804,66 @@ export function BookingsSection() {
           setIsCreateBookingDialogOpen(false);
         }}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={(open) => !open && setIsDeleteDialogOpen(false)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="h-5 w-5" />
+              Delete Booking
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this booking? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {bookingToDelete && (
+            <div className="py-4">
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                <p className="text-sm font-medium">Booking ID: {bookingToDelete.id}</p>
+                <p className="text-sm text-gray-600">
+                  Customer: {bookingToDelete.customer_name}
+                </p>
+                <p className="text-sm text-gray-600">
+                  Date: {format(new Date(bookingToDelete.booking_date), 'MMM d, yyyy')}
+                </p>
+                <p className="text-sm text-gray-600">
+                  Service: {bookingToDelete.service_type}
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsDeleteDialogOpen(false);
+                setBookingToDelete(null);
+              }}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={() => bookingToDelete && handleDeleteBooking(bookingToDelete.id)}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Booking
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
