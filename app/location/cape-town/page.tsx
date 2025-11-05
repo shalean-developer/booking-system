@@ -128,7 +128,15 @@ export default function CapeTownPage() {
 
           <div className="space-y-8">
             {Object.entries(groupedSuburbs).map(([area, suburbs]) => {
-              const areaSlug = area.toLowerCase().replace(/\s+/g, '-').replace('&', 'and');
+              // Handle special cases for area slugs
+              let areaSlug: string;
+              if (area === 'Helderberg') {
+                areaSlug = 'helderberg-winelands';
+              } else if (area === 'Winelands') {
+                areaSlug = 'helderberg-winelands';
+              } else {
+                areaSlug = area.toLowerCase().replace(/\s+/g, '-').replace('&', 'and');
+              }
               return (
                 <Card key={area} className="border-0 shadow-lg">
                   <CardContent className="p-8">
