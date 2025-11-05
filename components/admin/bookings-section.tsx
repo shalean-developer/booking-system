@@ -830,7 +830,7 @@ export function BookingsSection() {
                               : booking.frequency.charAt(0).toUpperCase() + booking.frequency.slice(1))
                           : 'One-time'}
                       </span>
-                      {booking.frequency && booking.recurring_bookings_count > 0 && (
+                      {booking.frequency && (booking.recurring_bookings_count ?? 0) > 0 && (
                         <Badge className="bg-blue-100 text-blue-700 rounded-full h-6 px-2.5 flex items-center justify-center text-xs font-normal">
                           {booking.recurring_bookings_count}
                         </Badge>
