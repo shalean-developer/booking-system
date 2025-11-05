@@ -10,7 +10,9 @@ const inter = Inter({
   subsets: ["latin"],
   display: 'swap',
   preload: true,
-  fallback: ['system-ui', 'arial']
+  fallback: ['system-ui', 'arial'],
+  adjustFontFallback: true,
+  variable: '--font-inter',
 });
 
 export const metadata: Metadata = {
@@ -127,11 +129,11 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: stringifyStructuredData(organizationSchema, "Organization") }}
         />
       </head>
-      <body className={cn(inter.className, "min-h-screen bg-slate-50")}>
+      <body className={cn(inter.variable, inter.className, "min-h-screen bg-slate-50")}>
         {/* Google Tag Manager */}
         <Script
           id="gtm-script"
-          strategy="afterInteractive"
+          strategy="lazyOnload"
           dangerouslySetInnerHTML={{
             __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
 new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
@@ -154,7 +156,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         {/* Chunk Error Handler */}
         <Script
           id="chunk-error-handler"
-          strategy="afterInteractive"
+          strategy="lazyOnload"
           dangerouslySetInnerHTML={{
             __html: `
               window.addEventListener('error', function(e) {
