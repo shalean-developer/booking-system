@@ -63,7 +63,13 @@ const nextConfig = {
   // Experimental optimizations
   experimental: {
     optimizeCss: true,
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons', 'framer-motion'],
+    turbo: {
+      resolveAlias: {
+        // Optimize imports
+        'lucide-react': 'lucide-react/dist/esm/icons',
+      },
+    },
   },
 }
 
