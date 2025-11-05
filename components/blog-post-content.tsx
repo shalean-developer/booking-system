@@ -22,6 +22,9 @@ function sanitizeBlogContent(content: string): string {
   // eco-friendly-cleaning-practices -> the-benefits-of-eco-friendly-cleaning-products
   sanitized = sanitized.replace(/href=["']\/blog\/eco-friendly-cleaning-practices["']/gi, 'href="/blog/the-benefits-of-eco-friendly-cleaning-products"');
   
+  // eco-friendly-cleaning-south-africa -> the-benefits-of-eco-friendly-cleaning-products
+  sanitized = sanitized.replace(/href=["']\/blog\/eco-friendly-cleaning-south-africa["']/gi, 'href="/blog/the-benefits-of-eco-friendly-cleaning-products"');
+  
   // move-out-cleaning-cost -> move-out-cleaning-cost-guide (if exists) or remove
   // Check if we should link to a service page instead
   sanitized = sanitized.replace(/href=["']\/blog\/move-out-cleaning-cost[^"']*["']/gi, 'href="/services/move-turnover"');
