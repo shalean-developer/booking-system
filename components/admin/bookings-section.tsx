@@ -24,6 +24,7 @@ import {
   Users,
   UserMinus,
   RefreshCw,
+  Plus,
 } from 'lucide-react';
 import {
   Select,
@@ -59,6 +60,7 @@ import { PRICING } from '@/lib/pricing';
 import { EditBookingDialog } from '@/components/admin/edit-booking-dialog';
 import { AssignCleanerDialog } from '@/components/admin/assign-cleaner-dialog';
 import { AssignTeamDialog } from '@/components/admin/assign-team-dialog';
+import { CreateBookingDialog } from '@/components/admin/create-booking-dialog';
 
 interface Booking {
   id: string;
@@ -141,6 +143,7 @@ export function BookingsSection() {
   const [isAddMemberDialogOpen, setIsAddMemberDialogOpen] = useState(false);
   const [availableCleaners, setAvailableCleaners] = useState<Array<{ id: string; name: string }>>([]);
   const [isLoadingBookingDetails, setIsLoadingBookingDetails] = useState(false);
+  const [isCreateBookingDialogOpen, setIsCreateBookingDialogOpen] = useState(false);
 
   // Debounce search input
   const search = useDebouncedValue(searchInput, 500);
@@ -724,6 +727,15 @@ export function BookingsSection() {
                 />
               </PopoverContent>
             </Popover>
+
+            {/* Create Booking Button */}
+            <Button
+              onClick={() => setIsCreateBookingDialogOpen(true)}
+              className="bg-blue-600 text-white hover:bg-blue-700"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Create Booking
+            </Button>
 
             {/* Download Button */}
             <Button
@@ -1731,6 +1743,16 @@ export function BookingsSection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Create Booking Dialog */}
+      <CreateBookingDialog
+        open={isCreateBookingDialogOpen}
+        onClose={() => setIsCreateBookingDialogOpen(false)}
+        onSuccess={() => {
+          mutate(); // Refresh bookings data
+          setIsCreateBookingDialogOpen(false);
+        }}
+      />
     </div>
   );
 }
