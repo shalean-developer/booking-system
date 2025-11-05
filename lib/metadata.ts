@@ -8,7 +8,7 @@ export const OG_IMAGE_WIDTH = 1200;
 export const OG_IMAGE_HEIGHT = 630;
 
 // Validation limits
-export const TITLE_MAX_LENGTH = 60;
+export const TITLE_MAX_LENGTH = 70; // SEO best practice: 15-70 characters
 export const DESCRIPTION_MAX_LENGTH = 160;
 
 // Default site metadata
@@ -124,8 +124,14 @@ export function createMetadata(metadata: PageMetadata | Metadata): Metadata {
   const pageMeta = metadata as PageMetadata;
   const canonical = pageMeta.canonical || generateCanonical();
 
+  // If title is longer than 60 chars, use full title object to prevent template appending
+  // This prevents " | Shalean Cleaning Services" from being added when title is already long
+  const titleMetadata = pageMeta.title.length > 60
+    ? { default: pageMeta.title, template: undefined } as const
+    : pageMeta.title;
+
   return {
-    title: pageMeta.title,
+    title: titleMetadata,
     description: pageMeta.description,
     alternates: {
       canonical,

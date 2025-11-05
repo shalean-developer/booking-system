@@ -12,8 +12,16 @@ interface BlogPostContentProps {
 function sanitizeBlogContent(content: string): string {
   let sanitized = content;
 
-  // Fix malformed /blog/shalean.co.za links - remove or replace with homepage
-  sanitized = sanitized.replace(/href=["']\/blog\/shalean\.co\.za[^"']*["']/gi, 'href="/"');
+  // Fix malformed /blog/shalean.co.za links - replace with homepage or correct destination
+  sanitized = sanitized.replace(/href=["']\/blog\/shalean\.co\.za\/?["']/gi, 'href="/"');
+  sanitized = sanitized.replace(/href=["']\/blog\/shalean\.co\.za\/booking\/service\/select["']/gi, 'href="/booking/service/select"');
+  sanitized = sanitized.replace(/href=["']\/blog\/shalean\.co\.za\/?([^"']*)["']/gi, (match, path) => {
+    // If there's a path after /blog/shalean.co.za, try to redirect to that path directly
+    if (path && path !== '/') {
+      return `href="${path.startsWith('/') ? path : '/' + path}"`;
+    }
+    return 'href="/"';
+  });
   
   // Fix /booking links to point to booking page
   sanitized = sanitized.replace(/href=["']\/booking["']/gi, 'href="/booking/service/select"');

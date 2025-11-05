@@ -1,7 +1,7 @@
-import { redirect } from 'next/navigation';
+import { permanentRedirect } from 'next/navigation';
 
 export default function BlogShaleanBookingRedirect() {
-  redirect('/booking/service/select');
+  permanentRedirect('/booking/service/select');
 }
 
 

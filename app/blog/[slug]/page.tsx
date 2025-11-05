@@ -35,8 +35,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   // Create blog post metadata
+  // Ensure title is within SEO limits (max 70 characters, prefer 60)
+  let pageTitle = post.meta_title || post.title || 'Blog Post';
+  if (pageTitle.length > 70) {
+    // Truncate to 67 chars and add ellipsis if needed
+    pageTitle = pageTitle.substring(0, 67).trim() + '...';
+  } else if (pageTitle.length > 60 && !post.meta_title) {
+    // If using fallback title and it's long, try to shorten it
+    const shortTitle = post.title.split('|')[0].trim();
+    if (shortTitle.length <= 70) {
+      pageTitle = shortTitle;
+    }
+  }
+
   const blogMetadata = {
-    title: post.meta_title || post.title || 'Blog Post',
+    title: pageTitle,
     description: post.meta_description || post.excerpt || 'Read our latest blog post about cleaning services.',
     canonical: `https://shalean.co.za/blog/${post.slug}`,
     ogImage: {
