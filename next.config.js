@@ -39,6 +39,21 @@ const nextConfig = {
         destination: '/booking/service/select',
         permanent: true,
       },
+      {
+        source: '/booking',
+        destination: '/booking/service/select',
+        permanent: true,
+      },
+      {
+        source: '/location/cape-town/helderberg',
+        destination: '/location/cape-town/helderberg-winelands',
+        permanent: true,
+      },
+      {
+        source: '/location/cape-town/winelands',
+        destination: '/location/cape-town/helderberg-winelands',
+        permanent: true,
+      },
     ];
   },
 }
