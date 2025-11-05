@@ -25,7 +25,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     'tamboerskloof', 'oranjezicht', 'bloubergstrand', 'milnerton', 'durbanville',
     'parow', 'brackenfell', 'wynberg', 'kenilworth', 'plumstead', 'bishopscourt',
     'tokai', 'bergvliet', 'fish-hoek', 'kalk-bay', 'simons-town', 'lakeside',
-    'noordhoek', 'kommetjie', 'scarborough', 'somerset-west', 'strand', 'stellenbosch'
+    'noordhoek', 'kommetjie', 'scarborough', 'somerset-west', 'strand', 'stellenbosch',
+    'mouille-point', 'waterfront'
   ];
 
   // Generate Cape Town suburb entries

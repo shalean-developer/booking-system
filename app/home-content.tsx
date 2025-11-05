@@ -3,14 +3,30 @@
 import { Header } from "@/components/header";
 import { HomeStructuredData } from "@/components/home-structured-data";
 import { HomeHero } from "@/components/home-hero";
-import { HomeFlagshipServices } from "@/components/home-flagship-services";
 import { HomeWhyChooseUs } from "@/components/home-why-choose-us";
 import { HomeServiceAreas } from "@/components/home-service-areas";
-import { HomeServiceOfferings } from "@/components/home-service-offerings";
-import { HomeReviewsShowcase } from "@/components/home-reviews-showcase";
-import { HomeFeaturedIn } from "@/components/home-featured-in";
-import { HomeFinalCTA } from "@/components/home-final-cta";
 import dynamic from "next/dynamic";
+
+// Lazy load below-fold sections for better performance
+const HomeFlagshipServices = dynamic(() => import("@/components/home-flagship-services").then(mod => ({ default: mod.HomeFlagshipServices })), {
+  loading: () => <div className="py-12 sm:py-16 lg:py-20 bg-gray-50"><div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><div className="animate-pulse bg-gray-200 h-96 rounded-lg"></div></div></div>
+});
+
+const HomeServiceOfferings = dynamic(() => import("@/components/home-service-offerings").then(mod => ({ default: mod.HomeServiceOfferings })), {
+  loading: () => <div className="py-12 sm:py-16 lg:py-20 bg-gray-50"><div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><div className="grid md:grid-cols-3 gap-6"><div className="animate-pulse bg-gray-200 h-80 rounded-lg"></div><div className="animate-pulse bg-gray-200 h-80 rounded-lg"></div><div className="animate-pulse bg-gray-200 h-80 rounded-lg"></div></div></div></div>
+});
+
+const HomeReviewsShowcase = dynamic(() => import("@/components/home-reviews-showcase").then(mod => ({ default: mod.HomeReviewsShowcase })), {
+  loading: () => <div className="py-12 sm:py-16 lg:py-20"><div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><div className="animate-pulse bg-gray-200 h-64 rounded-lg"></div></div></div>
+});
+
+const HomeFeaturedIn = dynamic(() => import("@/components/home-featured-in").then(mod => ({ default: mod.HomeFeaturedIn })), {
+  loading: () => <div className="py-12 sm:py-16 lg:py-20"><div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><div className="animate-pulse bg-gray-200 h-32 rounded-lg"></div></div></div>
+});
+
+const HomeFinalCTA = dynamic(() => import("@/components/home-final-cta").then(mod => ({ default: mod.HomeFinalCTA })), {
+  loading: () => <div className="py-12 sm:py-16 lg:py-20"><div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><div className="animate-pulse bg-gray-200 h-48 rounded-lg"></div></div></div>
+});
 
 // Lazy load below-fold sections
 const HomeTeam = dynamic(() => import("@/components/home-team").then(mod => ({ default: mod.HomeTeam })), {
