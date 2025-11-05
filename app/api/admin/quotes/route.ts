@@ -16,6 +16,7 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const search = searchParams.get('search') || '';
@@ -23,6 +24,28 @@ export async function GET(req: Request) {
 
     // Use service client to bypass RLS after admin check
     const supabase = createServiceClient();
+
+    // If id is provided, fetch single quote
+    if (id) {
+      const { data: quote, error } = await supabase
+        .from('quotes')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching quote:', error);
+        return NextResponse.json(
+          { ok: false, error: 'Quote not found' },
+          { status: 404 }
+        );
+      }
+      
+      return NextResponse.json({
+        ok: true,
+        quotes: quote ? [quote] : [],
+      });
+    }
 
     // Build query
     let query = supabase

@@ -130,9 +130,38 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { bookingId, cleanerId, override } = body;
     
-    if (!bookingId || !cleanerId) {
+    if (!bookingId) {
       return NextResponse.json(
-        { ok: false, error: 'Booking ID and Cleaner ID required' },
+        { ok: false, error: 'Booking ID required' },
+        { status: 400 }
+      );
+    }
+    
+    // If cleanerId is null, remove assignment
+    if (cleanerId === null) {
+      const supabase = await createClient();
+      
+      const { data: updatedBooking, error: updateError } = await supabase
+        .from('bookings')
+        .update({ cleaner_id: null })
+        .eq('id', bookingId)
+        .select()
+        .single();
+      
+      if (updateError) throw updateError;
+      
+      console.log(`✅ Removed cleaner assignment from booking ${bookingId}`);
+      
+      return NextResponse.json({
+        ok: true,
+        booking: updatedBooking,
+      });
+    }
+    
+    // Otherwise, assign cleaner (existing logic)
+    if (!cleanerId) {
+      return NextResponse.json(
+        { ok: false, error: 'Cleaner ID required' },
         { status: 400 }
       );
     }

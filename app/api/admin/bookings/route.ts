@@ -35,10 +35,13 @@ export async function GET(req: Request) {
     let supabase;
     try {
       supabase = createServiceClient();
+      if (!supabase) {
+        throw new Error('Failed to create Supabase service client: client is null');
+      }
     } catch (clientError) {
       console.error('❌ Failed to create Supabase service client:', clientError);
       return NextResponse.json(
-        { ok: false, error: 'Failed to initialize database connection' },
+        { ok: false, error: 'Failed to initialize database connection', details: String(clientError) },
         { status: 500 }
       );
     }
@@ -59,13 +62,151 @@ export async function GET(req: Request) {
     const pageParam = url.searchParams.get('page') || '1';
     const limitParam = url.searchParams.get('limit') || '50';
     const page = parseInt(pageParam, 10);
-    const limit = parseInt(limitParam, 10);
+    let limit = parseInt(limitParam, 10);
     const search = url.searchParams.get('search') || '';
     const status = url.searchParams.get('status') || '';
     const serviceType = url.searchParams.get('serviceType') || '';
+    const view = url.searchParams.get('view') || '';
+    const id = url.searchParams.get('id');
+    
+    // Cap limit at reasonable maximum to prevent performance issues
+    const MAX_LIMIT = 10000;
+    if (limit > MAX_LIMIT) {
+      limit = MAX_LIMIT;
+    }
     
     // Log parameters for debugging
-    console.log('📋 Request parameters:', { page, limit, search, status, serviceType });
+    console.log('📋 Request parameters:', { page, limit, search, status, serviceType, view, id });
+    
+    // If id is provided, fetch single booking with all related data
+    if (id) {
+      const { data: booking, error } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching booking:', error);
+        return NextResponse.json(
+          { ok: false, error: 'Booking not found' },
+          { status: 404 }
+        );
+      }
+
+      if (!booking) {
+        return NextResponse.json(
+          { ok: false, error: 'Booking not found' },
+          { status: 404 }
+        );
+      }
+
+      // Fetch cleaner name if cleaner_id exists
+      let cleanerName = null;
+      if (booking.cleaner_id && booking.cleaner_id !== 'manual') {
+        try {
+          const { data: cleaner } = await supabase
+            .from('cleaners')
+            .select('name')
+            .eq('id', booking.cleaner_id)
+            .maybeSingle();
+          
+          cleanerName = cleaner?.name || null;
+        } catch (err) {
+          console.warn('Failed to fetch cleaner name:', err);
+        }
+      } else if (booking.cleaner_id === 'manual') {
+        cleanerName = 'Manual Assignment';
+      }
+
+      // Fetch notes count
+      let notesCount = 0;
+      try {
+        const { data: notes } = await supabase
+          .from('booking_notes')
+          .select('id')
+          .eq('booking_id', booking.id);
+        
+        notesCount = notes?.length || 0;
+      } catch (err) {
+        console.warn('Failed to fetch booking notes:', err);
+      }
+
+      // Fetch team assignment
+      let teamAssigned = false;
+      try {
+        const { data: team } = await supabase
+          .from('booking_teams')
+          .select('id')
+          .eq('booking_id', booking.id)
+          .maybeSingle();
+        
+        teamAssigned = !!team;
+      } catch (err) {
+        console.warn('Failed to fetch team assignment:', err);
+      }
+
+      // Fetch recurring bookings count
+      let recurringCount = 0;
+      if (booking.recurring_schedule_id) {
+        try {
+          const { data: recurringBookings } = await supabase
+            .from('bookings')
+            .select('id')
+            .eq('recurring_schedule_id', booking.recurring_schedule_id);
+          
+          recurringCount = recurringBookings?.length || 0;
+        } catch (err) {
+          console.warn('Failed to fetch recurring bookings count:', err);
+        }
+      }
+
+      // Add all additional data to booking
+      const bookingWithExtras = {
+        ...booking,
+        cleaner_name: cleanerName,
+        notes_count: notesCount,
+        team_assigned: teamAssigned,
+        recurring_bookings_count: recurringCount,
+        // Ensure all fields are properly formatted
+        // Try to get bedrooms/bathrooms from price_snapshot if they're null in main record
+        bedrooms: booking.bedrooms ?? (booking.price_snapshot?.bedrooms ?? null),
+        bathrooms: booking.bathrooms ?? (booking.price_snapshot?.bathrooms ?? null),
+        extras: booking.extras ?? [],
+        duration: booking.duration ?? null,
+        frequency: booking.frequency ?? null,
+        price_snapshot: booking.price_snapshot ?? null,
+        notes: booking.notes ?? null,
+        address_zip: booking.address_zip ?? null,
+        customer_id: booking.customer_id ?? null,
+        requires_team: booking.requires_team ?? false,
+        // Ensure numeric fields are properly converted
+        total_amount: booking.total_amount ?? 0,
+        service_fee: booking.service_fee ?? 0,
+        cleaner_earnings: booking.cleaner_earnings ?? 0,
+      };
+      
+      // Log for debugging
+      console.log('📋 Booking details fetched:', {
+        id: booking.id,
+        bedrooms: bookingWithExtras.bedrooms,
+        bathrooms: bookingWithExtras.bathrooms,
+        has_price_snapshot: !!booking.price_snapshot,
+        price_snapshot_bedrooms: booking.price_snapshot?.bedrooms,
+        price_snapshot_bathrooms: booking.price_snapshot?.bathrooms,
+      });
+      
+      return NextResponse.json({
+        ok: true,
+        bookings: [bookingWithExtras],
+        pagination: {
+          page: 1,
+          limit: 1,
+          total: 1,
+          totalPages: 1,
+        },
+      });
+    }
     
     // Validate numeric parameters
     if (isNaN(page) || page < 1) {
@@ -75,48 +216,44 @@ export async function GET(req: Request) {
         { status: 400 }
       );
     }
-    if (isNaN(limit) || limit < 1 || limit > 50000) {
+    if (isNaN(limit) || limit < 1) {
       console.error('❌ Invalid limit parameter:', limitParam);
       return NextResponse.json(
-        { ok: false, error: `Invalid limit parameter: ${limitParam} (must be between 1 and 50000)` },
+        { ok: false, error: `Invalid limit parameter: ${limitParam} (must be between 1 and ${MAX_LIMIT})` },
         { status: 400 }
       );
     }
     
     const offset = (page - 1) * limit;
     
-    // Build query - using safe column selection
-    // Note: Some columns may not exist in all database versions, so we use a safe subset
+    // Build query - use * to select all columns (Supabase handles missing columns gracefully)
+    // This is safer than trying to enumerate all possible columns
     let query = supabase
       .from('bookings')
-      .select(`
-        id,
-        booking_date,
-        booking_time,
-        service_type,
-        customer_name,
-        customer_email,
-        customer_phone,
-        address_line1,
-        address_suburb,
-        address_city,
-        status,
-        frequency,
-        total_amount,
-        service_fee,
-        cleaner_earnings,
-        payment_reference,
-        cleaner_id,
-        customer_id,
-        created_at
-      `, { count: 'exact' });
+      .select('*', { count: 'exact' });
+    
+    // Apply view filter first (takes precedence over status filter)
+    if (view) {
+      if (view === 'new') {
+        // New bookings are pending bookings
+        query = query.eq('status', 'pending');
+      } else if (view === 'previous') {
+        // Previous bookings are completed, missed, or cancelled
+        query = query.in('status', ['completed', 'missed', 'cancelled']);
+      } else if (view === 'recurring') {
+        // Recurring bookings have a frequency field set
+        query = query.not('frequency', 'is', null);
+      }
+      // 'all' view doesn't add any filter
+    }
     
     // Apply filters
     if (search) {
       query = query.or(`customer_name.ilike.%${search}%,customer_email.ilike.%${search}%,id.ilike.%${search}%`);
     }
     
-    if (status) {
+    // Apply status filter only if view is not set (or view is 'all')
+    if (status && (!view || view === 'all')) {
       query = query.eq('status', status);
     }
     
@@ -125,18 +262,60 @@ export async function GET(req: Request) {
     }
     
     // Apply pagination and sorting
-    const { data: bookings, error, count } = await query
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+    // For very large limits, use limit() instead of range() for better performance
+    const MAX_LIMIT_FOR_RANGE = 5000;
+    let finalQuery = query;
+    
+    // Only apply ordering if limit is reasonable (ordering can be slow on large datasets)
+    if (limit < MAX_LIMIT_FOR_RANGE) {
+      try {
+        finalQuery = query.order('created_at', { ascending: false });
+      } catch (orderError) {
+        console.warn('Failed to apply ordering, continuing without:', orderError);
+        // Continue without ordering if it fails
+      }
+    }
+    
+    // Apply range only if not fetching everything
+    if (limit < MAX_LIMIT_FOR_RANGE) {
+      try {
+        finalQuery = finalQuery.range(offset, offset + limit - 1);
+      } catch (rangeError) {
+        console.warn('Failed to apply range, using limit instead:', rangeError);
+        finalQuery = finalQuery.limit(limit);
+      }
+    } else {
+      // For max limit, just limit the results (no offset)
+      finalQuery = finalQuery.limit(limit);
+    }
+    
+    console.log('Executing query with limit:', limit, 'offset:', offset);
+    const { data: bookings, error, count } = await finalQuery;
     
     if (error) {
-      console.error('=== SUPABASE QUERY ERROR ===', error);
+      console.error('=== SUPABASE QUERY ERROR ===');
+      console.error('Error object:', JSON.stringify(error, null, 2));
       console.error('Error code:', error.code);
       console.error('Error message:', error.message);
       console.error('Error details:', error.details);
       console.error('Error hint:', error.hint);
-      throw error;
+      console.error('Query parameters:', { page, limit, offset, search, status, serviceType });
+      
+      // Return a more helpful error message
+      return NextResponse.json(
+        { 
+          ok: false, 
+          error: `Database query failed: ${error.message || 'Unknown error'}`,
+          errorCode: error.code,
+          details: error.details,
+          hint: error.hint
+        },
+        { status: 500 }
+      );
     }
+    
+    // Skip expensive queries if limit is very large (likely just counting)
+    const skipExpensiveQueries = limit >= 1000;
     
     // Fetch cleaner names for bookings
     const cleanerIds = bookings
@@ -145,65 +324,131 @@ export async function GET(req: Request) {
     
     let cleanerNames: Record<string, string> = {};
     
-    if (cleanerIds.length > 0) {
-      const { data: cleaners } = await supabase
-        .from('cleaners')
-        .select('id, name')
-        .in('id', cleanerIds);
-      
-      cleanerNames = (cleaners || []).reduce((acc, c) => {
-        acc[c.id] = c.name;
-        return acc;
-      }, {} as Record<string, string>);
+    if (!skipExpensiveQueries && cleanerIds.length > 0) {
+      try {
+        const { data: cleaners, error: cleanersError } = await supabase
+          .from('cleaners')
+          .select('id, name')
+          .in('id', cleanerIds);
+        
+        if (cleanersError) {
+          console.warn('Failed to fetch cleaner names:', cleanersError);
+        } else {
+          cleanerNames = (cleaners || []).reduce((acc, c) => {
+            acc[c.id] = c.name;
+            return acc;
+          }, {} as Record<string, string>);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch cleaner names:', err);
+        // Continue without cleaner names
+      }
     }
     
     // Fetch notes count for bookings
     const bookingIds = bookings?.map(b => b.id) || [];
     let notesCounts: Record<string, number> = {};
     
-    if (bookingIds.length > 0) {
-      const { data: notes } = await supabase
-        .from('booking_notes')
-        .select('booking_id')
-        .in('booking_id', bookingIds);
-      
-      notesCounts = (notes || []).reduce((acc, note) => {
-        acc[note.booking_id] = (acc[note.booking_id] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
+    if (!skipExpensiveQueries && bookingIds.length > 0) {
+      try {
+        const { data: notes, error: notesError } = await supabase
+          .from('booking_notes')
+          .select('booking_id')
+          .in('booking_id', bookingIds);
+        
+        if (notesError) {
+          console.warn('Failed to fetch booking notes:', notesError);
+        } else {
+          notesCounts = (notes || []).reduce((acc, note) => {
+            acc[note.booking_id] = (acc[note.booking_id] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch booking notes:', err);
+        // Continue without notes counts
+      }
     }
     
     // Fetch team assignments for bookings
     // Check all bookings for team assignments (since requires_team column may not exist)
     let teamAssignments: Record<string, boolean> = {};
     
-    if (bookingIds.length > 0) {
-      const { data: teams } = await supabase
-        .from('booking_teams')
-        .select('booking_id')
-        .in('booking_id', bookingIds);
-      
-      teamAssignments = (teams || []).reduce((acc, team) => {
-        acc[team.booking_id] = true;
-        return acc;
-      }, {} as Record<string, boolean>);
+    if (!skipExpensiveQueries && bookingIds.length > 0) {
+      try {
+        const { data: teams, error: teamsError } = await supabase
+          .from('booking_teams')
+          .select('booking_id')
+          .in('booking_id', bookingIds);
+        
+        if (teamsError) {
+          console.warn('Failed to fetch team assignments:', teamsError);
+        } else {
+          teamAssignments = (teams || []).reduce((acc, team) => {
+            acc[team.booking_id] = true;
+            return acc;
+          }, {} as Record<string, boolean>);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch team assignments:', err);
+        // Continue without team assignments
+      }
     }
     
-    // Add cleaner names, notes count, and team assignments to bookings
-    const bookingsWithExtras = bookings?.map(b => ({
+    // Fetch recurring bookings count for each booking
+    // Count bookings that share the same recurring_schedule_id
+    let recurringCounts: Record<string, number> = {};
+    
+    if (!skipExpensiveQueries && bookingIds.length > 0) {
+      try {
+        // Get all bookings with recurring_schedule_id
+        const { data: recurringBookings, error: recurringError } = await supabase
+          .from('bookings')
+          .select('id, recurring_schedule_id')
+          .not('recurring_schedule_id', 'is', null);
+        
+        if (recurringError) {
+          console.warn('Failed to fetch recurring bookings:', recurringError);
+        } else {
+          // Count bookings per recurring_schedule_id
+          const scheduleCounts: Record<string, number> = {};
+          (recurringBookings || []).forEach(booking => {
+            if (booking.recurring_schedule_id) {
+              scheduleCounts[booking.recurring_schedule_id] = 
+                (scheduleCounts[booking.recurring_schedule_id] || 0) + 1;
+            }
+          });
+          
+          // Map booking IDs to their counts
+          (recurringBookings || []).forEach(booking => {
+            if (booking.recurring_schedule_id) {
+              recurringCounts[booking.id] = scheduleCounts[booking.recurring_schedule_id] || 0;
+            }
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to fetch recurring bookings count:', err);
+        // Continue without recurring counts
+      }
+    }
+    
+    // Add cleaner names, notes count, team assignments, and recurring counts to bookings
+    const bookingsArray = bookings || [];
+    const bookingsWithExtras = bookingsArray.map(b => ({
       ...b,
       cleaner_name: b.cleaner_id === 'manual' 
         ? 'Manual Assignment'
         : cleanerNames[b.cleaner_id || ''] || null,
       notes_count: notesCounts[b.id] || 0,
       team_assigned: teamAssignments[b.id] || false,
+      recurring_bookings_count: recurringCounts[b.id] || 0,
     }));
     
-    console.log(`✅ Fetched ${bookings?.length || 0} bookings`);
+    console.log(`✅ Fetched ${bookingsArray.length} bookings`);
     
     return NextResponse.json({
       ok: true,
-      bookings: bookingsWithExtras || [],
+      bookings: bookingsWithExtras,
       pagination: {
         page,
         limit,

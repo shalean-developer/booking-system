@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     // Verify booking exists and requires team
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .select('id, requires_team, total_amount, service_fee')
+      .select('id, requires_team, service_type, total_amount, service_fee')
       .eq('id', bookingId)
       .single();
     
@@ -59,11 +59,29 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!booking.requires_team) {
+    // Check if booking requires team (by flag or service type)
+    const requiresTeam = booking.requires_team === true || 
+                        booking.service_type === 'Deep' || 
+                        booking.service_type === 'Move In/Out';
+    
+    if (!requiresTeam) {
       return NextResponse.json(
         { ok: false, error: 'This booking does not require team assignment' },
         { status: 400 }
       );
+    }
+
+    // Update booking to set requires_team flag if not already set
+    if (!booking.requires_team && (booking.service_type === 'Deep' || booking.service_type === 'Move In/Out')) {
+      const { error: updateRequiresTeamError } = await supabase
+        .from('bookings')
+        .update({ requires_team: true })
+        .eq('id', bookingId);
+      
+      if (updateRequiresTeamError) {
+        console.warn('Failed to update requires_team flag:', updateRequiresTeamError);
+        // Continue anyway - team assignment will still work
+      }
     }
 
     // Verify all cleaners exist and are active
@@ -163,6 +181,7 @@ export async function POST(req: Request) {
     const { error: updateBookingError } = await supabase
       .from('bookings')
       .update({
+        requires_team: true, // Ensure requires_team is set
         cleaner_earnings: totalTeamEarnings,
         status: 'confirmed', // Mark as confirmed when team is assigned
         updated_at: new Date().toISOString(),

@@ -47,27 +47,15 @@ export async function GET(req: Request) {
     
     const supabase = await createClient();
     
-    // Fetch team information
-    const { data: team, error: teamError } = await supabase
+    // First, check if team exists
+    const { data: teamCheck, error: teamCheckError } = await supabase
       .from('booking_teams')
-      .select(`
-        id,
-        team_name,
-        supervisor_id,
-        cleaners!booking_team_members(
-          cleaner_id,
-          earnings,
-          cleaners!inner(
-            id,
-            name
-          )
-        )
-      `)
+      .select('id, team_name, supervisor_id')
       .eq('booking_id', bookingId)
-      .single() as { data: TeamData | null; error: any };
+      .single();
     
-    if (teamError) {
-      if (teamError.code === 'PGRST116') {
+    if (teamCheckError) {
+      if (teamCheckError.code === 'PGRST116') {
         // No team found
         return NextResponse.json({
           ok: true,
@@ -75,10 +63,10 @@ export async function GET(req: Request) {
           message: 'No team assigned yet'
         });
       }
-      throw teamError;
+      throw teamCheckError;
     }
 
-    if (!team) {
+    if (!teamCheck) {
       return NextResponse.json({
         ok: true,
         team: null,
@@ -86,11 +74,41 @@ export async function GET(req: Request) {
       });
     }
 
+    // Now fetch team members separately
+    const { data: teamMembers, error: membersError } = await supabase
+      .from('booking_team_members')
+      .select(`
+        cleaner_id,
+        earnings,
+        cleaners (
+          id,
+          name
+        )
+      `)
+      .eq('booking_team_id', teamCheck.id);
+
+    if (membersError) {
+      console.error('Error fetching team members:', membersError);
+      throw membersError;
+    }
+
+    // Format the team members data
+    const formattedMembers = (teamMembers || []).map((member: any) => ({
+      cleaner_id: member.cleaner_id,
+      earnings: member.earnings || 25000,
+      cleaners: member.cleaners ? {
+        id: member.cleaners.id,
+        name: member.cleaners.name
+      } : null
+    }));
+
+    console.log(`Found team: ${teamCheck.team_name} with ${formattedMembers.length} members`);
+
     // Find supervisor name
     let supervisorName = 'Not assigned';
-    if (team.supervisor_id && team.cleaners) {
-      const supervisor = team.cleaners.find((member: TeamMember) => 
-        member.cleaner_id === team.supervisor_id
+    if (teamCheck.supervisor_id && formattedMembers.length > 0) {
+      const supervisor = formattedMembers.find((member: any) => 
+        member.cleaner_id === teamCheck.supervisor_id
       );
       if (supervisor && supervisor.cleaners) {
         supervisorName = supervisor.cleaners.name;
@@ -98,14 +116,17 @@ export async function GET(req: Request) {
     }
 
     // Format team members
-    const members = team.cleaners.map((member: TeamMember) => ({
-      name: member.cleaners.name,
-      earnings: member.earnings,
-      isSupervisor: member.cleaner_id === team.supervisor_id
+    const members = formattedMembers.map((member: any) => ({
+      cleanerId: member.cleaner_id,
+      name: member.cleaners?.name || 'Unknown',
+      earnings: member.earnings || 25000,
+      isSupervisor: member.cleaner_id === teamCheck.supervisor_id
     }));
 
+    console.log(`Formatted ${members.length} team members`);
+
     const teamInfo = {
-      teamName: team.team_name,
+      teamName: teamCheck.team_name,
       supervisor: supervisorName,
       members,
       totalEarnings: members.reduce((sum: number, member: any) => sum + member.earnings, 0)
