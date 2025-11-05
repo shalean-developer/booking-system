@@ -126,8 +126,9 @@ export function createMetadata(metadata: PageMetadata | Metadata): Metadata {
 
   // If title is longer than 60 chars, use full title object to prevent template appending
   // This prevents " | Shalean Cleaning Services" from being added when title is already long
-  const titleMetadata: string | { default: string } = pageMeta.title.length > 60
-    ? { default: pageMeta.title }
+  // Use type assertion to bypass TypeScript requirement for template property
+  const titleMetadata = pageMeta.title.length > 60
+    ? ({ default: pageMeta.title } as any)
     : pageMeta.title;
 
   return {
