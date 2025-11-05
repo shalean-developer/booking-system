@@ -26,6 +26,21 @@ const nextConfig = {
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
+  // Permanent redirects (301) for SEO
+  async redirects() {
+    return [
+      {
+        source: '/blog/shalean.co.za',
+        destination: '/',
+        permanent: true,
+      },
+      {
+        source: '/blog/shalean.co.za/booking/service/select',
+        destination: '/booking/service/select',
+        permanent: true,
+      },
+    ];
+  },
 }
 
 module.exports = nextConfig
