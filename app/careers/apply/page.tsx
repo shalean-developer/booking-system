@@ -28,6 +28,8 @@ function ApplyFormContent() {
     email: '',
     phone: '',
     position: positionFromUrl || '',
+    location: '',
+    locationDetails: '',
     coverLetter: '',
     workExperience: '',
     certifications: '',
@@ -80,7 +82,7 @@ function ApplyFormContent() {
     try {
       // Validate required fields
       if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || 
-          !formData.position || !formData.coverLetter || !formData.criminalBackgroundConsent) {
+          !formData.position || !formData.location || !formData.locationDetails || !formData.coverLetter || !formData.criminalBackgroundConsent) {
         setSubmitError('Please fill in all required fields and provide consent for background check.');
         setIsSubmitting(false);
         return;
@@ -103,9 +105,17 @@ function ApplyFormContent() {
         });
       const languagesString = languagesArray.join(', ');
 
+      // Format location
+      const locationString = formData.location === 'Other' 
+        ? formData.locationDetails 
+        : formData.locationDetails 
+          ? `${formData.location}, ${formData.locationDetails}`
+          : formData.location;
+
       // Prepare submission data
       const submissionData = {
         ...formData,
+        location: locationString,
         availability: availabilityString,
         languagesSpoken: languagesString,
       };
@@ -298,6 +308,40 @@ function ApplyFormContent() {
                         onChange={handleInputChange}
                         required 
                         placeholder="+27 XX XXX XXXX"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-6 mt-6">
+                    <div>
+                      <Label htmlFor="location">Location/City <span className="text-red-500">*</span></Label>
+                      <select
+                        id="location"
+                        name="location"
+                        value={formData.location}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      >
+                        <option value="">Select your location</option>
+                        <option value="Cape Town">Cape Town</option>
+                        <option value="Johannesburg">Johannesburg</option>
+                        <option value="Pretoria">Pretoria</option>
+                        <option value="Durban">Durban</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label htmlFor="locationDetails">
+                        Suburb/Area <span className="text-red-500">*</span>
+                      </Label>
+                      <Input 
+                        id="locationDetails"
+                        name="locationDetails"
+                        value={formData.locationDetails}
+                        onChange={handleInputChange}
+                        required
+                        placeholder={formData.location === 'Other' ? 'Please specify your city/location' : 'e.g., Sea Point, Sandton, etc.'}
                       />
                     </div>
                   </div>

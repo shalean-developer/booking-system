@@ -6,7 +6,47 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Search, ChevronLeft, ChevronRight, Repeat } from 'lucide-react';
+import { 
+  Loader2, 
+  Search, 
+  ChevronLeft, 
+  ChevronRight, 
+  Repeat, 
+  Eye, 
+  Plus,
+  MoreVertical,
+  Calendar,
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Clock,
+  Edit,
+  Trash2,
+  Play,
+  Pause
+} from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import { Separator } from '@/components/ui/separator';
+import { CreateBookingDialog } from './create-booking-dialog';
+import { EditRecurringScheduleDialog } from './edit-recurring-schedule-dialog';
+import { GenerateBookingsDialog } from './generate-bookings-dialog';
+import { RecurringScheduleWithCustomer } from '@/types/recurring';
+import { formatBookingTime } from '@/lib/recurring-bookings';
 
 interface Customer {
   id: string;
@@ -29,6 +69,13 @@ export function RecurringCustomersSection() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null);
+  const [customerSchedules, setCustomerSchedules] = useState<RecurringScheduleWithCustomer[]>([]);
+  const [loadingSchedules, setLoadingSchedules] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [editingSchedule, setEditingSchedule] = useState<RecurringScheduleWithCustomer | null>(null);
+  const [generatingSchedule, setGeneratingSchedule] = useState<RecurringScheduleWithCustomer | null>(null);
+  const [deletingSchedule, setDeletingSchedule] = useState<RecurringScheduleWithCustomer | null>(null);
 
   const fetchCustomers = async () => {
     try {
@@ -66,6 +113,79 @@ export function RecurringCustomersSection() {
   const handleSearch = () => {
     setPage(1);
     fetchCustomers();
+  };
+
+  const fetchCustomerSchedules = async (customerId: string) => {
+    try {
+      setLoadingSchedules(true);
+      const response = await fetch(`/api/admin/recurring-schedules?customer_id=${customerId}`, {
+        credentials: 'include',
+      });
+      const data = await response.json();
+
+      if (data.ok) {
+        setCustomerSchedules(data.schedules || []);
+      }
+    } catch (err) {
+      console.error('Error fetching customer schedules:', err);
+    } finally {
+      setLoadingSchedules(false);
+    }
+  };
+
+  const handleViewCustomer = async (customer: Customer) => {
+    setViewingCustomer(customer);
+    await fetchCustomerSchedules(customer.id);
+  };
+
+  const handleToggleScheduleActive = async (schedule: RecurringScheduleWithCustomer) => {
+    try {
+      const response = await fetch('/api/admin/recurring-schedules', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          id: schedule.id,
+          is_active: !schedule.is_active,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.ok && viewingCustomer) {
+        await fetchCustomerSchedules(viewingCustomer.id);
+      }
+    } catch (err) {
+      console.error('Error updating schedule:', err);
+    }
+  };
+
+  const handleDeleteSchedule = async (schedule: RecurringScheduleWithCustomer) => {
+    try {
+      const response = await fetch(`/api/admin/recurring-schedules?id=${schedule.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+      if (data.ok) {
+        setDeletingSchedule(null);
+        if (viewingCustomer) {
+          await fetchCustomerSchedules(viewingCustomer.id);
+        }
+        fetchCustomers(); // Refresh customer list
+      }
+    } catch (err) {
+      console.error('Error deleting schedule:', err);
+    }
+  };
+
+  const getFrequencyBadgeColor = (frequency: string) => {
+    switch (frequency) {
+      case 'weekly': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'bi-weekly': return 'bg-green-100 text-green-800 border-green-200';
+      case 'monthly': return 'bg-purple-100 text-purple-800 border-purple-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
   };
 
   return (
@@ -117,6 +237,7 @@ export function RecurringCustomersSection() {
                       <TableHead>Recurring Schedules</TableHead>
                       <TableHead>Role</TableHead>
                       <TableHead>Joined</TableHead>
+                      <TableHead className="w-12">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -153,6 +274,30 @@ export function RecurringCustomersSection() {
                         <TableCell>
                           {new Date(customer.created_at).toLocaleDateString()}
                         </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleViewCustomer(customer)}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => {
+                                  setViewingCustomer(customer);
+                                  setShowCreateDialog(true);
+                                }}
+                              >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Add Schedule
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -187,6 +332,263 @@ export function RecurringCustomersSection() {
           )}
         </CardContent>
       </Card>
+
+      {/* Customer Details Dialog */}
+      <Dialog open={!!viewingCustomer} onOpenChange={(open) => !open && setViewingCustomer(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Customer Details & Schedules</DialogTitle>
+            <DialogDescription>
+              Manage recurring schedules for {viewingCustomer?.first_name} {viewingCustomer?.last_name}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {viewingCustomer && (
+            <div className="space-y-6">
+              {/* Customer Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Name</p>
+                  <p className="font-semibold">{viewingCustomer.first_name} {viewingCustomer.last_name}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Email</p>
+                  <p className="flex items-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    {viewingCustomer.email}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Phone</p>
+                  <p className="flex items-center gap-2">
+                    <Phone className="h-4 w-4" />
+                    {viewingCustomer.phone || 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Location</p>
+                  <p className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    {viewingCustomer.address_suburb && viewingCustomer.address_city
+                      ? `${viewingCustomer.address_suburb}, ${viewingCustomer.address_city}`
+                      : 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Total Bookings</p>
+                  <Badge variant="outline">{viewingCustomer.total_bookings}</Badge>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Recurring Schedules</p>
+                  <Badge className="bg-primary/10 text-primary border-primary/20">
+                    <Repeat className="h-3 w-3 mr-1" />
+                    {viewingCustomer.recurring_schedules_count || 0}
+                  </Badge>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Schedules Section */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Recurring Schedules</h3>
+                  <Button 
+                    size="sm" 
+                    onClick={() => setShowCreateDialog(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Schedule
+                  </Button>
+                </div>
+
+                {loadingSchedules ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : customerSchedules.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Repeat className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+                    <p>No recurring schedules found</p>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="mt-4"
+                      onClick={() => setShowCreateDialog(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create First Schedule
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {customerSchedules.map((schedule) => (
+                      <Card key={schedule.id} className="border-l-4 border-l-primary">
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge variant="outline">{schedule.service_type}</Badge>
+                                <Badge className={getFrequencyBadgeColor(schedule.frequency)}>
+                                  {schedule.frequency}
+                                </Badge>
+                                <Badge 
+                                  variant={schedule.is_active ? 'default' : 'secondary'}
+                                  className={schedule.is_active ? 'bg-green-100 text-green-800 border-green-200' : ''}
+                                >
+                                  {schedule.is_active ? 'Active' : 'Inactive'}
+                                </Badge>
+                              </div>
+                              <div className="text-sm text-gray-600 space-y-1">
+                                <p className="flex items-center gap-2">
+                                  <Clock className="h-4 w-4" />
+                                  {schedule.frequency === 'monthly' 
+                                    ? `Day ${schedule.day_of_month} at ${formatBookingTime(schedule.preferred_time)}`
+                                    : schedule.frequency === 'weekly'
+                                    ? `Every ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][schedule.day_of_week || 0]} at ${formatBookingTime(schedule.preferred_time)}`
+                                    : `Every other ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][schedule.day_of_week || 0]} at ${formatBookingTime(schedule.preferred_time)}`}
+                                </p>
+                                {schedule.address_line1 && (
+                                  <p className="flex items-center gap-2">
+                                    <MapPin className="h-4 w-4" />
+                                    {schedule.address_line1}, {schedule.address_suburb}, {schedule.address_city}
+                                  </p>
+                                )}
+                                {schedule.last_generated_month && (
+                                  <p className="text-xs text-gray-500">
+                                    Last generated: {schedule.last_generated_month}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => setEditingSchedule(schedule)}>
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setGeneratingSchedule(schedule)}>
+                                  <Calendar className="mr-2 h-4 w-4" />
+                                  Generate Month
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleToggleScheduleActive(schedule)}>
+                                  {schedule.is_active ? (
+                                    <>
+                                      <Pause className="mr-2 h-4 w-4" />
+                                      Pause
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Play className="mr-2 h-4 w-4" />
+                                      Resume
+                                    </>
+                                  )}
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                  onClick={() => setDeletingSchedule(schedule)}
+                                  className="text-red-600"
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewingCustomer(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Schedule Dialog */}
+      <CreateBookingDialog
+        open={showCreateDialog}
+        onClose={() => {
+          setShowCreateDialog(false);
+          if (viewingCustomer) {
+            fetchCustomerSchedules(viewingCustomer.id);
+          }
+        }}
+        onSuccess={() => {
+          fetchCustomers();
+          if (viewingCustomer) {
+            fetchCustomerSchedules(viewingCustomer.id);
+          }
+          setShowCreateDialog(false);
+        }}
+        defaultCustomerId={viewingCustomer?.id}
+      />
+
+      {/* Edit Schedule Dialog */}
+      {editingSchedule && (
+        <EditRecurringScheduleDialog
+          schedule={editingSchedule}
+          open={!!editingSchedule}
+          onClose={() => setEditingSchedule(null)}
+          onSuccess={() => {
+            if (viewingCustomer) {
+              fetchCustomerSchedules(viewingCustomer.id);
+            }
+            fetchCustomers();
+            setEditingSchedule(null);
+          }}
+        />
+      )}
+
+      {/* Generate Bookings Dialog */}
+      {generatingSchedule && (
+        <GenerateBookingsDialog
+          schedule={generatingSchedule}
+          open={!!generatingSchedule}
+          onClose={() => setGeneratingSchedule(null)}
+          onSuccess={() => {
+            if (viewingCustomer) {
+              fetchCustomerSchedules(viewingCustomer.id);
+            }
+            setGeneratingSchedule(null);
+          }}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deletingSchedule} onOpenChange={() => setDeletingSchedule(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Recurring Schedule</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this recurring schedule? This will also cancel all future bookings for this schedule.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeletingSchedule(null)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => deletingSchedule && handleDeleteSchedule(deletingSchedule)}
+            >
+              Delete Schedule
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

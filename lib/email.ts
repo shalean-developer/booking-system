@@ -445,6 +445,7 @@ export interface ApplicationData {
   lastName: string;
   email: string;
   phone: string;
+  location?: string;
   position: string;
   coverLetter: string;
   workExperience?: string;
@@ -495,6 +496,7 @@ export function generateApplicationConfirmationEmail(application: ApplicationDat
           <h3>Application Details</h3>
           <p><strong>Application ID:</strong> ${application.applicationId}</p>
           <p><strong>Position:</strong> ${application.position}</p>
+          ${application.location ? `<p><strong>Location:</strong> ${application.location}</p>` : ''}
           <p><strong>Submitted:</strong> ${new Date().toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
           <p><strong>Your Contact:</strong></p>
           <ul>
@@ -589,6 +591,7 @@ export function generateAdminApplicationNotificationEmail(application: Applicati
           <h3>Application Details</h3>
           <p><strong>Application ID:</strong> ${application.applicationId}</p>
           <p><strong>Position Applied For:</strong> ${application.position}</p>
+          ${application.location ? `<p><strong>Location:</strong> ${application.location}</p>` : ''}
           <p><strong>Submitted:</strong> ${new Date().toLocaleString('en-ZA')}</p>
           
           <div class="info-section">

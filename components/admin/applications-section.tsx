@@ -23,6 +23,7 @@ interface Application {
   last_name: string;
   email: string;
   phone: string;
+  location: string;
   position: string;
   cover_letter: string;
   work_experience: string;
@@ -158,6 +159,7 @@ export function ApplicationsSection() {
                     <TableRow>
                       <TableHead>Applicant</TableHead>
                       <TableHead>Position</TableHead>
+                      <TableHead>Location</TableHead>
                       <TableHead>Contact</TableHead>
                       <TableHead>Applied</TableHead>
                       <TableHead>Status</TableHead>
@@ -171,6 +173,9 @@ export function ApplicationsSection() {
                           {app.first_name} {app.last_name}
                         </TableCell>
                         <TableCell>{app.position}</TableCell>
+                        <TableCell className="text-sm">
+                          {app.location || 'N/A'}
+                        </TableCell>
                         <TableCell>
                           <div className="text-sm">{app.email}</div>
                           <div className="text-sm text-gray-500">{app.phone}</div>
@@ -283,6 +288,12 @@ export function ApplicationsSection() {
                   <p className="text-sm font-medium text-gray-500">Phone</p>
                   <p>{viewingApplication.phone}</p>
                 </div>
+                {viewingApplication.location && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Location</p>
+                    <p>{viewingApplication.location}</p>
+                  </div>
+                )}
               </div>
 
               <Separator />

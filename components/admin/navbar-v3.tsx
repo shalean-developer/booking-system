@@ -99,9 +99,11 @@ export function AdminNavbarV3() {
     { id: 'dashboard', label: 'Dashboard', path: '/admin/dashboard' },
     { id: 'bookings', label: 'Bookings', path: '/admin/bookings' },
     { id: 'customers', label: 'Customers', path: '/admin/customers' },
+    { id: 'recurring', label: 'Recurring', path: '/admin/recurring-customers' },
     { id: 'quotes', label: 'Quotes', path: '/admin/quotes' },
     { id: 'schedule', label: 'Schedule', path: '/admin/schedule' },
     { id: 'cleaners', label: 'Cleaners', path: '/admin/cleaners' },
+    { id: 'applications', label: 'Applications', path: '/admin/applications' },
     { id: 'payments', label: 'Payments', path: '/admin/payments' },
   ];
 
@@ -109,10 +111,12 @@ export function AdminNavbarV3() {
   const getActiveTab = () => {
     if (pathname?.includes('/dashboard')) return 'dashboard';
     if (pathname?.includes('/bookings')) return 'bookings';
+    if (pathname?.includes('/recurring-customers')) return 'recurring';
     if (pathname?.includes('/customers')) return 'customers';
     if (pathname?.includes('/quotes')) return 'quotes';
     if (pathname?.includes('/schedule')) return 'schedule';
     if (pathname?.includes('/cleaners')) return 'cleaners';
+    if (pathname?.includes('/applications')) return 'applications';
     if (pathname?.includes('/payments')) return 'payments';
     return 'dashboard';
   };

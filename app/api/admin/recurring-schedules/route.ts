@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(url.searchParams.get('limit') || '50');
     const search = url.searchParams.get('search') || '';
     const active = url.searchParams.get('active');
+    const customerId = url.searchParams.get('customer_id');
     
     const offset = (page - 1) * limit;
     
@@ -52,6 +53,10 @@ export async function GET(request: NextRequest) {
       `, { count: 'exact' });
     
     // Apply filters
+    if (customerId) {
+      query = query.eq('customer_id', customerId);
+    }
+    
     if (active !== null) {
       query = query.eq('is_active', active === 'true');
     }

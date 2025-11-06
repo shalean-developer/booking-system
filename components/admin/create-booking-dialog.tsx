@@ -58,9 +58,10 @@ interface CreateBookingDialogProps {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  defaultCustomerId?: string;
 }
 
-export function CreateBookingDialog({ open, onClose, onSuccess }: CreateBookingDialogProps) {
+export function CreateBookingDialog({ open, onClose, onSuccess, defaultCustomerId }: CreateBookingDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -102,6 +103,23 @@ export function CreateBookingDialog({ open, onClose, onSuccess }: CreateBookingD
       loadCleaners();
     }
   }, [open]);
+
+  // Set default customer when defaultCustomerId is provided
+  useEffect(() => {
+    if (defaultCustomerId && customers.length > 0 && open) {
+      const customer = customers.find(c => c.id === defaultCustomerId);
+      if (customer && !selectedCustomer) {
+        setSelectedCustomer(customer);
+        setFormData(prev => ({
+          ...prev,
+          customer_id: customer.id,
+          address_line1: customer.address_line1 || '',
+          address_suburb: customer.address_suburb || '',
+          address_city: customer.address_city || '',
+        }));
+      }
+    }
+  }, [defaultCustomerId, customers, open, selectedCustomer]);
 
   const loadCustomers = async () => {
     try {

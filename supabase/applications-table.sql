@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS applications (
   last_name TEXT NOT NULL,
   email TEXT NOT NULL,
   phone TEXT NOT NULL,
+  location TEXT,                         -- Cleaner location/city
   
   -- Position & Application Details
   position TEXT NOT NULL,                    -- Role applying for
@@ -43,6 +44,7 @@ CREATE TABLE IF NOT EXISTS applications (
 CREATE INDEX IF NOT EXISTS idx_applications_email ON applications(email);
 CREATE INDEX IF NOT EXISTS idx_applications_position ON applications(position);
 CREATE INDEX IF NOT EXISTS idx_applications_status ON applications(status);
+CREATE INDEX IF NOT EXISTS idx_applications_location ON applications(location);
 CREATE INDEX IF NOT EXISTS idx_applications_created_at ON applications(created_at DESC);
 
 -- Enable Row Level Security
