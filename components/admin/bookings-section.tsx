@@ -1263,7 +1263,7 @@ export function BookingsSection() {
                   };
                 });
                 
-                const extrasTotal = extrasBreakdown.reduce((sum, e) => sum + e.price, 0);
+                const extrasTotal = extrasBreakdown.reduce((sum: number, e: { name: string; price: number }) => sum + e.price, 0);
                 const basePrice = viewingBooking.total_amount ? viewingBooking.total_amount / 100 : 0;
                 const serviceFeeInRands = viewingBooking.service_fee ? viewingBooking.service_fee / 100 : 0;
                 serviceBasePrice = Math.max(0, basePrice - extrasTotal - serviceFeeInRands);
