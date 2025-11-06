@@ -36,6 +36,9 @@ export function ServiceSelectContent() {
     <div className="min-h-screen bg-slate-50 pb-20">
       <div className="py-6 lg:py-10">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          {/* Page Heading */}
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 text-center">Book a Cleaning Service Online</h1>
+          
           {/* Main Content Grid */}
           <div className="grid grid-cols-12 gap-6 pb-24 lg:pb-8">
             {/* Main Column - Service Selection (Full width on step 1) */}
