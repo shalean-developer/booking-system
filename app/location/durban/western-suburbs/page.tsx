@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "Western Suburbs Cleaning Services | Shalean Professional Cleaning Services — Expert Home and Apartment Cleaning Services in Durban's Western Suburbs Including Westville, Hillcrest, Kloof, Pinetown, and Queensburgh",
+  title: "Western Suburbs Cleaning Services | Shalean",
   description: "Professional cleaning services in Durban's Western Suburbs including Westville, Hillcrest, Kloof, Pinetown, and Queensburgh. Book today! Expert cleaners available for regular maintenance, deep cleaning, move-in/out, and Airbnb turnover services.",
   canonical: generateCanonical("/location/durban/western-suburbs"),
   ogImage: {

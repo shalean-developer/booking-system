@@ -4,8 +4,8 @@ import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "Regular Cleaning Services | Shalean Professional Regular Home Cleaning Services — Weekly and Bi-Weekly Maintenance Cleaning Services to Keep Your Space Fresh and Organized with Expert Cleaners and Eco-Friendly Products",
-  description: "Professional regular home cleaning services. Weekly and bi-weekly maintenance cleaning to keep your space fresh and organized. Book today! Expert cleaners available with flexible scheduling and satisfaction guarantee.",
+  title: "Regular Cleaning Services | Shalean",
+  description: "Professional regular home cleaning services. Weekly and bi-weekly maintenance cleaning to keep your space fresh and organized. Expert cleaners available with flexible scheduling and satisfaction guarantee.",
   canonical: generateCanonical("/services/regular-cleaning"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/services-regular-cleaning-1200x630.jpg",

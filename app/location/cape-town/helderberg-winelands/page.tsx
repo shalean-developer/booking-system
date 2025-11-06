@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "Helderberg & Winelands Cleaning Services | Shalean Professional Cleaning Services — Expert Home and Apartment Cleaning Services in Cape Town's Helderberg and Winelands Areas Including Somerset West, Strand, and Stellenbosch",
+  title: "Helderberg & Winelands Cleaning Services | Shalean",
   description: "Professional cleaning services in Cape Town's Helderberg and Winelands areas including Somerset West, Strand, and Stellenbosch. Book your trusted cleaner today! Expert cleaners available for regular maintenance, deep cleaning, move-in/out, and Airbnb turnover services.",
   canonical: generateCanonical("/location/cape-town/helderberg-winelands"),
   ogImage: {

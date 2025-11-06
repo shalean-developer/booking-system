@@ -18,7 +18,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   metadataBase: new URL('https://shalean.co.za'),
   title: {
-    default: "Shalean Cleaning Services — Professional Home Cleaning | Expert Cleaning Services in Cape Town, Johannesburg, Pretoria, and Durban Offering Deep Cleaning, Regular Maintenance, Move-In Cleaning, and Airbnb Turnover Services",
+    default: "Shalean Cleaning Services — Professional Home Cleaning",
     template: "%s | Shalean Cleaning Services"
   },
   description: "Reliable home & apartment cleaning in Cape Town, Johannesburg, Pretoria, and Durban. Book deep cleans, move-outs, and regular cleaning with Shalean. Professional cleaners, eco-friendly products, satisfaction guaranteed.",
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     locale: "en_ZA",
     url: "https://shalean.co.za",
     siteName: "Shalean Cleaning Services",
-    title: "Shalean Cleaning Services — Professional Home Cleaning | Expert Cleaning Services in Cape Town, Johannesburg, Pretoria, and Durban Offering Deep Cleaning, Regular Maintenance, Move-In Cleaning, and Airbnb Turnover Services",
+    title: "Shalean Cleaning Services — Professional Home Cleaning",
     description: "Reliable home & apartment cleaning in Cape Town, Johannesburg, Pretoria, and Durban. Book deep cleans, move-outs, and regular cleaning with Shalean. Professional cleaners, eco-friendly products, satisfaction guaranteed.",
     images: [
       {
@@ -64,7 +64,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Shalean Cleaning Services — Professional Home Cleaning | Expert Cleaning Services in Cape Town, Johannesburg, Pretoria, and Durban Offering Deep Cleaning, Regular Maintenance, Move-In Cleaning, and Airbnb Turnover Services",
+    title: "Shalean Cleaning Services — Professional Home Cleaning",
     description: "Reliable home & apartment cleaning in Cape Town, Johannesburg, Pretoria, and Durban. Book deep cleans, move-outs, and regular cleaning with Shalean. Professional cleaners, eco-friendly products, satisfaction guaranteed.",
     images: ["https://shalean.co.za/assets/og/home-1200x630.jpg"]
   },

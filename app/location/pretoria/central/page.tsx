@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "Central Pretoria Cleaning Services | Shalean Professional Cleaning Services — Expert Home and Apartment Cleaning Services in Central Pretoria Including Centurion, Pretoria CBD, Arcadia, Sunnyside, and Hatfield",
+  title: "Central Pretoria Cleaning Services | Shalean",
   description: "Professional cleaning services in Central Pretoria including Centurion, Pretoria CBD, Arcadia, Sunnyside, and Hatfield. Book today! Expert cleaners available for regular maintenance, deep cleaning, move-in/out, and Airbnb turnover services.",
   canonical: generateCanonical("/location/pretoria/central"),
   ogImage: {

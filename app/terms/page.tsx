@@ -7,7 +7,7 @@ import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "Terms & Conditions | Shalean Cleaning Services — Read Our Terms and Conditions for Using Shalean Cleaning Services, Learn About Our Policies, Service Agreements, Customer Responsibilities, Cancellation Policies, and Liability",
+  title: "Terms & Conditions | Shalean Cleaning Services",
   description: "Read our terms and conditions for using Shalean cleaning services. Learn about our policies, service agreements, customer responsibilities, cancellation policies, liability, and refund procedures.",
   canonical: generateCanonical("/terms"),
 });

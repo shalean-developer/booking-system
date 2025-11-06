@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "Southern Suburbs Cleaning Services | Shalean Professional Cleaning Services — Expert Home and Apartment Cleaning Services in Pretoria's Southern Suburbs Including Groenkloof, Erasmuskloof, Elarduspark, and Irene",
+  title: "Southern Suburbs Cleaning Services | Shalean",
   description: "Professional cleaning services in Pretoria's Southern Suburbs including Groenkloof, Erasmuskloof, Elarduspark, and Irene. Book today! Expert cleaners available for regular maintenance, deep cleaning, move-in/out, and Airbnb turnover services.",
   canonical: generateCanonical("/location/pretoria/southern-suburbs"),
   ogImage: {

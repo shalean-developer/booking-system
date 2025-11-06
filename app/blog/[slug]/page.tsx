@@ -29,25 +29,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!post) {
     return {
-      title: 'Post Not Found | Shalean Blog — Expert Cleaning Tips, Industry Insights, and Practical Guides from Professional Cleaners to Help You Maintain a Spotless Home and Office Space',
+      title: 'Post Not Found | Shalean Blog',
       description: 'The requested blog post could not be found. Browse our other expert cleaning tips, industry insights, and practical guides from professional cleaners.',
     };
   }
 
   // Create blog post metadata
-  // Ensure title is within SEO limits (120-170 characters)
+  // Ensure title is within SEO limits (15-70 characters)
   let pageTitle = post.meta_title || post.title || 'Blog Post';
-  if (pageTitle.length > 170) {
-    // Truncate to 167 chars and add ellipsis if needed
-    pageTitle = pageTitle.substring(0, 167).trim() + '...';
-  } else if (pageTitle.length < 120 && !post.meta_title) {
+  if (pageTitle.length > 70) {
+    // Truncate to 67 chars and add ellipsis if needed
+    pageTitle = pageTitle.substring(0, 67).trim() + '...';
+  } else if (pageTitle.length < 15 && !post.meta_title) {
     // If using fallback title and it's too short, expand it
-    const expandedTitle = `${post.title} | Shalean Blog — Expert Cleaning Tips, Industry Insights, and Practical Guides from Professional Cleaners`;
-    if (expandedTitle.length <= 170) {
+    const expandedTitle = `${post.title} | Shalean Blog`;
+    if (expandedTitle.length <= 70) {
       pageTitle = expandedTitle;
     } else {
       // If expanded is too long, use original but ensure minimum length
-      pageTitle = post.title.length < 120 ? `${post.title} | Shalean Blog — Expert Cleaning Tips and Professional Cleaning Services` : post.title;
+      pageTitle = post.title.length < 15 ? `${post.title} | Shalean` : post.title;
     }
   }
 

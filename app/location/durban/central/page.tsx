@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "Central Durban Cleaning Services | Shalean Professional Cleaning Services — Expert Home and Apartment Cleaning Services in Central Durban Including Morningside, Berea, Musgrave, Greyville, and Windermere",
+  title: "Central Durban Cleaning Services | Shalean",
   description: "Professional cleaning services in Central Durban including Morningside, Berea, Musgrave, Greyville, and Windermere. Book today! Expert cleaners available for regular maintenance, deep cleaning, move-in/out, and Airbnb turnover services.",
   canonical: generateCanonical("/location/durban/central"),
   ogImage: {

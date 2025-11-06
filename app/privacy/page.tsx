@@ -7,7 +7,7 @@ import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "Privacy Policy | Shalean Cleaning Services — Learn How Shalean Protects Your Privacy and Handles Your Personal Data. POPIA Compliant Data Protection Practices, Data Collection, Usage, and Security",
+  title: "Privacy Policy | Shalean Cleaning Services",
   description: "Learn how Shalean protects your privacy and handles your personal data. POPIA compliant data protection practices, data collection, usage, security measures, and your rights regarding personal information.",
   canonical: generateCanonical("/privacy"),
 });

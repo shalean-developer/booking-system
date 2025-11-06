@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "Atlantic Seaboard Cleaning Services | Shalean Professional Cleaning Services — Expert Home and Apartment Cleaning Services Across the Atlantic Seaboard Including Camps Bay, Sea Point, Green Point, Clifton, Bantry Bay, and Fresnaye",
-  description: "Professional cleaning services across the Atlantic Seaboard including Camps Bay, Sea Point, Green Point, Clifton, Bantry Bay, and Fresnaye. Book your trusted cleaner today! Expert cleaners available for regular maintenance, deep cleaning, move-in/out, and Airbnb turnover services.",
+  title: "Atlantic Seaboard Cleaning Services | Shalean",
+  description: "Professional cleaning services across the Atlantic Seaboard including Camps Bay, Sea Point, Green Point, Clifton, Bantry Bay, and Fresnaye. Expert cleaners available for regular maintenance, deep cleaning, move-in/out, and Airbnb turnover services.",
   canonical: generateCanonical("/location/cape-town/atlantic-seaboard"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/location-atlantic-seaboard-1200x630.jpg",

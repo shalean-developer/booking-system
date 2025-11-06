@@ -16,7 +16,7 @@ import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "Cape Town Cleaning Services | Shalean Professional Cleaning Services Throughout Cape Town — Expert Home and Apartment Cleaning Services Across All Cape Town Suburbs Including Atlantic Seaboard, City Bowl, Southern Suburbs, Northern Suburbs, and More",
+  title: "Cape Town Cleaning Services | Shalean",
   description: "Professional cleaning services across all Cape Town suburbs. Book your cleaner today! Expert cleaners available for regular maintenance, deep cleaning, move-in/out, and Airbnb turnover services throughout Cape Town.",
   canonical: generateCanonical("/location/cape-town"),
 });

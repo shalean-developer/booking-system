@@ -4,7 +4,7 @@ import { generateOgImageUrl, generateCanonical } from "./metadata";
 export const SEO_CONFIG = {
   // Home page
   home: {
-    title: "House Cleaning Services in Cape Town | Shalean Cleaning Services — Professional Home Cleaning Experts Offering Deep Cleaning, Regular Maintenance, Move-In Cleaning, and Airbnb Turnover Services",
+    title: "House Cleaning Services in Cape Town | Shalean",
     description: "Professional cleaning services in Cape Town with Shalean. Expert house cleaners offering deep cleaning, regular maintenance, and move-in cleaning services. Book today!",
     canonical: generateCanonical("/"),
     ogImage: {
@@ -15,7 +15,7 @@ export const SEO_CONFIG = {
 
   // Services pages
   services: {
-    title: "Home Cleaning Services — Deep, Standard & Airbnb Cleaning | Shalean Professional Cleaning Services Offering Comprehensive Solutions for Every Cleaning Need Including Regular Maintenance, Deep Cleaning, Move-In/Out, and Specialty Services",
+    title: "Home Cleaning Services — Deep, Standard & Airbnb",
     description: "Explore Shalean's cleaning services: deep clean, standard clean, Airbnb turnaround, and move-in/out cleaning. Book online today.",
     canonical: generateCanonical("/services"),
     ogImage: {
@@ -25,7 +25,7 @@ export const SEO_CONFIG = {
   },
 
   "deep-specialty": {
-    title: "Deep Cleaning Services in Cape Town | Shalean Professional Deep Cleaning Experts Offering Thorough Kitchen, Bathroom, Carpet, and Upholstery Cleaning Services with Satisfaction Guaranteed",
+    title: "Deep Cleaning Services in Cape Town | Shalean",
     description: "Book professional deep cleaning in Cape Town. Thorough cleaning of kitchens, bathrooms, carpets, and upholstery. Satisfaction guaranteed.",
     canonical: generateCanonical("/services/deep-specialty"),
     ogImage: {
@@ -35,7 +35,7 @@ export const SEO_CONFIG = {
   },
 
   "home-maintenance": {
-    title: "Home Maintenance Cleaning | Regular Cleaning Services | Shalean Professional Home Maintenance Cleaning Experts Offering Ongoing Maintenance, Seasonal Cleaning, and Regular Cleaning Services to Keep Your Home Spotless Year-Round",
+    title: "Home Maintenance Cleaning | Regular Cleaning Services",
     description: "Professional home maintenance cleaning services. Keep your home spotless with regular cleaning from Shalean's expert team. Ongoing maintenance and seasonal cleaning available.",
     canonical: generateCanonical("/services/home-maintenance"),
     ogImage: {
@@ -45,8 +45,8 @@ export const SEO_CONFIG = {
   },
 
   "move-turnover": {
-    title: "Move In/Out & Airbnb Cleaning Services | Shalean Professional Move-In/Out and Airbnb Turnover Cleaning Experts Offering Complete Property Cleaning Services to Ensure Your Space is Guest-Ready and Move-In Ready",
-    description: "Professional move-in/out cleaning and Airbnb turnover services. Ensure your property is guest-ready with Shalean's expert team.",
+    title: "Move In/Out & Airbnb Cleaning Services | Shalean",
+    description: "Professional move-in/out cleaning and Airbnb turnover services. Ensure your property is guest-ready with Shalean's expert team. Book same-day service with flexible scheduling and satisfaction guarantee.",
     canonical: generateCanonical("/services/move-turnover"),
     ogImage: {
       url: generateOgImageUrl("move-turnover"),
@@ -56,8 +56,8 @@ export const SEO_CONFIG = {
 
   // Blog pages
   blog: {
-    title: "Cleaning Tips & Guides | Shalean Blog — Expert Cleaning Tips, Industry Insights, and Practical Guides from Professional Cleaners to Help You Maintain a Spotless Home and Office Space",
-    description: "Expert cleaning tips, industry insights, and practical guides from professional cleaners. Learn how to maintain a spotless space.",
+    title: "Cleaning Tips & Guides | Shalean Blog",
+    description: "Expert cleaning tips, industry insights, and practical guides from professional cleaners. Learn how to maintain a spotless space with our comprehensive cleaning resources and expert advice.",
     canonical: generateCanonical("/blog"),
     ogImage: {
       url: generateOgImageUrl("blog-default"),
@@ -66,8 +66,8 @@ export const SEO_CONFIG = {
   },
 
   "booking-select": {
-    title: "Book a Cleaning Service Online | Shalean Online Booking Platform — Book a Trusted Cleaner Online for Deep Clean, Regular Service, or Airbnb Turnovers Across Cape Town, Johannesburg, Pretoria, and Durban with Instant Quotes",
-    description: "Book a trusted cleaner online for a deep clean, regular service, or Airbnb turnovers across Cape Town. Get an instant quote.",
+    title: "Book a Cleaning Service Online",
+    description: "Book a trusted cleaner online for a deep clean, regular service, or Airbnb turnovers across Cape Town. Get an instant quote with transparent pricing and flexible scheduling options.",
     canonical: generateCanonical("/booking/service/select"),
     ogImage: {
       url: generateOgImageUrl("booking"),
@@ -76,7 +76,7 @@ export const SEO_CONFIG = {
   },
 
   "booking-quote": {
-    title: "Cleaning Quote & Pricing | Shalean Transparent Pricing — Get an Instant Quote for Professional Cleaning Services with Transparent Pricing for Deep Clean, Regular Cleaning, Move-In/Out, and Specialty Services",
+    title: "Cleaning Quote & Pricing | Shalean",
     description: "Get an instant quote for professional cleaning services. Transparent pricing for deep clean, regular cleaning, and specialty services.",
     canonical: generateCanonical("/booking/quote"),
     ogImage: {
@@ -87,8 +87,8 @@ export const SEO_CONFIG = {
 
   // Other key pages
   contact: {
-    title: "Contact Shalean Cleaning Services — Cape Town Cleaners | Get in Touch with Shalean Professional Cleaning Services for Quotes, Job Inquiries, Customer Support, and Service Questions. Call +27 87 153 5250 or Visit Our Claremont Office",
-    description: "Questions? Contact Shalean Cleaning Services for quotes, jobs, and support. Call +27 87 153 5250 or visit our Claremont office.",
+    title: "Contact Shalean Cleaning Services — Cape Town Cleaners",
+    description: "Questions? Contact Shalean Cleaning Services for quotes, jobs, and support. Call +27 87 153 5250 or visit our Claremont office. We're here to help with all your cleaning service needs.",
     canonical: generateCanonical("/contact"),
     ogImage: {
       url: generateOgImageUrl("contact"),
@@ -97,7 +97,7 @@ export const SEO_CONFIG = {
   },
 
   about: {
-    title: "About Shalean — Professional Cleaners | Learn About Shalean's Mission to Provide Exceptional Cleaning Services, Meet Our Team of Professional Cleaners Serving Cape Town, Johannesburg, Pretoria, and Durban, and Discover Our Commitment to Quality",
+    title: "About Shalean — Professional Cleaners",
     description: "Learn about Shalean's mission to provide exceptional cleaning services. Meet our team of professional cleaners serving Cape Town, Johannesburg, Pretoria, and Durban.",
     canonical: generateCanonical("/about"),
     ogImage: {
@@ -107,7 +107,7 @@ export const SEO_CONFIG = {
   },
 
   careers: {
-    title: "Careers at Shalean — Join Our Cleaning Team | Join Shalean's Growing Team of Professional Cleaners with Competitive Pay, Flexible Schedules, Career Growth Opportunities, and a Supportive Work Environment in Cape Town and Beyond",
+    title: "Careers at Shalean — Join Our Cleaning Team",
     description: "Join Shalean's growing team of professional cleaners. Competitive pay, flexible schedules, and career growth opportunities. Apply today for positions in Cape Town and beyond.",
     canonical: generateCanonical("/careers"),
     ogImage: {
@@ -117,7 +117,7 @@ export const SEO_CONFIG = {
   },
 
   team: {
-    title: "Meet Our Cleaning Team — Shalean Experts | Meet Shalean's Expert Cleaning Team of Professional Cleaners with Years of Experience Serving Cape Town, Johannesburg, Pretoria, and Durban Homes and Businesses",
+    title: "Meet Our Cleaning Team — Shalean Experts",
     description: "Meet Shalean's expert cleaning team. Professional cleaners with years of experience serving Cape Town, Johannesburg, Pretoria, and Durban homes and businesses.",
     canonical: generateCanonical("/team"),
     ogImage: {
@@ -127,7 +127,7 @@ export const SEO_CONFIG = {
   },
 
   "how-it-works": {
-    title: "How Shalean Works — Simple Booking Process | Learn How Easy It Is to Book Professional Cleaning Services with Shalean Through Our Simple Online Booking System, Expert Cleaners, and Guaranteed Satisfaction Process",
+    title: "How Shalean Works — Simple Booking Process",
     description: "Learn how easy it is to book professional cleaning services with Shalean. Simple online booking, expert cleaners, guaranteed satisfaction.",
     canonical: generateCanonical("/how-it-works"),
     ogImage: {
@@ -138,7 +138,7 @@ export const SEO_CONFIG = {
 
   // Location pages
   location: {
-    title: "Service Areas | Shalean Cleaning Services — Professional Cleaning Services Across South Africa Serving Cape Town, Johannesburg, Pretoria, and Durban. Check if We Service Your Area and Get a Free Quote Today",
+    title: "Service Areas | Shalean Cleaning Services",
     description: "Professional cleaning services across South Africa. We serve Cape Town, Johannesburg, Pretoria, and Durban. Check if we service your area and get a free quote.",
     canonical: generateCanonical("/location"),
     ogImage: {
@@ -148,7 +148,7 @@ export const SEO_CONFIG = {
   },
 
   "location-cape-town": {
-    title: "Cape Town Cleaning Services | Shalean Professional Cleaning Services Throughout Cape Town — From Sea Point to Stellenbosch, Shalean Serves All Cape Town Areas Including Atlantic Seaboard, City Bowl, Southern Suburbs, and More",
+    title: "Cape Town Cleaning Services | Shalean",
     description: "Professional cleaning services throughout Cape Town. From Sea Point to Stellenbosch, Shalean serves all Cape Town areas including Atlantic Seaboard, City Bowl, and Southern Suburbs.",
     canonical: generateCanonical("/location/cape-town"),
     ogImage: {

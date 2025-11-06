@@ -15,7 +15,7 @@ import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "Frequently Asked Questions | Shalean Cleaning Services — Find Answers to Common Questions About Shalean Cleaning Services, Learn About Our Services, Pricing, Scheduling, Booking Process, and More",
+  title: "Frequently Asked Questions | Shalean Cleaning Services",
   description: "Find answers to common questions about Shalean cleaning services. Learn about our services, pricing, scheduling, booking process, service areas, cleaning products, and satisfaction guarantee.",
   canonical: generateCanonical("/faq"),
   ogImage: {

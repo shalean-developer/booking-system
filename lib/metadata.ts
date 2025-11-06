@@ -8,8 +8,8 @@ export const OG_IMAGE_WIDTH = 1200;
 export const OG_IMAGE_HEIGHT = 630;
 
 // Validation limits
-export const TITLE_MAX_LENGTH = 170; // User requirement: 120-170 characters
-export const DESCRIPTION_MAX_LENGTH = 170; // User requirement: 120-170 characters
+export const TITLE_MAX_LENGTH = 70; // SEO best practice: 15-70 characters
+export const DESCRIPTION_MAX_LENGTH = 170; // SEO best practice: 120-170 characters
 
 // Default site metadata
 export const DEFAULT_SITE_METADATA = {
@@ -56,8 +56,8 @@ export function validateMetadata(metadata: Partial<PageMetadata> | Metadata): {
     if (titleValue.length > TITLE_MAX_LENGTH) {
       warnings.push(`Title is ${titleValue.length} characters (max: ${TITLE_MAX_LENGTH})`);
       isValid = false;
-    } else if (titleValue.length < 120) {
-      warnings.push(`Title is ${titleValue.length} characters (minimum: 120)`);
+    } else if (titleValue.length < 15) {
+      warnings.push(`Title is ${titleValue.length} characters (minimum: 15)`);
       isValid = false;
     }
   }
@@ -126,12 +126,12 @@ export function createMetadata(metadata: PageMetadata | Metadata): Metadata {
   const pageMeta = metadata as PageMetadata;
   const canonical = pageMeta.canonical || generateCanonical();
 
-  // If title + template would exceed 170 chars, use full title object to prevent template appending
-  // Template adds " | Shalean Cleaning Services" (30 chars), so we check if title > 140
+  // If title + template would exceed 70 chars, use full title object to prevent template appending
+  // Template adds " | Shalean Cleaning Services" (30 chars), so we check if title > 40
   // This prevents " | Shalean Cleaning Services" from being added when title is already long
   // Use type assertion to bypass TypeScript requirement for template property
   const TEMPLATE_SUFFIX_LENGTH = 30; // " | Shalean Cleaning Services"
-  const MAX_TITLE_LENGTH = 170;
+  const MAX_TITLE_LENGTH = 70;
   const titleMetadata = pageMeta.title.length + TEMPLATE_SUFFIX_LENGTH > MAX_TITLE_LENGTH
     ? ({ default: pageMeta.title } as any)
     : pageMeta.title;
@@ -213,15 +213,15 @@ export function createLocationMetadata(
   const slug = suburb.toLowerCase().replace(/\s+/g, '-');
   const path = `/location/${city.toLowerCase().replace(/\s+/g, '-')}/${slug}`;
   
-  // Create optimized title (120-170 chars)
-  const title = `Cleaning Services in ${suburb}, ${city} | Shalean Professional Cleaning Services — Expert Home and Apartment Cleaning Services in ${suburb}, ${city} Offering Deep Cleaning, Regular Maintenance, Move-In/Out Cleaning, and Airbnb Turnover Services Throughout ${area}`;
+  // Create optimized title (15-70 chars)
+  const title = `Cleaning Services in ${suburb} | Shalean`;
   
   // Create optimized description (120-170 chars)
   const serviceTypes = highlights.length > 0 
     ? highlights.slice(0, 3).join(', ').toLowerCase()
     : 'regular, deep, and move-in cleaning';
   
-  const optimizedDescription = `Professional home and apartment cleaning services in ${suburb}, ${city}. Experienced cleaners available for ${serviceTypes}. Book same-day service in ${area}. Trusted local cleaning company with competitive pricing and satisfaction guarantee.`;
+  const optimizedDescription = `Professional home and apartment cleaning services in ${suburb}, ${city}. Experienced cleaners available for ${serviceTypes}. Book same-day service in ${area}. Trusted local cleaning company with competitive pricing.`;
   
   // Use the provided description if it's valid length (120-170 chars), otherwise use optimized
   let finalDescription = description;
@@ -235,7 +235,7 @@ export function createLocationMetadata(
     finalDescription = truncateText(finalDescription, 170);
   } else if (finalDescription.length < 120) {
     // If still too short, expand it
-    finalDescription = `Professional home and apartment cleaning services in ${suburb}, ${city}. Expert cleaners available for ${serviceTypes}. Book same-day service throughout ${area}. Trusted local cleaning company with competitive pricing, eco-friendly products, and satisfaction guarantee.`;
+    finalDescription = `Professional home and apartment cleaning services in ${suburb}, ${city}. Expert cleaners available for ${serviceTypes}. Book same-day service throughout ${area}. Trusted local cleaning company with competitive pricing and satisfaction guarantee.`;
     
     // Trim if over limit
     if (finalDescription.length > 170) {

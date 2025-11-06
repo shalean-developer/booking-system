@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "Inner City Cleaning Services | Shalean Professional Cleaning Services — Expert Home and Apartment Cleaning Services in Johannesburg's Inner City Including Johannesburg CBD, Braamfontein, Parktown, Houghton, and Westcliff",
+  title: "Inner City Cleaning Services | Shalean",
   description: "Professional cleaning services in Johannesburg's Inner City including Johannesburg CBD, Braamfontein, Parktown, Houghton, and Westcliff. Book today! Expert cleaners available for regular maintenance, deep cleaning, move-in/out, and Airbnb turnover services.",
   canonical: generateCanonical("/location/johannesburg/inner-city"),
   ogImage: {

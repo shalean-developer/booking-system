@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "Coastal North Cleaning Services | Shalean Professional Cleaning Services — Expert Home and Apartment Cleaning Services in Durban's Coastal North Including Umhlanga, Ballito, La Lucia, Durban North, and Umdloti",
+  title: "Coastal North Cleaning Services | Shalean",
   description: "Professional cleaning services in Durban's Coastal North including Umhlanga, Ballito, La Lucia, Durban North, and Umdloti. Book today! Expert cleaners available for regular maintenance, deep cleaning, move-in/out, and Airbnb turnover services.",
   canonical: generateCanonical("/location/durban/coastal-north"),
   ogImage: {

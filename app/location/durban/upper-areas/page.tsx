@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "Upper Areas Cleaning Services | Shalean Professional Cleaning Services — Expert Home and Apartment Cleaning Services in Durban's Upper Areas Including Glenwood, Sherwood, and Durban CBD. Office and Home Specialists",
+  title: "Upper Areas Cleaning Services | Shalean",
   description: "Professional cleaning services in Durban's Upper Areas including Glenwood, Sherwood, and Durban CBD. Office and home specialists. Book today! Expert cleaners available for regular maintenance, deep cleaning, move-in/out, and Airbnb turnover services.",
   canonical: generateCanonical("/location/durban/upper-areas"),
   ogImage: {
