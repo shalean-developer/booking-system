@@ -37,20 +37,45 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // Create blog post metadata
   // Ensure title is within SEO limits (15-70 characters)
   let pageTitle = post.meta_title || post.title || 'Blog Post';
-  if (pageTitle.length > 70) {
-    // Truncate to 67 chars and add ellipsis if needed
-    pageTitle = pageTitle.substring(0, 67).trim() + '...';
-  } else if (pageTitle.length < 15 && !post.meta_title) {
-    // If using fallback title and it's too short, expand it
-    const expandedTitle = `${post.title} | Shalean Blog`;
-    if (expandedTitle.length <= 70) {
-      pageTitle = expandedTitle;
-    } else {
-      // If expanded is too long, use original but ensure minimum length
-      pageTitle = post.title.length < 15 ? `${post.title} | Shalean` : post.title;
+  
+  // If using title (not meta_title) and it would exceed 70 with template, create shorter version
+  if (!post.meta_title && post.title) {
+    const TEMPLATE_LENGTH = 30; // " | Shalean Cleaning Services"
+    const MAX_WITH_TEMPLATE = 70;
+    
+    // Check if title would exceed 70 with template
+    if (post.title.length + TEMPLATE_LENGTH > MAX_WITH_TEMPLATE) {
+      // Create shortened version: remove "for Every Home" and add "| Shalean"
+      // "10 Essential Deep Cleaning Tips for Every Home" -> "10 Essential Deep Cleaning Tips | Shalean"
+      const shortened = post.title.replace(/\s+for\s+.*$/i, '').trim();
+      if (shortened.length > 0 && shortened.length + 13 <= MAX_WITH_TEMPLATE) { // 13 = " | Shalean"
+        pageTitle = `${shortened} | Shalean`;
+      } else {
+        // Fallback: truncate to fit within 70 chars
+        const maxLength = MAX_WITH_TEMPLATE - TEMPLATE_LENGTH; // 40 chars max to allow template
+        pageTitle = post.title.substring(0, maxLength).trim();
+        // If still too long, use without template
+        if (pageTitle.length > MAX_WITH_TEMPLATE) {
+          pageTitle = post.title.substring(0, MAX_WITH_TEMPLATE - 3).trim() + '...';
+        }
+      }
+    } else if (post.title.length < 15) {
+      // Title is too short, expand it
+      const expandedTitle = `${post.title} | Shalean Blog`;
+      if (expandedTitle.length <= MAX_WITH_TEMPLATE) {
+        pageTitle = expandedTitle;
+      } else {
+        pageTitle = `${post.title} | Shalean`;
+      }
     }
   }
-  // Note: Titles > 40 chars will not get template appended (handled by createMetadata)
+  
+  // Final validation: ensure title is within 15-70 chars
+  if (pageTitle.length > 70) {
+    pageTitle = pageTitle.substring(0, 67).trim() + '...';
+  } else if (pageTitle.length < 15) {
+    pageTitle = pageTitle.length < 15 ? `${pageTitle} | Shalean` : pageTitle;
+  }
 
   const blogMetadata = {
     title: pageTitle,
