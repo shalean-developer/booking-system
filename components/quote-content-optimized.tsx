@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import type { ServiceType } from '@/types/booking';
@@ -103,9 +102,9 @@ export function QuoteContent() {
 
       {/* Main Content */}
       <div className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-8 py-6 sm:py-8 lg:py-12">
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <div className="opacity-0 animate-[fadeIn_0.5s_ease-in-out_forwards]">
           <QuoteHero />
-        </motion.div>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-8 space-y-6">

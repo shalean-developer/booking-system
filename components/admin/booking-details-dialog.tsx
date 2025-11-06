@@ -58,6 +58,14 @@ interface BookingDetailsDialogProps {
     cleaner_on_my_way_at?: string | null;
     cleaner_started_at?: string | null;
     cleaner_completed_at?: string | null;
+    bedrooms?: number | null;
+    bathrooms?: number | null;
+    price_snapshot?: {
+      service?: {
+        bedrooms?: number | null;
+        bathrooms?: number | null;
+      } | null;
+    } | null;
   } | null;
   open: boolean;
   onClose: () => void;
@@ -202,6 +210,48 @@ export function BookingDetailsDialog({
                 <div>
                   <p className="text-sm text-gray-500">Service Type</p>
                   <p>{booking.service_type}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Bedrooms & Bathrooms</p>
+                  <p>
+                    {(() => {
+                      // Try to get values from booking first, then from price_snapshot.service
+                      let bedrooms = booking.bedrooms ?? null;
+                      let bathrooms = booking.bathrooms ?? null;
+                      
+                      // Fallback to price_snapshot.service if bedrooms/bathrooms are null
+                      if ((bedrooms === null || bedrooms === undefined) && booking.price_snapshot) {
+                        bedrooms = booking.price_snapshot.service?.bedrooms ?? null;
+                      }
+                      if ((bathrooms === null || bathrooms === undefined) && booking.price_snapshot) {
+                        bathrooms = booking.price_snapshot.service?.bathrooms ?? null;
+                      }
+                      
+                      // Handle null/undefined values from database
+                      if (bedrooms === null || bedrooms === undefined) {
+                        if (bathrooms === null || bathrooms === undefined) {
+                          return 'Not specified';
+                        }
+                        return `${bathrooms} Bath${bathrooms !== 1 ? 's' : ''}`;
+                      }
+                      
+                      // bedrooms is set
+                      if (bedrooms === 0) {
+                        // Studio
+                        if (bathrooms === null || bathrooms === undefined) {
+                          return 'Studio';
+                        }
+                        return `Studio & ${bathrooms} Bath${bathrooms !== 1 ? 's' : ''}`;
+                      }
+                      
+                      // bedrooms > 0
+                      const bedroomText = `${bedrooms} Bed${bedrooms !== 1 ? 's' : ''}`;
+                      if (bathrooms === null || bathrooms === undefined) {
+                        return bedroomText;
+                      }
+                      return `${bedroomText} & ${bathrooms} Bath${bathrooms !== 1 ? 's' : ''}`;
+                    })()}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Date & Time</p>

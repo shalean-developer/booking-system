@@ -15,14 +15,14 @@ import {
   Cell,
 } from 'recharts';
 import { format } from 'date-fns';
-// Format currency with $ for this card to match image
+// Format currency with R for South African Rand
 const formatCurrency = (value: number, showDecimals: boolean = true) => {
-  if (isNaN(value) || !isFinite(value)) return showDecimals ? '$0.00' : '$0';
-  const formatted = new Intl.NumberFormat('en-US', {
+  if (isNaN(value) || !isFinite(value)) return showDecimals ? 'R0.00' : 'R0';
+  const formatted = new Intl.NumberFormat('en-ZA', {
     minimumFractionDigits: showDecimals ? 2 : 0,
     maximumFractionDigits: showDecimals ? 2 : 0,
   }).format(value);
-  return `$${formatted}`;
+  return `R${formatted}`;
 };
 
 interface RevenueData {
@@ -70,7 +70,7 @@ export function RevenueCard({
   const canGoLeft = currentIndex > 0;
   const canGoRight = currentIndex + itemsPerPage < chartData.length;
 
-  // Fixed domain as per image: $0 to $2000
+  // Fixed domain: R0 to R2000
   const maxRevenue = 2000;
 
   const CustomTooltip = ({ active, payload, label }: any) => {

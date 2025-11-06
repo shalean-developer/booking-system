@@ -225,7 +225,7 @@ export function AdminSimpleDashboard() {
       <div className="bg-blue-600 text-white px-6 py-3 rounded-lg flex items-center justify-between">
         <div className="flex items-center gap-3">
           <AlertCircle className="h-5 w-5" />
-          <span className="font-medium">New Quote: Standard Cleaning $79.00</span>
+          <span className="font-medium">New Quote: Standard Cleaning R79.00</span>
         </div>
         <button className="hover:bg-blue-700 p-1 rounded">
           <X className="h-5 w-5" />

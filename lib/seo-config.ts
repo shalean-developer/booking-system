@@ -67,7 +67,7 @@ export const SEO_CONFIG = {
 
   // Booking pages
   "booking-select": {
-    title: "Book a Cleaning Service — Shalean Online Booking",
+    title: "Book a Cleaning Service Online",
     description: "Book a trusted cleaner online for a deep clean, regular service, or Airbnb turnovers across Cape Town. Get an instant quote.",
     canonical: generateCanonical("/booking/service/select"),
     ogImage: {
@@ -77,7 +77,7 @@ export const SEO_CONFIG = {
   },
 
   "booking-quote": {
-    title: "Instant Cleaning Quote & Pricing | Shalean Cleaning Services",
+    title: "Cleaning Quote & Pricing | Shalean",
     description: "Get an instant quote for professional cleaning services. Transparent pricing for deep clean, regular cleaning, and specialty services.",
     canonical: generateCanonical("/booking/quote"),
     ogImage: {

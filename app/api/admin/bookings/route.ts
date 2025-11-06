@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient, isAdmin } from '@/lib/supabase-server';
+import { fetchActivePricing, type PricingData } from '@/lib/pricing-db';
+import { PRICING } from '@/lib/pricing';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +23,51 @@ export async function GET(req: Request) {
         { status: 403 }
       );
     }
+    
+    // Fetch pricing from database (with fallback to PRICING constant)
+    let dbPricing: PricingData;
+    try {
+      dbPricing = await fetchActivePricing();
+      console.log('✅ Using database pricing');
+    } catch (error) {
+      console.warn('⚠️ Failed to fetch pricing from database, using fallback:', error);
+      dbPricing = PRICING as PricingData;
+    }
+    
+    // Helper function to get extra price from database pricing or fallback
+    const getExtraPrice = (extraName: string): number => {
+      const normalizedName = extraName.trim();
+      // Try database pricing first
+      let price = dbPricing.extras[normalizedName] || 0;
+      
+      // Try case-insensitive lookup
+      if (price === 0) {
+        const matchingKey = Object.keys(dbPricing.extras).find(
+          key => key.toLowerCase().trim() === normalizedName.toLowerCase()
+        );
+        if (matchingKey) {
+          price = dbPricing.extras[matchingKey] || 0;
+        }
+      }
+      
+      // Fallback to PRICING constant if still 0
+      if (price === 0) {
+        const extraKey = normalizedName as keyof typeof PRICING.extras;
+        price = PRICING.extras[extraKey] || 0;
+        
+        // Try case-insensitive lookup in fallback
+        if (price === 0) {
+          const matchingKey = Object.keys(PRICING.extras).find(
+            key => key.toLowerCase().trim() === normalizedName.toLowerCase()
+          ) as keyof typeof PRICING.extras | undefined;
+          if (matchingKey) {
+            price = PRICING.extras[matchingKey] || 0;
+          }
+        }
+      }
+      
+      return price;
+    };
     
     // Validate environment variables
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -168,11 +215,26 @@ export async function GET(req: Request) {
         notes_count: notesCount,
         team_assigned: teamAssigned,
         recurring_bookings_count: recurringCount,
+        recurring_schedule_id: booking.recurring_schedule_id ?? null,
         // Ensure all fields are properly formatted
-        // Try to get bedrooms/bathrooms from price_snapshot if they're null in main record
-        bedrooms: booking.bedrooms ?? (booking.price_snapshot?.bedrooms ?? null),
-        bathrooms: booking.bathrooms ?? (booking.price_snapshot?.bathrooms ?? null),
-        extras: booking.extras ?? [],
+        // Try to get bedrooms/bathrooms from price_snapshot.service if they're null in main record
+        bedrooms: booking.bedrooms ?? (booking.price_snapshot?.service?.bedrooms ?? null),
+        bathrooms: booking.bathrooms ?? (booking.price_snapshot?.service?.bathrooms ?? null),
+        // Enhance extras with prices if they're stored as strings
+        extras: (() => {
+          const rawExtras = booking.extras ?? (booking.price_snapshot?.extras ?? []);
+          return rawExtras.map((e: any) => {
+            // If already an object with price, return as-is
+            if (typeof e === 'object' && e !== null && e.name && e.price != null) {
+              return e;
+            }
+            // If it's a string, enrich it with price from database
+            const extraName = typeof e === 'object' && e !== null && e.name ? e.name : String(e);
+            const price = getExtraPrice(extraName);
+            
+            return { name: extraName, price };
+          });
+        })(),
         duration: booking.duration ?? null,
         frequency: booking.frequency ?? null,
         price_snapshot: booking.price_snapshot ?? null,
@@ -192,8 +254,8 @@ export async function GET(req: Request) {
         bedrooms: bookingWithExtras.bedrooms,
         bathrooms: bookingWithExtras.bathrooms,
         has_price_snapshot: !!booking.price_snapshot,
-        price_snapshot_bedrooms: booking.price_snapshot?.bedrooms,
-        price_snapshot_bathrooms: booking.price_snapshot?.bathrooms,
+        price_snapshot_bedrooms: booking.price_snapshot?.service?.bedrooms,
+        price_snapshot_bathrooms: booking.price_snapshot?.service?.bathrooms,
       });
       
       return NextResponse.json({
@@ -442,6 +504,25 @@ export async function GET(req: Request) {
       notes_count: notesCounts[b.id] || 0,
       team_assigned: teamAssignments[b.id] || false,
       recurring_bookings_count: recurringCounts[b.id] || 0,
+      recurring_schedule_id: b.recurring_schedule_id ?? null,
+      // Ensure bedrooms/bathrooms are included with fallback to price_snapshot.service
+      bedrooms: b.bedrooms ?? (b.price_snapshot?.service?.bedrooms ?? null),
+      bathrooms: b.bathrooms ?? (b.price_snapshot?.service?.bathrooms ?? null),
+      // Enhance extras with prices if they're stored as strings
+      extras: (() => {
+        const rawExtras = b.extras ?? (b.price_snapshot?.extras ?? []);
+        return rawExtras.map((e: any) => {
+          // If already an object with price, return as-is
+          if (typeof e === 'object' && e !== null && e.name && e.price != null) {
+            return e;
+          }
+          // If it's a string, enrich it with price from database
+          const extraName = typeof e === 'object' && e !== null && e.name ? e.name : String(e);
+          const price = getExtraPrice(extraName);
+          
+          return { name: extraName, price };
+        });
+      })(),
     }));
     
     console.log(`✅ Fetched ${bookingsArray.length} bookings`);

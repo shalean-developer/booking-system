@@ -27,10 +27,101 @@ export async function GET(req: Request) {
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '50');
     const search = url.searchParams.get('search') || '';
+    const recurring = url.searchParams.get('recurring') === 'true';
     
     const offset = (page - 1) * limit;
     
-    // Build query
+    // If filtering for recurring customers, use a different query approach
+    if (recurring) {
+      // Get distinct customer IDs from recurring_schedules
+      const { data: recurringCustomerIds, error: recurringError } = await supabase
+        .from('recurring_schedules')
+        .select('customer_id')
+        .eq('is_active', true);
+      
+      if (recurringError) throw recurringError;
+      
+      // Extract unique customer IDs
+      const uniqueCustomerIds = [...new Set((recurringCustomerIds || []).map(r => r.customer_id))];
+      
+      if (uniqueCustomerIds.length === 0) {
+        // No recurring customers found
+        return NextResponse.json({
+          ok: true,
+          customers: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+          },
+        });
+      }
+      
+      // Build query for customers with recurring schedules
+      let query = supabase
+        .from('customers')
+        .select(`
+          id,
+          email,
+          phone,
+          first_name,
+          last_name,
+          address_line1,
+          address_suburb,
+          address_city,
+          total_bookings,
+          role,
+          created_at,
+          updated_at
+        `, { count: 'exact' })
+        .in('id', uniqueCustomerIds);
+      
+      // Apply search filter
+      if (search) {
+        query = query.or(`email.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`);
+      }
+      
+      // Apply pagination and sorting
+      const { data: customers, error, count } = await query
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+      
+      if (error) throw error;
+      
+      // Fetch recurring schedule counts for each customer
+      const customerIds = customers?.map(c => c.id) || [];
+      const { data: scheduleCounts } = await supabase
+        .from('recurring_schedules')
+        .select('customer_id, id')
+        .in('customer_id', customerIds);
+      
+      const countsByCustomer: Record<string, number> = {};
+      (scheduleCounts || []).forEach(schedule => {
+        countsByCustomer[schedule.customer_id] = (countsByCustomer[schedule.customer_id] || 0) + 1;
+      });
+      
+      // Add recurring_schedules_count to each customer
+      const customersWithCounts = (customers || []).map(customer => ({
+        ...customer,
+        recurring_schedules_count: countsByCustomer[customer.id] || 0,
+      }));
+      
+      console.log(`✅ Fetched ${customersWithCounts.length} recurring customers`);
+      
+      return NextResponse.json({
+        ok: true,
+        customers: customersWithCounts,
+        pagination: {
+          page,
+          limit,
+          total: count || 0,
+          totalPages: Math.ceil((count || 0) / limit),
+        },
+      });
+    }
+    
+    // Build query for all customers
     let query = supabase
       .from('customers')
       .select(`

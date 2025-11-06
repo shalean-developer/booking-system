@@ -89,7 +89,7 @@ export async function GET(req: Request) {
     // Calculate quotes value
     const todayQuotesValue = todayQuotes.reduce((sum, q) => {
       const price = q.estimated_price || 0;
-      // Convert from cents to dollars if needed
+      // Convert from cents to rands if needed
       return sum + (price > 10000 ? price / 100 : price);
     }, 0);
 

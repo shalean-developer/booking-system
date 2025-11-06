@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   TrendingUp,
+  Repeat,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -35,6 +36,7 @@ const navigation = [
   { name: 'Bookings', href: '/admin/bookings', icon: Calendar },
   { name: 'Cleaners', href: '/admin/cleaners', icon: UserCheck },
   { name: 'Customers', href: '/admin/customers', icon: Users },
+  { name: 'Recurring Customers', href: '/admin/recurring-customers', icon: Repeat },
   { name: 'Services', href: '/admin/services', icon: Briefcase },
   { name: 'Payments', href: '/admin/payments', icon: CreditCard },
   { name: 'Settings', href: '/admin/settings', icon: Settings },

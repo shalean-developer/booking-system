@@ -1105,7 +1105,7 @@ export function AdminDashboardViewV4() {
     return ticks;
   }, [maxCustomerYValue]);
 
-  // Calculate max revenue value for Y-axis scaling (similar to design: $500, $1000, $1500, $2000)
+  // Calculate max revenue value for Y-axis scaling (similar to design: R500, R1000, R1500, R2000)
   const maxRevenueYValue = useMemo(() => {
     if (!revenueChartData || revenueChartData.length === 0) return 2000;
     const maxDailyRevenue = Math.max(...revenueChartData.map(item => item.revenue || 0));
@@ -1115,7 +1115,7 @@ export function AdminDashboardViewV4() {
   }, [revenueChartData]);
 
   const revenueYAxisTicks = useMemo(() => {
-    // Generate ticks at 0, $500, $1000, $1500, $2000 (or scale proportionally)
+    // Generate ticks at 0, R500, R1000, R1500, R2000 (or scale proportionally)
     // Always show 5 ticks: 0, step, 2*step, 3*step, 4*step
     const ticks = [];
     const step = maxRevenueYValue / 4;

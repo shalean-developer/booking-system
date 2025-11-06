@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
@@ -57,7 +57,7 @@ import { format } from 'date-fns';
 import { fetcher } from '@/lib/fetcher';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { cn } from '@/lib/utils';
-import { PRICING } from '@/lib/pricing';
+import { PRICING, getCurrentPricing, type PricingData } from '@/lib/pricing';
 import { EditBookingDialog } from '@/components/admin/edit-booking-dialog';
 import { AssignCleanerDialog } from '@/components/admin/assign-cleaner-dialog';
 import { AssignTeamDialog } from '@/components/admin/assign-team-dialog';
@@ -90,6 +90,7 @@ interface Booking {
   frequency?: string;
   duration?: number;
   recurring_bookings_count?: number;
+  recurring_schedule_id?: string | null;
   bedrooms?: number | null;
   bathrooms?: number | null;
   extras?: string[] | null;
@@ -148,6 +149,100 @@ export function BookingsSection() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [bookingToDelete, setBookingToDelete] = useState<Booking | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [dbPricing, setDbPricing] = useState<PricingData | null>(null);
+  const [upcomingDates, setUpcomingDates] = useState<Array<{ date: string; time: string; display: string }>>([]);
+  const [isLoadingUpcomingDates, setIsLoadingUpcomingDates] = useState(false);
+  const [selectedUpcomingDate, setSelectedUpcomingDate] = useState<string | null>(null);
+
+  // Fetch pricing from database on mount
+  useEffect(() => {
+    getCurrentPricing()
+      .then((pricing) => {
+        setDbPricing(pricing);
+        console.log('✅ Loaded pricing from database:', pricing);
+      })
+      .catch((error) => {
+        console.warn('⚠️ Failed to fetch pricing from database, using fallback:', error);
+        setDbPricing(PRICING as PricingData);
+      });
+  }, []);
+
+  // Create stable dependency values for useEffect
+  const recurringScheduleId = useMemo(() => {
+    return viewingBooking?.recurring_schedule_id || null;
+  }, [viewingBooking?.recurring_schedule_id]);
+  
+  const bookingDate = useMemo(() => {
+    return viewingBooking?.booking_date || null;
+  }, [viewingBooking?.booking_date]);
+
+  // Fetch upcoming dates when viewing a recurring booking
+  useEffect(() => {
+    if (recurringScheduleId) {
+      setIsLoadingUpcomingDates(true);
+      fetch(`/api/admin/recurring-schedules/${recurringScheduleId}/upcoming-dates?limit=12`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.ok && data.dates) {
+            setUpcomingDates(data.dates);
+            // Set selected date to current booking date if it exists in the list
+            const currentDateStr = bookingDate;
+            const currentDateInList = data.dates.find((d: { date: string }) => d.date === currentDateStr);
+            if (currentDateInList && currentDateStr) {
+              setSelectedUpcomingDate(currentDateStr);
+            } else {
+              setSelectedUpcomingDate(null);
+            }
+          } else {
+            setUpcomingDates([]);
+            setSelectedUpcomingDate(null);
+          }
+        })
+        .catch(error => {
+          console.error('Failed to fetch upcoming dates:', error);
+          setUpcomingDates([]);
+          setSelectedUpcomingDate(null);
+        })
+        .finally(() => {
+          setIsLoadingUpcomingDates(false);
+        });
+    } else {
+      setUpcomingDates([]);
+      setSelectedUpcomingDate(null);
+    }
+  }, [recurringScheduleId, bookingDate]);
+
+  // Helper function to get pricing (use database pricing if available, fallback to PRICING)
+  const getPricing = (): PricingData => {
+    return dbPricing || (PRICING as PricingData);
+  };
+
+  // Helper function to get extra price
+  const getExtraPrice = (extraName: string): number => {
+    const pricing = getPricing();
+    const normalizedName = extraName.trim();
+    
+    // Try database pricing first
+    let price = pricing.extras[normalizedName] || 0;
+    
+    // Try case-insensitive lookup
+    if (price === 0) {
+      const matchingKey = Object.keys(pricing.extras).find(
+        key => key.toLowerCase().trim() === normalizedName.toLowerCase()
+      );
+      if (matchingKey) {
+        price = pricing.extras[matchingKey] || 0;
+      }
+    }
+    
+    // Fallback to PRICING constant if still 0
+    if (price === 0) {
+      const extraKey = normalizedName as keyof typeof PRICING.extras;
+      price = PRICING.extras[extraKey] || 0;
+    }
+    
+    return price;
+  };
 
   // Debounce search input
   const search = useDebouncedValue(searchInput, 500);
@@ -333,15 +428,15 @@ export function BookingsSection() {
       return 'R0.00';
     }
     // If amount is in cents (stored as integer), divide by 100
-    // If amount is already in dollars, use it directly
+    // If amount is already in rands, use it directly
     // Check if amount seems to be in cents (> 1000 for a reasonable price)
-    const dollarAmount = amount > 1000 ? amount / 100 : amount;
+    const randAmount = amount > 1000 ? amount / 100 : amount;
     return new Intl.NumberFormat('en-ZA', {
       style: 'currency',
       currency: 'ZAR',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(dollarAmount);
+    }).format(randAmount);
   };
 
   // Check if booking requires team assignment (Deep or Move In/Out)
@@ -1024,7 +1119,6 @@ export function BookingsSection() {
               extras: Array<{ name: string; price: number }>;
               serviceFee: number;
               frequencyDiscount: number;
-              tax: number;
               total: number;
             };
 
@@ -1032,30 +1126,113 @@ export function BookingsSection() {
               // Use price snapshot if available
               const snapshot = viewingBooking.price_snapshot;
               const extrasFromSnapshot = snapshot.extras || [];
-              const serviceBase = snapshot.service?.base || 0;
-              const bedsPrice = (viewingBooking.bedrooms || 0) * (snapshot.service?.bedroom || 0);
-              const bathsPrice = (viewingBooking.bathrooms || 0) * (snapshot.service?.bathroom || 0);
-              const serviceBasePrice = serviceBase + bedsPrice + bathsPrice;
+              
+              // Get service type from snapshot or fallback to viewingBooking
+              const serviceType = snapshot.service?.type || viewingBooking.service_type;
+              
+              // Get bedrooms/bathrooms from snapshot.service or fallback to viewingBooking
+              const snapshotBedrooms = snapshot.service?.bedrooms ?? viewingBooking.bedrooms ?? null;
+              const snapshotBathrooms = snapshot.service?.bathrooms ?? viewingBooking.bathrooms ?? null;
+              
+              // Look up pricing from database (or fallback to PRICING structure) using service type
+              const pricing = getPricing();
+              const servicePricing = serviceType ? pricing.services[serviceType] : null;
+              
+              let serviceBasePrice = 0;
+              if (servicePricing) {
+                const base = servicePricing.base || 0;
+                const bedrooms = snapshotBedrooms ?? 0;
+                const bathrooms = snapshotBathrooms ?? 0;
+                const bedsPrice = bedrooms * (servicePricing.bedroom || 0);
+                const bathsPrice = bathrooms * (servicePricing.bathroom || 0);
+                serviceBasePrice = base + bedsPrice + bathsPrice;
+              } else {
+                // Fallback: try to calculate from total_amount
+                const extrasTotal = extrasFromSnapshot.reduce((sum: number, e: any) => {
+                  const extraName = typeof e === 'object' && e !== null && e.name ? e.name : String(e);
+                  const extraPrice = e.price ? (e.price > 100 ? e.price / 100 : e.price) : getExtraPrice(extraName);
+                  return sum + extraPrice;
+                }, 0);
+                const basePrice = viewingBooking.total_amount ? viewingBooking.total_amount / 100 : 0;
+                const serviceFeeInRands = (snapshot.service_fee || viewingBooking.service_fee || 0) / 100;
+                const frequencyDiscountInRands = (snapshot.frequency_discount_amount || snapshot.frequency_discount || 0) / 100;
+                serviceBasePrice = Math.max(0, basePrice - extrasTotal - serviceFeeInRands + frequencyDiscountInRands);
+              }
               
               pricingDetails = {
                 serviceBasePrice: serviceBasePrice,
                 extras: extrasFromSnapshot.map((e: any) => {
-                  const extraName = e.name || e;
+                  const extraName = typeof e === 'object' && e !== null && e.name ? e.name : String(e);
                   const extraKey = extraName as keyof typeof PRICING.extras;
+                  
+                  // Normalize extra name (trim whitespace)
+                  const normalizedName = extraName.trim();
+                  const extraKeyNormalized = normalizedName as keyof typeof PRICING.extras;
+                  
+                  // Try to get price from snapshot first
+                  let price = 0;
+                  if (typeof e === 'object' && e !== null && e.price != null) {
+                    // If price exists in snapshot, convert from cents to rands if needed
+                    // Price might be stored in cents (large number) or rands (small number)
+                    price = e.price > 100 ? e.price / 100 : e.price;
+                  } else {
+                    // Fallback to database pricing lookup
+                    price = getExtraPrice(extraName);
+                  }
+                  
                   return {
                     name: extraName,
-                    price: e.price || (PRICING.extras[extraKey] || 0)
+                    price: price
                   };
                 }),
-                serviceFee: snapshot.service_fee || viewingBooking.service_fee || 0,
-                frequencyDiscount: snapshot.frequency_discount_amount || 0,
-                tax: 0, // Calculate tax
-                total: viewingBooking.total_amount ? viewingBooking.total_amount / 100 : 0,
+                serviceFee: (() => {
+                  // Try to get service fee from snapshot or booking, convert from cents to rands
+                  // Use nullish coalescing to distinguish between 0 and null/undefined
+                  const snapshotFee = snapshot.service_fee != null ? snapshot.service_fee / 100 : null;
+                  const bookingFee = viewingBooking.service_fee != null ? viewingBooking.service_fee / 100 : null;
+                  // Return the first available value, or fallback to database pricing serviceFee
+                  const pricing = getPricing();
+                  return snapshotFee ?? bookingFee ?? pricing.serviceFee;
+                })(),
+                frequencyDiscount: (snapshot.frequency_discount_amount || snapshot.frequency_discount || 0) / 100,
+                total: (() => {
+                  // Try to get total from booking total_amount first
+                  let total = viewingBooking.total_amount ? viewingBooking.total_amount / 100 : 0;
+                  
+                  // If total seems incorrect (too low compared to base price), try price_snapshot
+                  if (total > 0 && total < serviceBasePrice) {
+                    // Try to get from price_snapshot.total (convert from cents if needed)
+                    const snapshotTotal = snapshot.total;
+                    if (snapshotTotal != null) {
+                      // Convert from cents to rands if it's a large number
+                      const snapshotTotalRands = snapshotTotal > 1000 ? snapshotTotal / 100 : snapshotTotal;
+                      // Use snapshot total if it's more reasonable
+                      if (snapshotTotalRands >= serviceBasePrice) {
+                        total = snapshotTotalRands;
+                      }
+                    }
+                  }
+                  
+                  // If still 0 or too low, calculate from breakdown
+                  if (total === 0 || total < serviceBasePrice) {
+                    total = serviceBasePrice + 
+                      extrasFromSnapshot.reduce((sum: number, e: any) => {
+                        const extraName = typeof e === 'object' && e !== null && e.name ? e.name : String(e);
+                        const extraPrice = e.price ? (e.price > 100 ? e.price / 100 : e.price) : getExtraPrice(extraName);
+                        return sum + extraPrice;
+                      }, 0) +
+                      ((snapshot.service_fee || viewingBooking.service_fee || 0) / 100) -
+                      ((snapshot.frequency_discount_amount || snapshot.frequency_discount || 0) / 100);
+                  }
+                  
+                  return total;
+                })(),
               };
             } else {
-              // Calculate service base price from PRICING structure
-              const serviceType = viewingBooking.service_type as keyof typeof PRICING.services;
-              const servicePricing = PRICING.services[serviceType];
+              // Calculate service base price from database pricing structure
+              const pricing = getPricing();
+              const serviceType = viewingBooking.service_type;
+              const servicePricing = serviceType ? pricing.services[serviceType] : null;
               
               let serviceBasePrice = 0;
               if (servicePricing) {
@@ -1065,45 +1242,74 @@ export function BookingsSection() {
                 serviceBasePrice = base + bedsPrice + bathsPrice;
               } else {
                 // Fallback: try to calculate from total_amount
-                const extras = viewingBooking.extras || [];
-                const extrasBreakdown = extras.map(extra => ({
-                  name: extra,
-                  price: PRICING.extras[extra as keyof typeof PRICING.extras] || 0
-                }));
+                const extras = viewingBooking.extras ?? viewingBooking.price_snapshot?.extras ?? [];
+                const extrasBreakdown = extras.map((extra: any) => {
+                  const extraName = typeof extra === 'object' && extra !== null && extra.name ? extra.name : String(extra);
+                  const extraKey = extraName as keyof typeof PRICING.extras;
+                  
+                  // Try to get price from object if it exists, otherwise lookup from PRICING
+                  let price = 0;
+                  if (typeof extra === 'object' && extra !== null && extra.price != null) {
+                    // If price exists in object, convert from cents to rands if needed
+                    price = extra.price > 100 ? extra.price / 100 : extra.price;
+                  } else {
+                    // Fallback to database pricing lookup
+                    price = getExtraPrice(extraName);
+                  }
+                  
+                  return {
+                    name: extraName,
+                    price: price
+                  };
+                });
                 
                 const extrasTotal = extrasBreakdown.reduce((sum, e) => sum + e.price, 0);
                 const basePrice = viewingBooking.total_amount ? viewingBooking.total_amount / 100 : 0;
-                const serviceFeeInDollars = viewingBooking.service_fee ? viewingBooking.service_fee / 100 : 0;
-                serviceBasePrice = Math.max(0, basePrice - extrasTotal - serviceFeeInDollars);
+                const serviceFeeInRands = viewingBooking.service_fee ? viewingBooking.service_fee / 100 : 0;
+                serviceBasePrice = Math.max(0, basePrice - extrasTotal - serviceFeeInRands);
               }
               
               // Calculate extras breakdown
-              const extras = viewingBooking.extras || [];
-              const extrasBreakdown = extras.map(extra => ({
-                name: extra,
-                price: PRICING.extras[extra as keyof typeof PRICING.extras] || 0
-              }));
+              const extras = viewingBooking.extras ?? viewingBooking.price_snapshot?.extras ?? [];
+              const extrasBreakdown = extras.map((extra: any) => {
+                const extraName = typeof extra === 'object' && extra !== null && extra.name ? extra.name : String(extra);
+                
+                // Try to get price from object if it exists, otherwise lookup from database pricing
+                let price = 0;
+                if (typeof extra === 'object' && extra !== null && extra.price != null) {
+                  // If price exists in object, convert from cents to rands if needed
+                  price = extra.price > 100 ? extra.price / 100 : extra.price;
+                } else {
+                  // Fallback to database pricing lookup
+                  price = getExtraPrice(extraName);
+                }
+                
+                return {
+                  name: extraName,
+                  price: price
+                };
+              });
               
-              const serviceFeeInDollars = viewingBooking.service_fee ? viewingBooking.service_fee / 100 : PRICING.serviceFee;
+              const serviceFeeInRands = viewingBooking.service_fee != null ? viewingBooking.service_fee / 100 : getPricing().serviceFee;
               
               pricingDetails = {
                 serviceBasePrice: serviceBasePrice,
                 extras: extrasBreakdown,
-                serviceFee: serviceFeeInDollars,
+                serviceFee: serviceFeeInRands,
                 frequencyDiscount: 0,
-                tax: 0,
                 total: viewingBooking.total_amount ? viewingBooking.total_amount / 100 : 0,
               };
             }
 
-            // Calculate tax (assuming 10% tax rate)
-            const taxRate = 0.1;
-            const subtotalBeforeTax = pricingDetails.serviceBasePrice + 
-              pricingDetails.extras.reduce((sum, e) => sum + e.price, 0) + 
-              pricingDetails.serviceFee - 
-              pricingDetails.frequencyDiscount;
-            pricingDetails.tax = Math.round(subtotalBeforeTax * taxRate * 100) / 100;
-            pricingDetails.total = subtotalBeforeTax + pricingDetails.tax;
+              // Calculate total if not already set (service fee is already included in pricingDetails)
+              // If total_amount seems incorrect (too low), recalculate from pricing breakdown
+              if (!pricingDetails.total || pricingDetails.total === 0 || pricingDetails.total < pricingDetails.serviceBasePrice) {
+                // Recalculate total from pricing breakdown
+                pricingDetails.total = pricingDetails.serviceBasePrice + 
+                  pricingDetails.extras.reduce((sum, e) => sum + e.price, 0) + 
+                  pricingDetails.serviceFee - 
+                  pricingDetails.frequencyDiscount;
+              }
             
             // Calculate duration
             const duration = viewingBooking.duration || 
@@ -1181,6 +1387,41 @@ export function BookingsSection() {
                             <div className="flex-1">
                               <p className="text-xs text-gray-500">Date</p>
                               <p className="text-sm font-medium">{format(new Date(viewingBooking.booking_date), 'MMMM d, yyyy')}</p>
+                              {viewingBooking.recurring_schedule_id && upcomingDates.length > 0 && (
+                                <div className="mt-2">
+                                  <Select
+                                    value={selectedUpcomingDate || viewingBooking.booking_date}
+                                    onValueChange={(value) => {
+                                      setSelectedUpcomingDate(value);
+                                      // Optionally update the displayed booking date
+                                      // You could navigate to the booking for that date if it exists
+                                    }}
+                                  >
+                                    <SelectTrigger className="w-full h-8 text-xs">
+                                      <SelectValue placeholder="Select upcoming date">
+                                        {upcomingDates.find(d => d.date === (selectedUpcomingDate || viewingBooking.booking_date))?.display || 
+                                         format(new Date(viewingBooking.booking_date), 'MMM d, yyyy')}
+                                      </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {isLoadingUpcomingDates ? (
+                                        <div className="flex items-center justify-center p-4">
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        </div>
+                                      ) : (
+                                        upcomingDates.map((dateItem) => (
+                                          <SelectItem key={dateItem.date} value={dateItem.date}>
+                                            {dateItem.display}
+                                          </SelectItem>
+                                        ))
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                  <p className="text-xs text-gray-400 mt-1">
+                                    {upcomingDates.length} upcoming booking{upcomingDates.length !== 1 ? 's' : ''}
+                                  </p>
+                                </div>
+                              )}
                             </div>
                           </div>
                           <div className="flex items-start gap-2">
@@ -1189,16 +1430,16 @@ export function BookingsSection() {
                               <p className="text-xs text-gray-500">Beds & Baths</p>
                               <p className="text-sm font-medium">
                                 {(() => {
-                                  // Try to get values from booking first, then from price_snapshot
+                                  // Try to get values from booking first, then from price_snapshot.service
                                   let bedrooms = viewingBooking.bedrooms;
                                   let bathrooms = viewingBooking.bathrooms;
                                   
-                                  // Fallback to price_snapshot if bedrooms/bathrooms are null
+                                  // Fallback to price_snapshot.service if bedrooms/bathrooms are null
                                   if ((bedrooms === null || bedrooms === undefined) && viewingBooking.price_snapshot) {
-                                    bedrooms = viewingBooking.price_snapshot.bedrooms ?? null;
+                                    bedrooms = viewingBooking.price_snapshot.service?.bedrooms ?? null;
                                   }
                                   if ((bathrooms === null || bathrooms === undefined) && viewingBooking.price_snapshot) {
-                                    bathrooms = viewingBooking.price_snapshot.bathrooms ?? null;
+                                    bathrooms = viewingBooking.price_snapshot.service?.bathrooms ?? null;
                                   }
                                   
                                   // Handle null/undefined values from database
@@ -1261,10 +1502,68 @@ export function BookingsSection() {
                             </div>
                           </div>
                           <div className="flex items-start gap-2">
-                            {getStatusIcon((viewingBooking.extras || []).length > 0)}
+                            {getStatusIcon((() => {
+                              // Try to get extras from booking first, then from price_snapshot
+                              const extras = viewingBooking.extras ?? viewingBooking.price_snapshot?.extras ?? [];
+                              return Array.isArray(extras) ? extras.length > 0 : false;
+                            })())}
                             <div className="flex-1">
                               <p className="text-xs text-gray-500">Extra Services</p>
-                              <p className="text-sm font-medium">{(viewingBooking.extras || []).length > 0 ? `${(viewingBooking.extras || []).length} Service${(viewingBooking.extras || []).length !== 1 ? 's' : ''}` : 'None'}</p>
+                              <div className="text-sm font-medium">
+                                {(() => {
+                                  // Try to get extras from booking first, then from price_snapshot
+                                  const extras = viewingBooking.extras ?? viewingBooking.price_snapshot?.extras ?? [];
+                                  
+                                  // Handle both array of strings and array of objects
+                                  let extrasArray: Array<{ name: string; price: number }> = [];
+                                  if (Array.isArray(extras)) {
+                                    extrasArray = extras.map((e: any) => {
+                                      // If it's an object with a 'name' property, use that
+                                      let extraName: string;
+                                      if (typeof e === 'object' && e !== null && e.name) {
+                                        extraName = e.name;
+                                      } else {
+                                        extraName = String(e);
+                                      }
+                                      
+                                      // Get price from object or lookup from PRICING
+                                      let price = 0;
+                                      if (typeof e === 'object' && e !== null && e.price != null) {
+                                        // If price exists in object, convert from cents to rands if needed
+                                        price = e.price > 100 ? e.price / 100 : e.price;
+                                      } else {
+                                        // Fallback to database pricing lookup
+                                        price = getExtraPrice(extraName);
+                                        
+                                        // Final fallback: if still 0, log for debugging
+                                        if (price === 0) {
+                                          const pricing = getPricing();
+                                          console.warn('Could not find price for extra:', extraName.trim(), 'Available keys:', Object.keys(pricing.extras));
+                                        }
+                                      }
+                                      
+                                      return { name: extraName, price };
+                                    });
+                                  }
+                                  
+                                  if (extrasArray.length === 0) {
+                                    return <span>None</span>;
+                                  }
+                                  
+                                  return (
+                                    <div className="space-y-1">
+                                      {extrasArray.map((extra, idx) => (
+                                        <div key={idx} className="flex justify-between items-center">
+                                          <span>{extra.name}</span>
+                                          <span className="ml-2 font-semibold text-gray-900">
+                                            {formatCurrency(extra.price)}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  );
+                                })()}
+                              </div>
                             </div>
                           </div>
                           <div className="flex items-start gap-2">
@@ -1293,10 +1592,27 @@ export function BookingsSection() {
                           </div>
                         </div>
                         <div className="flex items-start gap-2">
-                          {getStatusIcon((viewingBooking.extras || []).some(e => e.toLowerCase().includes('supplies')))}
+                          {getStatusIcon((() => {
+                            const extras = viewingBooking.extras ?? viewingBooking.price_snapshot?.extras ?? [];
+                            if (!Array.isArray(extras)) return false;
+                            return extras.some((e: any) => {
+                              const extraName = typeof e === 'object' && e !== null && e.name ? e.name : String(e);
+                              return extraName.toLowerCase().includes('supplies');
+                            });
+                          })())}
                           <div className="flex-1">
                             <p className="text-xs text-gray-500">Cleaning Supplies</p>
-                            <p className="text-sm font-medium">{(viewingBooking.extras || []).some(e => e.toLowerCase().includes('supplies')) ? 'Yes' : 'No'}</p>
+                            <p className="text-sm font-medium">
+                              {(() => {
+                                const extras = viewingBooking.extras ?? viewingBooking.price_snapshot?.extras ?? [];
+                                if (!Array.isArray(extras)) return 'No';
+                                const hasSupplies = extras.some((e: any) => {
+                                  const extraName = typeof e === 'object' && e !== null && e.name ? e.name : String(e);
+                                  return extraName.toLowerCase().includes('supplies');
+                                });
+                                return hasSupplies ? 'Yes' : 'No';
+                              })()}
+                            </p>
                           </div>
                         </div>
                         <div className="flex items-start gap-2">
@@ -1510,13 +1826,6 @@ export function BookingsSection() {
                           </div>
                         ))}
                         
-                        {pricingDetails.serviceFee > 0 && (
-                          <div className="flex justify-between">
-                            <p className="text-sm">Cleaning Supplies</p>
-                            <p className="text-sm">{formatCurrency(pricingDetails.serviceFee)}</p>
-                          </div>
-                        )}
-                        
                         {pricingDetails.frequencyDiscount > 0 && (
                           <div className="flex justify-between text-green-600">
                             <p className="text-sm">Frequency Discount</p>
@@ -1524,12 +1833,10 @@ export function BookingsSection() {
                           </div>
                         )}
                         
-                        {pricingDetails.tax > 0 && (
-                          <div className="flex justify-between">
-                            <p className="text-sm">Tax</p>
-                            <p className="text-sm">{formatCurrency(pricingDetails.tax)}</p>
-                          </div>
-                        )}
+                        <div className="flex justify-between">
+                          <p className="text-sm">Service Fee</p>
+                          <p className="text-sm">{formatCurrency(pricingDetails.serviceFee)}</p>
+                        </div>
                       </div>
                       
                       <div className="pt-4 border-t bg-gray-50 rounded-lg p-4 -mx-4 -mb-4">

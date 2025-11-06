@@ -216,9 +216,9 @@ export function AdminNavbarV3() {
   };
 
   const formatAmount = (amount: number) => {
-    // Convert cents to dollars if needed
-    const dollarAmount = amount > 10000 ? amount / 100 : amount;
-    return `$${dollarAmount.toFixed(0)}`;
+    // Convert cents to rands if needed
+    const randAmount = amount > 10000 ? amount / 100 : amount;
+    return `R${randAmount.toFixed(0)}`;
   };
 
   const formatDate = (dateString: string) => {

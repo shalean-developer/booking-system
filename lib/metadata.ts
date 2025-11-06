@@ -124,10 +124,13 @@ export function createMetadata(metadata: PageMetadata | Metadata): Metadata {
   const pageMeta = metadata as PageMetadata;
   const canonical = pageMeta.canonical || generateCanonical();
 
-  // If title is longer than 60 chars, use full title object to prevent template appending
+  // If title + template would exceed 70 chars, use full title object to prevent template appending
+  // Template adds " | Shalean Cleaning Services" (30 chars), so we check if title > 40
   // This prevents " | Shalean Cleaning Services" from being added when title is already long
   // Use type assertion to bypass TypeScript requirement for template property
-  const titleMetadata = pageMeta.title.length > 60
+  const TEMPLATE_SUFFIX_LENGTH = 30; // " | Shalean Cleaning Services"
+  const MAX_TITLE_LENGTH = 70;
+  const titleMetadata = pageMeta.title.length + TEMPLATE_SUFFIX_LENGTH > MAX_TITLE_LENGTH
     ? ({ default: pageMeta.title } as any)
     : pageMeta.title;
 

@@ -14,7 +14,7 @@ export function NotificationBar() {
       <div className="px-4 sm:px-6 lg:px-8 flex items-center justify-between">
         <div className="flex items-center gap-2 text-blue-900">
           <AlertCircle className="h-5 w-5" />
-          <span className="text-sm font-medium">New Quote: Standard Cleaning $79.00</span>
+          <span className="text-sm font-medium">New Quote: Standard Cleaning R79.00</span>
         </div>
         <Button
           variant="ghost"
