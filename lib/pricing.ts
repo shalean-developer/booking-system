@@ -3,6 +3,9 @@
 import type { ServiceType } from '@/types/booking';
 import { fetchActivePricing, type PricingData } from './pricing-db';
 
+// Re-export PricingData for convenience
+export type { PricingData };
+
 // Fallback pricing structure (used when database is unavailable)
 export const PRICING = {
   services: {
