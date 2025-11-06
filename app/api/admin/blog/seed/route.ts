@@ -182,7 +182,7 @@ const existingPosts = [
         <p class="text-sm text-gray-600 mt-2">— Shalean Cleaning Experts</p>
       </div>
     `,
-    meta_title: '10 Essential Deep Cleaning Tips | Shalean',
+    meta_title: '10 Must-Know Deep Cleaning Tips for a Spotless Home',
     meta_description: 'Professional deep cleaning techniques to transform your home. Expert tips for kitchen, bathroom, and every room from Shalean\'s cleaning professionals.',
   },
   {

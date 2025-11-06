@@ -38,8 +38,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // Ensure title is within SEO limits (15-70 characters)
   let pageTitle = post.meta_title || post.title || 'Blog Post';
   
+  // Special case: fix the specific blog post title that's too long
+  if (post.slug === '10-essential-deep-cleaning-tips-for-every-home' && !post.meta_title) {
+    pageTitle = '10 Must-Know Deep Cleaning Tips for a Spotless Home';
+  }
   // If using title (not meta_title) and it would exceed 70 with template, create shorter version
-  if (!post.meta_title && post.title) {
+  else if (!post.meta_title && post.title) {
     const TEMPLATE_LENGTH = 30; // " | Shalean Cleaning Services"
     const MAX_WITH_TEMPLATE = 70;
     
