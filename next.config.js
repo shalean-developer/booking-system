@@ -56,6 +56,11 @@ const nextConfig = {
         destination: '/blog/the-benefits-of-eco-friendly-cleaning-products',
         permanent: true,
       },
+      {
+        source: '/blog/welcome-to-blog-cms',
+        destination: '/blog',
+        permanent: true,
+      },
       // Old booking URLs
       {
         source: '/booking',
@@ -64,6 +69,11 @@ const nextConfig = {
       },
       {
         source: '/booking/service',
+        destination: '/booking/service/select',
+        permanent: true,
+      },
+      {
+        source: '/cleaning/first-step',
         destination: '/booking/service/select',
         permanent: true,
       },
@@ -90,9 +100,10 @@ const nextConfig = {
         permanent: true,
       },
       // Wildcard redirect for all old location URLs
+      // Specific known locations are handled above, this catches everything else
       {
         source: '/locations/:path*',
-        destination: '/location/cape-town/:path*',
+        destination: '/location',
         permanent: true,
       },
       // Old service URLs
@@ -106,6 +117,21 @@ const nextConfig = {
         destination: '/services/deep-specialty',
         permanent: true,
       },
+      {
+        source: '/services/carpet-cleaning',
+        destination: '/services/deep-specialty',
+        permanent: true,
+      },
+      {
+        source: '/services/standard-cleaning',
+        destination: '/services/regular-cleaning',
+        permanent: true,
+      },
+      {
+        source: '/services/house-cleaning',
+        destination: '/services/regular-cleaning',
+        permanent: true,
+      },
       // Old page URLs
       {
         source: '/reviews',
@@ -115,6 +141,16 @@ const nextConfig = {
       {
         source: '/auth',
         destination: '/login',
+        permanent: true,
+      },
+      {
+        source: '/auth/signin',
+        destination: '/login',
+        permanent: true,
+      },
+      {
+        source: '/auth/sign-up',
+        destination: '/signup',
         permanent: true,
       },
       // Fix URL encoding issues for location pages
