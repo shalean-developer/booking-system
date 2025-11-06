@@ -24,7 +24,8 @@ import {
   Edit,
   Trash2,
   Play,
-  Pause
+  Pause,
+  CheckCircle
 } from 'lucide-react';
 import {
   Dialog,
@@ -46,7 +47,7 @@ import { CreateBookingDialog } from './create-booking-dialog';
 import { EditRecurringScheduleDialog } from './edit-recurring-schedule-dialog';
 import { GenerateBookingsDialog } from './generate-bookings-dialog';
 import { RecurringScheduleWithCustomer } from '@/types/recurring';
-import { formatBookingTime } from '@/lib/recurring-bookings';
+import { formatBookingTime, formatNextGeneratingDate, getNextGeneratingMonth } from '@/lib/recurring-bookings';
 
 interface Customer {
   id: string;
@@ -190,6 +191,47 @@ export function RecurringCustomersSection() {
 
   return (
     <div className="space-y-6">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total Recurring Customers</p>
+                <p className="text-2xl font-bold">{customers.length}</p>
+              </div>
+              <Repeat className="h-8 w-8 text-primary opacity-50" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total Schedules</p>
+                <p className="text-2xl font-bold">
+                  {customers.reduce((sum, c) => sum + (c.recurring_schedules_count || 0), 0)}
+                </p>
+              </div>
+              <Calendar className="h-8 w-8 text-primary opacity-50" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Active Schedules</p>
+                <p className="text-2xl font-bold">
+                  {customers.filter(c => (c.recurring_schedules_count || 0) > 0).length}
+                </p>
+              </div>
+              <CheckCircle className="h-8 w-8 text-green-500 opacity-50" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -459,6 +501,9 @@ export function RecurringCustomersSection() {
                                     Last generated: {schedule.last_generated_month}
                                   </p>
                                 )}
+                                <p className="text-xs font-medium text-primary">
+                                  Next generate: {formatNextGeneratingDate(schedule)} ({getNextGeneratingMonth(schedule)})
+                                </p>
                               </div>
                             </div>
                             <DropdownMenu>

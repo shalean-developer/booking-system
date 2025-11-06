@@ -43,7 +43,7 @@ import { GenerateBookingsDialog } from './generate-bookings-dialog';
 import { fetcher } from '@/lib/fetcher';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { RecurringScheduleWithCustomer, Frequency } from '@/types/recurring';
-import { formatBookingDate, formatBookingTime, getNextBookingDate } from '@/lib/recurring-bookings';
+import { formatBookingDate, formatBookingTime, getNextBookingDate, formatNextGeneratingDate, getNextGeneratingMonth } from '@/lib/recurring-bookings';
 
 export function RecurringSchedulesSection() {
   const [searchInput, setSearchInput] = useState('');
@@ -132,11 +132,6 @@ export function RecurringSchedulesSection() {
     }
   };
 
-  const getNextBookingDate = (schedule: RecurringScheduleWithCustomer) => {
-    // This would use the utility function to calculate next booking date
-    // For now, return a placeholder
-    return 'Calculate next date';
-  };
 
   if (error) {
     return (
@@ -236,6 +231,7 @@ export function RecurringSchedulesSection() {
                       <TableHead>Frequency</TableHead>
                       <TableHead>Schedule</TableHead>
                       <TableHead>Next Booking</TableHead>
+                      <TableHead>Next Generate</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Last Generated</TableHead>
                       <TableHead className="w-12"></TableHead>
@@ -292,7 +288,20 @@ export function RecurringSchedulesSection() {
                         </TableCell>
                         <TableCell>
                           <div className="text-sm text-gray-600">
-                            {getNextBookingDate(schedule)}
+                            {(() => {
+                              const nextDate = getNextBookingDate(schedule);
+                              return nextDate ? formatBookingDate(nextDate) : 'N/A';
+                            })()}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            <div className="font-medium text-primary">
+                              {getNextGeneratingMonth(schedule)}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {formatNextGeneratingDate(schedule)}
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell>

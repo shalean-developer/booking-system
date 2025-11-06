@@ -350,6 +350,49 @@ export function getNextMonth(currentMonthYear: string): string {
 }
 
 /**
+ * Get the next month that needs booking generation for a recurring schedule
+ * Returns the month/year string (YYYY-MM) that should be generated next
+ */
+export function getNextGeneratingMonth(schedule: RecurringSchedule): string {
+  const today = new Date();
+  const currentMonthYear = getMonthYearString(today);
+  
+  // If never generated, generate current month
+  if (!schedule.last_generated_month) {
+    return currentMonthYear;
+  }
+  
+  // If last generated is before current month, generate current month
+  if (schedule.last_generated_month < currentMonthYear) {
+    return currentMonthYear;
+  }
+  
+  // Otherwise, generate next month
+  return getNextMonth(schedule.last_generated_month);
+}
+
+/**
+ * Get the next generating date (first day of next month to generate)
+ */
+export function getNextGeneratingDate(schedule: RecurringSchedule): Date {
+  const nextMonthYear = getNextGeneratingMonth(schedule);
+  const { year, month } = parseMonthYearString(nextMonthYear);
+  return new Date(year, month - 1, 1); // First day of the month
+}
+
+/**
+ * Format next generating date for display
+ */
+export function formatNextGeneratingDate(schedule: RecurringSchedule): string {
+  const nextDate = getNextGeneratingDate(schedule);
+  return nextDate.toLocaleDateString('en-ZA', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
+/**
  * Get previous month/year
  */
 export function getPreviousMonth(currentMonthYear: string): string {
