@@ -5,7 +5,7 @@ import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "Office Cleaning Services | Shalean",
-  description: "Professional commercial office cleaning services. Keep your workplace clean and productive with our experienced commercial cleaners. Desk cleaning, reception maintenance, kitchen cleaning, restroom sanitization, and flexible scheduling.",
+  description: "Professional commercial office cleaning services. Keep your workplace clean and productive with our experienced cleaners. Desk cleaning, reception maintenance, kitchen cleaning, and restroom sanitization available.",
   canonical: generateCanonical("/services/office-cleaning"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/services-office-cleaning-1200x630.jpg",

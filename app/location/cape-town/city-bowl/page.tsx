@@ -4,7 +4,7 @@ import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "City Bowl Cleaning Services | Shalean",
-  description: "Professional cleaning services in Cape Town's City Bowl including Gardens, City Centre, Tamboerskloof, Oranjezicht, Woodstock, and Observatory. Book today! Expert cleaners available for regular maintenance, deep cleaning, move-in/out, and Airbnb turnover services.",
+  description: "Professional cleaning services in Cape Town's City Bowl including Gardens, City Centre, Tamboerskloof, Oranjezicht, Woodstock, and Observatory. Expert cleaners available for regular maintenance, deep cleaning, and move-in/out services.",
   canonical: generateCanonical("/location/cape-town/city-bowl"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/location-city-bowl-1200x630.jpg",

@@ -132,13 +132,34 @@ export function createMetadata(metadata: PageMetadata | Metadata): Metadata {
   // Use type assertion to bypass TypeScript requirement for template property
   const TEMPLATE_SUFFIX_LENGTH = 30; // " | Shalean Cleaning Services"
   const MAX_TITLE_LENGTH = 70;
-  const titleMetadata = pageMeta.title.length + TEMPLATE_SUFFIX_LENGTH > MAX_TITLE_LENGTH
+  // If title is > 40 chars, don't add template to keep total ≤ 70
+  const titleMetadata = pageMeta.title.length > 40
     ? ({ default: pageMeta.title } as any)
     : pageMeta.title;
 
+  // Ensure description is within optimal range (120-170 chars)
+  let finalDescription = pageMeta.description;
+  if (finalDescription.length > DESCRIPTION_MAX_LENGTH) {
+    // Truncate descriptions that are too long
+    finalDescription = truncateText(finalDescription, DESCRIPTION_MAX_LENGTH);
+  } else if (finalDescription.length < 120) {
+    // Expand descriptions that are too short
+    // Try to add context while keeping it under 170 chars
+    const expanded = `${finalDescription} Trusted local cleaning company with competitive pricing and satisfaction guarantee.`;
+    if (expanded.length <= DESCRIPTION_MAX_LENGTH) {
+      finalDescription = expanded;
+    } else {
+      // If expanded is still too long, just pad with generic text
+      finalDescription = `${finalDescription} Professional cleaning services with expert cleaners and flexible scheduling.`;
+      if (finalDescription.length > DESCRIPTION_MAX_LENGTH) {
+        finalDescription = truncateText(finalDescription, DESCRIPTION_MAX_LENGTH);
+      }
+    }
+  }
+
   return {
     title: titleMetadata,
-    description: pageMeta.description,
+    description: finalDescription,
     alternates: {
       canonical,
     },
@@ -148,7 +169,7 @@ export function createMetadata(metadata: PageMetadata | Metadata): Metadata {
       siteName: DEFAULT_SITE_METADATA.siteName,
       type: pageMeta.ogType || DEFAULT_SITE_METADATA.defaultOgType,
       title: pageMeta.title,
-      description: pageMeta.description,
+      description: finalDescription,
       url: canonical,
       ...(pageMeta.ogImage && {
         images: [
@@ -164,7 +185,7 @@ export function createMetadata(metadata: PageMetadata | Metadata): Metadata {
     twitter: {
       card: pageMeta.twitterCard || DEFAULT_SITE_METADATA.twitterCard,
       title: pageMeta.title,
-      description: pageMeta.description,
+      description: finalDescription,
       ...(pageMeta.ogImage && {
         images: [pageMeta.ogImage.url],
       }),

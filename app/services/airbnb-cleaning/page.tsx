@@ -5,7 +5,7 @@ import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "Airbnb Cleaning Services | Shalean",
-  description: "Professional Airbnb turnover cleaning services. Fast, reliable cleaning between guests with same-day service. Guest-ready standards, quality inspection, and flexible scheduling available. Book your trusted cleaner today!",
+  description: "Professional Airbnb turnover cleaning services. Fast, reliable cleaning between guests with same-day service. Guest-ready standards, quality inspection, and flexible scheduling available.",
   canonical: generateCanonical("/services/airbnb-cleaning"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/services-airbnb-cleaning-1200x630.jpg",

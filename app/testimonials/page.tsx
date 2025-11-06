@@ -15,7 +15,7 @@ import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "Customer Testimonials | Shalean Cleaning Services",
+  title: "Customer Testimonials | Shalean",
   description: "Read real customer reviews and testimonials for Shalean cleaning services. See why our customers trust us with their home and office cleaning needs.",
   canonical: generateCanonical("/testimonials"),
   ogImage: {

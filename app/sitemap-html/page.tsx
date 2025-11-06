@@ -16,7 +16,7 @@ import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "Site Map | Shalean Cleaning Services",
-  description: "Complete site map of Shalean cleaning services. Find all our pages including services, locations, and resources.",
+  description: "Complete site map of Shalean cleaning services. Find all our pages including services, locations, and resources. Navigate easily to find the information you need about our professional cleaning services.",
   canonical: generateCanonical("/sitemap-html"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/sitemap-1200x630.jpg",

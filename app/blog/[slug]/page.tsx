@@ -50,6 +50,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       pageTitle = post.title.length < 15 ? `${post.title} | Shalean` : post.title;
     }
   }
+  // Note: Titles > 40 chars will not get template appended (handled by createMetadata)
 
   const blogMetadata = {
     title: pageTitle,

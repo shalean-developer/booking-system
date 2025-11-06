@@ -5,7 +5,7 @@ import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "Apartment Cleaning Services | Shalean",
-  description: "Specialized apartment cleaning services. Professional cleaners experienced with apartment layouts and strata requirements. Compact space optimization, balcony cleaning, built-in storage cleaning, and flexible scheduling available.",
+  description: "Specialized apartment cleaning services. Professional cleaners experienced with apartment layouts and strata requirements. Compact space optimization, balcony cleaning, and built-in storage cleaning available.",
   canonical: generateCanonical("/services/apartment-cleaning"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/services-apartment-cleaning-1200x630.jpg",

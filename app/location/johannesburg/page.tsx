@@ -16,7 +16,7 @@ import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "Johannesburg Cleaning Services | Shalean",
-  description: "Professional cleaning services across all Johannesburg suburbs. Book your trusted cleaner today! Expert cleaners available for regular maintenance, deep cleaning, move-in/out, and Airbnb turnover services throughout Johannesburg.",
+  description: "Professional cleaning services across all Johannesburg suburbs. Expert cleaners available for regular maintenance, deep cleaning, move-in/out, and Airbnb turnover services throughout Johannesburg.",
   canonical: generateCanonical("/location/johannesburg"),
 });
 

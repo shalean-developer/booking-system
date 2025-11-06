@@ -15,7 +15,7 @@ export const SEO_CONFIG = {
 
   // Services pages
   services: {
-    title: "Home Cleaning Services — Deep, Standard & Airbnb",
+    title: "Home Cleaning Services | Shalean",
     description: "Explore Shalean's cleaning services: deep clean, standard clean, Airbnb turnaround, and move-in/out cleaning. Book online today.",
     canonical: generateCanonical("/services"),
     ogImage: {
@@ -35,7 +35,7 @@ export const SEO_CONFIG = {
   },
 
   "home-maintenance": {
-    title: "Home Maintenance Cleaning | Regular Cleaning Services",
+    title: "Home Maintenance Cleaning | Shalean",
     description: "Professional home maintenance cleaning services. Keep your home spotless with regular cleaning from Shalean's expert team. Ongoing maintenance and seasonal cleaning available.",
     canonical: generateCanonical("/services/home-maintenance"),
     ogImage: {
@@ -45,8 +45,8 @@ export const SEO_CONFIG = {
   },
 
   "move-turnover": {
-    title: "Move In/Out & Airbnb Cleaning Services | Shalean",
-    description: "Professional move-in/out cleaning and Airbnb turnover services. Ensure your property is guest-ready with Shalean's expert team. Book same-day service with flexible scheduling and satisfaction guarantee.",
+    title: "Move In/Out & Airbnb | Shalean",
+    description: "Professional move-in/out cleaning and Airbnb turnover services. Ensure your property is guest-ready with Shalean's expert team. Book same-day service with flexible scheduling.",
     canonical: generateCanonical("/services/move-turnover"),
     ogImage: {
       url: generateOgImageUrl("move-turnover"),
@@ -57,7 +57,7 @@ export const SEO_CONFIG = {
   // Blog pages
   blog: {
     title: "Cleaning Tips & Guides | Shalean Blog",
-    description: "Expert cleaning tips, industry insights, and practical guides from professional cleaners. Learn how to maintain a spotless space with our comprehensive cleaning resources and expert advice.",
+    description: "Expert cleaning tips, industry insights, and practical guides from professional cleaners. Learn how to maintain a spotless space with our comprehensive cleaning resources.",
     canonical: generateCanonical("/blog"),
     ogImage: {
       url: generateOgImageUrl("blog-default"),
@@ -67,7 +67,7 @@ export const SEO_CONFIG = {
 
   "booking-select": {
     title: "Book a Cleaning Service Online",
-    description: "Book a trusted cleaner online for a deep clean, regular service, or Airbnb turnovers across Cape Town. Get an instant quote with transparent pricing and flexible scheduling options.",
+    description: "Book a trusted cleaner online for a deep clean, regular service, or Airbnb turnovers across Cape Town. Get an instant quote with transparent pricing and flexible scheduling.",
     canonical: generateCanonical("/booking/service/select"),
     ogImage: {
       url: generateOgImageUrl("booking"),
@@ -87,8 +87,8 @@ export const SEO_CONFIG = {
 
   // Other key pages
   contact: {
-    title: "Contact Shalean Cleaning Services — Cape Town Cleaners",
-    description: "Questions? Contact Shalean Cleaning Services for quotes, jobs, and support. Call +27 87 153 5250 or visit our Claremont office. We're here to help with all your cleaning service needs.",
+    title: "Contact Shalean | Cape Town Cleaners",
+    description: "Questions? Contact Shalean Cleaning Services for quotes, jobs, and support. Call +27 87 153 5250 or visit our Claremont office. We're here to help with all your cleaning needs.",
     canonical: generateCanonical("/contact"),
     ogImage: {
       url: generateOgImageUrl("contact"),
@@ -127,7 +127,7 @@ export const SEO_CONFIG = {
   },
 
   "how-it-works": {
-    title: "How Shalean Works — Simple Booking Process",
+    title: "How Shalean Works | Shalean",
     description: "Learn how easy it is to book professional cleaning services with Shalean. Simple online booking, expert cleaners, guaranteed satisfaction.",
     canonical: generateCanonical("/how-it-works"),
     ogImage: {

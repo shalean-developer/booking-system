@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "Cape Town Northern Suburbs Cleaning Services | Shalean",
-  description: "Professional cleaning services in Cape Town's Northern Suburbs including Table View, Bloubergstrand, Milnerton, Durbanville, Bellville, Parow, and Brackenfell. Expert cleaners available for regular maintenance, deep cleaning, move-in/out, and Airbnb turnover services.",
+  title: "Cape Town Northern Suburbs | Shalean",
+  description: "Professional cleaning services in Cape Town's Northern Suburbs including Table View, Bloubergstrand, Milnerton, Durbanville, Bellville, and Parow. Expert cleaners available for regular maintenance, deep cleaning, and move-in/out services.",
   canonical: generateCanonical("/location/cape-town/northern-suburbs"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/location-northern-suburbs-1200x630.jpg",

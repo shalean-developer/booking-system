@@ -4,7 +4,7 @@ import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "West Coast Cleaning Services | Shalean",
-  description: "Professional cleaning services in Cape Town's West Coast area including Hout Bay, Noordhoek, Kommetjie, and Scarborough. Book your trusted cleaner today! Expert cleaners available for regular maintenance, deep cleaning, move-in/out, and Airbnb turnover services.",
+  description: "Professional cleaning services in Cape Town's West Coast area including Hout Bay, Noordhoek, Kommetjie, and Scarborough. Expert cleaners available for regular maintenance, deep cleaning, and move-in/out services.",
   canonical: generateCanonical("/location/cape-town/west-coast"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/location-west-coast-1200x630.jpg",
