@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "Northern Suburbs Cleaning Services | Shalean",
-  description: "Professional cleaning services in Pretoria's Northern Suburbs including Montana, Wonderboom, Pretoria North, and Annlin. Book today!",
+  title: "Northern Suburbs Cleaning Services | Shalean Professional Cleaning Services — Expert Home and Apartment Cleaning Services in Pretoria's Northern Suburbs Including Montana, Wonderboom, Pretoria North, and Annlin",
+  description: "Professional cleaning services in Pretoria's Northern Suburbs including Montana, Wonderboom, Pretoria North, and Annlin. Book today! Expert cleaners available for regular maintenance, deep cleaning, move-in/out, and Airbnb turnover services.",
   canonical: generateCanonical("/location/pretoria/northern-suburbs"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/location-pretoria-northern-suburbs-1200x630.jpg",

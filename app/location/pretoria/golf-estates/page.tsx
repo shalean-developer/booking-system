@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "Golf Estates Cleaning Services | Shalean",
-  description: "Professional cleaning services in Pretoria's Golf Estates including Silver Lakes, Woodhill, and Mooikloof. Luxury property specialists. Book today!",
+  title: "Golf Estates Cleaning Services | Shalean Professional Cleaning Services — Expert Home and Apartment Cleaning Services in Pretoria's Golf Estates Including Silver Lakes, Woodhill, and Mooikloof. Luxury Property Specialists",
+  description: "Professional cleaning services in Pretoria's Golf Estates including Silver Lakes, Woodhill, and Mooikloof. Luxury property specialists. Book today! Expert cleaners available for regular maintenance, deep cleaning, move-in/out, and Airbnb turnover services.",
   canonical: generateCanonical("/location/pretoria/golf-estates"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/location-pretoria-golf-estates-1200x630.jpg",

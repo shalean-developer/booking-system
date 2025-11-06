@@ -8,8 +8,8 @@ import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "Our Team | Shalean Cleaning Services",
-  description: "Meet the professional cleaning experts behind Shalean. Experienced, trained, and dedicated to exceptional service.",
+  title: "Our Team | Shalean Cleaning Services — Meet the Professional Cleaning Experts Behind Shalean. Experienced, Trained, and Dedicated to Exceptional Service with Years of Experience and Customer Satisfaction",
+  description: "Meet the professional cleaning experts behind Shalean. Experienced, trained, and dedicated to exceptional service. Years of experience, customer satisfaction, professional training, and commitment to quality.",
   canonical: generateCanonical("/team"),
 });
 

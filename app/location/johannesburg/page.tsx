@@ -15,8 +15,8 @@ import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "Johannesburg Cleaning Services - Coming Soon | Shalean",
-  description: "Professional cleaning services coming soon to Johannesburg suburbs. Register your interest today!",
+  title: "Johannesburg Cleaning Services | Shalean Professional Cleaning Services Throughout Johannesburg — Expert Home and Apartment Cleaning Services Across All Johannesburg Suburbs Including Northern Suburbs, Midrand, Eastern Suburbs, Southern Suburbs, Western Suburbs, and Inner City",
+  description: "Professional cleaning services across all Johannesburg suburbs. Book your trusted cleaner today! Expert cleaners available for regular maintenance, deep cleaning, move-in/out, and Airbnb turnover services throughout Johannesburg.",
   canonical: generateCanonical("/location/johannesburg"),
 });
 

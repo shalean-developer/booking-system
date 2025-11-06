@@ -18,10 +18,10 @@ const inter = Inter({
 export const metadata: Metadata = {
   metadataBase: new URL('https://shalean.co.za'),
   title: {
-    default: "Shalean Cleaning Services — Professional Home Cleaning",
+    default: "Shalean Cleaning Services — Professional Home Cleaning | Expert Cleaning Services in Cape Town, Johannesburg, Pretoria, and Durban Offering Deep Cleaning, Regular Maintenance, Move-In Cleaning, and Airbnb Turnover Services",
     template: "%s | Shalean Cleaning Services"
   },
-  description: "Reliable home & apartment cleaning in Cape Town. Book deep cleans, move-outs, and regular cleaning with Shalean.",
+  description: "Reliable home & apartment cleaning in Cape Town, Johannesburg, Pretoria, and Durban. Book deep cleans, move-outs, and regular cleaning with Shalean. Professional cleaners, eco-friendly products, satisfaction guaranteed.",
   applicationName: "Shalean Cleaning Services",
   referrer: "origin-when-cross-origin",
   keywords: ["cleaning services", "professional cleaning", "home cleaning", "office cleaning", "deep cleaning", "Airbnb cleaning", "Cape Town cleaning"],
@@ -51,8 +51,8 @@ export const metadata: Metadata = {
     locale: "en_ZA",
     url: "https://shalean.co.za",
     siteName: "Shalean Cleaning Services",
-    title: "Shalean Cleaning Services — Professional Home Cleaning",
-    description: "Reliable home & apartment cleaning in Cape Town. Book deep cleans, move-outs, and regular cleaning with Shalean.",
+    title: "Shalean Cleaning Services — Professional Home Cleaning | Expert Cleaning Services in Cape Town, Johannesburg, Pretoria, and Durban Offering Deep Cleaning, Regular Maintenance, Move-In Cleaning, and Airbnb Turnover Services",
+    description: "Reliable home & apartment cleaning in Cape Town, Johannesburg, Pretoria, and Durban. Book deep cleans, move-outs, and regular cleaning with Shalean. Professional cleaners, eco-friendly products, satisfaction guaranteed.",
     images: [
       {
         url: "https://shalean.co.za/assets/og/home-1200x630.jpg",
@@ -64,8 +64,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Shalean Cleaning Services — Professional Home Cleaning",
-    description: "Reliable home & apartment cleaning in Cape Town. Book deep cleans, move-outs, and regular cleaning with Shalean.",
+    title: "Shalean Cleaning Services — Professional Home Cleaning | Expert Cleaning Services in Cape Town, Johannesburg, Pretoria, and Durban Offering Deep Cleaning, Regular Maintenance, Move-In Cleaning, and Airbnb Turnover Services",
+    description: "Reliable home & apartment cleaning in Cape Town, Johannesburg, Pretoria, and Durban. Book deep cleans, move-outs, and regular cleaning with Shalean. Professional cleaners, eco-friendly products, satisfaction guaranteed.",
     images: ["https://shalean.co.za/assets/og/home-1200x630.jpg"]
   },
   robots: {

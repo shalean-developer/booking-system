@@ -4,8 +4,8 @@ import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "Window Cleaning Services | Shalean",
-  description: "Professional window cleaning services for homes and offices. Crystal clear windows with streak-free results. Book your window cleaner today!",
+  title: "Window Cleaning Services | Shalean Professional Window Cleaning Services for Homes and Offices — Crystal Clear Windows with Streak-Free Results, Interior and Exterior Cleaning, Window Frame Cleaning, and Safety Equipment for High Windows",
+  description: "Professional window cleaning services for homes and offices. Crystal clear windows with streak-free results. Book your window cleaner today! Interior and exterior cleaning, window frame cleaning, screen maintenance, and safety equipment available.",
   canonical: generateCanonical("/services/window-cleaning"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/services-window-cleaning-1200x630.jpg",

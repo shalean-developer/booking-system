@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "False Bay Cleaning Services | Shalean",
-  description: "Professional cleaning services in Cape Town's False Bay area including Muizenberg, Fish Hoek, Kalk Bay, Simon's Town, and Lakeside. Book your trusted cleaner today!",
+  title: "False Bay Cleaning Services | Shalean Professional Cleaning Services — Expert Home and Apartment Cleaning Services in Cape Town's False Bay Area Including Muizenberg, Fish Hoek, Kalk Bay, Simon's Town, and Lakeside",
+  description: "Professional cleaning services in Cape Town's False Bay area including Muizenberg, Fish Hoek, Kalk Bay, Simon's Town, and Lakeside. Book your trusted cleaner today! Expert cleaners available for regular maintenance, deep cleaning, move-in/out, and Airbnb turnover services.",
   canonical: generateCanonical("/location/cape-town/false-bay"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/location-false-bay-1200x630.jpg",

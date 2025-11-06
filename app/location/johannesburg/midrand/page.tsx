@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "Midrand Cleaning Services | Shalean",
-  description: "Professional cleaning services in Johannesburg's Midrand area including Midrand, Waterfall, and Halfway House. Book your trusted cleaner today!",
+  title: "Midrand Cleaning Services | Shalean Professional Cleaning Services — Expert Home and Apartment Cleaning Services in Johannesburg's Midrand Area Including Midrand, Waterfall, and Halfway House",
+  description: "Professional cleaning services in Johannesburg's Midrand area including Midrand, Waterfall, and Halfway House. Book your trusted cleaner today! Expert cleaners available for regular maintenance, deep cleaning, move-in/out, and Airbnb turnover services.",
   canonical: generateCanonical("/location/johannesburg/midrand"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/location-johannesburg-midrand-1200x630.jpg",

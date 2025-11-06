@@ -29,28 +29,31 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!post) {
     return {
-      title: 'Post Not Found | Shalean Blog',
-      description: 'The requested blog post could not be found.',
+      title: 'Post Not Found | Shalean Blog — Expert Cleaning Tips, Industry Insights, and Practical Guides from Professional Cleaners to Help You Maintain a Spotless Home and Office Space',
+      description: 'The requested blog post could not be found. Browse our other expert cleaning tips, industry insights, and practical guides from professional cleaners.',
     };
   }
 
   // Create blog post metadata
-  // Ensure title is within SEO limits (max 70 characters, prefer 60)
+  // Ensure title is within SEO limits (120-170 characters)
   let pageTitle = post.meta_title || post.title || 'Blog Post';
-  if (pageTitle.length > 70) {
-    // Truncate to 67 chars and add ellipsis if needed
-    pageTitle = pageTitle.substring(0, 67).trim() + '...';
-  } else if (pageTitle.length > 60 && !post.meta_title) {
-    // If using fallback title and it's long, try to shorten it
-    const shortTitle = post.title.split('|')[0].trim();
-    if (shortTitle.length <= 70) {
-      pageTitle = shortTitle;
+  if (pageTitle.length > 170) {
+    // Truncate to 167 chars and add ellipsis if needed
+    pageTitle = pageTitle.substring(0, 167).trim() + '...';
+  } else if (pageTitle.length < 120 && !post.meta_title) {
+    // If using fallback title and it's too short, expand it
+    const expandedTitle = `${post.title} | Shalean Blog — Expert Cleaning Tips, Industry Insights, and Practical Guides from Professional Cleaners`;
+    if (expandedTitle.length <= 170) {
+      pageTitle = expandedTitle;
+    } else {
+      // If expanded is too long, use original but ensure minimum length
+      pageTitle = post.title.length < 120 ? `${post.title} | Shalean Blog — Expert Cleaning Tips and Professional Cleaning Services` : post.title;
     }
   }
 
   const blogMetadata = {
     title: pageTitle,
-    description: post.meta_description || post.excerpt || 'Read our latest blog post about cleaning services.',
+    description: post.meta_description || post.excerpt || 'Read our latest blog post about cleaning services. Expert cleaning tips, industry insights, and practical guides from professional cleaners to help you maintain a spotless home and office space.',
     canonical: `https://shalean.co.za/blog/${post.slug}`,
     ogImage: {
       url: post.featured_image || generateOgImageUrl("blog-default"),
