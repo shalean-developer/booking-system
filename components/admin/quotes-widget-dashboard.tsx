@@ -22,17 +22,30 @@ interface QuotesWidgetDashboardProps {
 export function QuotesWidgetDashboard({ pendingCount }: QuotesWidgetDashboardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [todayQuotesCount, setTodayQuotesCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchQuotes = async () => {
       try {
-        const response = await fetch('/api/admin/quotes?status=pending&limit=5', {
+        // Fetch today's quotes
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        
+        const response = await fetch(`/api/admin/quotes?limit=1000`, {
           credentials: 'include',
         });
         const data = await response.json();
         if (data.ok && data.quotes) {
-          setQuotes(data.quotes);
+          // Filter quotes created today
+          const todayQuotes = data.quotes.filter((quote: Quote) => {
+            const quoteDate = new Date(quote.created_at).toISOString().split('T')[0];
+            return quoteDate === todayStr;
+          });
+          setTodayQuotesCount(todayQuotes.length);
+          
+          // Set pending quotes for the expanded view
+          setQuotes(data.quotes.filter((q: Quote) => q.status === 'pending').slice(0, 5));
         }
       } catch (error) {
         console.error('Error fetching quotes:', error);
@@ -58,7 +71,7 @@ export function QuotesWidgetDashboard({ pendingCount }: QuotesWidgetDashboardPro
 
   if (isLoading) {
     return (
-      <Card className="w-full">
+      <Card className="w-full relative">
         <CardHeader 
           className="pb-3 cursor-pointer hover:bg-gray-50 transition-colors"
           onClick={() => setIsExpanded(!isExpanded)}
@@ -66,7 +79,8 @@ export function QuotesWidgetDashboard({ pendingCount }: QuotesWidgetDashboardPro
           <CardTitle className="text-base font-semibold flex items-center justify-between">
             <div className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
-              Quotes
+              <span>Quotes</span>
+              <span className="text-sm font-normal text-gray-500">({isLoading ? 0 : todayQuotesCount})</span>
             </div>
             {isExpanded ? (
               <ChevronUp className="h-4 w-4 text-gray-500" />
@@ -76,7 +90,7 @@ export function QuotesWidgetDashboard({ pendingCount }: QuotesWidgetDashboardPro
           </CardTitle>
         </CardHeader>
         {isExpanded && (
-          <CardContent className="pt-0">
+          <CardContent className="pt-0 absolute top-full left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg rounded-b-lg">
             <div className="text-center py-8 text-gray-500">
               <p className="text-sm">Loading...</p>
             </div>
@@ -87,7 +101,7 @@ export function QuotesWidgetDashboard({ pendingCount }: QuotesWidgetDashboardPro
   }
 
   return (
-    <Card className="w-full">
+    <Card className="w-full relative">
       <CardHeader 
         className="pb-3 cursor-pointer hover:bg-gray-50 transition-colors"
         onClick={() => setIsExpanded(!isExpanded)}
@@ -95,7 +109,8 @@ export function QuotesWidgetDashboard({ pendingCount }: QuotesWidgetDashboardPro
         <CardTitle className="text-base font-semibold flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Quotes
+            <span>Quotes</span>
+            <span className="text-sm font-normal text-gray-500">({todayQuotesCount})</span>
           </div>
           {isExpanded ? (
             <ChevronUp className="h-4 w-4 text-gray-500" />
@@ -105,7 +120,7 @@ export function QuotesWidgetDashboard({ pendingCount }: QuotesWidgetDashboardPro
         </CardTitle>
       </CardHeader>
       {isExpanded && (
-        <CardContent className="pt-0">
+        <CardContent className="pt-0 absolute top-full left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg rounded-b-lg max-h-[400px] overflow-y-auto">
         <div className="mb-4 pb-3 border-b">
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-gray-500" />

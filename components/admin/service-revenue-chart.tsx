@@ -13,6 +13,7 @@ import {
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils/formatting';
 import { motion } from 'framer-motion';
+import { useFilterPeriod } from '@/context/FilterPeriodContext';
 
 interface ServiceRevenueData {
   service_type: string;
@@ -38,11 +39,37 @@ const COLORS = [
 ];
 
 export function ServiceRevenueChart({ data, isLoading }: ServiceRevenueChartProps) {
+  const { selectedPeriod } = useFilterPeriod();
+
+  // Helper function to get display label for selected period
+  const getPeriodLabel = (): string => {
+    switch (selectedPeriod) {
+      case 'Today':
+        return 'Today';
+      case '7 days':
+        return 'Last 7 days';
+      case 'Last 10 days':
+        return 'Last 10 days';
+      case '30 days':
+        return 'Last 30 days';
+      case '90 days':
+        return 'Last 90 days';
+      case 'Month':
+        return 'This Month';
+      default:
+        return 'Last 30 days';
+    }
+  };
+
+  const periodLabel = getPeriodLabel();
   if (isLoading) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Revenue by Service Type</CardTitle>
+          <CardTitle className="text-base">
+            Revenue by Service Type
+            <span className="text-xs text-gray-500 font-normal ml-2">({periodLabel})</span>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-64 flex items-center justify-center">
@@ -61,7 +88,10 @@ export function ServiceRevenueChart({ data, isLoading }: ServiceRevenueChartProp
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Revenue by Service Type</CardTitle>
+          <CardTitle className="text-base">
+            Revenue by Service Type
+            <span className="text-xs text-gray-500 font-normal ml-2">({periodLabel})</span>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-12 text-sm text-gray-500">
@@ -112,7 +142,10 @@ export function ServiceRevenueChart({ data, isLoading }: ServiceRevenueChartProp
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base">Revenue by Service Type</CardTitle>
+            <CardTitle className="text-base">
+            Revenue by Service Type
+            <span className="text-xs text-gray-500 font-normal ml-2">({periodLabel})</span>
+          </CardTitle>
             <Badge variant="outline" className="text-xs">
               {totalBookings} bookings
             </Badge>

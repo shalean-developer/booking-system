@@ -113,13 +113,10 @@ export function AdminSimpleDashboard() {
         });
 
         todayQuotesTotal = todayQuotes.reduce((sum: number, quote: any) => {
-          return sum + (quote.estimated_price || 0);
+          const price = quote.estimated_price || 0;
+          // Convert from cents to rands (consistent with API - always divide by 100)
+          return sum + (price / 100);
         }, 0);
-
-        // Convert from cents to rands if needed (checking if value seems to be in cents)
-        if (todayQuotesTotal > 10000) {
-          todayQuotesTotal = todayQuotesTotal / 100;
-        }
         setQuotesToday(todayQuotesTotal);
       }
 
@@ -131,10 +128,12 @@ export function AdminSimpleDashboard() {
         });
 
         const yesterdayQuotesTotal = yesterdayQuotes.reduce((sum: number, quote: any) => {
-          return sum + (quote.estimated_price || 0);
+          const price = quote.estimated_price || 0;
+          // Convert from cents to rands (consistent with API - always divide by 100)
+          return sum + (price / 100);
         }, 0);
 
-        setQuotesYesterday(yesterdayQuotesTotal > 10000 ? yesterdayQuotesTotal / 100 : yesterdayQuotesTotal);
+        setQuotesYesterday(yesterdayQuotesTotal);
       }
 
       // Fetch today's bookings revenue

@@ -39,7 +39,7 @@ export function TodaysBookingsWidget({ bookings }: TodaysBookingsWidgetProps) {
   };
 
   return (
-    <Card className="w-full">
+    <Card className="w-full relative">
       <CardHeader 
         className="pb-3 cursor-pointer hover:bg-gray-50 transition-colors"
         onClick={() => setIsExpanded(!isExpanded)}
@@ -47,7 +47,8 @@ export function TodaysBookingsWidget({ bookings }: TodaysBookingsWidgetProps) {
         <CardTitle className="text-base font-semibold flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Today's Bookings
+            <span>Today's Bookings</span>
+            <span className="text-sm font-normal text-gray-500">({bookings.length})</span>
           </div>
           {isExpanded ? (
             <ChevronUp className="h-4 w-4 text-gray-500" />
@@ -57,8 +58,8 @@ export function TodaysBookingsWidget({ bookings }: TodaysBookingsWidgetProps) {
         </CardTitle>
       </CardHeader>
       {isExpanded && (
-        <CardContent className="pt-0">
-        <div className="space-y-3 max-h-[400px] overflow-y-auto">
+        <CardContent className="pt-0 absolute top-full left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg rounded-b-lg max-h-[400px] overflow-y-auto">
+        <div className="space-y-3">
           {bookings.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <Calendar className="h-8 w-8 mx-auto mb-2 text-gray-400" />

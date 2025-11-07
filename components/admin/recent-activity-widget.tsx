@@ -54,7 +54,7 @@ export function RecentActivityWidget({ stats }: RecentActivityWidgetProps) {
   ];
 
   return (
-    <Card className="w-full">
+    <Card className="w-full relative">
       <CardHeader 
         className="pb-3 cursor-pointer hover:bg-gray-50 transition-colors"
         onClick={() => setIsExpanded(!isExpanded)}
@@ -69,7 +69,7 @@ export function RecentActivityWidget({ stats }: RecentActivityWidgetProps) {
         </CardTitle>
       </CardHeader>
       {isExpanded && (
-        <CardContent className="pt-0">
+        <CardContent className="pt-0 absolute top-full left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg rounded-b-lg">
         <div className="space-y-4">
           {activities.map((activity) => {
             const Icon = activity.icon;

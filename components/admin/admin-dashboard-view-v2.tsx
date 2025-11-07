@@ -27,6 +27,8 @@ import { RecentActivityWidget } from './recent-activity-widget';
 import { QuotesWidgetDashboard } from './quotes-widget-dashboard';
 import { DollarSign, Calendar, Percent, TrendingUp } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils/formatting';
+import { useFilterPeriod, type FilterPeriod } from '@/context/FilterPeriodContext';
+import { startOfMonth, endOfMonth } from 'date-fns';
 
 interface Stats {
   bookings: {
@@ -92,15 +94,34 @@ interface Stats {
 }
 
 export function AdminDashboardViewV2() {
-  // Calculate days from start of current month to today
-  const getCurrentMonthDays = () => {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const daysDifference = Math.ceil((now.getTime() - startOfMonth.getTime()) / (1000 * 60 * 60 * 24));
-    return daysDifference + 1;
+  const { selectedPeriod } = useFilterPeriod();
+
+  // Convert filter period to days for API calls
+  const getDaysForPeriod = (period: FilterPeriod): number => {
+    switch (period) {
+      case 'Today':
+        return 1;
+      case '7 days':
+        return 7;
+      case 'Last 10 days':
+        return 10;
+      case '30 days':
+        return 30;
+      case '90 days':
+        return 90;
+      case 'Month': {
+        const today = new Date();
+        const start = startOfMonth(today);
+        const end = endOfMonth(today);
+        return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      }
+      default:
+        return 30;
+    }
   };
 
-  const [dateRangeDays, setDateRangeDays] = useState(getCurrentMonthDays());
+  // Use filter period from context, fallback to current month days
+  const dateRangeDays = getDaysForPeriod(selectedPeriod);
   const [chartData, setChartData] = useState<any[]>([]);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
 
@@ -153,7 +174,7 @@ export function AdminDashboardViewV2() {
     };
 
     fetchChartData();
-  }, [dateRangeDays]);
+  }, [selectedPeriod]); // Refetch when period changes (dateRangeDays is computed from selectedPeriod)
 
   // Listen for export dialog events
   useEffect(() => {
@@ -208,13 +229,13 @@ export function AdminDashboardViewV2() {
 
   return (
     <div className="space-y-6">
-      {/* Date Range Filter */}
-      <div>
+      {/* Date Range Filter - Now controlled by navbar filter period */}
+      {/* <div>
         <DateRangeFilter 
           onDateRangeChange={setDateRangeDays} 
           selectedDays={dateRangeDays}
         />
-      </div>
+      </div> */}
 
       {/* Critical Alerts Panel - Priority Position */}
       <CriticalAlertsPanel />

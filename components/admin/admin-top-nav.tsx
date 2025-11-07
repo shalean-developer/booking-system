@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MoreHorizontal, Bell, Calendar, FileText } from 'lucide-react';
+import { Bell, Calendar, FileText } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -21,19 +21,21 @@ interface AdminTopNavProps {
 
 export function AdminTopNav({ onNavigate, activeTab = 'dashboard' }: AdminTopNavProps) {
   const router = useRouter();
-  const [pendingBookingsCount, setPendingBookingsCount] = useState(0);
-  const [pendingQuotesCount, setPendingQuotesCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-
+  
   const tabs = [
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'bookings', label: 'Bookings' },
     { id: 'customers', label: 'Customers' },
     { id: 'quotes', label: 'Quotes' },
+    { id: 'blog', label: 'Blog' },
     { id: 'schedule', label: 'Schedule' },
     { id: 'cleaners', label: 'Cleaners' },
     { id: 'payments', label: 'Payments' },
   ];
+
+  const [pendingBookingsCount, setPendingBookingsCount] = useState(0);
+  const [pendingQuotesCount, setPendingQuotesCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
   const fetchNotificationCounts = async () => {
     try {
@@ -111,12 +113,12 @@ export function AdminTopNav({ onNavigate, activeTab = 'dashboard' }: AdminTopNav
           </div>
 
           {/* Navigation Links */}
-          <nav className="flex items-center gap-8 flex-1 justify-center">
+          <nav className="flex items-center gap-6 flex-1 justify-center overflow-x-auto scrollbar-hide">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => onNavigate?.(tab.id)}
-                className={`text-sm font-medium transition-colors pb-1 border-b-2 ${
+                className={`text-sm font-medium transition-colors pb-1 border-b-2 whitespace-nowrap flex-shrink-0 ${
                   activeTab === tab.id
                     ? 'text-blue-600 border-blue-600'
                     : 'text-gray-400 border-transparent hover:text-gray-600'
@@ -125,10 +127,6 @@ export function AdminTopNav({ onNavigate, activeTab = 'dashboard' }: AdminTopNav
                 {tab.label}
               </button>
             ))}
-            {/* Ellipsis Menu */}
-            <button className="p-1 hover:bg-gray-100 rounded">
-              <MoreHorizontal className="h-5 w-5 text-gray-600" />
-            </button>
           </nav>
 
           {/* Right Side Actions */}

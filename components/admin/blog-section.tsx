@@ -358,13 +358,41 @@ export function BlogSection() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Title */}
             <div>
-              <Label htmlFor="title">Title *</Label>
+              <Label htmlFor="title">Title * (70 characters max)</Label>
               <Input
                 id="title"
                 value={formData.title}
                 onChange={(e) => handleTitleChange(e.target.value)}
+                maxLength={70}
                 required
+                className={formData.title.length > 70 ? 'border-red-500' : formData.title.length > 65 ? 'border-yellow-500' : formData.title.length < 15 ? 'border-yellow-500' : ''}
               />
+              <div className="flex items-center gap-2 mt-1">
+                <p className={`text-sm ${formData.title.length > 70 ? 'text-red-600' : formData.title.length > 65 ? 'text-yellow-600' : formData.title.length < 15 ? 'text-yellow-600' : 'text-gray-500'}`}>
+                  {formData.title.length}/70 characters
+                </p>
+                {formData.title.length > 70 ? (
+                  <div className="flex items-center gap-1 text-red-600">
+                    <AlertTriangle className="h-3 w-3" />
+                    <span className="text-xs">Too long</span>
+                  </div>
+                ) : formData.title.length > 65 ? (
+                  <div className="flex items-center gap-1 text-yellow-600">
+                    <AlertTriangle className="h-3 w-3" />
+                    <span className="text-xs">Getting long</span>
+                  </div>
+                ) : formData.title.length < 15 && formData.title.length > 0 ? (
+                  <div className="flex items-center gap-1 text-yellow-600">
+                    <AlertTriangle className="h-3 w-3" />
+                    <span className="text-xs">Too short (min 15)</span>
+                  </div>
+                ) : formData.title.length >= 15 && formData.title.length <= 65 ? (
+                  <div className="flex items-center gap-1 text-green-600">
+                    <CheckCircle className="h-3 w-3" />
+                    <span className="text-xs">Good length</span>
+                  </div>
+                ) : null}
+              </div>
             </div>
 
             {/* Slug */}

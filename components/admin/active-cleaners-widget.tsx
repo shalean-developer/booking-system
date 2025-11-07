@@ -60,7 +60,7 @@ export function ActiveCleanersWidget({ totalCleaners }: ActiveCleanersWidgetProp
 
   if (isLoading) {
     return (
-      <Card className="w-full">
+      <Card className="w-full relative">
         <CardHeader 
           className="pb-3 cursor-pointer hover:bg-gray-50 transition-colors"
           onClick={() => setIsExpanded(!isExpanded)}
@@ -68,7 +68,8 @@ export function ActiveCleanersWidget({ totalCleaners }: ActiveCleanersWidgetProp
           <CardTitle className="text-base font-semibold flex items-center justify-between">
             <div className="flex items-center gap-2">
               <User className="h-5 w-5" />
-              Active Cleaners
+              <span>Active Cleaners</span>
+              <span className="text-sm font-normal text-gray-500">({isLoading ? 0 : cleaners.length})</span>
             </div>
             {isExpanded ? (
               <ChevronUp className="h-4 w-4 text-gray-500" />
@@ -78,7 +79,7 @@ export function ActiveCleanersWidget({ totalCleaners }: ActiveCleanersWidgetProp
           </CardTitle>
         </CardHeader>
         {isExpanded && (
-          <CardContent className="pt-0">
+          <CardContent className="pt-0 absolute top-full left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg rounded-b-lg">
             <div className="text-center py-8 text-gray-500">
               <p className="text-sm">Loading...</p>
             </div>
@@ -89,7 +90,7 @@ export function ActiveCleanersWidget({ totalCleaners }: ActiveCleanersWidgetProp
   }
 
   return (
-    <Card className="w-full">
+    <Card className="w-full relative">
       <CardHeader 
         className="pb-3 cursor-pointer hover:bg-gray-50 transition-colors"
         onClick={() => setIsExpanded(!isExpanded)}
@@ -97,7 +98,8 @@ export function ActiveCleanersWidget({ totalCleaners }: ActiveCleanersWidgetProp
         <CardTitle className="text-base font-semibold flex items-center justify-between">
           <div className="flex items-center gap-2">
             <User className="h-5 w-5" />
-            Active Cleaners
+            <span>Active Cleaners</span>
+            <span className="text-sm font-normal text-gray-500">({isLoading ? 0 : cleaners.length})</span>
           </div>
           {isExpanded ? (
             <ChevronUp className="h-4 w-4 text-gray-500" />
@@ -107,8 +109,8 @@ export function ActiveCleanersWidget({ totalCleaners }: ActiveCleanersWidgetProp
         </CardTitle>
       </CardHeader>
       {isExpanded && (
-        <CardContent className="pt-0">
-        <div className="space-y-3 max-h-[400px] overflow-y-auto">
+        <CardContent className="pt-0 absolute top-full left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg rounded-b-lg max-h-[400px] overflow-y-auto">
+        <div className="space-y-3">
           {cleaners.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <User className="h-8 w-8 mx-auto mb-2 text-gray-400" />

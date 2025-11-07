@@ -16,6 +16,7 @@ import {
 import { DollarSign, Loader2, Download, ZoomIn } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { AnimatedCard } from './animated-card';
+import { useFilterPeriod } from '@/context/FilterPeriodContext';
 
 interface ChartDataPoint {
   date: string;
@@ -45,6 +46,29 @@ const formatCurrency = (value: number) => {
 
 export function RevenueChartEnhanced({ data, isLoading }: RevenueChartEnhancedProps) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const { selectedPeriod } = useFilterPeriod();
+
+  // Helper function to get display label for selected period
+  const getPeriodLabel = (): string => {
+    switch (selectedPeriod) {
+      case 'Today':
+        return 'Today';
+      case '7 days':
+        return 'Last 7 days';
+      case 'Last 10 days':
+        return 'Last 10 days';
+      case '30 days':
+        return 'Last 30 days';
+      case '90 days':
+        return 'Last 90 days';
+      case 'Month':
+        return 'This Month';
+      default:
+        return 'Last 30 days';
+    }
+  };
+
+  const periodLabel = getPeriodLabel();
 
   const handleExport = () => {
     const headers = ['Date', 'Revenue', 'Company Earnings'];
@@ -87,6 +111,7 @@ export function RevenueChartEnhanced({ data, isLoading }: RevenueChartEnhancedPr
             <CardTitle className="flex items-center gap-2">
               <DollarSign className="h-5 w-5" />
               Revenue Trend
+              <span className="text-xs text-gray-500 font-normal">({periodLabel})</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -107,6 +132,7 @@ export function RevenueChartEnhanced({ data, isLoading }: RevenueChartEnhancedPr
             <CardTitle className="flex items-center gap-2">
               <DollarSign className="h-5 w-5" />
               Revenue Trend
+              <span className="text-xs text-gray-500 font-normal">({periodLabel})</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -127,6 +153,7 @@ export function RevenueChartEnhanced({ data, isLoading }: RevenueChartEnhancedPr
             <CardTitle className="text-base flex items-center gap-2">
               <DollarSign className="h-5 w-5 text-blue-600" />
               Revenue Trend
+              <span className="text-xs text-gray-500 font-normal">({periodLabel})</span>
               {selectedDate && (
                 <span className="text-xs text-gray-500 font-normal">
                   ({format(parseISO(selectedDate), 'MMM dd, yyyy')})

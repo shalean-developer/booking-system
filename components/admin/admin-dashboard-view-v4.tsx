@@ -25,7 +25,7 @@ import {
   Cell,
   ComposedChart,
 } from 'recharts';
-import { format, parseISO, subDays } from 'date-fns';
+import { format, parseISO, subDays, startOfMonth, endOfMonth } from 'date-fns';
 import { 
   ChevronDown, 
   ChevronUp, 
@@ -48,6 +48,7 @@ import { TodaysBookingsWidget } from './todays-bookings-widget';
 import { ActiveCleanersWidget } from './active-cleaners-widget';
 import { RecentActivityWidget } from './recent-activity-widget';
 import { QuotesWidgetDashboard } from './quotes-widget-dashboard';
+import { useFilterPeriod, type FilterPeriod } from '@/context/FilterPeriodContext';
 
 interface Stats {
   bookings: {
@@ -116,7 +117,56 @@ export function AdminDashboardViewV4() {
   const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false);
   const [bookingsChartOffset, setBookingsChartOffset] = useState(0);
   const [revenueChartOffset, setRevenueChartOffset] = useState(0);
-  const ITEMS_PER_PAGE = 10;
+  const { selectedPeriod } = useFilterPeriod();
+
+  // Convert filter period to days for API calls
+  const getDaysForPeriod = (period: FilterPeriod): number => {
+    switch (period) {
+      case 'Today':
+        return 1;
+      case '7 days':
+        return 7;
+      case 'Last 10 days':
+        return 10;
+      case '30 days':
+        return 30;
+      case '90 days':
+        return 90;
+      case 'Month': {
+        const today = new Date();
+        const start = startOfMonth(today);
+        const end = endOfMonth(today);
+        return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      }
+      default:
+        return 30;
+    }
+  };
+
+  const apiDays = getDaysForPeriod(selectedPeriod);
+  const ITEMS_PER_PAGE = selectedPeriod === 'Today' ? 1 : (selectedPeriod === '7 days' ? 7 : 10);
+
+  // Helper function to get display label for selected period
+  const getPeriodLabel = (): string => {
+    switch (selectedPeriod) {
+      case 'Today':
+        return 'Today';
+      case '7 days':
+        return 'Last 7 days';
+      case 'Last 10 days':
+        return 'Last 10 days';
+      case '30 days':
+        return 'Last 30 days';
+      case '90 days':
+        return 'Last 90 days';
+      case 'Month':
+        return 'This Month';
+      default:
+        return 'Last 10 days';
+    }
+  };
+
+  const periodLabel = getPeriodLabel();
 
   // Get display name for selected service
   const getServiceDisplayName = () => {
@@ -246,13 +296,10 @@ export function AdminDashboardViewV4() {
 
         // Only show if created after dashboard load and not dismissed
         if (itemTime >= recentTime && !dismissedSet.has(itemId)) {
+          // Convert from cents to rands (consistent with API - always divide by 100)
           const price = latestItem.type === 'quote' 
-            ? (latestItem.data.estimated_price || 0) > 10000 
-              ? (latestItem.data.estimated_price / 100) 
-              : latestItem.data.estimated_price
-            : (latestItem.data.total_amount || 0) > 10000
-              ? (latestItem.data.total_amount / 100)
-              : latestItem.data.total_amount;
+            ? (latestItem.data.estimated_price || 0) / 100
+            : (latestItem.data.total_amount || 0) / 100;
 
           const serviceType = latestItem.data.service_type || 'Standard Cleaning';
           const message = latestItem.type === 'quote'
@@ -351,6 +398,11 @@ export function AdminDashboardViewV4() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // fetchLatestNotification is stable (useCallback with no dependencies)
 
+  // Refetch dashboard data when filter period changes
+  useEffect(() => {
+    fetchDashboardData();
+  }, [selectedPeriod]);
+
   const handleDismissNotification = useCallback(() => {
     if (latestNotification) {
       // Clear auto-dismiss timer
@@ -395,8 +447,8 @@ export function AdminDashboardViewV4() {
     try {
       setLoading(true);
 
-      // Fetch stats
-      const statsRes = await fetch('/api/admin/stats?days=30', {
+      // Fetch stats - use dynamic days based on selected period
+      const statsRes = await fetch(`/api/admin/stats?days=${apiDays}`, {
         credentials: 'include',
       });
       
@@ -418,11 +470,11 @@ export function AdminDashboardViewV4() {
         }
       }
 
-      // Fetch booking chart data - get 30 days to enable scrolling, but show last 10 by default
+      // Fetch booking chart data - use dynamic days based on selected period
       try {
         const today = new Date();
         const todayStr = today.toISOString().split('T')[0];
-        const chartRes = await fetch(`/api/admin/stats/chart?days=30&endDate=${todayStr}`, {
+        const chartRes = await fetch(`/api/admin/stats/chart?days=${apiDays}&endDate=${todayStr}`, {
           credentials: 'include',
           cache: 'no-store', // Ensure fresh data on each request
         });
@@ -516,9 +568,9 @@ export function AdminDashboardViewV4() {
         console.error('Error fetching chart data:', error);
       }
 
-      // Fetch customer data for last 30 days
+      // Fetch customer data - use dynamic days based on selected period
       try {
-        const customerRes = await fetch('/api/admin/stats/chart?days=30', {
+        const customerRes = await fetch(`/api/admin/stats/chart?days=${apiDays}`, {
           credentials: 'include',
         });
         
@@ -665,8 +717,8 @@ export function AdminDashboardViewV4() {
 
         todayQuotesTotal = todayQuotes.reduce((sum: number, quote: any) => {
           const price = quote.estimated_price || 0;
-          // Convert from cents to rands if needed (assuming prices > 10000 are in cents)
-          return sum + (price > 10000 ? price / 100 : price);
+          // Convert from cents to rands (consistent with API - always divide by 100)
+          return sum + (price / 100);
         }, 0);
 
         // Calculate yesterday's quotes total value
@@ -677,7 +729,8 @@ export function AdminDashboardViewV4() {
 
         yesterdayQuotesTotal = yesterdayQuotes.reduce((sum: number, quote: any) => {
           const price = quote.estimated_price || 0;
-          return sum + (price > 10000 ? price / 100 : price);
+          // Convert from cents to rands (consistent with API - always divide by 100)
+          return sum + (price / 100);
         }, 0);
 
         // Calculate 7-day average for quotes (excluding today)
@@ -690,7 +743,8 @@ export function AdminDashboardViewV4() {
 
         const last7DaysQuotesTotal = last7DaysQuotes.reduce((sum: number, quote: any) => {
           const price = quote.estimated_price || 0;
-          return sum + (price > 10000 ? price / 100 : price);
+          // Convert from cents to rands (consistent with API - always divide by 100)
+          return sum + (price / 100);
         }, 0);
         setQuotes7DayAvg(last7DaysQuotesTotal / 7);
       }
@@ -721,41 +775,58 @@ export function AdminDashboardViewV4() {
 
       if (bookingsData.ok && bookingsData.bookings) {
         // Calculate today's bookings revenue and count
+        // Filter by booking_date (scheduled date) and only completed bookings
+        // This matches the stats API logic for revenue calculation
         const todayBookings = bookingsData.bookings.filter((booking: any) => {
-          const bookingDate = format(parseISO(booking.created_at), 'yyyy-MM-dd');
-          return bookingDate === todayStr;
+          // Use booking_date (scheduled date) instead of created_at
+          const bookingDate = booking.booking_date 
+            ? format(parseISO(booking.booking_date), 'yyyy-MM-dd')
+            : null;
+          // Only include completed bookings (matches stats API revenue calculation)
+          const isCompleted = booking.status?.toLowerCase() === 'completed';
+          return bookingDate === todayStr && isCompleted;
         });
 
         todayBookingsTotal = todayBookings.reduce((sum: number, booking: any) => {
           const amount = booking.total_amount || 0;
-          // Convert from cents to rands if needed
-          return sum + (amount > 10000 ? amount / 100 : amount);
+          // Convert from cents to rands (consistent with API - always divide by 100)
+          return sum + (amount / 100);
         }, 0);
 
         setBookingsCountToday(todayBookings.length);
 
         // Calculate yesterday's bookings revenue
+        // Filter by booking_date (scheduled date) and only completed bookings
         const yesterdayBookings = bookingsData.bookings.filter((booking: any) => {
-          const bookingDate = format(parseISO(booking.created_at), 'yyyy-MM-dd');
-          return bookingDate === yesterdayStr;
+          const bookingDate = booking.booking_date 
+            ? format(parseISO(booking.booking_date), 'yyyy-MM-dd')
+            : null;
+          const isCompleted = booking.status?.toLowerCase() === 'completed';
+          return bookingDate === yesterdayStr && isCompleted;
         });
 
         yesterdayBookingsTotal = yesterdayBookings.reduce((sum: number, booking: any) => {
           const amount = booking.total_amount || 0;
-          return sum + (amount > 10000 ? amount / 100 : amount);
+          // Convert from cents to rands (consistent with API - always divide by 100)
+          return sum + (amount / 100);
         }, 0);
 
         // Calculate 7-day average for bookings (excluding today)
+        // Filter by booking_date (scheduled date) and only completed bookings
         const sevenDaysAgo = subDays(today, 7);
         const sevenDaysAgoStr = format(sevenDaysAgo, 'yyyy-MM-dd');
         const last7DaysBookings = bookingsData.bookings.filter((booking: any) => {
-          const bookingDate = format(parseISO(booking.created_at), 'yyyy-MM-dd');
-          return bookingDate >= sevenDaysAgoStr && bookingDate < todayStr;
+          const bookingDate = booking.booking_date 
+            ? format(parseISO(booking.booking_date), 'yyyy-MM-dd')
+            : null;
+          const isCompleted = booking.status?.toLowerCase() === 'completed';
+          return bookingDate && bookingDate >= sevenDaysAgoStr && bookingDate < todayStr && isCompleted;
         });
 
         const last7DaysBookingsTotal = last7DaysBookings.reduce((sum: number, booking: any) => {
           const amount = booking.total_amount || 0;
-          return sum + (amount > 10000 ? amount / 100 : amount);
+          // Convert from cents to rands (consistent with API - always divide by 100)
+          return sum + (amount / 100);
         }, 0);
         setBookings7DayAvg(last7DaysBookingsTotal / 7);
       }
@@ -888,11 +959,19 @@ export function AdminDashboardViewV4() {
         };
 
         bookingsData.bookings.forEach((booking: any) => {
-          const bookingDate = new Date(booking.created_at);
-          if (bookingDate >= tenDaysAgo && booking.status === 'completed') {
-            const amount = (booking.total_amount || 0) > 10000 
-              ? (booking.total_amount || 0) / 100 
-              : (booking.total_amount || 0);
+          // Use booking_date (scheduled date) for revenue calculation, not created_at
+          // Only include completed bookings for revenue
+          const isCompleted = booking.status?.toLowerCase() === 'completed';
+          if (!isCompleted) return;
+          
+          // Use booking_date if available, fallback to created_at for older bookings
+          const bookingDateStr = booking.booking_date || booking.created_at;
+          if (!bookingDateStr) return;
+          
+          const bookingDate = new Date(bookingDateStr);
+          if (bookingDate >= tenDaysAgo) {
+            // Convert from cents to rands (consistent with API - always divide by 100)
+            const amount = (booking.total_amount || 0) / 100;
             
             const serviceType = (booking.service_type || '').trim();
             if (serviceType === 'Move In/Out' || serviceType.toLowerCase().includes('move')) {
@@ -1360,7 +1439,9 @@ export function AdminDashboardViewV4() {
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                    <span className="text-xs text-gray-500">Last 10 days</span>
+                    <span className="text-xs text-gray-500">
+                      {periodLabel}
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1371,44 +1452,69 @@ export function AdminDashboardViewV4() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pb-4 flex-grow flex flex-col">
-              {/* Summary Stats with Percentages */}
+              {/* Summary Stats with Percentages - Calculated from visible data */}
               {(() => {
-                const total = moveInMoveOut + standardCleaning + deepCleaning + airbnb;
-                const moveInPercent = total > 0 ? Math.round((moveInMoveOut / total) * 100) : 0;
-                const standardPercent = total > 0 ? Math.round((standardCleaning / total) * 100) : 0;
-                const deepPercent = total > 0 ? Math.round((deepCleaning / total) * 100) : 0;
-                const airbnbPercent = total > 0 ? Math.round((airbnb / total) * 100) : 0;
+                // Calculate totals from currently visible/paginated data
+                const totalData = filteredBookingChartData.length;
+                if (totalData === 0) {
+                  return (
+                    <div className="mb-6">
+                      <div className="flex items-start gap-6">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-sm font-semibold">0</span>
+                          <span className="text-sm text-gray-600">Total</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                
+                const endIndex = totalData;
+                const startIndex = Math.max(0, totalData - ITEMS_PER_PAGE - bookingsChartOffset);
+                const paginatedData = filteredBookingChartData.slice(startIndex, endIndex);
+                
+                // Calculate totals from visible data
+                const visibleMoveInMoveOut = paginatedData.reduce((sum, item) => sum + (item.moveInMoveOut || 0), 0);
+                const visibleStandardCleaning = paginatedData.reduce((sum, item) => sum + (item.standardCleaning || 0), 0);
+                const visibleDeepCleaning = paginatedData.reduce((sum, item) => sum + (item.deepCleaning || 0), 0);
+                const visibleAirbnb = paginatedData.reduce((sum, item) => sum + (item.airbnb || 0), 0);
+                const visibleTotal = visibleMoveInMoveOut + visibleStandardCleaning + visibleDeepCleaning + visibleAirbnb;
+                
+                const moveInPercent = visibleTotal > 0 ? Math.round((visibleMoveInMoveOut / visibleTotal) * 100) : 0;
+                const standardPercent = visibleTotal > 0 ? Math.round((visibleStandardCleaning / visibleTotal) * 100) : 0;
+                const deepPercent = visibleTotal > 0 ? Math.round((visibleDeepCleaning / visibleTotal) * 100) : 0;
+                const airbnbPercent = visibleTotal > 0 ? Math.round((visibleAirbnb / visibleTotal) * 100) : 0;
                 
                 return (
                   <div className="mb-6">
                     <div className="flex items-start gap-6">
                       <div className="flex flex-col items-center gap-1">
-                        <span className="text-sm font-semibold">{total.toLocaleString()}</span>
+                        <span className="text-sm font-semibold">{visibleTotal.toLocaleString()}</span>
                         <span className="text-sm text-gray-600">Total</span>
                       </div>
                       <div className="flex flex-col items-center gap-1">
-                        <span className="text-sm font-semibold">{moveInMoveOut.toLocaleString()}</span>
+                        <span className="text-sm font-semibold">{visibleMoveInMoveOut.toLocaleString()}</span>
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                           <span className="text-sm text-gray-600">Move In/Move Out</span>
                         </div>
                       </div>
                       <div className="flex flex-col items-center gap-1">
-                        <span className="text-sm font-semibold">{standardCleaning.toLocaleString()}</span>
+                        <span className="text-sm font-semibold">{visibleStandardCleaning.toLocaleString()}</span>
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
                           <span className="text-sm text-gray-600">Standard Cleaning</span>
                         </div>
                       </div>
                       <div className="flex flex-col items-center gap-1">
-                        <span className="text-sm font-semibold">{deepCleaning.toLocaleString()}</span>
+                        <span className="text-sm font-semibold">{visibleDeepCleaning.toLocaleString()}</span>
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 bg-red-500 rounded-full"></div>
                           <span className="text-sm text-gray-600">Deep Cleaning</span>
                         </div>
                       </div>
                       <div className="flex flex-col items-center gap-1">
-                        <span className="text-sm font-semibold">{airbnb.toLocaleString()}</span>
+                        <span className="text-sm font-semibold">{visibleAirbnb.toLocaleString()}</span>
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                           <span className="text-sm text-gray-600">Airbnb</span>
@@ -1590,7 +1696,7 @@ export function AdminDashboardViewV4() {
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center text-base">
                 <span>Quotes & Bookings Values</span>
-                <span className="text-xs font-normal text-gray-500 ml-2">Today</span>
+                <span className="text-xs font-normal text-gray-500 ml-2">{periodLabel}</span>
                 <div className="flex items-center gap-2 ml-auto">
                   <button className="p-1 hover:bg-gray-100 rounded">
                     <MoreVertical className="h-4 w-4 text-gray-400" />
@@ -1665,7 +1771,7 @@ export function AdminDashboardViewV4() {
               <CardTitle className="flex items-center justify-between text-lg">
                 <div className="flex items-center gap-3">
                   <span className="text-lg font-semibold">Conversions</span>
-                  <span className="text-sm font-normal text-gray-500">Today</span>
+                  <span className="text-sm font-normal text-gray-500">{periodLabel}</span>
                 </div>
                 <button className="p-1 hover:bg-gray-100 rounded">
                   <MoreVertical className="h-4 w-4 text-gray-400" />
@@ -1739,7 +1845,9 @@ export function AdminDashboardViewV4() {
             <CardTitle className="flex items-center justify-between text-lg">
               <div className="flex items-center gap-2">
                 <span>Revenue</span>
-                <span className="text-sm font-normal text-gray-500">Last 10 days</span>
+                <span className="text-sm font-normal text-gray-500">
+                  {periodLabel}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <button className="p-1 hover:bg-gray-100 rounded">
@@ -1886,9 +1994,9 @@ export function AdminDashboardViewV4() {
             <CardTitle className="flex items-center justify-between text-lg">
               <div className="flex items-center gap-2">
                 <span>Customers</span>
+                <span className="text-sm font-normal text-gray-500">{periodLabel}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-normal text-gray-500">Last 30 days</span>
                 <button className="p-1 hover:bg-gray-100 rounded">
                   <MoreVertical className="h-4 w-4 text-gray-400" />
                 </button>

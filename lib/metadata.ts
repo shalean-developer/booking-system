@@ -127,12 +127,16 @@ export function createMetadata(metadata: PageMetadata | Metadata): Metadata {
   const canonical = pageMeta.canonical || generateCanonical();
 
   // If title + template would exceed 70 chars, use full title object to prevent template appending
-  // Template adds " | Shalean Cleaning Services" (30 chars), so we check if title > 40
-  // This prevents " | Shalean Cleaning Services" from being added when title is already long
+  // Note: Template length is variable (handled upstream in blog post metadata generation):
+  // - " | [Category] | Shalean" (variable, typically 13-30 chars)
+  // - " | Shalean Cleaning Services" (30 chars, default fallback)
+  // - " | Shalean" (13 chars, short fallback)
+  // We check if title > 40 chars to prevent template appending when title is already long
   // Use type assertion to bypass TypeScript requirement for template property
-  const TEMPLATE_SUFFIX_LENGTH = 30; // " | Shalean Cleaning Services"
+  const TEMPLATE_SUFFIX_LENGTH = 30; // Max expected template length for safety check
   const MAX_TITLE_LENGTH = 70;
   // If title is > 40 chars, don't add template to keep total ≤ 70
+  // (Titles are pre-formatted with appropriate template in blog post metadata generation)
   const titleMetadata = pageMeta.title.length > 40
     ? ({ default: pageMeta.title } as any)
     : pageMeta.title;

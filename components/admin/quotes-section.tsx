@@ -226,8 +226,8 @@ export function QuotesSection() {
 
   const formatPrice = (price: number | null) => {
     if (!price) return 'R0.00';
-    // Convert from cents to rands if needed
-    const randAmount = price > 10000 ? price / 100 : price;
+    // Convert from cents to rands (consistent with API - always divide by 100)
+    const randAmount = price / 100;
     return `R${randAmount.toFixed(2)}`;
   };
 

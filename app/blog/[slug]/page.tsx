@@ -22,6 +22,33 @@ type Props = {
   params: Promise<{ slug: string }>;
 };
 
+/**
+ * Generates the appropriate template suffix based on category availability and length
+ * @param categoryName - The blog post category name (optional)
+ * @returns Object with suffix string and its length
+ */
+function getTemplateSuffix(categoryName?: string | null): { suffix: string; length: number } {
+  const DEFAULT_TEMPLATE = " | Shalean Cleaning Services"; // 30 chars
+  const SHORT_TEMPLATE = " | Shalean"; // 13 chars
+  const MAX_CATEGORY_LENGTH = 15; // Max chars for category in template
+  
+  if (!categoryName) {
+    return { suffix: DEFAULT_TEMPLATE, length: 30 };
+  }
+  
+  // Category template: " | [Category] | Shalean"
+  const categoryTemplate = ` | ${categoryName} | Shalean`;
+  const categoryTemplateLength = categoryTemplate.length;
+  
+  // If category template fits and category is reasonable length, use it
+  if (categoryTemplateLength <= 30 && categoryName.length <= MAX_CATEGORY_LENGTH) {
+    return { suffix: categoryTemplate, length: categoryTemplateLength };
+  }
+  
+  // If category too long, use short template
+  return { suffix: SHORT_TEMPLATE, length: 13 };
+}
+
 // Generate metadata for SEO
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
@@ -38,47 +65,79 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // Ensure title is within SEO limits (15-70 characters)
   let pageTitle = post.meta_title || post.title || 'Blog Post';
   
+  // Get the appropriate template suffix based on category
+  const template = getTemplateSuffix(post.category_name);
+  const MAX_WITH_TEMPLATE = 70;
+  
   // Special case: fix the specific blog post title that's too long
   if (post.slug === '10-essential-deep-cleaning-tips-for-every-home' && !post.meta_title) {
     pageTitle = '10 Must-Know Deep Cleaning Tips for a Spotless Home';
   }
-  // If using title (not meta_title) and it would exceed 70 with template, create shorter version
+  // If using title (not meta_title), apply template suffix intelligently
   else if (!post.meta_title && post.title) {
-    const TEMPLATE_LENGTH = 30; // " | Shalean Cleaning Services"
-    const MAX_WITH_TEMPLATE = 70;
+    const titleWithTemplate = `${post.title}${template.suffix}`;
     
     // Check if title would exceed 70 with template
-    if (post.title.length + TEMPLATE_LENGTH > MAX_WITH_TEMPLATE) {
-      // Create shortened version: remove "for Every Home" and add "| Shalean"
-      // "10 Essential Deep Cleaning Tips for Every Home" -> "10 Essential Deep Cleaning Tips | Shalean"
+    if (titleWithTemplate.length > MAX_WITH_TEMPLATE) {
+      // Calculate available space for title
+      const availableSpace = MAX_WITH_TEMPLATE - template.length;
+      
+      // Try to create shortened version: remove "for Every Home" and similar patterns
       const shortened = post.title.replace(/\s+for\s+.*$/i, '').trim();
-      if (shortened.length > 0 && shortened.length + 13 <= MAX_WITH_TEMPLATE) { // 13 = " | Shalean"
-        pageTitle = `${shortened} | Shalean`;
+      const shortenedWithTemplate = `${shortened}${template.suffix}`;
+      
+      if (shortened.length > 0 && shortenedWithTemplate.length <= MAX_WITH_TEMPLATE) {
+        pageTitle = shortenedWithTemplate;
       } else {
-        // Fallback: truncate to fit within 70 chars
-        const maxLength = MAX_WITH_TEMPLATE - TEMPLATE_LENGTH; // 40 chars max to allow template
-        pageTitle = post.title.substring(0, maxLength).trim();
-        // If still too long, use without template
+        // Fallback: truncate title to fit within 70 chars with template
+        const maxTitleLength = Math.max(15, availableSpace); // Ensure at least 15 chars
+        pageTitle = post.title.substring(0, maxTitleLength).trim();
+        
+        // If truncated title is too short, use short template instead
+        if (pageTitle.length < 15) {
+          const shortTemplate = getTemplateSuffix(null); // Use default template
+          const shortTemplateLength = shortTemplate.length;
+          const shortAvailableSpace = MAX_WITH_TEMPLATE - shortTemplateLength;
+          pageTitle = post.title.substring(0, Math.max(15, shortAvailableSpace)).trim();
+          pageTitle = `${pageTitle}${shortTemplate.suffix}`;
+        } else {
+          pageTitle = `${pageTitle}${template.suffix}`;
+        }
+        
+        // Final check: if still too long, truncate more aggressively
         if (pageTitle.length > MAX_WITH_TEMPLATE) {
-          pageTitle = post.title.substring(0, MAX_WITH_TEMPLATE - 3).trim() + '...';
+          const finalLength = MAX_WITH_TEMPLATE - template.length - 3; // -3 for ellipsis
+          pageTitle = `${post.title.substring(0, Math.max(15, finalLength)).trim()}...${template.suffix}`;
         }
       }
     } else if (post.title.length < 15) {
-      // Title is too short, expand it
-      const expandedTitle = `${post.title} | Shalean Blog`;
-      if (expandedTitle.length <= MAX_WITH_TEMPLATE) {
-        pageTitle = expandedTitle;
-      } else {
-        pageTitle = `${post.title} | Shalean`;
+      // Title is too short, expand it with template
+      pageTitle = titleWithTemplate;
+      
+      // If still too short even with template, add more context
+      if (pageTitle.length < 15) {
+        pageTitle = `${post.title} | Shalean Blog`;
+        if (pageTitle.length > MAX_WITH_TEMPLATE) {
+          pageTitle = `${post.title} | Shalean`;
+        }
       }
+    } else {
+      // Title length is good, just add template
+      pageTitle = titleWithTemplate;
     }
+  } else if (post.meta_title) {
+    // If meta_title is provided, use it as-is (already formatted by user)
+    pageTitle = post.meta_title;
   }
   
   // Final validation: ensure title is within 15-70 chars
   if (pageTitle.length > 70) {
     pageTitle = pageTitle.substring(0, 67).trim() + '...';
   } else if (pageTitle.length < 15) {
-    pageTitle = pageTitle.length < 15 ? `${pageTitle} | Shalean` : pageTitle;
+    // If still too short, add minimal suffix
+    const minimalSuffix = " | Shalean"; // 13 chars
+    pageTitle = `${pageTitle}${minimalSuffix}`;
+    // If still too short after adding suffix, it's acceptable (user-provided meta_title)
   }
 
   const blogMetadata = {

@@ -1,13 +1,9 @@
+'use client';
+
 import { AdminDashboardViewV2 } from '@/components/admin/admin-dashboard-view-v2';
-import { redirect } from 'next/navigation';
-import { isAdmin } from '@/lib/supabase-server';
 
-export const dynamic = 'force-dynamic';
-
-export default async function DashboardV2Page() {
-  if (!await isAdmin()) {
-    redirect('/login?returnTo=/admin/dashboard-v2');
-  }
+export default function DashboardV2Page() {
+  // No need for client-side auth check - the layout already protects this route
   return <AdminDashboardViewV2 />;
 }
 

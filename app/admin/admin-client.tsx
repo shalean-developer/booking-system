@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams, usePathname } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { AdminSidebar } from '@/components/admin/admin-sidebar';
 import { AdminTopNav } from '@/components/admin/admin-top-nav';
@@ -176,8 +177,25 @@ interface AdminDashboardClientProps {
 }
 
 export function AdminDashboardClient({ userName, lastLogin }: AdminDashboardClientProps) {
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [dashboardView, setDashboardView] = useState<DashboardViewType>('new');
+
+  // Load initial tab from URL pathname or query parameter
+  useEffect(() => {
+    // Check pathname first - if on /admin/blog, set tab to 'blog'
+    if (pathname?.includes('/admin/blog')) {
+      setActiveTab('blog');
+      return;
+    }
+    
+    // Otherwise, check query parameter
+    const tabParam = searchParams?.get('tab');
+    if (tabParam && ['dashboard', 'bookings', 'recurring', 'customers', 'cleaners', 'applications', 'pricing', 'blog', 'quotes', 'reviews', 'users'].includes(tabParam)) {
+      setActiveTab(tabParam as TabType);
+    }
+  }, [searchParams, pathname]);
 
   // Load dashboard view preference from localStorage
   useEffect(() => {
