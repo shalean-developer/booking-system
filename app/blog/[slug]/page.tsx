@@ -25,12 +25,29 @@ type Props = {
 /**
  * Generates the appropriate template suffix based on category availability and length
  * @param categoryName - The blog post category name (optional)
+ * @param preferShort - If true, prefer shorter templates even when category is available (useful for long titles)
  * @returns Object with suffix string and its length
  */
-function getTemplateSuffix(categoryName?: string | null): { suffix: string; length: number } {
+function getTemplateSuffix(categoryName?: string | null, preferShort: boolean = false): { suffix: string; length: number } {
   const DEFAULT_TEMPLATE = " | Shalean Cleaning Services"; // 30 chars
   const SHORT_TEMPLATE = " | Shalean"; // 13 chars
   const MAX_CATEGORY_LENGTH = 15; // Max chars for category in template
+  
+  // If preferShort is true, use the shortest available template
+  if (preferShort) {
+    if (categoryName && categoryName.length <= MAX_CATEGORY_LENGTH) {
+      // Category template: " | [Category] | Shalean"
+      const categoryTemplate = ` | ${categoryName} | Shalean`;
+      const categoryTemplateLength = categoryTemplate.length;
+      // Use category template only if it's shorter than the short template (13 chars)
+      // Otherwise always use the shortest template
+      if (categoryTemplateLength < 13) {
+        return { suffix: categoryTemplate, length: categoryTemplateLength };
+      }
+    }
+    // Always return the shortest template when preferShort is true
+    return { suffix: SHORT_TEMPLATE, length: 13 };
+  }
   
   if (!categoryName) {
     return { suffix: DEFAULT_TEMPLATE, length: 30 };
@@ -65,16 +82,32 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // Ensure title is within SEO limits (15-70 characters)
   let pageTitle = post.meta_title || post.title || 'Blog Post';
   
-  // Get the appropriate template suffix based on category
-  const template = getTemplateSuffix(post.category_name);
   const MAX_WITH_TEMPLATE = 70;
   
   // Special case: fix the specific blog post title that's too long
   if (post.slug === '10-essential-deep-cleaning-tips-for-every-home' && !post.meta_title) {
-    pageTitle = '10 Must-Know Deep Cleaning Tips for a Spotless Home';
+    const specialCaseTitle = '10 Must-Know Deep Cleaning Tips for a Spotless Home';
+    // Use shortest template for this long title
+    const shortTemplate = getTemplateSuffix(post.category_name, true);
+    const specialCaseWithTemplate = `${specialCaseTitle}${shortTemplate.suffix}`;
+    
+    // Ensure it doesn't exceed 70 chars
+    if (specialCaseWithTemplate.length > MAX_WITH_TEMPLATE) {
+      // Truncate title to fit with shortest template
+      const availableSpace = MAX_WITH_TEMPLATE - shortTemplate.length;
+      pageTitle = `${specialCaseTitle.substring(0, Math.max(15, availableSpace)).trim()}${shortTemplate.suffix}`;
+    } else {
+      pageTitle = specialCaseWithTemplate;
+    }
   }
   // If using title (not meta_title), apply template suffix intelligently
   else if (!post.meta_title && post.title) {
+    // Determine if we should prefer shorter templates based on title length
+    const titleLength = post.title.length;
+    const preferShort = titleLength > 40; // Prefer short template for titles longer than 40 chars
+    
+    // Get the appropriate template suffix based on category and title length
+    const template = getTemplateSuffix(post.category_name, preferShort);
     const titleWithTemplate = `${post.title}${template.suffix}`;
     
     // Check if title would exceed 70 with template
@@ -93,9 +126,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         const maxTitleLength = Math.max(15, availableSpace); // Ensure at least 15 chars
         pageTitle = post.title.substring(0, maxTitleLength).trim();
         
-        // If truncated title is too short, use short template instead
+        // If truncated title is too short, use shortest template instead
         if (pageTitle.length < 15) {
-          const shortTemplate = getTemplateSuffix(null); // Use default template
+          const shortTemplate = getTemplateSuffix(post.category_name, true); // Use shortest template
           const shortTemplateLength = shortTemplate.length;
           const shortAvailableSpace = MAX_WITH_TEMPLATE - shortTemplateLength;
           pageTitle = post.title.substring(0, Math.max(15, shortAvailableSpace)).trim();
@@ -104,10 +137,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           pageTitle = `${pageTitle}${template.suffix}`;
         }
         
-        // Final check: if still too long, truncate more aggressively
+        // Final check: if still too long, use shortest template and truncate more aggressively
         if (pageTitle.length > MAX_WITH_TEMPLATE) {
-          const finalLength = MAX_WITH_TEMPLATE - template.length - 3; // -3 for ellipsis
-          pageTitle = `${post.title.substring(0, Math.max(15, finalLength)).trim()}...${template.suffix}`;
+          const shortestTemplate = getTemplateSuffix(post.category_name, true);
+          const finalLength = MAX_WITH_TEMPLATE - shortestTemplate.length - 3; // -3 for ellipsis
+          pageTitle = `${post.title.substring(0, Math.max(15, finalLength)).trim()}...${shortestTemplate.suffix}`;
         }
       }
     } else if (post.title.length < 15) {
@@ -132,7 +166,30 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   
   // Final validation: ensure title is within 15-70 chars
   if (pageTitle.length > 70) {
-    pageTitle = pageTitle.substring(0, 67).trim() + '...';
+    // Extract base title by finding the last " | " before "Shalean"
+    // This handles all template patterns: " | Shalean", " | Category | Shalean", " | Shalean Cleaning Services"
+    let baseTitle = pageTitle;
+    const shaleanIndex = pageTitle.lastIndexOf(' | Shalean');
+    if (shaleanIndex > 0) {
+      baseTitle = pageTitle.substring(0, shaleanIndex);
+    } else {
+      // Fallback: if no " | Shalean" found, try to find any " | " pattern
+      const lastPipeIndex = pageTitle.lastIndexOf(' | ');
+      if (lastPipeIndex > 0) {
+        baseTitle = pageTitle.substring(0, lastPipeIndex);
+      }
+    }
+    
+    // Use shortest template when truncating long titles
+    const shortestTemplate = getTemplateSuffix(post.category_name, true);
+    const availableSpace = MAX_WITH_TEMPLATE - shortestTemplate.length - 3; // -3 for ellipsis
+    const truncatedBase = baseTitle.substring(0, Math.max(15, availableSpace)).trim();
+    pageTitle = `${truncatedBase}...${shortestTemplate.suffix}`;
+    
+    // Final safety check: if still too long, hard truncate to 70
+    if (pageTitle.length > 70) {
+      pageTitle = pageTitle.substring(0, 67).trim() + '...';
+    }
   } else if (pageTitle.length < 15) {
     // If still too short, add minimal suffix
     const minimalSuffix = " | Shalean"; // 13 chars
