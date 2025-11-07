@@ -203,19 +203,31 @@ export function createMetadata(metadata: PageMetadata | Metadata): Metadata {
  * Creates blog post metadata with article-specific fields
  */
 export function createBlogPostMetadata(metadata: BlogPostMetadata): Metadata {
+  // For blog posts, ALWAYS use { default: ... } format to prevent layout template from appending
+  // Blog post titles are pre-formatted with appropriate template suffixes
   const baseMetadata = createMetadata(metadata);
+  
+  // Override title to always use { default: ... } format for blog posts
+  // This prevents the layout template "%s | Shalean Cleaning Services" from appending
+  const titleWithDefault = { default: metadata.title } as any;
   
   return {
     ...baseMetadata,
+    title: titleWithDefault,
     openGraph: {
       ...baseMetadata.openGraph,
       type: "article",
+      title: metadata.title, // Keep original title for OG tags
       ...(metadata.publishedTime && {
         publishedTime: metadata.publishedTime,
       }),
       ...(metadata.author && {
         authors: [metadata.author],
       }),
+    },
+    twitter: {
+      ...baseMetadata.twitter,
+      title: metadata.title, // Keep original title for Twitter tags
     },
   };
 }
