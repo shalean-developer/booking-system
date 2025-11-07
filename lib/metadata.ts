@@ -140,7 +140,7 @@ export function createMetadata(metadata: PageMetadata | Metadata): Metadata {
   // If title is > 40 chars OR already has a template, use { default: ... } to prevent layout template appending
   // (Titles are pre-formatted with appropriate template in blog post metadata generation)
   const titleMetadata = (pageMeta.title.length > 40 || hasTemplate)
-    ? ({ default: pageMeta.title } as any)
+    ? ({ absolute: pageMeta.title } as any)
     : pageMeta.title;
 
   // Ensure description is within optimal range (120-170 chars)
@@ -226,7 +226,7 @@ export function createBlogPostMetadata(metadata: BlogPostMetadata): Metadata {
   
   // CRITICAL: Always use { default: ... } format for blog post titles
   // This prevents the layout template "%s | Shalean Cleaning Services" from appending
-  const titleWithDefault = { default: metadata.title } as any;
+  const titleWithDefault = { absolute: metadata.title } as any;
   
   return {
     title: titleWithDefault, // Use { default: ... } to prevent template appending
