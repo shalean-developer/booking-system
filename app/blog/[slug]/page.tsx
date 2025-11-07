@@ -85,19 +85,43 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const MAX_WITH_TEMPLATE = 70;
   
   // Special case: fix the specific blog post title that's too long
-  if (post.slug === '10-essential-deep-cleaning-tips-for-every-home' && !post.meta_title) {
-    const specialCaseTitle = '10 Must-Know Deep Cleaning Tips for a Spotless Home';
-    // Use shortest template for this long title
+  if (post.slug === '10-essential-deep-cleaning-tips-for-every-home') {
+    // Always use shortest template for this post
     const shortTemplate = getTemplateSuffix(post.category_name, true);
-    const specialCaseWithTemplate = `${specialCaseTitle}${shortTemplate.suffix}`;
     
-    // Ensure it doesn't exceed 70 chars
-    if (specialCaseWithTemplate.length > MAX_WITH_TEMPLATE) {
-      // Truncate title to fit with shortest template
-      const availableSpace = MAX_WITH_TEMPLATE - shortTemplate.length;
-      pageTitle = `${specialCaseTitle.substring(0, Math.max(15, availableSpace)).trim()}${shortTemplate.suffix}`;
+    if (post.meta_title) {
+      // If meta_title exists, check if it's too long and fix it
+      if (post.meta_title.length > MAX_WITH_TEMPLATE) {
+        // Extract base title from meta_title
+        let baseTitle = post.meta_title;
+        const shaleanIndex = post.meta_title.lastIndexOf(' | Shalean');
+        if (shaleanIndex > 0) {
+          baseTitle = post.meta_title.substring(0, shaleanIndex);
+        } else {
+          const lastPipeIndex = post.meta_title.lastIndexOf(' | ');
+          if (lastPipeIndex > 0) {
+            baseTitle = post.meta_title.substring(0, lastPipeIndex);
+          }
+        }
+        const availableSpace = MAX_WITH_TEMPLATE - shortTemplate.length;
+        pageTitle = `${baseTitle.substring(0, Math.max(15, availableSpace)).trim()}${shortTemplate.suffix}`;
+      } else {
+        // Meta title is fine, use it
+        pageTitle = post.meta_title;
+      }
     } else {
-      pageTitle = specialCaseWithTemplate;
+      // No meta_title, use original title with shortest template
+      const originalTitle = post.title; // "10 Essential Deep Cleaning Tips for Every Home"
+      const titleWithShortTemplate = `${originalTitle}${shortTemplate.suffix}`;
+      
+      // Check if it exceeds 70 chars
+      if (titleWithShortTemplate.length > MAX_WITH_TEMPLATE) {
+        // Truncate title to fit with shortest template
+        const availableSpace = MAX_WITH_TEMPLATE - shortTemplate.length;
+        pageTitle = `${originalTitle.substring(0, Math.max(15, availableSpace)).trim()}${shortTemplate.suffix}`;
+      } else {
+        pageTitle = titleWithShortTemplate;
+      }
     }
   }
   // If using title (not meta_title), apply template suffix intelligently
