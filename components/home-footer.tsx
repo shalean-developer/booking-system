@@ -95,6 +95,7 @@ export function HomeFooter() {
             <div>
               <h3 className="font-semibold mb-4 text-base">Company</h3>
               <div className="space-y-3">
+                <Link href="/blog" className="block text-sm text-gray-400 hover:text-white transition-colors">Blog</Link>
                 <Link href="/about" className="block text-sm text-gray-400 hover:text-white transition-colors">About Us</Link>
                 <Link href="/team" className="block text-sm text-gray-400 hover:text-white transition-colors">Our Team</Link>
                 <Link href="/contact" className="block text-sm text-gray-400 hover:text-white transition-colors">Contact</Link>
