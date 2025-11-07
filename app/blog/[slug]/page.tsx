@@ -90,15 +90,31 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const shortTemplate = getTemplateSuffix(post.category_name, true);
     
     if (post.meta_title) {
-      // If meta_title exists, always check and fix if it contains full template
+      // If meta_title exists, ALWAYS check and fix if it contains full template or is too long
       let baseTitle = post.meta_title;
+      const fullTemplatePattern = ' | Shalean Cleaning Services';
+      const hasFullTemplate = post.meta_title.includes(fullTemplatePattern);
+      const isTooLong = post.meta_title.length > MAX_WITH_TEMPLATE;
       
-      // Check if meta_title contains the full "Shalean Cleaning Services" template
-      const fullTemplateIndex = post.meta_title.indexOf(' | Shalean Cleaning Services');
-      if (fullTemplateIndex > 0) {
-        // Extract base title and replace with shortest template
-        baseTitle = post.meta_title.substring(0, fullTemplateIndex);
-        const titleWithShortTemplate = `${baseTitle}${shortTemplate.suffix}`;
+      if (hasFullTemplate || isTooLong) {
+        // Extract base title
+        if (hasFullTemplate) {
+          baseTitle = post.meta_title.replace(fullTemplatePattern, '');
+        } else {
+          // Try to extract base title from any template
+          const shaleanIndex = post.meta_title.lastIndexOf(' | Shalean');
+          if (shaleanIndex > 0) {
+            baseTitle = post.meta_title.substring(0, shaleanIndex);
+          } else {
+            const lastPipeIndex = post.meta_title.lastIndexOf(' | ');
+            if (lastPipeIndex > 0) {
+              baseTitle = post.meta_title.substring(0, lastPipeIndex);
+            }
+          }
+        }
+        
+        // Use shortest template
+        const titleWithShortTemplate = `${baseTitle.trim()}${shortTemplate.suffix}`;
         
         // Check if it exceeds 70 chars
         if (titleWithShortTemplate.length > MAX_WITH_TEMPLATE) {
@@ -107,19 +123,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         } else {
           pageTitle = titleWithShortTemplate;
         }
-      } else if (post.meta_title.length > MAX_WITH_TEMPLATE) {
-        // Meta title is too long, extract and fix
-        const shaleanIndex = post.meta_title.lastIndexOf(' | Shalean');
-        if (shaleanIndex > 0) {
-          baseTitle = post.meta_title.substring(0, shaleanIndex);
-        } else {
-          const lastPipeIndex = post.meta_title.lastIndexOf(' | ');
-          if (lastPipeIndex > 0) {
-            baseTitle = post.meta_title.substring(0, lastPipeIndex);
-          }
-        }
-        const availableSpace = MAX_WITH_TEMPLATE - shortTemplate.length;
-        pageTitle = `${baseTitle.substring(0, Math.max(15, availableSpace)).trim()}${shortTemplate.suffix}`;
       } else {
         // Meta title is fine, use it
         pageTitle = post.meta_title;
@@ -207,13 +210,29 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
   
   // Final validation: ensure title is within 15-70 chars
-  // First, check if title contains the full "Shalean Cleaning Services" template and replace it
+  // First, ALWAYS check if title contains the full "Shalean Cleaning Services" template and replace it
+  // This is a critical fix to ensure titles never exceed 70 chars
   const fullTemplatePattern = ' | Shalean Cleaning Services';
-  if (pageTitle.includes(fullTemplatePattern)) {
+  if (pageTitle.includes(fullTemplatePattern) || pageTitle.length > MAX_WITH_TEMPLATE) {
     // Replace full template with shortest template
-    const baseTitle = pageTitle.replace(fullTemplatePattern, '');
+    let baseTitle = pageTitle;
+    if (pageTitle.includes(fullTemplatePattern)) {
+      baseTitle = pageTitle.replace(fullTemplatePattern, '');
+    } else if (pageTitle.length > MAX_WITH_TEMPLATE) {
+      // If title is too long but doesn't have the pattern, try to extract base title
+      const shaleanIndex = pageTitle.lastIndexOf(' | Shalean');
+      if (shaleanIndex > 0) {
+        baseTitle = pageTitle.substring(0, shaleanIndex);
+      } else {
+        const lastPipeIndex = pageTitle.lastIndexOf(' | ');
+        if (lastPipeIndex > 0) {
+          baseTitle = pageTitle.substring(0, lastPipeIndex);
+        }
+      }
+    }
+    
     const shortestTemplate = getTemplateSuffix(post.category_name, true);
-    const titleWithShortTemplate = `${baseTitle}${shortestTemplate.suffix}`;
+    const titleWithShortTemplate = `${baseTitle.trim()}${shortestTemplate.suffix}`;
     
     // Check if it exceeds 70 chars
     if (titleWithShortTemplate.length > MAX_WITH_TEMPLATE) {
