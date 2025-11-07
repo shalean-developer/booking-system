@@ -131,13 +131,15 @@ export function createMetadata(metadata: PageMetadata | Metadata): Metadata {
   // - " | [Category] | Shalean" (variable, typically 13-30 chars)
   // - " | Shalean Cleaning Services" (30 chars, default fallback)
   // - " | Shalean" (13 chars, short fallback)
-  // We check if title > 40 chars to prevent template appending when title is already long
+  // We check if title > 40 chars OR if it already contains a template to prevent template appending
   // Use type assertion to bypass TypeScript requirement for template property
   const TEMPLATE_SUFFIX_LENGTH = 30; // Max expected template length for safety check
   const MAX_TITLE_LENGTH = 70;
-  // If title is > 40 chars, don't add template to keep total ≤ 70
+  // Check if title already has a template suffix (contains " | Shalean" or " | ")
+  const hasTemplate = pageMeta.title.includes(' | Shalean') || pageMeta.title.includes(' | ');
+  // If title is > 40 chars OR already has a template, use { default: ... } to prevent layout template appending
   // (Titles are pre-formatted with appropriate template in blog post metadata generation)
-  const titleMetadata = pageMeta.title.length > 40
+  const titleMetadata = (pageMeta.title.length > 40 || hasTemplate)
     ? ({ default: pageMeta.title } as any)
     : pageMeta.title;
 
