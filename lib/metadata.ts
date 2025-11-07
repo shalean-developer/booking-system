@@ -205,19 +205,53 @@ export function createMetadata(metadata: PageMetadata | Metadata): Metadata {
 export function createBlogPostMetadata(metadata: BlogPostMetadata): Metadata {
   // For blog posts, ALWAYS use { default: ... } format to prevent layout template from appending
   // Blog post titles are pre-formatted with appropriate template suffixes
-  const baseMetadata = createMetadata(metadata);
+  // Build metadata directly to ensure title is set correctly
+  const canonical = metadata.canonical || generateCanonical();
   
-  // Override title to always use { default: ... } format for blog posts
+  // Ensure description is within optimal range (120-170 chars)
+  let finalDescription = metadata.description;
+  if (finalDescription.length > DESCRIPTION_MAX_LENGTH) {
+    finalDescription = truncateText(finalDescription, DESCRIPTION_MAX_LENGTH);
+  } else if (finalDescription.length < 120) {
+    const expanded = `${finalDescription} Trusted local cleaning company with competitive pricing and satisfaction guarantee.`;
+    if (expanded.length <= DESCRIPTION_MAX_LENGTH) {
+      finalDescription = expanded;
+    } else {
+      finalDescription = `${finalDescription} Professional cleaning services with expert cleaners and flexible scheduling.`;
+      if (finalDescription.length > DESCRIPTION_MAX_LENGTH) {
+        finalDescription = truncateText(finalDescription, DESCRIPTION_MAX_LENGTH);
+      }
+    }
+  }
+  
+  // CRITICAL: Always use { default: ... } format for blog post titles
   // This prevents the layout template "%s | Shalean Cleaning Services" from appending
   const titleWithDefault = { default: metadata.title } as any;
   
   return {
-    ...baseMetadata,
-    title: titleWithDefault,
+    title: titleWithDefault, // Use { default: ... } to prevent template appending
+    description: finalDescription,
+    alternates: {
+      canonical,
+    },
+    robots: metadata.robots || "index,follow",
     openGraph: {
-      ...baseMetadata.openGraph,
+      locale: DEFAULT_SITE_METADATA.locale,
+      siteName: DEFAULT_SITE_METADATA.siteName,
       type: "article",
       title: metadata.title, // Keep original title for OG tags
+      description: finalDescription,
+      url: canonical,
+      ...(metadata.ogImage && {
+        images: [
+          {
+            url: metadata.ogImage.url,
+            alt: metadata.ogImage.alt,
+            width: OG_IMAGE_WIDTH,
+            height: OG_IMAGE_HEIGHT,
+          },
+        ],
+      }),
       ...(metadata.publishedTime && {
         publishedTime: metadata.publishedTime,
       }),
@@ -226,8 +260,12 @@ export function createBlogPostMetadata(metadata: BlogPostMetadata): Metadata {
       }),
     },
     twitter: {
-      ...baseMetadata.twitter,
+      card: metadata.twitterCard || DEFAULT_SITE_METADATA.twitterCard,
       title: metadata.title, // Keep original title for Twitter tags
+      description: finalDescription,
+      ...(metadata.ogImage && {
+        images: [metadata.ogImage.url],
+      }),
     },
   };
 }
