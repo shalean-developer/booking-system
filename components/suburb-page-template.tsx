@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/header";
 import { stringifyStructuredData } from "@/lib/structured-data-validator";
+import { getCitySlug, getRelatedSuburbs, slugifyLocation } from "@/lib/location-data";
 import { 
   MapPin, 
   Phone,
@@ -23,6 +24,7 @@ interface SuburbPageProps {
   description: string;
   highlights?: string[];
   available?: boolean;
+  relatedSuburbs?: Array<{ name: string; href: string }>;
 }
 
 export function SuburbPageTemplate({
@@ -32,7 +34,10 @@ export function SuburbPageTemplate({
   description,
   highlights = [],
   available = true,
+  relatedSuburbs = [],
 }: SuburbPageProps) {
+  const citySlug = getCitySlug(city);
+  const suburbSlug = slugifyLocation(suburb);
   const defaultHighlights = [
     "Professional, vetted cleaners",
     "Flexible scheduling",
@@ -49,7 +54,7 @@ export function SuburbPageTemplate({
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
     "name": `Shalean Cleaning Services - ${suburb}`,
-    "image": `https://shalean.co.za/assets/og/location-${suburb.toLowerCase().replace(/\s+/g, '-')}-1200x630.jpg`,
+    "image": `https://shalean.co.za/assets/og/location-${suburbSlug}-1200x630.jpg`,
     "address": {
       "@type": "PostalAddress",
       "addressLocality": suburb,
@@ -58,7 +63,7 @@ export function SuburbPageTemplate({
     },
     "telephone": "+27871535250",
     "email": "support@shalean.com",
-    "url": `https://shalean.co.za/location/${city.toLowerCase().replace(/\s+/g, '-')}/${suburb.toLowerCase().replace(/\s+/g, '-')}`,
+    "url": `https://shalean.co.za/location/${citySlug}/${suburbSlug}`,
     "priceRange": "R200-R1500",
     "areaServed": {
       "@type": "City",
@@ -90,13 +95,13 @@ export function SuburbPageTemplate({
         "@type": "ListItem",
         "position": 3,
         "name": city,
-        "item": `https://shalean.co.za/location/${city.toLowerCase().replace(/\s+/g, '-')}`
+        "item": `https://shalean.co.za/location/${citySlug}`
       },
       {
         "@type": "ListItem",
         "position": 4,
         "name": suburb,
-        "item": `https://shalean.co.za/location/${city.toLowerCase().replace(/\s+/g, '-')}/${suburb.toLowerCase().replace(/\s+/g, '-')}`
+        "item": `https://shalean.co.za/location/${citySlug}/${suburbSlug}`
       }
     ]
   };
@@ -378,9 +383,26 @@ export function SuburbPageTemplate({
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {/* This would be dynamically populated based on the suburb */}
+            {(
+              relatedSuburbs.length > 0
+                ? relatedSuburbs
+                : getRelatedSuburbs(city, suburb)
+            )
+              .slice(0, 8)
+              .map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="flex items-center gap-2 p-4 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all group"
+              >
+                <MapPin className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+                <span className="text-gray-700 group-hover:text-primary font-medium">
+                  {item.name}
+                </span>
+              </Link>
+            ))}
             <Link
-              href={`/location/${city.toLowerCase().replace(/\s+/g, '-')}`}
+              href={`/location/${citySlug}`}
               className="flex items-center gap-2 p-4 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all group"
             >
               <MapPin className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />

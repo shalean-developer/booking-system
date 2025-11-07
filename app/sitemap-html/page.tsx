@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
+import { CITY_AREA_DATA, getCityLabel } from "@/lib/location-data";
 
 export const metadata: Metadata = createMetadata({
   title: "Site Map | Shalean Cleaning Services",
@@ -222,6 +223,36 @@ export default function SitemapPage() {
                     </div>
                   </div>
                 </div>
+                {Object.entries(CITY_AREA_DATA).map(([citySlug, areas]) => (
+                  <div key={citySlug} className="mt-6 space-y-3">
+                    <h3 className="font-semibold text-gray-900">
+                      {getCityLabel(citySlug)} Areas & Suburbs
+                    </h3>
+                    {areas.map((area) => (
+                      <div key={area.slug} className="rounded-lg border border-gray-200 p-3">
+                        <Link
+                          href={`/location/${citySlug}/${area.slug}`}
+                          className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 mb-2"
+                        >
+                          <MapPin className="h-4 w-4" />
+                          {area.label}
+                        </Link>
+                        <div className="ml-5 grid grid-cols-1 md:grid-cols-2 gap-1">
+                          {area.suburbs.map((suburb) => (
+                            <Link
+                              key={suburb.slug}
+                              href={`/location/${citySlug}/${suburb.slug}`}
+                              className="flex items-center gap-2 text-sm text-gray-600 hover:text-primary"
+                            >
+                              <ArrowRight className="h-3 w-3 text-gray-400" />
+                              {suburb.name}
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
               </CardContent>
             </Card>
 

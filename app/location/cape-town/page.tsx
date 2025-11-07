@@ -14,6 +14,28 @@ import {
 } from "lucide-react";
 import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
+import { getCityAreas } from "@/lib/location-data";
+
+const coreServices = [
+  {
+    title: "Regular Cleaning",
+    description: "Weekly and bi-weekly housekeeping for apartments and family homes.",
+    href: "/services/regular-cleaning",
+    cta: "View Regular Cleaning",
+  },
+  {
+    title: "Deep Cleaning",
+    description: "Intensive deep cleans for renovations, seasonal refreshes, and spring cleans.",
+    href: "/services/deep-specialty",
+    cta: "Explore Deep Cleaning",
+  },
+  {
+    title: "Move In/Out",
+    description: "Pre- and post-occupation cleaning to secure your deposit and handover.",
+    href: "/services/move-turnover",
+    cta: "Book Move Cleaning",
+  },
+];
 
 export const metadata: Metadata = createMetadata({
   title: "Cape Town Cleaning Services | Shalean",
@@ -21,69 +43,8 @@ export const metadata: Metadata = createMetadata({
   canonical: generateCanonical("/location/cape-town"),
 });
 
-const capeSuburbs = [
-  // Atlantic Seaboard
-  { name: "Camps Bay", slug: "camps-bay", area: "Atlantic Seaboard" },
-  { name: "Sea Point", slug: "sea-point", area: "Atlantic Seaboard" },
-  { name: "Green Point", slug: "green-point", area: "Atlantic Seaboard" },
-  { name: "Clifton", slug: "clifton", area: "Atlantic Seaboard" },
-  { name: "Bantry Bay", slug: "bantry-bay", area: "Atlantic Seaboard" },
-  { name: "Fresnaye", slug: "fresnaye", area: "Atlantic Seaboard" },
-  
-  // City Bowl
-  { name: "City Centre", slug: "city-centre", area: "City Bowl" },
-  { name: "Gardens", slug: "gardens", area: "City Bowl" },
-  { name: "Tamboerskloof", slug: "tamboerskloof", area: "City Bowl" },
-  { name: "Oranjezicht", slug: "oranjezicht", area: "City Bowl" },
-  { name: "Woodstock", slug: "woodstock", area: "City Bowl" },
-  { name: "Observatory", slug: "observatory", area: "City Bowl" },
-  
-  // Northern Suburbs
-  { name: "Table View", slug: "table-view", area: "Northern Suburbs" },
-  { name: "Bloubergstrand", slug: "bloubergstrand", area: "Northern Suburbs" },
-  { name: "Milnerton", slug: "milnerton", area: "Northern Suburbs" },
-  { name: "Durbanville", slug: "durbanville", area: "Northern Suburbs" },
-  { name: "Bellville", slug: "bellville", area: "Northern Suburbs" },
-  { name: "Parow", slug: "parow", area: "Northern Suburbs" },
-  { name: "Brackenfell", slug: "brackenfell", area: "Northern Suburbs" },
-  
-  // Southern Suburbs
-  { name: "Claremont", slug: "claremont", area: "Southern Suburbs" },
-  { name: "Newlands", slug: "newlands", area: "Southern Suburbs" },
-  { name: "Rondebosch", slug: "rondebosch", area: "Southern Suburbs" },
-  { name: "Wynberg", slug: "wynberg", area: "Southern Suburbs" },
-  { name: "Kenilworth", slug: "kenilworth", area: "Southern Suburbs" },
-  { name: "Plumstead", slug: "plumstead", area: "Southern Suburbs" },
-  { name: "Constantia", slug: "constantia", area: "Southern Suburbs" },
-  { name: "Bishopscourt", slug: "bishopscourt", area: "Southern Suburbs" },
-  { name: "Tokai", slug: "tokai", area: "Southern Suburbs" },
-  { name: "Bergvliet", slug: "bergvliet", area: "Southern Suburbs" },
-  
-  // False Bay
-  { name: "Muizenberg", slug: "muizenberg", area: "False Bay" },
-  { name: "Fish Hoek", slug: "fish-hoek", area: "False Bay" },
-  { name: "Kalk Bay", slug: "kalk-bay", area: "False Bay" },
-  { name: "Simon's Town", slug: "simons-town", area: "False Bay" },
-  { name: "Lakeside", slug: "lakeside", area: "False Bay" },
-  
-  // West Coast
-  { name: "Hout Bay", slug: "hout-bay", area: "West Coast" },
-  { name: "Noordhoek", slug: "noordhoek", area: "West Coast" },
-  { name: "Kommetjie", slug: "kommetjie", area: "West Coast" },
-  { name: "Scarborough", slug: "scarborough", area: "West Coast" },
-  
-  // Other Areas
-  { name: "Somerset West", slug: "somerset-west", area: "Helderberg" },
-  { name: "Strand", slug: "strand", area: "Helderberg" },
-  { name: "Stellenbosch", slug: "stellenbosch", area: "Winelands" },
-];
-
 export default function CapeTownPage() {
-  const groupedSuburbs = capeSuburbs.reduce((acc, suburb) => {
-    if (!acc[suburb.area]) acc[suburb.area] = [];
-    acc[suburb.area].push(suburb);
-    return acc;
-  }, {} as Record<string, typeof capeSuburbs>);
+  const areas = getCityAreas("Cape Town");
 
   return (
     <div className="min-h-screen bg-white">
@@ -114,6 +75,36 @@ export default function CapeTownPage() {
         </div>
       </section>
 
+      {/* Featured Services */}
+      <section className="py-16 bg-gray-50">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              Popular Cleaning Services in Cape Town
+            </h2>
+            <p className="text-lg text-gray-600">
+              Choose the service that fits your home or business, then pick a trusted Cape Town cleaner.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {coreServices.map((service) => (
+              <Card key={service.title} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+                <CardContent className="p-8">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Home className="h-6 w-6 text-primary" />
+                    <h3 className="text-xl font-semibold text-gray-900">{service.title}</h3>
+                  </div>
+                  <p className="text-gray-600 mb-6">{service.description}</p>
+                  <Button asChild className="bg-primary hover:bg-primary/90 text-white">
+                    <Link href={service.href}>{service.cta}</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Suburbs by Area */}
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -127,49 +118,38 @@ export default function CapeTownPage() {
           </div>
 
           <div className="space-y-8">
-            {Object.entries(groupedSuburbs).map(([area, suburbs]) => {
-              // Handle special cases for area slugs
-              let areaSlug: string;
-              if (area === 'Helderberg') {
-                areaSlug = 'helderberg-winelands';
-              } else if (area === 'Winelands') {
-                areaSlug = 'helderberg-winelands';
-              } else {
-                areaSlug = area.toLowerCase().replace(/\s+/g, '-').replace('&', 'and');
-              }
-              return (
-                <Card key={area} className="border-0 shadow-lg">
-                  <CardContent className="p-8">
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="flex items-center gap-3">
-                        <MapPin className="h-6 w-6 text-primary" />
-                        <h3 className="text-2xl font-bold text-gray-900">{area}</h3>
-                      </div>
+            {areas.map((area) => (
+              <Card key={area.slug} className="border-0 shadow-lg">
+                <CardContent className="p-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <MapPin className="h-6 w-6 text-primary" />
+                      <h3 className="text-2xl font-bold text-gray-900">{area.label}</h3>
+                    </div>
+                    <Link
+                      href={`/location/cape-town/${area.slug}`}
+                      className="text-primary hover:text-primary/80 font-medium text-sm"
+                    >
+                      View Area Details →
+                    </Link>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {area.suburbs.map((suburb) => (
                       <Link
-                        href={`/location/cape-town/${areaSlug}`}
-                        className="text-primary hover:text-primary/80 font-medium text-sm"
+                        key={suburb.slug}
+                        href={`/location/cape-town/${suburb.slug}`}
+                        className="flex items-center gap-2 p-3 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all group"
                       >
-                        View Area Details →
+                        <Sparkles className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+                        <span className="text-gray-700 group-hover:text-primary font-medium">
+                          {suburb.name}
+                        </span>
                       </Link>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                      {suburbs.map((suburb) => (
-                        <Link
-                          key={suburb.slug}
-                          href={`/location/cape-town/${suburb.slug}`}
-                          className="flex items-center gap-2 p-3 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all group"
-                        >
-                          <Sparkles className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
-                          <span className="text-gray-700 group-hover:text-primary font-medium">
-                            {suburb.name}
-                          </span>
-                        </Link>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
       </section>

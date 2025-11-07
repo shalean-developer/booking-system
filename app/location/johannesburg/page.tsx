@@ -9,10 +9,33 @@ import {
   Mail,
   ArrowRight,
   Sparkles,
-  CheckCircle
+  CheckCircle,
+  Home
 } from "lucide-react";
 import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
+import { getCityAreas } from "@/lib/location-data";
+
+const coreServices = [
+  {
+    title: "Regular Cleaning",
+    description: "Scheduled housekeeping for apartments, townhouses, and family homes.",
+    href: "/services/regular-cleaning",
+    cta: "View Regular Cleaning",
+  },
+  {
+    title: "Deep Cleaning",
+    description: "Detailed deep cleans for renovations, seasonal refreshes, and once-off projects.",
+    href: "/services/deep-specialty",
+    cta: "Explore Deep Cleaning",
+  },
+  {
+    title: "Move In/Out",
+    description: "End-of-lease cleaning that helps secure your deposit during transitions.",
+    href: "/services/move-turnover",
+    cta: "Book Move Cleaning",
+  },
+];
 
 export const metadata: Metadata = createMetadata({
   title: "Johannesburg Cleaning Services | Shalean",
@@ -20,54 +43,8 @@ export const metadata: Metadata = createMetadata({
   canonical: generateCanonical("/location/johannesburg"),
 });
 
-const johannesburgSuburbs = [
-  // Northern Suburbs
-  { name: "Sandton", slug: "sandton", area: "Northern Suburbs" },
-  { name: "Rosebank", slug: "rosebank", area: "Northern Suburbs" },
-  { name: "Fourways", slug: "fourways", area: "Northern Suburbs" },
-  { name: "Bryanston", slug: "bryanston", area: "Northern Suburbs" },
-  { name: "Randburg", slug: "randburg", area: "Northern Suburbs" },
-  { name: "Hyde Park", slug: "hyde-park", area: "Northern Suburbs" },
-  { name: "Parktown North", slug: "parktown-north", area: "Northern Suburbs" },
-  { name: "Melrose", slug: "melrose", area: "Northern Suburbs" },
-  
-  // Midrand
-  { name: "Midrand", slug: "midrand", area: "Midrand" },
-  { name: "Waterfall", slug: "waterfall", area: "Midrand" },
-  { name: "Halfway House", slug: "halfway-house", area: "Midrand" },
-  
-  // Eastern Suburbs
-  { name: "Bedfordview", slug: "bedfordview", area: "Eastern Suburbs" },
-  { name: "Edenvale", slug: "edenvale", area: "Eastern Suburbs" },
-  { name: "Kempton Park", slug: "kempton-park", area: "Eastern Suburbs" },
-  { name: "Benoni", slug: "benoni", area: "Eastern Suburbs" },
-  { name: "Boksburg", slug: "boksburg", area: "Eastern Suburbs" },
-  
-  // Southern Suburbs
-  { name: "Rosettenville", slug: "rosettenville", area: "Southern Suburbs" },
-  { name: "Southgate", slug: "southgate", area: "Southern Suburbs" },
-  { name: "Mondeor", slug: "mondeor", area: "Southern Suburbs" },
-  { name: "Turffontein", slug: "turffontein", area: "Southern Suburbs" },
-  
-  // Western Suburbs
-  { name: "Roodepoort", slug: "roodepoort", area: "Western Suburbs" },
-  { name: "Florida", slug: "florida", area: "Western Suburbs" },
-  { name: "Honeydew", slug: "honeydew", area: "Western Suburbs" },
-  
-  // Inner City
-  { name: "Johannesburg CBD", slug: "johannesburg-cbd", area: "Inner City" },
-  { name: "Braamfontein", slug: "braamfontein", area: "Inner City" },
-  { name: "Parktown", slug: "parktown", area: "Inner City" },
-  { name: "Houghton", slug: "houghton", area: "Inner City" },
-  { name: "Westcliff", slug: "westcliff", area: "Inner City" }
-];
-
 export default function JohannesburgPage() {
-  const groupedSuburbs = johannesburgSuburbs.reduce((acc, suburb) => {
-    if (!acc[suburb.area]) acc[suburb.area] = [];
-    acc[suburb.area].push(suburb);
-    return acc;
-  }, {} as Record<string, typeof johannesburgSuburbs>);
+  const areas = getCityAreas("Johannesburg");
 
   return (
     <div className="min-h-screen bg-white">
@@ -98,6 +75,36 @@ export default function JohannesburgPage() {
         </div>
       </section>
 
+      {/* Featured Services */}
+      <section className="py-16 bg-gray-50">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              Popular Cleaning Services in Johannesburg
+            </h2>
+            <p className="text-lg text-gray-600">
+              Choose a service package and match it with a trusted Johannesburg cleaning team.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {coreServices.map((service) => (
+              <Card key={service.title} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+                <CardContent className="p-8">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Home className="h-6 w-6 text-primary" />
+                    <h3 className="text-xl font-semibold text-gray-900">{service.title}</h3>
+                  </div>
+                  <p className="text-gray-600 mb-6">{service.description}</p>
+                  <Button asChild className="bg-primary hover:bg-primary/90 text-white">
+                    <Link href={service.href}>{service.cta}</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Suburbs by Area */}
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -111,41 +118,38 @@ export default function JohannesburgPage() {
           </div>
 
           <div className="space-y-8">
-            {Object.entries(groupedSuburbs).map(([area, suburbs]) => {
-              const areaSlug = area.toLowerCase().replace(/\s+/g, '-');
-              return (
-                <Card key={area} className="border-0 shadow-lg">
-                  <CardContent className="p-8">
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="flex items-center gap-3">
-                        <MapPin className="h-6 w-6 text-primary" />
-                        <h3 className="text-2xl font-bold text-gray-900">{area}</h3>
-                      </div>
+            {areas.map((area) => (
+              <Card key={area.slug} className="border-0 shadow-lg">
+                <CardContent className="p-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <MapPin className="h-6 w-6 text-primary" />
+                      <h3 className="text-2xl font-bold text-gray-900">{area.label}</h3>
+                    </div>
+                    <Link
+                      href={`/location/johannesburg/${area.slug}`}
+                      className="text-primary hover:text-primary/80 font-medium text-sm"
+                    >
+                      View Area Details →
+                    </Link>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {area.suburbs.map((suburb) => (
                       <Link
-                        href={`/location/johannesburg/${areaSlug}`}
-                        className="text-primary hover:text-primary/80 font-medium text-sm"
+                        key={suburb.slug}
+                        href={`/location/johannesburg/${suburb.slug}`}
+                        className="flex items-center gap-2 p-3 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all group"
                       >
-                        View Area Details →
+                        <Sparkles className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+                        <span className="text-gray-700 group-hover:text-primary font-medium">
+                          {suburb.name}
+                        </span>
                       </Link>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                      {suburbs.map((suburb) => (
-                        <Link
-                          key={suburb.slug}
-                          href={`/location/johannesburg/${suburb.slug}`}
-                          className="flex items-center gap-2 p-3 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all group"
-                        >
-                          <Sparkles className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
-                          <span className="text-gray-700 group-hover:text-primary font-medium">
-                            {suburb.name}
-                          </span>
-                        </Link>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
       </section>

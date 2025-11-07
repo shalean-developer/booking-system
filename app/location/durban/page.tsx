@@ -9,10 +9,33 @@ import {
   Mail,
   ArrowRight,
   Sparkles,
-  CheckCircle
+  CheckCircle,
+  Home
 } from "lucide-react";
 import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
+import { getCityAreas } from "@/lib/location-data";
+
+const coreServices = [
+  {
+    title: "Regular Cleaning",
+    description: "Recurring housekeeping tailored to coastal apartments and family homes.",
+    href: "/services/regular-cleaning",
+    cta: "View Regular Cleaning",
+  },
+  {
+    title: "Deep Cleaning",
+    description: "Salt-air friendly deep cleans that refresh every corner of your property.",
+    href: "/services/deep-specialty",
+    cta: "Explore Deep Cleaning",
+  },
+  {
+    title: "Move In/Out",
+    description: "Stress-free move cleans for Durban landlords, hosts, and relocating families.",
+    href: "/services/move-turnover",
+    cta: "Book Move Cleaning",
+  },
+];
 
 export const metadata: Metadata = createMetadata({
   title: "Durban Cleaning Services | Shalean",
@@ -20,51 +43,8 @@ export const metadata: Metadata = createMetadata({
   canonical: generateCanonical("/location/durban"),
 });
 
-const durbanSuburbs = [
-  // Coastal Areas
-  { name: "Umhlanga", slug: "umhlanga", area: "Coastal North" },
-  { name: "Ballito", slug: "ballito", area: "Coastal North" },
-  { name: "La Lucia", slug: "la-lucia", area: "Coastal North" },
-  { name: "Durban North", slug: "durban-north", area: "Coastal North" },
-  { name: "Umdloti", slug: "umdloti", area: "Coastal North" },
-  
-  // Central
-  { name: "Morningside", slug: "morningside", area: "Central" },
-  { name: "Berea", slug: "berea", area: "Central" },
-  { name: "Musgrave", slug: "musgrave", area: "Central" },
-  { name: "Greyville", slug: "greyville", area: "Central" },
-  { name: "Windermere", slug: "windermere", area: "Central" },
-  
-  // Western Suburbs
-  { name: "Westville", slug: "westville", area: "Western Suburbs" },
-  { name: "Hillcrest", slug: "hillcrest", area: "Western Suburbs" },
-  { name: "Kloof", slug: "kloof", area: "Western Suburbs" },
-  { name: "Pinetown", slug: "pinetown", area: "Western Suburbs" },
-  { name: "Queensburgh", slug: "queensburgh", area: "Western Suburbs" },
-  
-  // Southern Suburbs
-  { name: "Bluff", slug: "bluff", area: "Southern Suburbs" },
-  { name: "Wentworth", slug: "wentworth", area: "Southern Suburbs" },
-  { name: "Montclair", slug: "montclair", area: "Southern Suburbs" },
-  { name: "Chatsworth", slug: "chatsworth", area: "Southern Suburbs" },
-  
-  // South Coast
-  { name: "Amanzimtoti", slug: "amanzimtoti", area: "South Coast" },
-  { name: "Umkomaas", slug: "umkomaas", area: "South Coast" },
-  { name: "Warner Beach", slug: "warner-beach", area: "South Coast" },
-  
-  // Upper Areas
-  { name: "Glenwood", slug: "glenwood", area: "Upper Areas" },
-  { name: "Sherwood", slug: "sherwood", area: "Upper Areas" },
-  { name: "Durban CBD", slug: "durban-cbd", area: "Upper Areas" },
-];
-
 export default function DurbanPage() {
-  const groupedSuburbs = durbanSuburbs.reduce((acc, suburb) => {
-    if (!acc[suburb.area]) acc[suburb.area] = [];
-    acc[suburb.area].push(suburb);
-    return acc;
-  }, {} as Record<string, typeof durbanSuburbs>);
+  const areas = getCityAreas("Durban");
 
   return (
     <div className="min-h-screen bg-white">
@@ -95,6 +75,36 @@ export default function DurbanPage() {
         </div>
       </section>
 
+      {/* Featured Services */}
+      <section className="py-16 bg-gray-50">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              Popular Cleaning Services in Durban
+            </h2>
+            <p className="text-lg text-gray-600">
+              Pick a cleaning package and match it with a Durban team that knows your neighbourhood.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {coreServices.map((service) => (
+              <Card key={service.title} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+                <CardContent className="p-8">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Home className="h-6 w-6 text-primary" />
+                    <h3 className="text-xl font-semibold text-gray-900">{service.title}</h3>
+                  </div>
+                  <p className="text-gray-600 mb-6">{service.description}</p>
+                  <Button asChild className="bg-primary hover:bg-primary/90 text-white">
+                    <Link href={service.href}>{service.cta}</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Suburbs by Area */}
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -108,41 +118,38 @@ export default function DurbanPage() {
           </div>
 
           <div className="space-y-8">
-            {Object.entries(groupedSuburbs).map(([area, suburbs]) => {
-              const areaSlug = area.toLowerCase().replace(/\s+/g, '-');
-              return (
-                <Card key={area} className="border-0 shadow-lg">
-                  <CardContent className="p-8">
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="flex items-center gap-3">
-                        <MapPin className="h-6 w-6 text-primary" />
-                        <h3 className="text-2xl font-bold text-gray-900">{area}</h3>
-                      </div>
+            {areas.map((area) => (
+              <Card key={area.slug} className="border-0 shadow-lg">
+                <CardContent className="p-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <MapPin className="h-6 w-6 text-primary" />
+                      <h3 className="text-2xl font-bold text-gray-900">{area.label}</h3>
+                    </div>
+                    <Link
+                      href={`/location/durban/${area.slug}`}
+                      className="text-primary hover:text-primary/80 font-medium text-sm"
+                    >
+                      View Area Details →
+                    </Link>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {area.suburbs.map((suburb) => (
                       <Link
-                        href={`/location/durban/${areaSlug}`}
-                        className="text-primary hover:text-primary/80 font-medium text-sm"
+                        key={suburb.slug}
+                        href={`/location/durban/${suburb.slug}`}
+                        className="flex items-center gap-2 p-3 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all group"
                       >
-                        View Area Details →
+                        <Sparkles className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+                        <span className="text-gray-700 group-hover:text-primary font-medium">
+                          {suburb.name}
+                        </span>
                       </Link>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                      {suburbs.map((suburb) => (
-                        <Link
-                          key={suburb.slug}
-                          href={`/location/durban/${suburb.slug}`}
-                          className="flex items-center gap-2 p-3 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all group"
-                        >
-                          <Sparkles className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
-                          <span className="text-gray-700 group-hover:text-primary font-medium">
-                            {suburb.name}
-                          </span>
-                        </Link>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
       </section>
