@@ -19,10 +19,14 @@ export function HomeServiceOfferings() {
             Our Services
           </Badge>
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4 sm:mb-6">
-            Choose Your Cleaning Solution
+            Cape Town Cleaning Service Packages
           </h2>
           <p className="text-base sm:text-lg text-gray-600 max-w-3xl mx-auto">
-            Explore our comprehensive range of professional cleaning services near me, including house cleaning, deep cleaning services, and home cleaning services for every need.
+            Explore our comprehensive range of professional cleaning services near me, including house cleaning,{" "}
+            <Link href="/services/deep-specialty" className="text-primary font-semibold hover:text-primary/80">
+              deep cleaning services in Cape Town
+            </Link>
+            , and home cleaning services for every need.
           </p>
         </div>
         <div className="grid md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">

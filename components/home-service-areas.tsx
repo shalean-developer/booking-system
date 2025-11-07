@@ -21,7 +21,7 @@ export function HomeServiceAreas() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-            Professional Cleaners Near You
+            Cleaning Services Across Cape Town Neighbourhoods
           </h2>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto">
             Shalean provides expert cleaning services throughout Cape Town. 
@@ -56,7 +56,7 @@ export function HomeServiceAreas() {
             href="/location/cape-town"
             className="inline-flex items-center gap-2 text-primary hover:text-primary/80 font-semibold"
           >
-            View All Service Areas
+            Explore Cape Town cleaning service areas
             <MapPin className="h-4 w-4" />
           </Link>
         </div>

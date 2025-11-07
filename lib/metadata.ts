@@ -285,10 +285,20 @@ export function createLocationMetadata(
   city: string,
   area: string,
   description: string,
-  highlights: string[] = []
+  highlights: string[] = [],
+  slugOverride?: string
 ): Metadata {
-  const slug = suburb.toLowerCase().replace(/\s+/g, '-');
-  const path = `/location/${city.toLowerCase().replace(/\s+/g, '-')}/${slug}`;
+  const slugify = (value: string): string =>
+    value
+      .toLowerCase()
+      .replace(/['’&]/g, '') // remove apostrophes and ampersands
+      .replace(/[^a-z0-9]+/g, '-') // replace other non-alphanumeric with hyphen
+      .replace(/(^-|-$)/g, ''); // trim hyphens from ends
+
+  const suburbSlug = slugOverride ?? slugify(suburb);
+  const citySlug = slugify(city);
+
+  const path = `/location/${citySlug}/${suburbSlug}`;
   
   // Create optimized title (15-70 chars)
   const title = `Cleaning Services in ${suburb} | Shalean`;
@@ -326,7 +336,7 @@ export function createLocationMetadata(
     description: finalDescription,
     canonical: generateCanonical(path),
     ogImage: {
-      url: generateOgImageUrl(`location-${slug}`),
+      url: generateOgImageUrl(`location-${suburbSlug}`),
       alt: `Professional cleaning services in ${suburb}, ${city}`,
     },
     ogType: "website",

@@ -4,8 +4,8 @@ import { generateOgImageUrl, generateCanonical } from "./metadata";
 export const SEO_CONFIG = {
   // Home page
   home: {
-    title: "House Cleaning Services in Cape Town | Shalean",
-    description: "Professional cleaning services in Cape Town with Shalean. Expert house cleaners offering deep cleaning, regular maintenance, and move-in cleaning services. Book today!",
+    title: "Cleaning Services Cape Town | Shalean Cleaners",
+    description: "Book trusted cleaning services in Cape Town with Shalean. Professional house cleaning, deep cleaning services, and recurring home cleaning by vetted Cape Town cleaners. Get a quote today!",
     canonical: generateCanonical("/"),
     ogImage: {
       url: generateOgImageUrl("home"),

@@ -14,7 +14,7 @@ export function HomeFlagshipServices() {
               Most Booked Services
             </Badge>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4 sm:mb-6">
-              Experience Our Most Booked Services
+              Popular Cape Town Cleaning Services
             </h2>
             <p className="text-base sm:text-lg text-gray-600 mb-6 sm:mb-8">
               Comprehensive house cleaning services and deep cleaning services designed to transform your space 
@@ -49,6 +49,13 @@ export function HomeFlagshipServices() {
                 </div>
               </div>
             </div>
+            <p className="text-sm sm:text-base text-gray-600">
+              Looking for a specific suburb? Explore{" "}
+              <Link href="/location/cape-town" className="text-primary font-semibold hover:text-primary/80">
+                cleaning services across Cape Town
+              </Link>{" "}
+              and find a Shalean team near you.
+            </p>
             <Link href="/services">
               <Button className="bg-primary hover:bg-primary/90 text-white">
                 Explore All Services

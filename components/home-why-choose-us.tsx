@@ -16,7 +16,7 @@ export function HomeWhyChooseUs() {
             Why Choose Shalean
           </Badge>
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4 sm:mb-6">
-            Everything You Need for a Spotless Home
+            Why Cape Town Homeowners Choose Shalean
           </h2>
           <p className="text-base sm:text-lg text-gray-600 max-w-3xl mx-auto">
             From residential house cleaning services to commercial cleaning, we provide comprehensive cleaning 

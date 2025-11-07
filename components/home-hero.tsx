@@ -37,12 +37,12 @@ export function HomeHero() {
             </Badge>
           </div>
           <h1 className="mb-4 sm:mb-6 text-3xl font-bold text-gray-900 sm:text-5xl lg:text-7xl">
-            Professional Cleaning
+            Book Trusted
             <br />
-            <span className="text-primary">Made Simple</span>
+            <span className="text-primary">Cleaning Services in Cape Town</span>
           </h1>
           <p className="mx-auto mb-6 sm:mb-8 max-w-3xl text-base sm:text-lg lg:text-xl text-gray-600">
-            Book professional cleaning services in Cape Town from trusted cleaning companies near you. Expert house cleaning, deep cleaning services, and home cleaning services with flexible scheduling, eco-friendly products, and 100% satisfaction guarantee.
+            Hire professional cleaning services in Cape Town from trusted local cleaners near you. Expert house cleaning services, deep cleaning services, and recurring home cleaning options with flexible scheduling, eco-friendly products, and a 100% satisfaction guarantee.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
             <Button size="lg" className="bg-primary hover:bg-primary/90 text-white rounded-full px-6 py-3 sm:px-8 sm:py-4 text-base sm:text-lg" asChild>

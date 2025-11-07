@@ -17,7 +17,8 @@ export async function generateMetadata(): Promise<Metadata> {
     "Cape Town",
     "Atlantic Seaboard",
     "Professional cleaning services in the V&A Waterfront area. We provide expert cleaning for apartments, homes, and commercial spaces in this iconic Cape Town location.",
-    highlights
+    highlights,
+    "waterfront"
   );
 
   // Validate metadata
