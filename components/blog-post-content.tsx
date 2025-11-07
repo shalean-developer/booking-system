@@ -22,6 +22,12 @@ function sanitizeBlogContent(content: string): string {
     }
     return 'href="/"';
   });
+
+  // Normalize any shalean.co.za links (with or without protocol) to root-relative paths
+  sanitized = sanitized.replace(/href=["'](?:https?:\/\/)?(?:www\.)?shalean\.co\.za\/?([^"']*)["']/gi, (match, path) => {
+    const cleanPath = path ? path.replace(/^\//, '') : '';
+    return `href="/${cleanPath}"`;
+  });
   
   // Fix /booking links to point to booking page
   sanitized = sanitized.replace(/href=["']\/booking["']/gi, 'href="/booking/service/select"');
