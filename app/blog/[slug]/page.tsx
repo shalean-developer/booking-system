@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createBlogPostMetadata, generateOgImageUrl, validateMetadata, logMetadataValidation } from "@/lib/metadata";
 import { getPublishedPostBySlug, getRelatedPosts } from "@/lib/blog-server";
+import type { BlogPostWithDetails } from "@/lib/blog-server";
 import { BlogPostHeader } from "@/components/blog-post-header";
 import { BlogPostHero } from "@/components/blog-post-hero";
 import { BlogPostContent } from "@/components/blog-post-content";
@@ -21,6 +22,106 @@ const BlogPostCTA = dynamic(() => import("@/components/blog-post-cta").then(mod 
 type Props = {
   params: Promise<{ slug: string }>;
 };
+
+const FALLBACK_POSTS: Record<string, BlogPostWithDetails> = {
+  "the-benefits-of-eco-friendly-cleaning-products": {
+    id: "fallback-eco-friendly-cleaning-products",
+    title: "The Benefits of Eco-Friendly Cleaning Products",
+    slug: "the-benefits-of-eco-friendly-cleaning-products",
+    content: `
+      <p class="text-xl text-gray-600 mb-8">
+        Making the switch to eco-friendly cleaning products isn't just a trend—it's a smart choice 
+        for your health, your family, and the planet. Let's explore why green cleaning products are 
+        worth considering and how they can transform your cleaning routine.
+      </p>
+
+      <h2 class="text-3xl font-bold text-gray-900 mt-12 mb-6">
+        Why Choose Eco-Friendly Products?
+      </h2>
+
+      <div class="space-y-6 mb-12">
+        <div class="border-0 shadow-md p-6 rounded-lg">
+          <h3 class="text-xl font-bold text-gray-900 mb-2">Healthier Indoor Air Quality</h3>
+          <p class="text-gray-600">Traditional cleaning products can release harmful volatile organic compounds (VOCs) into your home. Eco-friendly alternatives are made with natural ingredients that don't compromise air quality.</p>
+        </div>
+
+        <div class="border-0 shadow-md p-6 rounded-lg">
+          <h3 class="text-xl font-bold text-gray-900 mb-2">Safer for Children and Pets</h3>
+          <p class="text-gray-600">Green cleaning products contain fewer harsh chemicals, reducing the risk of skin irritation, respiratory issues, and accidental poisoning.</p>
+        </div>
+
+        <div class="border-0 shadow-md p-6 rounded-lg">
+          <h3 class="text-xl font-bold text-gray-900 mb-2">Environmental Protection</h3>
+          <p class="text-gray-600">Eco-friendly products are biodegradable and come in sustainable packaging, reducing pollution and waste in our ecosystems.</p>
+        </div>
+
+        <div class="border-0 shadow-md p-6 rounded-lg">
+          <h3 class="text-xl font-bold text-gray-900 mb-2">Equally Effective</h3>
+          <p class="text-gray-600">Modern eco-friendly products are just as effective as traditional cleaners, without the environmental and health downsides.</p>
+        </div>
+      </div>
+
+      <h2 class="text-3xl font-bold text-gray-900 mt-12 mb-6">
+        Natural Ingredients to Look For
+      </h2>
+
+      <ul class="space-y-3 mb-8">
+        <li class="flex items-start gap-3">
+          <span class="text-primary">✓</span>
+          <span class="text-gray-600"><strong>Vinegar:</strong> Natural disinfectant and deodorizer</span>
+        </li>
+        <li class="flex items-start gap-3">
+          <span class="text-primary">✓</span>
+          <span class="text-gray-600"><strong>Baking Soda:</strong> Gentle abrasive for scrubbing</span>
+        </li>
+        <li class="flex items-start gap-3">
+          <span class="text-primary">✓</span>
+          <span class="text-gray-600"><strong>Essential Oils:</strong> Natural fragrance and antibacterial properties</span>
+        </li>
+        <li class="flex items-start gap-3">
+          <span class="text-primary">✓</span>
+          <span class="text-gray-600"><strong>Castile Soap:</strong> Vegetable-based, multipurpose cleaner</span>
+        </li>
+        <li class="flex items-start gap-3">
+          <span class="text-primary">✓</span>
+          <span class="text-gray-600"><strong>Lemon Juice:</strong> Natural bleaching and degreasing agent</span>
+        </li>
+      </ul>
+
+      <div class="bg-primary/5 border-l-4 border-primary p-6 rounded-r-lg mb-8">
+        <p class="text-gray-700 italic">
+          "At Shalean, we exclusively use eco-friendly cleaning products to ensure the safety of 
+          your family and our planet, without compromising on cleanliness."
+        </p>
+        <p class="text-sm text-gray-600 mt-2">— Shalean Cleaning Services</p>
+      </div>
+    `,
+    excerpt: "Learn why switching to eco-friendly cleaning products is better for your health and the environment. Discover safe, effective alternatives.",
+    featured_image: "/images/home-maintenance.jpg",
+    featured_image_alt: "Eco-friendly cleaning products on a countertop",
+    category_id: "fallback-sustainability",
+    category_name: "Sustainability",
+    category_slug: "sustainability",
+    author_id: "fallback-author",
+    status: "published",
+    meta_title: "The Benefits of Eco-Friendly Cleaning Products | Shalean Blog",
+    meta_description: "Learn why switching to eco-friendly cleaning products is better for your health and the environment. Discover safe, effective alternatives.",
+    read_time: 4,
+    published_at: "2025-10-12T00:00:00Z",
+    created_at: "2025-10-12T00:00:00Z",
+    updated_at: "2025-10-12T00:00:00Z",
+    tags: ["eco-friendly", "cleaning"],
+  },
+};
+
+async function getPostWithFallback(slug: string): Promise<BlogPostWithDetails | null> {
+  const post = await getPublishedPostBySlug(slug);
+  if (post) {
+    return post;
+  }
+  return FALLBACK_POSTS[slug] ?? null;
+}
+
 
 /**
  * Generates the appropriate template suffix based on category availability and length
@@ -69,7 +170,7 @@ function getTemplateSuffix(categoryName?: string | null, preferShort: boolean = 
 // Generate metadata for SEO
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const post = await getPublishedPostBySlug(slug);
+  const post = await getPostWithFallback(slug);
 
   if (!post) {
     return {
@@ -304,7 +405,7 @@ export const revalidate = 3600;
 
 export default async function BlogPostPage({ params }: Props) {
   const { slug } = await params;
-  const post = await getPublishedPostBySlug(slug);
+  const post = await getPostWithFallback(slug);
 
   if (!post) {
     notFound();
