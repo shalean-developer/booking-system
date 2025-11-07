@@ -90,10 +90,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const shortTemplate = getTemplateSuffix(post.category_name, true);
     
     if (post.meta_title) {
-      // If meta_title exists, check if it's too long and fix it
-      if (post.meta_title.length > MAX_WITH_TEMPLATE) {
-        // Extract base title from meta_title
-        let baseTitle = post.meta_title;
+      // If meta_title exists, always check and fix if it contains full template
+      let baseTitle = post.meta_title;
+      
+      // Check if meta_title contains the full "Shalean Cleaning Services" template
+      const fullTemplateIndex = post.meta_title.indexOf(' | Shalean Cleaning Services');
+      if (fullTemplateIndex > 0) {
+        // Extract base title and replace with shortest template
+        baseTitle = post.meta_title.substring(0, fullTemplateIndex);
+        const titleWithShortTemplate = `${baseTitle}${shortTemplate.suffix}`;
+        
+        // Check if it exceeds 70 chars
+        if (titleWithShortTemplate.length > MAX_WITH_TEMPLATE) {
+          const availableSpace = MAX_WITH_TEMPLATE - shortTemplate.length;
+          pageTitle = `${baseTitle.substring(0, Math.max(15, availableSpace)).trim()}${shortTemplate.suffix}`;
+        } else {
+          pageTitle = titleWithShortTemplate;
+        }
+      } else if (post.meta_title.length > MAX_WITH_TEMPLATE) {
+        // Meta title is too long, extract and fix
         const shaleanIndex = post.meta_title.lastIndexOf(' | Shalean');
         if (shaleanIndex > 0) {
           baseTitle = post.meta_title.substring(0, shaleanIndex);
@@ -128,7 +143,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   else if (!post.meta_title && post.title) {
     // Determine if we should prefer shorter templates based on title length
     const titleLength = post.title.length;
-    const preferShort = titleLength > 40; // Prefer short template for titles longer than 40 chars
+    // Always prefer short template if title + default template (30 chars) would exceed 70
+    const DEFAULT_TEMPLATE_LENGTH = 30;
+    const wouldExceedWithDefault = (titleLength + DEFAULT_TEMPLATE_LENGTH) > MAX_WITH_TEMPLATE;
+    const preferShort = titleLength > 40 || wouldExceedWithDefault; // Prefer short template for titles longer than 40 chars OR if default would exceed 70
     
     // Get the appropriate template suffix based on category and title length
     const template = getTemplateSuffix(post.category_name, preferShort);
@@ -189,6 +207,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
   
   // Final validation: ensure title is within 15-70 chars
+  // First, check if title contains the full "Shalean Cleaning Services" template and replace it
+  const fullTemplatePattern = ' | Shalean Cleaning Services';
+  if (pageTitle.includes(fullTemplatePattern)) {
+    // Replace full template with shortest template
+    const baseTitle = pageTitle.replace(fullTemplatePattern, '');
+    const shortestTemplate = getTemplateSuffix(post.category_name, true);
+    const titleWithShortTemplate = `${baseTitle}${shortestTemplate.suffix}`;
+    
+    // Check if it exceeds 70 chars
+    if (titleWithShortTemplate.length > MAX_WITH_TEMPLATE) {
+      const availableSpace = MAX_WITH_TEMPLATE - shortestTemplate.length;
+      pageTitle = `${baseTitle.substring(0, Math.max(15, availableSpace)).trim()}${shortestTemplate.suffix}`;
+    } else {
+      pageTitle = titleWithShortTemplate;
+    }
+  }
+  
   if (pageTitle.length > 70) {
     // Extract base title by finding the last " | " before "Shalean"
     // This handles all template patterns: " | Shalean", " | Category | Shalean", " | Shalean Cleaning Services"
