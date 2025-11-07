@@ -91,16 +91,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     
     if (post.meta_title) {
       // If meta_title exists, ALWAYS check and fix if it contains full template or is too long
+      // Also ensure it has a template suffix if it doesn't have one
       let baseTitle = post.meta_title;
       const fullTemplatePattern = ' | Shalean Cleaning Services';
       const hasFullTemplate = post.meta_title.includes(fullTemplatePattern);
+      const hasAnyTemplate = post.meta_title.includes(' | Shalean') || post.meta_title.includes(' | ');
       const isTooLong = post.meta_title.length > MAX_WITH_TEMPLATE;
       
-      if (hasFullTemplate || isTooLong) {
+      if (hasFullTemplate || isTooLong || !hasAnyTemplate) {
         // Extract base title
         if (hasFullTemplate) {
           baseTitle = post.meta_title.replace(fullTemplatePattern, '');
-        } else {
+        } else if (hasAnyTemplate) {
           // Try to extract base title from any template
           const shaleanIndex = post.meta_title.lastIndexOf(' | Shalean');
           if (shaleanIndex > 0) {
@@ -112,6 +114,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             }
           }
         }
+        // If no template found, baseTitle is already the meta_title
         
         // Use shortest template
         const titleWithShortTemplate = `${baseTitle.trim()}${shortTemplate.suffix}`;
