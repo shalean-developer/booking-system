@@ -71,28 +71,32 @@ export function QuotesWidgetDashboard({ pendingCount }: QuotesWidgetDashboardPro
 
   if (isLoading) {
     return (
-      <Card className="w-full relative">
+      <Card className="relative w-full text-sm sm:text-base">
         <CardHeader 
-          className="pb-3 cursor-pointer hover:bg-gray-50 transition-colors"
+          className="px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors sm:px-4 sm:py-3"
           onClick={() => setIsExpanded(!isExpanded)}
         >
-          <CardTitle className="text-base font-semibold flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              <span>Quotes</span>
-              <span className="text-sm font-normal text-gray-500">({isLoading ? 0 : todayQuotesCount})</span>
+          <CardTitle className="flex items-center justify-between text-sm font-semibold sm:text-base">
+            <div className="flex flex-col items-center gap-1 sm:flex-row sm:text-left sm:gap-2">
+              <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
+              <div className="flex flex-col items-center sm:flex-row sm:items-center">
+                <span className="leading-tight">Quotes</span>
+                <span className="text-xs font-normal text-gray-500 sm:ml-1 sm:text-sm">
+                  ({isLoading ? 0 : todayQuotesCount})
+                </span>
+              </div>
             </div>
             {isExpanded ? (
-              <ChevronUp className="h-4 w-4 text-gray-500" />
+              <ChevronUp className="h-3.5 w-3.5 text-gray-500 sm:h-4 sm:w-4" />
             ) : (
-              <ChevronDown className="h-4 w-4 text-gray-500" />
+              <ChevronDown className="h-3.5 w-3.5 text-gray-500 sm:h-4 sm:w-4" />
             )}
           </CardTitle>
         </CardHeader>
         {isExpanded && (
-          <CardContent className="pt-0 absolute top-full left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg rounded-b-lg">
-            <div className="text-center py-8 text-gray-500">
-              <p className="text-sm">Loading...</p>
+          <CardContent className="absolute left-0 right-0 top-full z-50 rounded-b-lg border-t border-gray-200 bg-white pt-0 shadow-lg">
+            <div className="py-6 text-center text-xs text-gray-500 sm:py-8 sm:text-sm">
+              <p>Loading...</p>
             </div>
           </CardContent>
         )}
@@ -101,56 +105,60 @@ export function QuotesWidgetDashboard({ pendingCount }: QuotesWidgetDashboardPro
   }
 
   return (
-    <Card className="w-full relative">
+    <Card className="relative w-full text-sm sm:text-base">
       <CardHeader 
-        className="pb-3 cursor-pointer hover:bg-gray-50 transition-colors"
+        className="px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors sm:px-4 sm:py-3"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <CardTitle className="text-base font-semibold flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            <span>Quotes</span>
-            <span className="text-sm font-normal text-gray-500">({todayQuotesCount})</span>
+        <CardTitle className="flex items-center justify-between text-sm font-semibold sm:text-base">
+          <div className="flex flex-col items-center gap-1 sm:flex-row sm:text-left sm:gap-2">
+            <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
+            <div className="flex flex-col items-center sm:flex-row sm:items-center">
+              <span className="leading-tight">Quotes</span>
+              <span className="text-xs font-normal text-gray-500 sm:ml-1 sm:text-sm">
+                ({todayQuotesCount})
+              </span>
+            </div>
           </div>
           {isExpanded ? (
-            <ChevronUp className="h-4 w-4 text-gray-500" />
+            <ChevronUp className="h-3.5 w-3.5 text-gray-500 sm:h-4 sm:w-4" />
           ) : (
-            <ChevronDown className="h-4 w-4 text-gray-500" />
+            <ChevronDown className="h-3.5 w-3.5 text-gray-500 sm:h-4 sm:w-4" />
           )}
         </CardTitle>
       </CardHeader>
       {isExpanded && (
-        <CardContent className="pt-0 absolute top-full left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg rounded-b-lg max-h-[400px] overflow-y-auto">
-        <div className="mb-4 pb-3 border-b">
-          <div className="flex items-center gap-2">
-            <FileText className="h-4 w-4 text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">Pending Quotes</span>
+        <CardContent className="absolute left-0 right-0 top-full z-50 max-h-[320px] overflow-y-auto rounded-b-lg border-t border-gray-200 bg-white pt-0 shadow-lg">
+        <div className="mb-3 border-b pb-2">
+          <div className="flex items-center gap-1.5 text-xs text-gray-700 sm:gap-2 sm:text-sm">
+            <FileText className="h-3.5 w-3.5 text-gray-500 sm:h-4 sm:w-4" />
+            <span className="font-medium">Pending Quotes</span>
           </div>
-          <div className="text-2xl font-bold mt-2">{pendingCount || quotes.length}</div>
+          <div className="mt-2 text-lg font-bold sm:text-2xl">{pendingCount || quotes.length}</div>
         </div>
-        <div className="space-y-3 max-h-[300px] overflow-y-auto">
+        <div className="max-h-[240px] space-y-2.5 overflow-y-auto">
           {quotes.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <FileText className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-              <p className="text-sm">No pending quotes</p>
+            <div className="py-6 text-center text-xs text-gray-500 sm:py-8 sm:text-sm">
+              <FileText className="mx-auto mb-2 h-7 w-7 text-gray-400 sm:h-8 sm:w-8" />
+              <p>No pending quotes</p>
             </div>
           ) : (
             quotes.map((quote) => (
               <div
                 key={quote.id}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                className="flex items-center justify-between rounded-lg bg-gray-50 p-2 text-xs transition-colors hover:bg-gray-100 sm:p-3 sm:text-sm"
               >
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm text-gray-900 mb-1">
+                <div className="min-w-0 flex-1">
+                  <div className="mb-1 font-medium text-gray-900">
                     {quote.first_name} {quote.last_name}
                   </div>
-                  <div className="text-xs text-gray-600 mb-1">{quote.service_type}</div>
-                  <div className="flex items-center gap-1 text-xs text-gray-500">
+                  <div className="mb-1 text-[11px] text-gray-600 sm:text-xs">{quote.service_type}</div>
+                  <div className="flex items-center gap-1 text-[11px] text-gray-500 sm:text-xs">
                     <Calendar className="h-3 w-3" />
                     <span>{formatDate(quote.created_at)}</span>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="ml-2">
+                <Button variant="outline" size="sm" className="ml-2 px-2 py-1 text-[11px] sm:px-3 sm:text-xs">
                   Pending
                 </Button>
               </div>

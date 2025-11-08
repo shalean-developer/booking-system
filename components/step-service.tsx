@@ -3,7 +3,6 @@
 import { useCallback, startTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useBooking } from '@/lib/useBooking';
-import { motion } from 'framer-motion';
 import { 
   Home, 
   Building, 
@@ -76,12 +75,7 @@ export function StepService() {
   }, [updateField, router]);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35 }}
-      className="bg-white rounded-2xl shadow-lg py-4 md:py-6 px-3 md:px-4 border border-gray-100"
-    >
+    <div className="rounded-2xl border border-gray-100 bg-white px-3 py-4 shadow-lg transition-all duration-300 ease-out md:px-4 md:py-6">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-6 md:mb-8">
@@ -103,20 +97,15 @@ export function StepService() {
           const Icon = service.icon;
           const isSelected = state.service === service.type;
           return (
-            <motion.button
+            <button
               key={service.type}
               onClick={() => handleSelect(service.type)}
+              type="button"
               className={cn(
-                'relative rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden cursor-pointer transition-all',
+                'relative max-w-[140px] cursor-pointer overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-[0.97]',
                 'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2',
-                isSelected
-                  ? 'ring-2 ring-primary border-primary shadow-md'
-                  : 'hover:shadow-md hover:border-gray-300',
-                'max-w-[140px]'
+                isSelected ? 'border-primary ring-2 ring-primary shadow-md' : 'hover:border-gray-300',
               )}
-              whileHover={{ scale: 1.02, y: -2 }}
-              whileTap={{ scale: 0.98 }}
-              transition={{ duration: 0 }}
               role="radio"
               aria-checked={isSelected}
               aria-labelledby={`service-${service.type}-label`}
@@ -156,20 +145,16 @@ export function StepService() {
 
               {/* Selected Check Mark */}
               {isSelected && (
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="absolute top-2 right-2 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-md"
-                >
+                <div className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-white shadow-md transition-transform duration-200">
                   <Check className="h-4 w-4 text-white" strokeWidth={2.5} />
-                </motion.div>
+                </div>
               )}
-            </motion.button>
+            </button>
           );
         })}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 

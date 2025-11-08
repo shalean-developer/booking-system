@@ -41,7 +41,7 @@ export async function GET(request: Request) {
     // Find customer profile by auth_user_id
     const { data: customer, error: customerError } = await supabase
       .from('customers')
-      .select('id, email, first_name, last_name, total_bookings')
+      .select('id, email, first_name, last_name, phone, address_line1, address_suburb, address_city, total_bookings')
       .eq('auth_user_id', authUser.id)
       .maybeSingle();
 
@@ -157,6 +157,10 @@ export async function GET(request: Request) {
         email: customer.email,
         firstName: customer.first_name,
         lastName: customer.last_name,
+        phone: customer.phone,
+        addressLine1: customer.address_line1,
+        addressSuburb: customer.address_suburb,
+        addressCity: customer.address_city,
         totalBookings: customer.total_bookings,
       },
     });

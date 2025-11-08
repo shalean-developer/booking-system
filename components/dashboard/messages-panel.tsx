@@ -25,11 +25,14 @@ export function MessagesPanel({ bookings }: MessagesPanelProps) {
 			<CardContent className="p-5">
 				<h3 className="text-lg font-bold text-gray-900 mb-4">Incoming Messages</h3>
 				{items.length === 0 ? (
-					<div className="text-center py-8">
+					<div className="text-center py-8 space-y-3">
 						<div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
 							<Inbox className="h-6 w-6 text-gray-400" />
 						</div>
-						<p className="text-sm text-gray-600">No messages yet</p>
+						<p className="text-sm text-gray-700">Cleaner notes and updates will show up here.</p>
+						<p className="text-xs text-gray-500">
+							Need to share special instructions? Add them when you book or let our team know after scheduling.
+						</p>
 					</div>
 				) : (
 					<ul className="space-y-3">

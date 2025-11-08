@@ -122,14 +122,14 @@ export function DashboardRedesigned() {
   const periodEnd = format(new Date(), 'MMM d');
 
   return (
-    <div className="min-h-screen bg-gray-100 -mx-4 sm:-mx-6 lg:-mx-8">
+    <div className="min-h-screen bg-gray-100">
       {/* Notification Bar - Full Width at top */}
       <NotificationBar />
 
       {/* Main Dashboard */}
-      <div className="px-4 sm:px-6 lg:px-8 py-6">
+      <div className="px-4 py-6 sm:px-6 lg:px-8">
         {/* 2x3 Grid Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-[1600px] mx-auto">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-4 sm:gap-6 md:grid-cols-[repeat(auto-fit,minmax(320px,1fr))] xl:grid-cols-3">
           {/* Row 1 */}
           <NewBookingsCard
             data={bookingChartData}

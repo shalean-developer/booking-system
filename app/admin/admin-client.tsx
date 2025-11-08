@@ -120,6 +120,18 @@ const BlogSection = dynamic(
   }
 );
 
+const ScheduleSection = dynamic(
+  () => import('@/components/admin/schedule-section').then(m => ({ default: m.ScheduleSection })),
+  { 
+    loading: () => (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    ),
+    ssr: false 
+  }
+);
+
 const QuotesSection = dynamic(
   () => import('@/components/admin/quotes-section').then(m => ({ default: m.QuotesSection })),
   { 
@@ -168,7 +180,7 @@ const UsersSection = dynamic(
   }
 );
 
-type TabType = 'dashboard' | 'bookings' | 'recurring' | 'customers' | 'cleaners' | 'applications' | 'pricing' | 'blog' | 'quotes' | 'reviews' | 'users';
+type TabType = 'dashboard' | 'bookings' | 'recurring' | 'customers' | 'cleaners' | 'schedule' | 'applications' | 'pricing' | 'blog' | 'quotes' | 'reviews' | 'users';
 type DashboardViewType = 'new' | 'v2';
 
 interface AdminDashboardClientProps {
@@ -192,7 +204,7 @@ export function AdminDashboardClient({ userName, lastLogin }: AdminDashboardClie
     
     // Otherwise, check query parameter
     const tabParam = searchParams?.get('tab');
-    if (tabParam && ['dashboard', 'bookings', 'recurring', 'customers', 'cleaners', 'applications', 'pricing', 'blog', 'quotes', 'reviews', 'users'].includes(tabParam)) {
+    if (tabParam && ['dashboard', 'bookings', 'recurring', 'customers', 'cleaners', 'schedule', 'applications', 'pricing', 'blog', 'quotes', 'reviews', 'users'].includes(tabParam)) {
       setActiveTab(tabParam as TabType);
     }
   }, [searchParams, pathname]);
@@ -214,7 +226,7 @@ export function AdminDashboardClient({ userName, lastLogin }: AdminDashboardClie
   useEffect(() => {
     const handleTabChange = (event: CustomEvent) => {
       const tabName = event.detail;
-      if (['dashboard', 'bookings', 'recurring', 'customers', 'cleaners', 'applications', 'pricing', 'blog', 'quotes', 'reviews', 'users'].includes(tabName)) {
+      if (['dashboard', 'bookings', 'recurring', 'customers', 'cleaners', 'schedule', 'applications', 'pricing', 'blog', 'quotes', 'reviews', 'users'].includes(tabName)) {
         setActiveTab(tabName as TabType);
         // Smooth scroll to top of content
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -278,6 +290,7 @@ export function AdminDashboardClient({ userName, lastLogin }: AdminDashboardClie
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 {activeTab === 'bookings' && <BookingsSection />}
                 {activeTab === 'recurring' && <RecurringSchedulesSection />}
+                {activeTab === 'schedule' && <ScheduleSection />}
                 {activeTab === 'quotes' && <QuotesSection />}
                 {activeTab === 'customers' && <CustomersSection />}
                 {activeTab === 'users' && <UsersSection />}

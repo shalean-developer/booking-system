@@ -10,10 +10,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/lib/supabase-client';
 import { safeLogout, safeGetSession, handleRefreshTokenError } from '@/lib/logout-utils';
 import { toast } from 'sonner';
-import { 
-  User, 
+import {
+  User,
   Loader2,
   AlertCircle,
+  Info,
+  ShieldCheck,
+  CalendarCheck,
+  MessageCircle,
 } from 'lucide-react';
 import { CustomerReviewDialog } from '@/components/review/customer-review-dialog';
 import { DashboardTabs } from '@/components/dashboard/dashboard-tabs';
@@ -28,6 +32,8 @@ import { ActivityPanel } from '@/components/dashboard/activity-panel';
 import { LeftRail } from '@/components/dashboard/left-rail';
 import { CustomerHeader } from '@/components/dashboard/customer-header';
 import { UnifiedBookings } from '@/components/dashboard/unified-bookings';
+import { QuickStartTasks } from '@/components/dashboard/quick-start-tasks';
+import { ProfileQuickSetup } from '@/components/dashboard/profile-quick-setup';
 
 interface Booking {
   id: string;
@@ -51,6 +57,10 @@ interface CustomerData {
   email: string;
   firstName: string;
   lastName: string;
+  phone?: string | null;
+  addressLine1?: string | null;
+  addressSuburb?: string | null;
+  addressCity?: string | null;
   totalBookings: number;
 }
 
@@ -67,6 +77,7 @@ export default function DashboardPage() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'reviews'>('overview');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [profileSheetOpen, setProfileSheetOpen] = useState(false);
 
   // Derive active tab from current route for consistent state across desktop and mobile
   useEffect(() => {
@@ -283,6 +294,9 @@ export default function DashboardPage() {
     );
   }
 
+  const hasProfileDetails = Boolean(customer?.phone && customer?.addressLine1 && customer?.addressCity);
+  const hasBookings = bookings.length > 0;
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 to-white pb-32 lg:pb-0">
       <CustomerHeader 
@@ -317,7 +331,78 @@ export default function DashboardPage() {
                 </Button>
               </div>
             </div>
+            {!isLoading && !customer && (
+              <Card className="mt-4 border-2 border-dashed border-primary/40 bg-primary/5">
+                <CardContent className="p-5 sm:p-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
+                      <Info className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <h2 className="text-base sm:text-lg font-semibold text-gray-900">
+                        Your dashboard is almost ready
+                      </h2>
+                      <p className="text-sm text-gray-600">
+                        As soon as you make your first booking, we’ll populate your stats and history here. Need a hand? Our team is happy to help.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 sm:flex-col lg:flex-row">
+                    <Button className="sm:w-full lg:w-auto" asChild>
+                      <Link href="/booking/service/select">Book your first service</Link>
+                    </Button>
+                    <Button variant="outline" className="sm:w-full lg:w-auto" asChild>
+                      <Link href="/contact">Contact support</Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </motion.div>
+
+              {!isLoading && (
+            <div className="space-y-4 sm:space-y-6 mb-6">
+              <QuickStartTasks
+                badgeText="Getting Started"
+                title="Make the most of your dashboard"
+                subtitle="Work through these steps to set up your profile, book a visit, and reach our team any time."
+                tasks={[
+                  {
+                    id: 'profile',
+                    title: hasProfileDetails ? 'Profile set up' : 'Add your details',
+                    description: hasProfileDetails
+                      ? 'Update your saved contact info any time.'
+                      : 'Store your contact info so we can reach you quickly.',
+                    cta: hasProfileDetails ? 'View details' : 'Add details',
+                    icon: ShieldCheck,
+                    onClick: () => setProfileSheetOpen(true),
+                    variant: hasProfileDetails ? 'outline' : 'default',
+                    completed: hasProfileDetails,
+                  },
+                  {
+                    id: 'book',
+                    title: hasBookings ? 'Plan your next clean' : 'Book your first clean',
+                    description: 'Pick a service, date, and we’ll match you with a pro.',
+                    cta: hasBookings ? 'Book again' : 'Book now',
+                    icon: CalendarCheck,
+                    href: '/booking/service/select',
+                    variant: 'default',
+                    completed: hasBookings,
+                  },
+                  {
+                    id: 'support',
+                    title: 'Ask us anything',
+                    description: 'Need help deciding? Chat with our friendly support team.',
+                    cta: 'Contact support',
+                    icon: MessageCircle,
+                    href: '/contact',
+                    variant: 'ghost',
+                    completed: false,
+                  },
+                ]}
+              />
+            </div>
+          )}
 
           <div className="lg:flex lg:items-start lg:gap-6">
             {/* Left navigation rail (desktop) */}
@@ -330,14 +415,6 @@ export default function DashboardPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: shouldReduceMotion ? 0 : 0.4, delay: shouldReduceMotion ? 0 : 0.2 }}
               >
-                {/* Stat Cards - responsive grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
-                  <StatCard icon={User} label="Total Bookings" value={bookings.length} />
-                  <StatCard icon={Loader2} label="Pending" value={bookings.filter(b => b.status === 'pending').length} />
-                  <StatCard icon={AlertCircle} label="Upcoming" value={bookings.filter(b => new Date(b.booking_date) >= new Date()).length} />
-                  <StatCard icon={AlertCircle} label="Completed" value={bookings.filter(b => b.status === 'completed').length} />
-                </div>
-
                 {/* Overview content (pending reviews etc.), recent list suppressed */}
                 <OverviewTab
                   customer={customer}
@@ -371,13 +448,6 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* Mobile bottom CTA - Book a Service */}
-      <div className="md:hidden fixed left-4 right-4 bottom-24 z-30">
-        <Button className="w-full h-10 rounded-full text-sm" asChild>
-          <Link href="/booking/service/select">Book a Service</Link>
-        </Button>
-      </div>
-
       {/* Review Dialog */}
       <CustomerReviewDialog
         booking={selectedBooking}
@@ -406,6 +476,23 @@ export default function DashboardPage() {
         onClose={() => setDrawerOpen(false)}
         user={user}
         customer={customer}
+        onEditProfile={() => setProfileSheetOpen(true)}
+      />
+
+      <ProfileQuickSetup
+        open={profileSheetOpen}
+        onOpenChange={setProfileSheetOpen}
+        customer={customer}
+        onUpdated={(updated) => {
+          setCustomer((prev) =>
+            prev
+              ? { ...prev, ...updated }
+              : {
+                  ...updated,
+                  totalBookings: 0,
+                }
+          );
+        }}
       />
     </div>
   );

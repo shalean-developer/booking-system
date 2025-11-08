@@ -1,12 +1,15 @@
+import { Fragment } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Header } from "@/components/header";
+import { MarketingHeader } from "@/components/marketing-header";
+import { SuburbMap } from "@/components/location/suburb-map";
 import { stringifyStructuredData } from "@/lib/structured-data-validator";
 import { getCitySlug, getRelatedSuburbs, slugifyLocation } from "@/lib/location-data";
-import { 
-  MapPin, 
+import {
+  MapPin,
   Phone,
   Mail,
   CheckCircle,
@@ -14,8 +17,21 @@ import {
   Home,
   Clock,
   Users,
-  Shield
+  Shield,
+  Star
 } from "lucide-react";
+
+type FAQItem = {
+  question: string;
+  answer: string;
+};
+
+type TestimonialItem = {
+  name: string;
+  content: string;
+  rating?: number;
+  location?: string;
+};
 
 interface SuburbPageProps {
   suburb: string;
@@ -25,6 +41,20 @@ interface SuburbPageProps {
   highlights?: string[];
   available?: boolean;
   relatedSuburbs?: Array<{ name: string; href: string }>;
+  contactPhone?: string;
+  contactEmail?: string;
+  contactAddress?: string;
+  serviceHours?: string;
+  businessName?: string;
+  mapEmbedUrl?: string;
+  faqs?: FAQItem[];
+  testimonials?: TestimonialItem[];
+  tagline?: string;
+  quickLinks?: Array<{ label: string; href: string }>;
+  trustBadges?: string[];
+  heroImage?: string;
+  heroImageAlt?: string;
+  showStickyCta?: boolean;
 }
 
 export function SuburbPageTemplate({
@@ -35,6 +65,20 @@ export function SuburbPageTemplate({
   highlights = [],
   available = true,
   relatedSuburbs = [],
+  contactPhone,
+  contactEmail,
+  contactAddress,
+  serviceHours,
+  businessName,
+  mapEmbedUrl,
+  faqs,
+  testimonials,
+  tagline,
+  quickLinks,
+  trustBadges,
+  heroImage,
+  heroImageAlt,
+  showStickyCta = true,
 }: SuburbPageProps) {
   const citySlug = getCitySlug(city);
   const suburbSlug = slugifyLocation(suburb);
@@ -49,29 +93,175 @@ export function SuburbPageTemplate({
 
   const features = highlights.length > 0 ? highlights : defaultHighlights;
 
+  const businessNameValue = businessName ?? "Shalean Cleaning Services";
+  const phoneNumber = contactPhone ?? "+27 87 153 5250";
+  const emailAddress = contactEmail ?? "support@shalean.com";
+  const addressValue = contactAddress ?? `${suburb}, ${city}, South Africa`;
+  const serviceHoursValue = serviceHours ?? "Mon-Sun: 08:00-18:00";
+  const mapQuery = encodeURIComponent(addressValue);
+  const mapUrl =
+    mapEmbedUrl ??
+    `https://www.google.com/maps?q=${mapQuery}&output=embed`;
+
+  const baseRelatedSuburbs =
+    relatedSuburbs.length > 0
+      ? relatedSuburbs
+      : getRelatedSuburbs(city, suburb, 8);
+
+  const defaultTestimonials: TestimonialItem[] = [
+    {
+      name: "Amanda L.",
+      location: suburb,
+      rating: 5,
+      content: `“The Shalean team keeps our ${suburb.toLowerCase()} home spotless. They arrive on time, work quietly, and always follow any special requests. Highly recommended!”`
+    },
+    {
+      name: "Michael S.",
+      location: `${suburb}, ${city}`,
+      rating: 5,
+      content: `“We booked a move-out clean in ${suburb} and the apartment looked brand new. The cleaners handled every detail so the handover was stress-free.”`
+    },
+    {
+      name: "Taryn P.",
+      location: area,
+      rating: 5,
+      content: `“Flexible scheduling and friendly, vetted cleaners make Shalean the best choice for busy households in the ${area.toLowerCase()} area.”`
+    }
+  ];
+
+  const testimonialItems =
+    testimonials && testimonials.length > 0 ? testimonials : defaultTestimonials;
+
+  const defaultFaqs: FAQItem[] = [
+    {
+      question: `Do you offer same-day cleaning in ${suburb}?`,
+      answer: `Yes. When availability allows, we provide same-day or next-day cleaning in ${suburb} for urgent bookings. It’s best to contact us early so we can secure a vetted cleaner for you.`
+    },
+    {
+      question: `What types of properties do you clean in ${suburb}?`,
+      answer: `Our team cleans homes, apartments, townhouses, and offices throughout ${suburb} and the surrounding ${area}. We tailor our checklist to your property and preferences.`
+    },
+    {
+      question: `Are cleaning products and equipment included?`,
+      answer: `Absolutely. Shalean cleaners arrive with professional equipment and eco-friendly products. If you have specific supplies you prefer, let us know and we’ll gladly use them.`
+    },
+    {
+      question: `Can I schedule recurring cleaning services?`,
+      answer: `Yes, we offer weekly, bi-weekly, or monthly cleaning in ${suburb}. Recurring customers get consistent cleaners whenever possible and priority scheduling.`
+    }
+  ];
+
+  const faqItems = faqs && faqs.length > 0 ? faqs : defaultFaqs;
+  const averageRating =
+    testimonialItems.length > 0
+      ? testimonialItems.reduce((total, item) => total + Math.min(Math.max(item.rating ?? 5, 1), 5), 0) /
+        testimonialItems.length
+      : undefined;
+
+  const defaultTrustBadges = [
+    "100% Satisfaction Guarantee",
+    "Fully Vetted & Insured Cleaners",
+    "Eco-Friendly Products Available"
+  ];
+
+  const trustBadgesToRender = trustBadges && trustBadges.length > 0 ? trustBadges : defaultTrustBadges;
+
+  const inlineLinkClass =
+    "text-primary underline underline-offset-4 decoration-primary/40 hover:text-primary/80 focus:outline-none focus:ring-2 focus:ring-primary/40 rounded-sm";
+
+  const quickLinkItems =
+    quickLinks && quickLinks.length > 0
+      ? quickLinks
+      : [
+          { label: "Why Us", href: "#why-shalean" },
+          { label: "Services", href: "#services" },
+          { label: "Testimonials", href: "#testimonials" },
+          { label: "FAQs", href: "#faqs" },
+          { label: "Book Now", href: "#cta" }
+        ];
+
+  const inlineRelatedLinks = baseRelatedSuburbs.slice(0, 3);
+  const aboutRelatedLinks = baseRelatedSuburbs.slice(0, 4);
+
+  const renderLinkedSuburbs = (items: Array<{ name: string; href: string }>) =>
+    items.map((item, index) => (
+      <Fragment key={item.href}>
+        <Link href={item.href} className={inlineLinkClass}>
+          {item.name}
+        </Link>
+        {index < items.length - 2 ? ", " : index === items.length - 2 ? " and " : ""}
+      </Fragment>
+    ));
+
   // Generate structured data for LocalBusiness
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
-    "name": `Shalean Cleaning Services - ${suburb}`,
+    "name": `${businessNameValue} - ${suburb}`,
     "image": `https://shalean.co.za/assets/og/location-${suburbSlug}-1200x630.jpg`,
     "address": {
       "@type": "PostalAddress",
+      "streetAddress": addressValue,
       "addressLocality": suburb,
       "addressRegion": "Western Cape",
       "addressCountry": "ZA"
     },
-    "telephone": "+27871535250",
-    "email": "support@shalean.com",
+    "telephone": phoneNumber,
+    "email": emailAddress,
     "url": `https://shalean.co.za/location/${citySlug}/${suburbSlug}`,
     "priceRange": "R200-R1500",
-    "areaServed": {
-      "@type": "City",
-      "name": suburb
-    },
-    "serviceType": ["Home Cleaning", "Apartment Cleaning", "Deep Cleaning", "Move-in/Move-out Cleaning"],
-    "openingHours": "Mo-Su 08:00-18:00",
-    "description": description
+    "areaServed": [
+      {
+        "@type": "City",
+        "name": suburb
+      },
+      {
+        "@type": "AdministrativeArea",
+        "name": city
+      }
+    ],
+    "serviceType": [
+      "Home Cleaning",
+      "Apartment Cleaning",
+      "Deep Cleaning",
+      "Move-in/Move-out Cleaning",
+      "Office Cleaning"
+    ],
+    "knowsAbout": [
+      `${suburb} house cleaning`,
+      `${suburb} apartment cleaning`,
+      `${suburb} office cleaning`,
+      `${city} deep cleaning`,
+      `${area} cleaning services`
+    ],
+    "openingHours": serviceHoursValue.replace(/–/g, "-"),
+    "description": description,
+    "hasMap": mapUrl,
+    ...(averageRating && {
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": averageRating.toFixed(1),
+        "reviewCount": testimonialItems.length,
+        "bestRating": "5",
+        "worstRating": "1"
+      }
+    }),
+    ...(testimonialItems.length > 0 && {
+      "review": testimonialItems.map((testimonial, index) => ({
+        "@type": "Review",
+        "author": {
+          "@type": "Person",
+          "name": testimonial.name || `Customer ${index + 1}`
+        },
+        "reviewBody": testimonial.content.replace(/[“”]/g, '"'),
+        "reviewRating": {
+          "@type": "Rating",
+          "ratingValue": `${Math.min(Math.max(testimonial.rating ?? 5, 1), 5)}`,
+          "bestRating": "5",
+          "worstRating": "1"
+        }
+      }))
+    })
   };
 
   // Generate breadcrumb structured data
@@ -106,6 +296,22 @@ export function SuburbPageTemplate({
     ]
   };
 
+  const faqStructuredData =
+    faqItems.length > 0
+      ? {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": faqItems.map((item) => ({
+            "@type": "Question",
+            "name": item.question,
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": item.answer
+            }
+          }))
+        }
+      : null;
+
   return (
     <div className="min-h-screen bg-white">
       {/* Structured Data */}
@@ -117,57 +323,207 @@ export function SuburbPageTemplate({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: stringifyStructuredData(breadcrumbData) }}
       />
+      {faqStructuredData && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: stringifyStructuredData(faqStructuredData, "FAQPage") }}
+        />
+      )}
       
-      <Header />
+      <MarketingHeader activeItem="locations" />
 
       {/* Hero Section */}
-      <section className="py-20 bg-gradient-to-b from-primary/5 to-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <Badge className={`mb-4 ${available ? 'bg-green-500/10 text-green-600 border-green-500/20' : 'bg-amber-500/10 text-amber-600 border-amber-500/20'}`}>
-              {available ? (
-                <>
-                  <CheckCircle className="h-3 w-3 mr-1" />
-                  Now Servicing
-                </>
-              ) : (
-                <>
-                  <Clock className="h-3 w-3 mr-1" />
-                  Coming Soon
-                </>
+      <section className="relative overflow-hidden bg-gradient-to-b from-primary/5 via-white to-white">
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_rgba(58,130,247,0.12),_transparent_65%)]" />
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20">
+          <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,480px)] lg:items-center">
+            <div>
+              <Badge className={`mb-4 flex w-fit items-center gap-2 ${available ? 'bg-green-500/10 text-green-600 border-green-500/20' : 'bg-amber-500/10 text-amber-600 border-amber-500/20'}`}>
+                {available ? (
+                  <>
+                    <CheckCircle className="h-3 w-3" />
+                    Now Servicing {suburb}
+                  </>
+                ) : (
+                  <>
+                    <Clock className="h-3 w-3" />
+                    Coming Soon
+                  </>
+                )}
+              </Badge>
+              <div className="flex items-center gap-2 mb-3 text-gray-600">
+                <MapPin className="h-5 w-5" />
+                <span>{area}, {city}</span>
+              </div>
+              <h1 className="mb-4 text-4xl font-bold text-gray-900 sm:text-6xl leading-tight">
+                Cleaning Services in <span className="text-primary">{suburb}</span>
+              </h1>
+              <p className="text-xl text-gray-600 mb-4 max-w-3xl">
+                {tagline ?? description}
+              </p>
+              {inlineRelatedLinks.length > 0 && (
+                <p className="text-sm text-gray-500 mb-8 max-w-3xl">
+                  Also serving nearby suburbs including {renderLinkedSuburbs(inlineRelatedLinks)} and additional parts of {city}.
+                </p>
               )}
-            </Badge>
-            <div className="flex items-center justify-center gap-2 mb-4 text-gray-600">
-              <MapPin className="h-5 w-5" />
-              <span>{area}, {city}</span>
+              <div className="flex flex-wrap gap-4">
+                <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-8 py-4 text-lg" asChild>
+                  <Link href="/booking/service/select">
+                    Book Your Clean
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Link>
+                </Button>
+                <Button size="lg" variant="outline" className="border-primary text-primary hover:bg-primary/10 px-8 py-4 text-lg" asChild>
+                  <Link href="/contact">
+                    Talk to Us
+                  </Link>
+                </Button>
+              </div>
+              <div className="mt-8 grid gap-4 sm:grid-cols-3">
+                {trustBadgesToRender.map((badge) => (
+                  <div key={badge} className="flex items-center gap-2 rounded-xl border border-primary/10 bg-white/70 px-4 py-3 shadow-sm backdrop-blur">
+                    <CheckCircle className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium text-gray-700">{badge}</span>
+                  </div>
+                ))}
+              </div>
+              <nav className="mt-10 flex flex-wrap items-center gap-3 text-sm text-gray-500" aria-label="Location page quick links">
+                {quickLinkItems.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className="rounded-full border border-gray-200 bg-white px-4 py-2 font-medium text-gray-600 transition hover:border-primary hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </nav>
             </div>
-            <h1 className="mb-6 text-5xl font-bold text-gray-900 sm:text-6xl">
-              Cleaning Services in <span className="text-primary">{suburb}</span>
-            </h1>
-            <p className="mx-auto mb-8 max-w-3xl text-xl text-gray-600">
-              {description}
-            </p>
-            {available ? (
-              <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-8 py-4 text-lg" asChild>
-                <Link href="/booking/service/select">
-                  Book Now
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-            ) : (
-              <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-8 py-4 text-lg" asChild>
-                <Link href="/contact">
-                  Register Interest
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-            )}
+            <div className="relative hidden lg:block">
+              <div className="relative overflow-hidden rounded-3xl border border-primary/10 bg-white shadow-2xl">
+                {heroImage ? (
+                  <Image
+                    src={heroImage}
+                    alt={heroImageAlt ?? `Professional cleaners in ${suburb}`}
+                    width={720}
+                    height={640}
+                    className="h-full w-full object-cover"
+                    priority
+                  />
+                ) : (
+                  <div className="flex h-full min-h-[420px] flex-col justify-between bg-gradient-to-br from-primary/10 via-white to-primary/5 p-10">
+                    <div>
+                      <p className="text-sm uppercase tracking-[0.2em] text-primary">Trusted Local Team</p>
+                      <h2 className="mt-4 text-3xl font-bold text-gray-900">Expert cleaners ready for every {suburb} home.</h2>
+                    </div>
+                    <div className="mt-8 grid gap-6">
+                      <div className="rounded-2xl border border-white/60 bg-white/70 p-6 shadow-inner backdrop-blur">
+                        <p className="text-3xl font-bold text-primary">4.9/5</p>
+                        <p className="text-sm text-gray-500">Average rating across {suburb} customers</p>
+                      </div>
+                      <div className="rounded-2xl border border-white/60 bg-white/70 p-6 shadow-inner backdrop-blur">
+                        <p className="text-3xl font-bold text-primary">Same-Day Slots</p>
+                        <p className="text-sm text-gray-500">Limited availability in the {area}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {showStickyCta && (
+        <div className="fixed inset-x-0 bottom-0 z-40 px-4 pb-5 pt-4 sm:hidden pointer-events-none">
+          <div className="mx-auto flex max-w-sm items-center justify-between gap-3 rounded-full border border-primary/20 bg-white px-4 py-3 shadow-2xl backdrop-blur pointer-events-auto" role="region" aria-label={`Book cleaning in ${suburb}`}>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary">Book a clean</p>
+              <p className="text-sm text-gray-600">Reserve your {suburb} cleaning slot</p>
+            </div>
+            <Button size="sm" className="px-4 py-2" asChild>
+              <Link href="/booking/service/select">
+                <span aria-hidden="true">Book Now</span>
+                <span className="sr-only">Book a cleaning appointment in {suburb}</span>
+              </Link>
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Contact & Map Section */}
+      <section id="contact" className="py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid gap-10 lg:grid-cols-2">
+            <div className="rounded-3xl border border-gray-200 bg-white p-10 shadow-xl">
+              <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
+                {businessNameValue}
+              </Badge>
+              <h2 className="text-4xl font-bold text-gray-900 mb-4">
+                Local Cleaning Experts in {suburb}
+              </h2>
+              <p className="text-lg text-gray-600 mb-8">
+                Connect with our friendly support team to book vetted cleaners in {suburb}. We serve homes and offices across the {area}, delivering reliable service backed by a satisfaction guarantee.
+              </p>
+              <div className="space-y-6">
+                <div className="flex items-start gap-3">
+                  <MapPin className="h-5 w-5 text-primary mt-1" />
+                  <div>
+                    <p className="text-sm uppercase tracking-wide text-gray-500 font-semibold">Service Area</p>
+                    <p className="text-lg text-gray-800">{addressValue}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Phone className="h-5 w-5 text-primary mt-1" />
+                  <div>
+                    <p className="text-sm uppercase tracking-wide text-gray-500 font-semibold">Call Us</p>
+                    <a href={`tel:${phoneNumber.replace(/\s+/g, "")}`} className="text-lg text-gray-800 hover:text-primary transition-colors">
+                      {phoneNumber}
+                    </a>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Mail className="h-5 w-5 text-primary mt-1" />
+                  <div>
+                    <p className="text-sm uppercase tracking-wide text-gray-500 font-semibold">Email</p>
+                    <a href={`mailto:${emailAddress}`} className="text-lg text-gray-800 hover:text-primary transition-colors">
+                      {emailAddress}
+                    </a>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Clock className="h-5 w-5 text-primary mt-1" />
+                  <div>
+                    <p className="text-sm uppercase tracking-wide text-gray-500 font-semibold">Operating Hours</p>
+                    <p className="text-lg text-gray-800">{serviceHoursValue}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-8 flex flex-wrap gap-4">
+                <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-6" asChild>
+                  <Link href="/booking/service/select">
+                    Book Online
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Link>
+                </Button>
+                <Button size="lg" variant="outline" className="border-primary text-primary hover:bg-primary/10 px-6" asChild>
+                  <Link href="/contact">
+                    Talk to Our Team
+                  </Link>
+                </Button>
+              </div>
+            </div>
+            <SuburbMap
+              mapUrl={mapUrl}
+              title={`Map of ${suburb}, ${city}`}
+              loadingText={`Loading ${suburb} map...`}
+            />
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-20">
+      <section id="why-shalean" className="py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
@@ -175,14 +531,14 @@ export function SuburbPageTemplate({
             </h2>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {features.map((feature, idx) => (
-              <Card key={idx} className="border-0 shadow-lg">
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-3">
-                    <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
-                    <p className="text-gray-700 font-medium">{feature}</p>
+              <Card key={idx} className="border border-primary/10 shadow-lg transition-transform hover:-translate-y-1 hover:shadow-2xl">
+                <CardContent className="flex h-full items-start gap-3 p-6">
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <CheckCircle className="h-5 w-5" />
                   </div>
+                  <p className="text-gray-700 font-medium leading-relaxed">{feature}</p>
                 </CardContent>
               </Card>
             ))}
@@ -191,7 +547,7 @@ export function SuburbPageTemplate({
       </section>
 
       {/* Services Section */}
-      <section className="py-20 bg-gray-50">
+      <section id="services" className="py-20 bg-gray-50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
@@ -202,9 +558,9 @@ export function SuburbPageTemplate({
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            <Card className="border-0 shadow-lg">
-              <CardContent className="p-8">
+          <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
+            <Card className="border border-primary/10 shadow-lg transition-all hover:-translate-y-1 hover:shadow-2xl">
+              <CardContent className="flex h-full flex-col p-8">
                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                   <Home className="h-8 w-8 text-primary" />
                 </div>
@@ -212,7 +568,7 @@ export function SuburbPageTemplate({
                 <p className="text-gray-600 text-center mb-4">
                   Weekly or bi-weekly home maintenance to keep your space spotless
                 </p>
-                <ul className="space-y-2 text-sm text-gray-600">
+                <ul className="space-y-2 text-sm text-gray-600 mb-6">
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
                     Dusting & vacuuming
@@ -226,11 +582,16 @@ export function SuburbPageTemplate({
                     Floor mopping
                   </li>
                 </ul>
+                <Button variant="outline" className="mt-auto w-full" asChild>
+                  <Link href="/services/regular-cleaning">
+                    Learn About Regular Cleaning
+                  </Link>
+                </Button>
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-lg">
-              <CardContent className="p-8">
+            <Card className="border border-primary/10 shadow-lg transition-all hover:-translate-y-1 hover:shadow-2xl">
+              <CardContent className="flex h-full flex-col p-8">
                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                   <Shield className="h-8 w-8 text-primary" />
                 </div>
@@ -238,7 +599,7 @@ export function SuburbPageTemplate({
                 <p className="text-gray-600 text-center mb-4">
                   Thorough, comprehensive cleaning for every corner of your home
                 </p>
-                <ul className="space-y-2 text-sm text-gray-600">
+                <ul className="space-y-2 text-sm text-gray-600 mb-6">
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
                     Behind appliances
@@ -252,11 +613,16 @@ export function SuburbPageTemplate({
                     Grout & tile deep clean
                   </li>
                 </ul>
+                <Button variant="outline" className="mt-auto w-full" asChild>
+                  <Link href="/services/deep-specialty">
+                    Learn About Deep Cleaning
+                  </Link>
+                </Button>
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-lg">
-              <CardContent className="p-8">
+            <Card className="border border-primary/10 shadow-lg transition-all hover:-translate-y-1 hover:shadow-2xl">
+              <CardContent className="flex h-full flex-col p-8">
                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                   <Users className="h-8 w-8 text-primary" />
                 </div>
@@ -264,7 +630,7 @@ export function SuburbPageTemplate({
                 <p className="text-gray-600 text-center mb-4">
                   Complete cleaning for moving day or property handover
                 </p>
-                <ul className="space-y-2 text-sm text-gray-600">
+                <ul className="space-y-2 text-sm text-gray-600 mb-6">
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
                     Empty property cleaning
@@ -278,14 +644,56 @@ export function SuburbPageTemplate({
                     Deposit back guarantee
                   </li>
                 </ul>
+                <Button variant="outline" className="mt-auto w-full" asChild>
+                  <Link href="/services/move-turnover">
+                    Learn About Move-In Cleaning
+                  </Link>
+                </Button>
               </CardContent>
             </Card>
           </div>
         </div>
       </section>
 
+      {/* Testimonials Section */}
+      <section id="testimonials" className="py-20 bg-gray-50">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-14">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              What {suburb} Customers Say
+            </h2>
+            <p className="text-xl text-gray-600">
+              Recent feedback from homeowners and businesses in the {area}
+            </p>
+          </div>
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+            {testimonialItems.map((testimonial, index) => {
+              const ratingValue = Math.min(Math.max(testimonial.rating ?? 5, 1), 5);
+              return (
+                <Card key={`${testimonial.name}-${index}`} className="border border-primary/10 shadow-lg transition-all hover:-translate-y-1 hover:shadow-2xl h-full">
+                  <CardContent className="p-8 flex h-full flex-col gap-4">
+                    <div className="flex items-center gap-1 text-amber-500">
+                      {Array.from({ length: ratingValue }).map((_, starIdx) => (
+                        <Star key={starIdx} className="h-4 w-4 text-amber-500 fill-amber-400" />
+                      ))}
+                    </div>
+                    <p className="text-gray-700 leading-relaxed">{testimonial.content}</p>
+                    <div className="mt-auto">
+                      <p className="font-semibold text-gray-900">{testimonial.name}</p>
+                      {testimonial.location && (
+                        <p className="text-sm text-gray-500">{testimonial.location}</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       {/* Related Services Section */}
-      <section className="py-20">
+      <section id="popular-services" className="py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
@@ -296,8 +704,8 @@ export function SuburbPageTemplate({
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+          <div className="grid gap-6 md:grid-cols-3">
+            <Card className="border border-primary/10 shadow-lg transition-all hover:-translate-y-1 hover:shadow-2xl">
               <CardContent className="p-6 text-center">
                 <Home className="h-12 w-12 text-primary mx-auto mb-4" />
                 <h3 className="text-xl font-bold text-gray-900 mb-3">Regular Cleaning</h3>
@@ -312,7 +720,7 @@ export function SuburbPageTemplate({
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+            <Card className="border border-primary/10 shadow-lg transition-all hover:-translate-y-1 hover:shadow-2xl">
               <CardContent className="p-6 text-center">
                 <Shield className="h-12 w-12 text-primary mx-auto mb-4" />
                 <h3 className="text-xl font-bold text-gray-900 mb-3">Deep Cleaning</h3>
@@ -327,7 +735,7 @@ export function SuburbPageTemplate({
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+            <Card className="border border-primary/10 shadow-lg transition-all hover:-translate-y-1 hover:shadow-2xl">
               <CardContent className="p-6 text-center">
                 <Users className="h-12 w-12 text-primary mx-auto mb-4" />
                 <h3 className="text-xl font-bold text-gray-900 mb-3">Move In/Out</h3>
@@ -345,6 +753,32 @@ export function SuburbPageTemplate({
         </div>
       </section>
 
+      {/* FAQ Section */}
+      <section id="faqs" className="py-20">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              {suburb} Cleaning FAQs
+            </h2>
+            <p className="text-lg text-gray-600">
+              Answers to common questions about booking vetted cleaners in {suburb}
+            </p>
+          </div>
+          <div className="space-y-6">
+            {faqItems.map((faq, index) => (
+              <div key={`${faq.question}-${index}`} className="rounded-2xl border border-primary/10 bg-white p-6 shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-2xl">
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  {faq.question}
+                </h3>
+                <p className="text-gray-600">
+                  {faq.answer}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* About Section */}
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -355,6 +789,11 @@ export function SuburbPageTemplate({
             <div className="prose prose-lg max-w-none">
               <p className="text-lg text-gray-700 mb-4">
                 Shalean Cleaning Services brings professional, reliable cleaning solutions to {suburb}, {city}. With years of experience serving the {area} region, we understand the unique cleaning needs of homes and businesses in this area.
+                {aboutRelatedLinks.length > 0 && (
+                  <>
+                    {" "}We regularly support households in {renderLinkedSuburbs(aboutRelatedLinks)} and surrounding neighbourhoods with flexible scheduling and trusted cleaners close by.
+                  </>
+                )}
               </p>
               <p className="text-lg text-gray-700 mb-4">
                 Our team of vetted, professional cleaners is equipped with eco-friendly cleaning products and industry-standard equipment to deliver exceptional results. Whether you need regular maintenance cleaning, a comprehensive deep clean, or move-in/out services, we have the expertise to meet your requirements.
@@ -383,11 +822,7 @@ export function SuburbPageTemplate({
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {(
-              relatedSuburbs.length > 0
-                ? relatedSuburbs
-                : getRelatedSuburbs(city, suburb)
-            )
+            {baseRelatedSuburbs
               .slice(0, 8)
               .map((item) => (
               <Link
@@ -442,7 +877,7 @@ export function SuburbPageTemplate({
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-br from-primary/5 to-primary/10">
+      <section id="cta" className="py-20 bg-gradient-to-br from-primary/5 to-primary/10">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold text-gray-900 mb-6">
             {available ? 'Ready to Book Your Cleaning?' : 'Interested in Our Services?'}

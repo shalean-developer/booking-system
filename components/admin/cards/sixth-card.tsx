@@ -8,7 +8,7 @@ export function SixthCard() {
   return (
     <Card className="bg-white rounded-lg shadow-sm">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-sm font-medium">Additional Metrics</h3>
           <Button variant="ghost" size="icon" className="h-6 w-6">
             <MoreVertical className="h-4 w-4 text-gray-500" />

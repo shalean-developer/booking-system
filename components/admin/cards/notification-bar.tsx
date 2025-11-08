@@ -11,15 +11,17 @@ export function NotificationBar() {
 
   return (
     <div className="w-full bg-blue-100 border-b border-blue-200 py-3">
-      <div className="px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-blue-900">
+      <div className="mx-auto flex w-full flex-col gap-3 px-4 sm:px-6 lg:px-8 sm:flex-row sm:items-center sm:justify-between max-w-7xl">
+        <div className="flex items-start gap-2 text-blue-900 sm:items-center">
           <AlertCircle className="h-5 w-5" />
-          <span className="text-sm font-medium">New Quote: Standard Cleaning R79.00</span>
+          <span className="text-sm font-medium leading-snug">
+            New Quote: Standard Cleaning R79.00
+          </span>
         </div>
         <Button
           variant="ghost"
           size="icon"
-          className="h-6 w-6 text-blue-900 hover:bg-blue-200"
+          className="h-6 w-6 self-start text-blue-900 hover:bg-blue-200 sm:self-auto"
           onClick={() => setIsVisible(false)}
           aria-label="Close notification"
         >

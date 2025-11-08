@@ -4,7 +4,6 @@ import { useEffect } from 'react';
 import { useBooking } from '@/lib/useBooking';
 import { StepService } from '@/components/step-service';
 import { BookingFooter } from '@/components/booking-footer';
-import { motion } from 'framer-motion';
 
 export function ServiceSelectContent() {
   const { state, isLoaded, updateField } = useBooking();

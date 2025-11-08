@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bell, Calendar, FileText } from 'lucide-react';
+import { Bell, Calendar, FileText, Rocket, Search, Menu, ChevronDown } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -104,24 +104,117 @@ export function AdminTopNav({ onNavigate, activeTab = 'dashboard' }: AdminTopNav
   };
 
   return (
-    <div className="w-full border-b border-gray-200 bg-white shadow-sm">
+    <div className="w-full border-b border-slate-800 bg-slate-900 text-white shadow-sm sm:border-gray-200 sm:bg-white sm:text-gray-900">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        {/* Mobile Navigation */}
+        <div className="flex h-14 items-center justify-between sm:hidden">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm transition-colors hover:bg-emerald-400"
+              aria-label="Go to dashboard"
+            >
+              <Rocket className="h-5 w-5" />
+            </button>
+            <span className="h-6 w-px bg-white/20" aria-hidden="true" />
+            <button
+              type="button"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#5f7cff] text-white shadow-sm transition-colors hover:bg-[#718aff]"
+              aria-label="Workspace menu"
+            >
+              <span className="text-base font-semibold">S</span>
+            </button>
+            <button
+              type="button"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10"
+              aria-label="Switch workspace"
+            >
+              <ChevronDown className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="flex items-center gap-3">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10">
+                  <Bell className="h-5 w-5" />
+                  {totalNotifications > 0 && (
+                    <Badge className="absolute -top-1 -right-1 flex h-5 min-w-[20px] items-center justify-center rounded-full border-0 bg-rose-500 p-0 text-xs text-white">
+                      {totalNotifications > 99 ? '99+' : totalNotifications}
+                    </Badge>
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel>New Notifications</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={handleNavigateToBookings}
+                  className="flex cursor-pointer items-center justify-between"
+                >
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-gray-500" />
+                    <span>New Bookings</span>
+                  </div>
+                  {pendingBookingsCount > 0 && (
+                    <Badge variant="secondary" className="bg-rose-100 text-rose-700">
+                      {pendingBookingsCount}
+                    </Badge>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={handleNavigateToQuotes}
+                  className="flex cursor-pointer items-center justify-between"
+                >
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-gray-500" />
+                    <span>New Quotes</span>
+                  </div>
+                  {pendingQuotesCount > 0 && (
+                    <Badge variant="secondary" className="bg-rose-100 text-rose-700">
+                      {pendingQuotesCount}
+                    </Badge>
+                  )}
+                </DropdownMenuItem>
+                {totalNotifications === 0 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <div className="px-2 py-4 text-center text-sm text-gray-500">
+                      No new notifications
+                    </div>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <button className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10" aria-label="Search">
+              <Search className="h-5 w-5" />
+            </button>
+            <Avatar className="h-9 w-9 border border-white/20 bg-white text-slate-900 shadow-sm">
+              <AvatarImage src="/placeholder-avatar.jpg" alt="User" />
+              <AvatarFallback className="bg-white text-slate-900">D</AvatarFallback>
+            </Avatar>
+            <button className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10" aria-label="Open menu">
+              <Menu className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Desktop Navigation */}
+        <div className="hidden h-16 items-center justify-between sm:flex">
           {/* Logo Icon */}
           <div className="flex items-center">
             <div className="h-8 w-8 rounded bg-gray-300"></div>
           </div>
 
           {/* Navigation Links */}
-          <nav className="flex items-center gap-6 flex-1 justify-center overflow-x-auto scrollbar-hide">
+          <nav className="flex flex-1 items-center justify-center gap-6 overflow-x-auto scrollbar-hide">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => onNavigate?.(tab.id)}
-                className={`text-sm font-medium transition-colors pb-1 border-b-2 whitespace-nowrap flex-shrink-0 ${
+                className={`flex-shrink-0 whitespace-nowrap border-b-2 pb-1 text-sm font-medium transition-colors ${
                   activeTab === tab.id
-                    ? 'text-blue-600 border-blue-600'
-                    : 'text-gray-400 border-transparent hover:text-gray-600'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-400 hover:text-gray-600'
                 }`}
               >
                 {tab.label}
@@ -134,10 +227,10 @@ export function AdminTopNav({ onNavigate, activeTab = 'dashboard' }: AdminTopNav
             {/* Notification Bell with Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="relative p-1 hover:bg-gray-100 rounded transition-colors">
+                <button className="relative rounded p-1 transition-colors hover:bg-gray-100">
                   <Bell className="h-5 w-5 text-gray-600" />
                   {totalNotifications > 0 && (
-                    <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-rose-500 text-white text-xs border-0 rounded-full min-w-[20px]">
+                    <Badge className="absolute -top-1 -right-1 flex h-5 min-w-[20px] items-center justify-center rounded-full border-0 bg-rose-500 p-0 text-xs text-white">
                       {totalNotifications > 99 ? '99+' : totalNotifications}
                     </Badge>
                   )}

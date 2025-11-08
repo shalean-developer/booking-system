@@ -32,6 +32,7 @@ export interface PageMetadata {
   twitterCard?: "summary" | "summary_large_image";
   robots?: string;
   generatedMeta?: boolean;
+  keywords?: string[];
 }
 
 // Type definitions for blog post metadata
@@ -169,6 +170,9 @@ export function createMetadata(metadata: PageMetadata | Metadata): Metadata {
     alternates: {
       canonical,
     },
+    ...(pageMeta.keywords && pageMeta.keywords.length > 0 && {
+      keywords: pageMeta.keywords,
+    }),
     robots: pageMeta.robots || "index,follow",
     openGraph: {
       locale: DEFAULT_SITE_METADATA.locale,
@@ -286,8 +290,18 @@ export function createLocationMetadata(
   area: string,
   description: string,
   highlights: string[] = [],
-  slugOverride?: string
+  slugOverrideOrOptions?: string | {
+    slugOverride?: string;
+    services?: string[];
+    propertyTypes?: string[];
+    keywords?: string[];
+  }
 ): Metadata {
+  const options =
+    typeof slugOverrideOrOptions === "string"
+      ? { slugOverride: slugOverrideOrOptions }
+      : slugOverrideOrOptions ?? {};
+
   const slugify = (value: string): string =>
     value
       .toLowerCase()
@@ -295,20 +309,45 @@ export function createLocationMetadata(
       .replace(/[^a-z0-9]+/g, '-') // replace other non-alphanumeric with hyphen
       .replace(/(^-|-$)/g, ''); // trim hyphens from ends
 
-  const suburbSlug = slugOverride ?? slugify(suburb);
+  const suburbSlug = options.slugOverride ?? slugify(suburb);
   const citySlug = slugify(city);
 
   const path = `/location/${citySlug}/${suburbSlug}`;
-  
-  // Create optimized title (15-70 chars)
-  const title = `Cleaning Services in ${suburb} | Shalean`;
-  
-  // Create optimized description (120-170 chars)
-  const serviceTypes = highlights.length > 0 
-    ? highlights.slice(0, 3).join(', ').toLowerCase()
-    : 'regular, deep, and move-in cleaning';
-  
-  const optimizedDescription = `Professional home and apartment cleaning services in ${suburb}, ${city}. Experienced cleaners available for ${serviceTypes}. Book same-day service in ${area}. Trusted local cleaning company with competitive pricing.`;
+
+  const formatList = (items: string[]): string => {
+    if (items.length === 0) return "";
+    if (items.length === 1) return items[0];
+    if (items.length === 2) return `${items[0]} and ${items[1]}`;
+    return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+  };
+
+  const defaultServices = [
+    "regular house cleaning",
+    "deep cleaning",
+    "move-in/out cleaning",
+    "office cleaning",
+  ];
+
+  const services =
+    options.services?.length
+      ? options.services
+      : highlights.length
+        ? highlights.map((item) => item.toLowerCase())
+        : defaultServices;
+
+  const propertyTypes =
+    options.propertyTypes?.length
+      ? options.propertyTypes
+      : ["homes", "apartments", "offices"];
+
+  const primaryTitle = `Home & Office Cleaning Services in ${suburb}, ${city} | Shalean`;
+  const fallbackTitle = `Cleaning Services in ${suburb} | Shalean`;
+  const title = primaryTitle.length <= TITLE_MAX_LENGTH ? primaryTitle : fallbackTitle;
+
+  const serviceSummary = formatList(services.slice(0, 3));
+  const propertySummary = formatList(propertyTypes.slice(0, 3));
+
+  const optimizedDescription = `Book vetted cleaners for ${propertySummary} in ${suburb}, ${city}. We provide ${serviceSummary} with flexible scheduling, eco-friendly products, and a 100% satisfaction guarantee across ${area}.`;
   
   // Use the provided description if it's valid length (120-170 chars), otherwise use optimized
   let finalDescription = description;
@@ -322,19 +361,36 @@ export function createLocationMetadata(
     finalDescription = truncateText(finalDescription, 170);
   } else if (finalDescription.length < 120) {
     // If still too short, expand it
-    finalDescription = `Professional home and apartment cleaning services in ${suburb}, ${city}. Expert cleaners available for ${serviceTypes}. Book same-day service throughout ${area}. Trusted local cleaning company with competitive pricing and satisfaction guarantee.`;
+    finalDescription = `Professional cleaning for ${propertySummary || "homes and offices"} in ${suburb}, ${city}. Expert cleaners handle ${serviceSummary || "regular, deep, and move-in cleaning"}. Book same-day service throughout ${area} with competitive pricing and satisfaction guarantee.`;
     
     // Trim if over limit
     if (finalDescription.length > 170) {
       finalDescription = truncateText(finalDescription, 170);
     }
   }
+
+  const defaultKeywords = [
+    `${suburb} cleaning services`,
+    `${suburb} cleaners`,
+    `${suburb} house cleaning`,
+    `${suburb} maid service`,
+    `${suburb} deep cleaning`,
+    `${suburb} move out cleaning`,
+    `${suburb} office cleaning`,
+    `${city} cleaning company`,
+    `${area} cleaners`,
+  ];
+
+  const keywords = Array.from(
+    new Set([...(options.keywords ?? []), ...defaultKeywords].map((keyword) => keyword.trim()).filter(Boolean))
+  );
   
   // Return full Next.js Metadata so pages using this directly get proper canonicals
   return createMetadata({
     title,
     description: finalDescription,
     canonical: generateCanonical(path),
+    ...(keywords.length > 0 && { keywords }),
     ogImage: {
       url: generateOgImageUrl(`location-${suburbSlug}`),
       alt: `Professional cleaning services in ${suburb}, ${city}`,

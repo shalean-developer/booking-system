@@ -26,9 +26,10 @@ interface MobileDrawerProps {
   onClose: () => void;
   user: any;
   customer: any;
+  onEditProfile?: () => void;
 }
 
-export function MobileDrawer({ isOpen, onClose, user, customer }: MobileDrawerProps) {
+export function MobileDrawer({ isOpen, onClose, user, customer, onEditProfile }: MobileDrawerProps) {
   const router = useRouter();
 
   const handleSignOut = async () => {
@@ -108,10 +109,16 @@ export function MobileDrawer({ isOpen, onClose, user, customer }: MobileDrawerPr
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-3">Account</h3>
                   <div className="space-y-2">
-                    <Button variant="outline" className="w-full justify-start" disabled>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start"
+                      onClick={() => {
+                        onEditProfile?.();
+                        onClose();
+                      }}
+                    >
                       <Settings className="mr-2 h-4 w-4" />
-                      Account Settings
-                      <span className="ml-auto text-xs text-gray-500">(Coming Soon)</span>
+                      Update profile
                     </Button>
                   </div>
                 </div>
@@ -145,9 +152,9 @@ export function MobileDrawer({ isOpen, onClose, user, customer }: MobileDrawerPr
                       </Link>
                     </Button>
                     <Button variant="outline" className="w-full" asChild>
-                      <Link href="/">
-                        <Home className="mr-2 h-4 w-4" />
-                        Back to Home
+                      <Link href="/booking/quote">
+                        <Calendar className="mr-2 h-4 w-4" />
+                        Get a quick quote
                       </Link>
                     </Button>
                   </div>

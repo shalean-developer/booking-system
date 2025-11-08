@@ -1369,25 +1369,35 @@ export function AdminDashboardViewV4() {
       )}
 
       {/* Dashboard Widgets */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 my-6">
-        <TodaysBookingsWidget 
-          bookings={stats?.bookings?.todayBookings || []} 
-        />
-        <ActiveCleanersWidget 
-          totalCleaners={stats?.cleaners?.total || 0}
-        />
-        <RecentActivityWidget 
-          stats={{
-            bookings: {
-              today: stats?.bookings?.today || 0,
-              pending: stats?.bookings?.pending || 0,
-              completed: 0,
-            }
-          }}
-        />
-        <QuotesWidgetDashboard 
-          pendingCount={stats?.quotes?.pending || 0}
-        />
+      <div className="my-6">
+        <div className="-mx-4 flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory md:mx-0 md:grid md:grid-cols-2 md:gap-6 lg:grid-cols-4 md:overflow-visible md:pb-0">
+          <div className="min-w-[180px] flex-shrink-0 snap-start md:min-w-0">
+            <TodaysBookingsWidget 
+              bookings={stats?.bookings?.todayBookings || []} 
+            />
+          </div>
+          <div className="min-w-[180px] flex-shrink-0 snap-start md:min-w-0">
+            <ActiveCleanersWidget 
+              totalCleaners={stats?.cleaners?.total || 0}
+            />
+          </div>
+          <div className="min-w-[180px] flex-shrink-0 snap-start md:min-w-0">
+            <RecentActivityWidget 
+              stats={{
+                bookings: {
+                  today: stats?.bookings?.today || 0,
+                  pending: stats?.bookings?.pending || 0,
+                  completed: 0,
+                }
+              }}
+            />
+          </div>
+          <div className="min-w-[180px] flex-shrink-0 snap-start md:min-w-0">
+            <QuotesWidgetDashboard 
+              pendingCount={stats?.quotes?.pending || 0}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Main Content Grid */}

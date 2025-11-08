@@ -54,33 +54,36 @@ export function RecentActivityWidget({ stats }: RecentActivityWidgetProps) {
   ];
 
   return (
-    <Card className="w-full relative">
+    <Card className="relative w-full text-sm sm:text-base">
       <CardHeader 
-        className="pb-3 cursor-pointer hover:bg-gray-50 transition-colors"
+        className="px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors sm:px-4 sm:py-3"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <CardTitle className="text-base font-semibold flex items-center justify-between">
-          <span>Recent Activity</span>
+        <CardTitle className="flex items-center justify-between text-sm font-semibold sm:text-base">
+          <div className="flex flex-col items-center gap-1 sm:flex-row sm:text-left sm:gap-2">
+            <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="leading-tight">Recent Activity</span>
+          </div>
           {isExpanded ? (
-            <ChevronUp className="h-4 w-4 text-gray-500" />
+            <ChevronUp className="h-3.5 w-3.5 text-gray-500 sm:h-4 sm:w-4" />
           ) : (
-            <ChevronDown className="h-4 w-4 text-gray-500" />
+            <ChevronDown className="h-3.5 w-3.5 text-gray-500 sm:h-4 sm:w-4" />
           )}
         </CardTitle>
       </CardHeader>
       {isExpanded && (
-        <CardContent className="pt-0 absolute top-full left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg rounded-b-lg">
-        <div className="space-y-4">
+        <CardContent className="absolute left-0 right-0 top-full z-50 rounded-b-lg border-t border-gray-200 bg-white pt-0 shadow-lg">
+        <div className="space-y-2.5">
           {activities.map((activity) => {
             const Icon = activity.icon;
             return (
-              <div key={activity.id} className="flex items-start gap-3">
-                <div className={`flex-shrink-0 mt-0.5 ${activity.iconColor}`}>
-                  <Icon className="h-5 w-5" />
+              <div key={activity.id} className="flex items-start gap-2.5 text-xs sm:gap-3 sm:text-sm">
+                <div className={`mt-0.5 flex-shrink-0 ${activity.iconColor}`}>
+                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">{activity.text}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{activity.timeAgo}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-gray-900">{activity.text}</p>
+                  <p className="mt-0.5 text-[11px] text-gray-500 sm:text-xs">{activity.timeAgo}</p>
                 </div>
               </div>
             );

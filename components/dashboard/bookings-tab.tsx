@@ -111,57 +111,68 @@ export function BookingsTab({ bookings, onOpenReviewDialog }: BookingsTabProps) 
       </Card>
 
       {/* Results Count */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <p className="text-sm text-gray-600">
           Showing {filteredBookings.length} of {bookings.length} bookings
         </p>
         {bookings.length === 0 && (
-          <Button asChild>
-            <Link href="/booking/service/select">
-              <Briefcase className="mr-2 h-4 w-4" />
-              Book a Service
-            </Link>
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button asChild className="sm:min-w-[160px]">
+              <Link href="/booking/service/select">
+                <Briefcase className="mr-2 h-4 w-4" />
+                Book a service
+              </Link>
+            </Button>
+            <Button variant="outline" asChild className="sm:min-w-[160px]">
+              <Link href="/contact">Chat with support</Link>
+            </Button>
+          </div>
         )}
       </div>
 
       {/* Bookings List */}
       {filteredBookings.length === 0 ? (
         <Card className="border-0 shadow-lg">
-          <CardContent className="p-12">
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+          <CardContent className="p-10 sm:p-12">
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto">
                 <Calendar className="h-8 w-8 text-gray-400" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                {bookings.length === 0 ? 'No bookings yet' : 'No bookings found'}
-              </h3>
-              <p className="text-gray-600 mb-6">
-                {bookings.length === 0
-                  ? 'Book your first cleaning service to get started!'
-                  : searchQuery
-                  ? 'Try adjusting your search or filters'
-                  : 'No bookings match the current filter'}
-              </p>
-              {bookings.length === 0 && (
-                <Button asChild>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                  {bookings.length === 0 ? 'No bookings yet' : 'No bookings match your filters'}
+                </h3>
+                <p className="text-sm text-gray-600 max-w-md mx-auto">
+                  {bookings.length === 0
+                    ? 'Book your first cleaning service to get started. We’ll keep every visit here so rebooking is effortless.'
+                    : 'Try refining your search keywords or clearing the filters to see all bookings.'}
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                <Button asChild className="sm:min-w-[160px]">
                   <Link href="/booking/service/select">
                     <Briefcase className="mr-2 h-4 w-4" />
-                    Book a Service
+                    Book a service
                   </Link>
                 </Button>
-              )}
-              {(bookings.length > 0 && (searchQuery || statusFilter !== 'all')) && (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSearchQuery('');
-                    setStatusFilter('all');
-                  }}
-                >
-                  Clear Filters
-                </Button>
-              )}
+                {bookings.length === 0 ? (
+                  <Button variant="outline" asChild className="sm:min-w-[160px]">
+                    <Link href="/contact">Talk to support</Link>
+                  </Button>
+                ) : (
+                  (searchQuery || statusFilter !== 'all') && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setSearchQuery('');
+                        setStatusFilter('all');
+                      }}
+                    >
+                      Clear filters
+                    </Button>
+                  )
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>

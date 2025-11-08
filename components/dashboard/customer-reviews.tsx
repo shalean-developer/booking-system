@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 import { 
   Star, 
   Loader2, 
@@ -165,10 +166,22 @@ export function CustomerReviews() {
 
       {/* Reviews List */}
       {reviews.length === 0 ? (
-        <div className="text-center py-8 bg-gray-50 rounded-lg">
-          <MessageSquare className="w-10 h-10 text-gray-400 mx-auto mb-3" />
-          <h4 className="text-md font-semibold text-gray-900 mb-2">No reviews yet</h4>
-          <p className="text-gray-600 text-sm">Your reviews of completed services will appear here.</p>
+        <div className="text-center py-10 bg-gray-50 rounded-lg space-y-4">
+          <MessageSquare className="w-10 h-10 text-gray-400 mx-auto" />
+          <div>
+            <h4 className="text-md font-semibold text-gray-900 mb-2">No reviews yet</h4>
+            <p className="text-gray-600 text-sm max-w-md mx-auto">
+              After your first clean, you’ll be able to leave feedback here to help your cleaner improve.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 justify-center pb-2">
+            <Button asChild className="sm:min-w-[160px]">
+              <Link href="/booking/service/select">Book a service</Link>
+            </Button>
+            <Button variant="outline" asChild className="sm:min-w-[160px]">
+              <Link href="/contact">Need recommendations?</Link>
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">

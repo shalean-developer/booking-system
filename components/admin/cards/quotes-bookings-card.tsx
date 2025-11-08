@@ -29,10 +29,10 @@ export function QuotesBookingsCard({
   return (
     <Card className="bg-white rounded-lg shadow-sm border-0">
       <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-sm font-medium text-gray-900">Quotes & Bookings Values</h3>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-gray-500">Today</span>
+          <div className="flex items-center gap-2 text-xs text-gray-500 sm:gap-3">
+            <span>Today</span>
             <Button variant="ghost" size="icon" className="h-5 w-5">
               <MoreVertical className="h-4 w-4 text-gray-400" />
             </Button>

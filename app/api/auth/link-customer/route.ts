@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   
   try {
     const body = await req.json();
-    const { email, auth_user_id } = body;
+    const { email, auth_user_id, profile } = body;
 
     console.log('Link request:', { email, auth_user_id });
 
@@ -29,13 +29,25 @@ export async function POST(req: Request) {
       );
     }
 
-    // Search for existing customer with matching email but no auth link
+    const fallbackName = (profile?.fullName as string | undefined)?.trim() || email.split('@')[0] || 'Customer';
+    const fallbackParts = fallbackName.split(/\s+/);
+    const resolvedFirstName = (profile?.firstName as string | undefined)?.trim() || fallbackParts[0] || 'Customer';
+    const resolvedLastName =
+      (profile?.lastName as string | undefined)?.trim() ||
+      (fallbackParts.length > 1 ? fallbackParts.slice(1).join(' ') : 'Account');
+
+    const profileDetails = {
+      firstName: resolvedFirstName,
+      lastName: resolvedLastName,
+      fullName: profile?.fullName ?? `${resolvedFirstName} ${resolvedLastName}`.trim(),
+    };
+
+    // Search for existing customer with matching email (case insensitive)
     console.log('Searching for existing customer profile...');
     const { data: existingCustomer, error: searchError } = await supabase
       .from('customers')
       .select('id, email, first_name, last_name, auth_user_id')
       .ilike('email', email)
-      .is('auth_user_id', null)
       .maybeSingle();
 
     if (searchError) {
@@ -54,12 +66,34 @@ export async function POST(req: Request) {
       console.log('✅ Found existing customer profile:', existingCustomer.id);
       console.log('🔗 Linking to auth user...');
 
-      // Link the customer profile to the auth user
+      const updatePayload: Record<string, any> = {};
+
+      if (existingCustomer.auth_user_id !== auth_user_id) {
+        updatePayload.auth_user_id = auth_user_id;
+      }
+      if (profileDetails.firstName && !existingCustomer.first_name) {
+        updatePayload.first_name = profileDetails.firstName;
+      }
+      if (profileDetails.lastName && !existingCustomer.last_name) {
+        updatePayload.last_name = profileDetails.lastName;
+      }
+
+      if (Object.keys(updatePayload).length === 0) {
+        console.log('ℹ️ Customer profile already linked and up to date.');
+        return NextResponse.json({
+          ok: true,
+          linked: true,
+          created: false,
+          customer_id: existingCustomer.id,
+          message: 'Customer profile already linked',
+        });
+      }
+
       const { data: updatedCustomer, error: updateError } = await supabase
         .from('customers')
-        .update({ auth_user_id })
+        .update(updatePayload)
         .eq('id', existingCustomer.id)
-        .select()
+        .select('id')
         .single();
 
       if (updateError) {
@@ -78,17 +112,45 @@ export async function POST(req: Request) {
       return NextResponse.json({
         ok: true,
         linked: true,
+        created: false,
         customer_id: updatedCustomer.id,
         message: 'Existing customer profile linked to your account',
       });
-    } else {
-      console.log('ℹ️ No existing customer profile found - will be created on first booking');
-      return NextResponse.json({
-        ok: true,
-        linked: false,
-        message: 'No existing customer profile found',
-      });
     }
+
+    console.log('ℹ️ No existing customer profile found - creating one now');
+
+    const { data: createdCustomer, error: createError } = await supabase
+      .from('customers')
+      .insert({
+        email,
+        auth_user_id,
+        first_name: profileDetails.firstName,
+        last_name: profileDetails.lastName,
+      })
+      .select('id')
+      .single();
+
+    if (createError) {
+      console.error('Failed to create customer profile:', createError);
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'Failed to create customer profile',
+          details: createError.message,
+        },
+        { status: 500 }
+      );
+    }
+
+    console.log('✅ Customer profile created successfully!');
+    return NextResponse.json({
+      ok: true,
+      linked: false,
+      created: true,
+      customer_id: createdCustomer.id,
+      message: 'Customer profile created for new account',
+    });
 
   } catch (error) {
     console.error('=== LINK CUSTOMER ERROR ===');

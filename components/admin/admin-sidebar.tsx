@@ -68,6 +68,9 @@ export function AdminSidebar() {
               <a href="/admin?tab=bookings" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
                 Bookings
               </a>
+              <a href="/admin?tab=schedule" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
+                Schedule
+              </a>
               <a href="/admin?tab=recurring" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
                 Recurring
               </a>

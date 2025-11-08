@@ -29,11 +29,14 @@ export function ActivityPanel({ bookings }: ActivityPanelProps) {
 			<CardContent className="p-5">
 				<h3 className="text-lg font-bold text-gray-900 mb-4">Recent Activity</h3>
                 {items.length === 0 ? (
-                    <div className="text-center py-8">
+                    <div className="text-center py-8 space-y-3">
                         <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
                             <Activity className="h-6 w-6 text-gray-400" />
                         </div>
-                        <p className="text-sm text-gray-600">No recent activity</p>
+                        <p className="text-sm text-gray-700">No recent activity yet</p>
+                        <p className="text-xs text-gray-500 px-6">
+                            As you book, reschedule, or leave reviews, you’ll see a quick timeline here so everything stays organised.
+                        </p>
                     </div>
                 ) : (
                     <ul className="space-y-3">

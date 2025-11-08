@@ -9,7 +9,7 @@ import { Calendar, Clock, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CustomerBookingDetailsModal } from './customer-booking-details-modal';
 
-type Segment = 'upcoming' | 'all' | 'activity';
+type Segment = 'upcoming' | 'completed' | 'cancelled';
 
 interface Booking {
 	id: string;
@@ -40,8 +40,8 @@ export function UnifiedBookings({ bookings }: UnifiedBookingsProps) {
     };
     const segments: { id: Segment; label: string }[] = [
         { id: 'upcoming', label: 'Upcoming' },
-        { id: 'all', label: 'All' },
-        { id: 'activity', label: 'Activity' },
+        { id: 'completed', label: 'Completed' },
+        { id: 'cancelled', label: 'Cancelled' },
     ];
 
 	const upcoming = useMemo(
@@ -52,16 +52,15 @@ export function UnifiedBookings({ bookings }: UnifiedBookingsProps) {
 		[bookings]
 	);
 
-	const recent = useMemo(
-		() => bookings.slice().sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+	const completedBookings = useMemo(
+		() => bookings.filter(b => b.status === 'completed').slice().sort((a, b) => new Date(b.booking_date).getTime() - new Date(a.booking_date).getTime()),
 		[bookings]
 	);
 
-	const recentActivity = useMemo(() => {
-		const thirtyDaysAgo = new Date();
-		thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-		return recent.filter(b => new Date(b.created_at) >= thirtyDaysAgo);
-	}, [recent]);
+	const cancelledBookings = useMemo(
+		() => bookings.filter(b => b.status === 'cancelled' || b.status === 'canceled').slice().sort((a, b) => new Date(b.booking_date).getTime() - new Date(a.booking_date).getTime()),
+		[bookings]
+	);
 
 		const renderBookingItem = (b: Booking) => (
 			<div key={b.id} className="border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow mb-4 sm:mb-5 last:mb-0">
@@ -149,11 +148,19 @@ export function UnifiedBookings({ bookings }: UnifiedBookingsProps) {
 				{segment === 'upcoming' && (
 					<div className="space-y-4 sm:space-y-5">
 						{upcoming.length === 0 ? (
-							<div className="text-center py-12">
-								<p className="text-gray-600 mb-6">No upcoming bookings</p>
-								<Button asChild>
-									<Link href="/booking/service/select">Book a Service</Link>
-								</Button>
+							<div className="text-center py-12 space-y-4">
+								<p className="text-base font-semibold text-gray-900">No upcoming bookings yet</p>
+								<p className="text-sm text-gray-600 px-6">
+									Choose a service and we’ll handle the rest. Not sure which option fits? Chat with our team.
+								</p>
+								<div className="flex flex-col sm:flex-row sm:justify-center gap-2 px-6 pb-4">
+									<Button asChild className="sm:min-w-[180px]">
+										<Link href="/booking/service/select">Book a Service</Link>
+									</Button>
+									<Button variant="outline" asChild className="sm:min-w-[180px]">
+										<Link href="/contact">Talk to support</Link>
+									</Button>
+								</div>
 							</div>
 						) : (
 							upcoming.slice(0, 5).map(renderBookingItem)
@@ -161,35 +168,41 @@ export function UnifiedBookings({ bookings }: UnifiedBookingsProps) {
 					</div>
 				)}
 
-				{segment === 'all' && (
+				{segment === 'completed' && (
 					<div className="space-y-4 sm:space-y-5">
-						{recent.length === 0 ? (
-							<div className="text-center py-12">
-								<p className="text-gray-600 mb-6">No bookings yet</p>
-								<Button asChild>
-									<Link href="/booking/service/select">Book a Service</Link>
+						{completedBookings.length === 0 ? (
+							<div className="text-center py-12 space-y-4">
+								<p className="text-base font-semibold text-gray-900">No completed bookings yet</p>
+								<p className="text-sm text-gray-600 px-6">
+									When your cleans are finished, you’ll find the details here for quick rebooking.
+								</p>
+								<Button asChild className="sm:min-w-[160px]">
+									<Link href="/booking/service/select">Schedule a clean</Link>
 								</Button>
 							</div>
 						) : (
-							recent.slice(0, 10).map(renderBookingItem)
+							completedBookings.slice(0, 10).map(renderBookingItem)
 						)}
 					</div>
 				)}
 
-				{segment === 'activity' && (
-					<div className="space-y-2 sm:space-y-3">
-						{recentActivity.length === 0 ? (
-							<p className="text-center text-gray-600 py-10">No recent activity</p>
+				{segment === 'cancelled' && (
+					<div className="space-y-4 sm:space-y-5">
+						{cancelledBookings.length === 0 ? (
+							<div className="text-center py-12 space-y-4">
+								<p className="text-base font-semibold text-gray-900">No cancelled bookings</p>
+								<p className="text-sm text-gray-600 px-6">
+									If you ever cancel an appointment, we’ll log it here so you can reschedule when you’re ready.
+								</p>
+								<Button variant="outline" asChild className="sm:min-w-[160px]">
+									<Link href="/contact">Need help rescheduling?</Link>
+								</Button>
+							</div>
 						) : (
-							recentActivity.map(item => (
-								<div key={item.id} className="rounded-lg border p-3">
-									<p className="text-sm text-gray-900"><span className="font-medium">{item.service_type}</span> • {item.status}</p>
-									<p className="text-xs text-gray-600">{new Date(item.created_at).toLocaleString()}</p>
-								</div>
-							))
+							cancelledBookings.slice(0, 10).map(renderBookingItem)
 						)}
 					</div>
-                )}
+        )}
                 </div>
                 </div>
             </CardContent>

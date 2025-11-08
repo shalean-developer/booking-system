@@ -218,7 +218,7 @@ export function validateServiceSchema(schema: any): { isValid: boolean; errors: 
  */
 export function validateAndCleanSchema<T extends Record<string, any>>(
   schema: T,
-  schemaType?: "Organization" | "BlogPosting" | "Service" | "LocalBusiness"
+  schemaType?: "Organization" | "BlogPosting" | "Service" | "LocalBusiness" | "FAQPage"
 ): { cleaned: Partial<T>; isValid: boolean; errors: string[] } {
   // First, normalize image URLs
   if ('image' in schema && schema.image) {
@@ -263,7 +263,7 @@ export function validateAndCleanSchema<T extends Record<string, any>>(
  */
 export function stringifyStructuredData(
   schema: any,
-  schemaType?: "Organization" | "BlogPosting" | "Service" | "LocalBusiness"
+  schemaType?: "Organization" | "BlogPosting" | "Service" | "LocalBusiness" | "FAQPage"
 ): string {
   const { cleaned, isValid, errors } = validateAndCleanSchema(schema, schemaType);
 

@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { MoreHorizontal, Bell, Calendar, Clock, MapPin, Mail, Phone, DollarSign, User, X, LogOut, Settings, Shield, Search, ChevronDown, Sparkles } from 'lucide-react';
+import Image from 'next/image';
+import { MoreHorizontal, Bell, Calendar, Clock, MapPin, Mail, Phone, DollarSign, User, X, LogOut, Settings, Shield, Search, ChevronDown, Sparkles, Menu } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -72,6 +73,7 @@ export function AdminNavbarV3() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [selectedDomain, setSelectedDomain] = useState('shalean.co.za');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { selectedPeriod, setSelectedPeriod } = useFilterPeriod();
 
   useEffect(() => {
@@ -113,6 +115,7 @@ export function AdminNavbarV3() {
       tabs: [
         { id: 'bookings', label: 'Bookings', path: '/admin/bookings' },
         { id: 'customers', label: 'Customers', path: '/admin/customers' },
+        { id: 'schedule', label: 'Schedule', path: '/admin/schedule' },
         { id: 'recurring', label: 'Recurring', path: '/admin/recurring-customers' },
       ],
     },
@@ -138,6 +141,7 @@ export function AdminNavbarV3() {
   const getActiveTab = () => {
     if (pathname?.includes('/dashboard-v2')) return 'financial-dashboard';
     if (pathname?.includes('/dashboard')) return 'dashboard';
+    if (pathname?.includes('/schedule')) return 'schedule';
     if (pathname?.includes('/bookings')) return 'bookings';
     if (pathname?.includes('/cleaners')) return 'cleaners';
     if (pathname?.includes('/applications')) return 'applications';
@@ -235,6 +239,15 @@ export function AdminNavbarV3() {
   const handleNavigate = (path: string) => {
     router.push(path);
   };
+
+  const handleMobileNavigate = (path: string) => {
+    setIsMobileMenuOpen(false);
+    handleNavigate(path);
+  };
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -348,21 +361,187 @@ export function AdminNavbarV3() {
   };
 
   const activeGroup = getActiveGroup();
+  const domainInitial = selectedDomain?.charAt(0)?.toUpperCase() ?? 'S';
 
   return (
     <div className="w-full">
       {/* Top Header Section - Dark Charcoal Gray */}
       <div className="bg-slate-800 border-b border-slate-700">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14">
+        <div className="relative w-full px-4 sm:px-6 lg:px-10">
+          {/* Mobile Header */}
+          <div className="flex h-14 items-center justify-between sm:hidden">
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm transition-colors hover:bg-slate-100"
+                aria-label="Go to dashboard"
+              >
+                <Image
+                  src="/logo.svg"
+                  alt="Shalean"
+                  width={20}
+                  height={20}
+                  className="h-5 w-5"
+                  priority
+                />
+              </button>
+              <span className="h-6 w-px bg-white/20" aria-hidden="true" />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-1 rounded-full px-1.5 py-1 text-white/80 transition-colors hover:bg-white/10">
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#5f7cff] text-xs font-semibold text-white">
+                      {domainInitial}
+                    </span>
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48">
+                  <DropdownMenuItem onClick={() => setSelectedDomain('shalean.co.za')}>
+                    shalean.co.za
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="relative inline-flex h-9 w-9 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10">
+                    <Bell className="h-4 w-4" />
+                    {mounted && !isLoading && totalNotifications > 0 && (
+                      <Badge className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full border-0 bg-rose-500 p-0 text-[10px] text-white">
+                        {totalNotifications > 99 ? '99+' : totalNotifications}
+                      </Badge>
+                    )}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80 p-0">
+                  <div className="flex items-center justify-between border-b border-gray-200 p-2">
+                    <span className="text-xs font-semibold text-gray-900">Notifications</span>
+                    <button className="rounded p-1 hover:bg-gray-100">
+                      <MoreHorizontal className="h-3 w-3 text-gray-500" />
+                    </button>
+                  </div>
+                  <div className="max-h-96 overflow-y-auto">
+                    {isLoading ? (
+                      <div className="px-3 py-6 text-center text-xs text-gray-500">
+                        Loading notifications...
+                      </div>
+                    ) : notifications.length === 0 ? (
+                      <div className="px-3 py-6 text-center text-xs text-gray-500">
+                        No new notifications
+                      </div>
+                    ) : (
+                      unviewedNotifications.map((notification, index) => (
+                        <div key={notification.id}>
+                          {index > 0 && <div className="border-t border-gray-100" />}
+                          <button
+                            onClick={() => handleNotificationClick(notification)}
+                            className="w-full px-3 py-2 text-left transition-colors hover:bg-gray-50"
+                          >
+                            <div className="flex items-start gap-2">
+                              <div
+                                className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-xs font-semibold text-white ${
+                                  notification.type === 'booking' ? 'bg-blue-500' : 'bg-orange-500'
+                                }`}
+                              >
+                                {notification.type === 'booking' ? 'B' : 'Q'}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-xs leading-relaxed text-gray-900">
+                                  <span className="font-medium">{notification.email}</span> made a{' '}
+                                  <span className="font-medium">
+                                    {notification.type === 'booking' ? 'New Booking' : 'Quote'}
+                                  </span>{' '}
+                                  of {formatAmount(notification.amount)}
+                                  {notification.bookingDate && <> by {formatDate(notification.bookingDate)}</>}
+                                </div>
+                                <div className="mt-0.5 text-[10px] text-gray-500">
+                                  {formatNotificationDate(notification.createdAt)}
+                                </div>
+                              </div>
+                            </div>
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <button
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10"
+                aria-label="Search"
+              >
+                <Search className="h-4 w-4" />
+              </button>
+              <Avatar className="h-8 w-8 border border-white/20 bg-white text-slate-900 shadow-sm">
+                <AvatarImage src="/placeholder-avatar.jpg" alt="User" />
+                <AvatarFallback className="bg-white text-slate-900">
+                  {user?.email?.charAt(0).toUpperCase() || 'U'}
+                </AvatarFallback>
+              </Avatar>
+              <button
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10"
+                aria-label="Toggle navigation menu"
+                aria-expanded={isMobileMenuOpen}
+                onClick={() => setIsMobileMenuOpen((open) => !open)}
+              >
+                <Menu className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile Menu Panel */}
+          {isMobileMenuOpen && (
+            <>
+              <button
+                className="fixed inset-0 z-30 cursor-default bg-black/40 backdrop-blur-sm sm:hidden"
+                onClick={() => setIsMobileMenuOpen(false)}
+                aria-label="Close navigation menu"
+              />
+              <div className="absolute inset-x-0 top-[56px] z-40 sm:hidden">
+                <div className="mx-auto w-full rounded-b-lg border border-slate-700 bg-slate-900/95 shadow-lg">
+                  <div className="divide-y divide-slate-800">
+                    {tabGroups.map((group) => (
+                      <div key={group.name} className="px-4 py-3">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                          {group.name}
+                        </div>
+                        <div className="mt-2 space-y-2">
+                          {group.tabs.map((tab) => (
+                            <button
+                              key={tab.id}
+                              onClick={() => handleMobileNavigate(tab.path)}
+                              className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors ${
+                                activeTab === tab.id
+                                  ? 'bg-slate-800 text-white'
+                                  : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                              }`}
+                            >
+                              <span>{tab.label}</span>
+                              {activeTab === tab.id && (
+                                <span className="text-xs text-blue-300">Current</span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Desktop Header */}
+          <div className="hidden h-14 items-center justify-between sm:flex">
             {/* Left Side - Branding and Domain */}
             <div className="flex items-center gap-4">
               {/* Shalean Logo */}
               <div className="flex items-center gap-2">
-                <div className="h-6 w-6 rounded bg-primary flex items-center justify-center">
+                <div className="flex h-6 w-6 items-center justify-center rounded bg-primary">
                   <Sparkles className="h-4 w-4 text-white" />
                 </div>
-                <span className="text-white font-semibold text-base">Shalean</span>
+                <span className="text-base font-semibold text-white">Shalean</span>
               </div>
               
               {/* Vertical Separator */}
@@ -371,9 +550,9 @@ export function AdminNavbarV3() {
               {/* Domain Selector */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-2 text-white hover:text-slate-200 transition-colors">
-                    <div className="h-6 w-6 rounded-full bg-blue-500 flex items-center justify-center">
-                      <span className="text-white text-xs font-semibold">S</span>
+                  <button className="flex items-center gap-2 text-white transition-colors hover:text-slate-200">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500">
+                      <span className="text-xs font-semibold text-white">{domainInitial}</span>
                     </div>
                     <span className="text-sm">{selectedDomain}</span>
                     <ChevronDown className="h-4 w-4" />
@@ -393,10 +572,10 @@ export function AdminNavbarV3() {
               {/* Notification Bell */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="relative p-1.5 hover:bg-slate-700 rounded transition-colors">
+                  <button className="relative rounded p-1.5 transition-colors hover:bg-slate-700">
                     <Bell className="h-5 w-5 text-slate-300" />
                     {mounted && !isLoading && totalNotifications > 0 && (
-                      <Badge className="absolute -top-0.5 -right-0.5 h-4 w-4 flex items-center justify-center p-0 bg-red-500 text-white text-[10px] border-0 rounded-full min-w-[16px]">
+                      <Badge className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full border-0 bg-red-500 p-0 text-[10px] text-white">
                         {totalNotifications > 9 ? '9+' : totalNotifications}
                       </Badge>
                     )}
@@ -517,9 +696,9 @@ export function AdminNavbarV3() {
       </div>
 
       {/* Bottom Header Section - Lighter Dark Gray with Navigation */}
-      <div className="bg-slate-700 border-b border-slate-600">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <nav className="flex items-center gap-6 h-12">
+      <div className="hidden border-b border-slate-600 bg-slate-700 sm:block">
+        <div className="w-full px-4 sm:px-6 lg:px-10">
+          <nav className="flex h-12 items-center gap-6 overflow-x-auto">
             {tabGroups.map((group) => {
               const isGroupActive = activeGroup === group.name;
               const hasActiveTab = group.tabs.some(tab => tab.id === activeTab);

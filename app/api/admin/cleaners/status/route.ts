@@ -28,37 +28,80 @@ export async function GET(req: Request) {
 
     if (error) throw error;
 
-    // Get today's date range
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    // Determine today's date (YYYY-MM-DD in local time)
+    const now = new Date();
+    const todayISO = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+      .toISOString()
+      .split('T')[0];
 
-    // Fetch current bookings for each cleaner
-    const cleanersWithStatus = await Promise.all(
-      (cleaners || []).map(async (cleaner) => {
-        // Count active bookings (accepted or ongoing)
-        const { count: activeBookingsCount } = await supabase
-          .from('bookings')
-          .select('id', { count: 'exact', head: true })
-          .eq('cleaner_id', cleaner.id)
-          .in('status', ['accepted', 'ongoing']);
+    // Fetch all bookings for today that would make a cleaner unavailable
+    const { data: todaysBookings, error: todaysBookingsError } = await supabase
+      .from('bookings')
+      .select('id, cleaner_id, requires_team')
+      .eq('booking_date', todayISO)
+      .neq('status', 'cancelled');
 
-        // Get average rating if available (would need reviews table)
-        // For now, return mock rating
-        const rating = 4.5 + (Math.random() * 0.5);
+    if (todaysBookingsError) throw todaysBookingsError;
+
+    const assignedCleanerIds = new Set<string>();
+
+    // Individual bookings (cleaner_id directly on booking)
+    (todaysBookings || []).forEach((booking) => {
+      if (booking.cleaner_id && booking.cleaner_id !== 'manual') {
+        assignedCleanerIds.add(booking.cleaner_id);
+      }
+    });
+
+    const todaysBookingIds = (todaysBookings || []).map((booking) => booking.id);
+
+    if (todaysBookingIds.length > 0) {
+      // Fetch any teams assigned to today's bookings
+      const { data: bookingTeams, error: bookingTeamsError } = await supabase
+        .from('booking_teams')
+        .select('id, booking_id, supervisor_id')
+        .in('booking_id', todaysBookingIds);
+
+      if (bookingTeamsError) throw bookingTeamsError;
+
+      const teamIds = (bookingTeams || []).map((team) => team.id);
+
+      // Include supervisors explicitly in case they aren't duplicated in the members table
+      (bookingTeams || []).forEach((team) => {
+        if (team.supervisor_id) {
+          assignedCleanerIds.add(team.supervisor_id);
+        }
+      });
+
+      if (teamIds.length > 0) {
+        const { data: teamMembers, error: teamMembersError } = await supabase
+          .from('booking_team_members')
+          .select('cleaner_id, booking_team_id')
+          .in('booking_team_id', teamIds);
+
+        if (teamMembersError) throw teamMembersError;
+
+        (teamMembers || []).forEach((member) => {
+          if (member.cleaner_id) {
+            assignedCleanerIds.add(member.cleaner_id);
+          }
+        });
+      }
+    }
+
+    // Only return cleaners who have no assignments for today
+    const cleanersWithStatus = (cleaners || [])
+      .filter((cleaner) => !assignedCleanerIds.has(cleaner.id))
+      .map((cleaner) => {
+        const rating = 4.5 + Math.random() * 0.5;
 
         return {
           id: cleaner.id,
           name: cleaner.name,
-          // All cleaners returned have both is_active=true and is_available=true
-          // Status is determined by whether they have active bookings
-          status: activeBookingsCount && activeBookingsCount > 0 ? 'busy' : 'available',
-          currentBookings: activeBookingsCount || 0,
+          status: 'available' as const,
+          currentBookings: 0,
           rating: parseFloat(rating.toFixed(1)),
         };
-      })
-    );
+      });
 
     return NextResponse.json({
       ok: true,

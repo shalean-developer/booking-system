@@ -82,10 +82,10 @@ export function CustomersCard({
   return (
     <Card className="bg-white rounded-lg shadow-sm border-0">
       <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-sm font-medium text-gray-900">Customers</h3>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-gray-500">Last 30 days</span>
+          <div className="flex items-center gap-2 text-xs text-gray-500 sm:gap-3">
+            <span>Last 30 days</span>
             <Button variant="ghost" size="icon" className="h-5 w-5">
               <MoreVertical className="h-4 w-4 text-gray-400" />
             </Button>
@@ -94,7 +94,7 @@ export function CustomersCard({
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Summary Metrics */}
-        <div className="grid grid-cols-3 gap-2 text-sm pb-2">
+        <div className="grid gap-2 pb-2 text-sm sm:grid-cols-3">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-blue-500" />
             <span className="text-gray-600">{formatNumber(newCustomers)} New customers</span>

@@ -19,12 +19,18 @@ import {
   Mail,
   AlertCircle,
   ArrowLeft,
+  CalendarCheck,
+  RefreshCw,
+  BookOpen,
 } from 'lucide-react';
 import { CustomerReviewDialog } from '@/components/review/customer-review-dialog';
 import { MobileBottomNav } from '@/components/dashboard/mobile-bottom-nav';
+import { MobileDrawer } from '@/components/dashboard/mobile-drawer';
 import { BookingsTab } from '@/components/dashboard/bookings-tab';
 import { DashboardTabs } from '@/components/dashboard/dashboard-tabs';
 import { DashboardSidebar } from '@/components/dashboard/dashboard-sidebar';
+import { QuickStartTasks } from '@/components/dashboard/quick-start-tasks';
+import { ProfileQuickSetup } from '@/components/dashboard/profile-quick-setup';
 
 interface Booking {
   id: string;
@@ -47,6 +53,10 @@ interface CustomerData {
   email: string;
   firstName: string;
   lastName: string;
+  phone?: string | null;
+  addressLine1?: string | null;
+  addressSuburb?: string | null;
+  addressCity?: string | null;
   totalBookings: number;
 }
 
@@ -59,6 +69,8 @@ export default function BookingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [profileSheetOpen, setProfileSheetOpen] = useState(false);
 
   useEffect(() => {
     const checkAuthAndFetchData = async () => {
@@ -196,9 +208,17 @@ export default function BookingsPage() {
     );
   }
 
+  const hasProfileDetails = Boolean(customer?.phone && customer?.addressLine1 && customer?.addressCity);
+  const hasBookings = bookings.length > 0;
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 to-white pb-20 lg:pb-0">
-      <CustomerHeader activeTab="bookings" user={user} customer={customer} />
+      <CustomerHeader
+        activeTab="bookings"
+        user={user}
+        customer={customer}
+        onOpenMobileDrawer={() => setDrawerOpen(true)}
+      />
 
       <section className="py-8 sm:py-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -231,6 +251,67 @@ export default function BookingsPage() {
                 <p className="text-gray-600">Manage and view all your bookings</p>
               </div>
 
+              {!hasProfileDetails && (
+                <Card className="border border-dashed border-primary/40 bg-white shadow-sm mb-6">
+                  <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                      <h2 className="text-base sm:text-lg font-semibold text-gray-900">Complete your profile</h2>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Add your phone and address so every booking is confirmed faster.
+                      </p>
+                    </div>
+                    <div className="flex gap-2 sm:flex-row flex-col w-full sm:w-auto">
+                      <Button className="flex-1 sm:flex-none" onClick={() => setProfileSheetOpen(true)}>
+                        Add details
+                      </Button>
+                      <Button variant="outline" className="flex-1 sm:flex-none" asChild>
+                        <Link href="/contact">Need help?</Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <div className="mb-6">
+                <QuickStartTasks
+                  badgeText="Stay on top of your schedule"
+                  title={hasBookings ? 'Keep your bookings running smoothly' : 'Get your first booking on the calendar'}
+                  subtitle="Use these shortcuts to plan your cleanings, adjust frequency, or reach our support team."
+                  tasks={[
+                    {
+                      id: 'plan',
+                      title: hasBookings ? 'Plan another clean' : 'Plan your first clean',
+                      description: 'Choose a service and time that fits your week.',
+                      cta: hasBookings ? 'Book again' : 'Book now',
+                      icon: CalendarCheck,
+                      href: '/booking/service/select',
+                      variant: 'default',
+                      completed: hasBookings,
+                    },
+                    {
+                      id: 'recurring',
+                      title: 'Set up a routine',
+                      description: 'Prefer weekly or bi-weekly? We’ll help you lock in a recurring slot.',
+                      cta: 'Request recurring service',
+                      icon: RefreshCw,
+                      href: '/contact',
+                      variant: 'outline',
+                      completed: false,
+                    },
+                    {
+                      id: 'prep',
+                      title: 'Read prep tips',
+                      description: 'See how to prepare your home and what to expect on the day.',
+                      cta: 'View tips',
+                      icon: BookOpen,
+                      href: '/faq',
+                      variant: 'ghost',
+                      completed: false,
+                    },
+                  ]}
+                />
+              </div>
+
               {/* Bookings Content */}
               <BookingsTab
                 bookings={bookings}
@@ -239,7 +320,11 @@ export default function BookingsPage() {
             </div>
 
             {/* Sidebar - Profile & Quick Actions */}
-            <DashboardSidebar user={user} customer={customer} />
+            <DashboardSidebar
+              user={user}
+              customer={customer}
+              onEditProfile={() => setProfileSheetOpen(true)}
+            />
           </div>
         </div>
       </section>
@@ -256,7 +341,35 @@ export default function BookingsPage() {
       />
 
       {/* Mobile Bottom Navigation */}
-      <MobileBottomNav activeTab="bookings" onTabChange={() => {}} />
+      <MobileBottomNav
+        activeTab="bookings"
+        onTabChange={() => {}}
+        onMoreClick={() => setDrawerOpen(true)}
+      />
+
+      <MobileDrawer
+        isOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        user={user}
+        customer={customer}
+        onEditProfile={() => {
+          setDrawerOpen(false);
+          setProfileSheetOpen(true);
+        }}
+      />
+
+      <ProfileQuickSetup
+        open={profileSheetOpen}
+        onOpenChange={setProfileSheetOpen}
+        customer={customer}
+        onUpdated={(updated) =>
+          setCustomer((prev) =>
+            prev
+              ? { ...prev, ...updated }
+              : { ...updated, totalBookings: 0 }
+          )
+        }
+      />
     </div>
   );
 }
