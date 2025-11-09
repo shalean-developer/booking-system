@@ -7,7 +7,6 @@
 DO $$
 DECLARE
     v_category_id UUID;
-    v_content TEXT;
     v_read_time INTEGER;
     v_full_content TEXT;
 BEGIN
@@ -23,195 +22,177 @@ BEGIN
     END IF;
 
     -- Full HTML content with proper escaping
-    v_full_content := '<p class="text-2xl font-semibold text-gray-900 mb-8">A pristine home isn''t built in a day—it requires deep, thorough cleaning that goes beyond your regular weekly maintenance. For Cape Town homeowners, this process is even more crucial, as coastal humidity and dust can accelerate dirt buildup and require specialized attention.</p>
+    v_full_content := '<p class="text-lg text-gray-600 mb-6">
+        Deep cleaning revives spaces that regular chores overlook. Focus on high-impact wins, follow a room-by-room rhythm,
+        and rely on the right tools so every surface feels fresh again.
+      </p>
 
-<p>As experienced professional cleaners in Cape Town, we at Shalean Cleaning Services have developed this comprehensive guide to help you master the art of deep cleaning. Whether you''re preparing for a special occasion, moving in or out, or simply want to restore your home''s original freshness, this guide covers everything you need to know.</p>
+      <div class="grid gap-4 mb-12 sm:grid-cols-3">
+        <div class="border border-primary/20 rounded-lg p-4 bg-primary/5">
+          <p class="text-sm font-semibold text-primary tracking-wide uppercase">Why it matters</p>
+          <p class="text-sm text-gray-600 mt-2">Removes allergens, grime, and odors that silently build up.</p>
+        </div>
+        <div class="border border-primary/20 rounded-lg p-4 bg-primary/5">
+          <p class="text-sm font-semibold text-primary tracking-wide uppercase">When to do it</p>
+          <p class="text-sm text-gray-600 mt-2">Seasonally for a full reset, monthly for high-traffic zones.</p>
+        </div>
+        <div class="border border-primary/20 rounded-lg p-4 bg-primary/5">
+          <p class="text-sm font-semibold text-primary tracking-wide uppercase">How to succeed</p>
+          <p class="text-sm text-gray-600 mt-2">Declutter first, then move methodically from top to bottom.</p>
+        </div>
+      </div>
 
-<h2 class="text-3xl font-bold text-gray-900 mt-12 mb-6">Understanding Deep Cleaning: More Than Just Routine Tidying</h2>
+      <h2 class="text-3xl font-bold text-gray-900 mt-12 mb-6">Understanding Deep Cleaning</h2>
 
-<p>Deep cleaning is a systematic, intensive process that targets every corner, crevice, and surface in your home. Unlike regular cleaning—which maintains day-to-day cleanliness—deep cleaning involves:</p>
+      <div class="space-y-6">
+        <section class="border border-gray-200 shadow-sm p-6 rounded-lg">
+          <h3 class="text-2xl font-semibold text-gray-900 mb-3">What Is Deep Cleaning?</h3>
+          <p class="text-gray-600">
+            Deep cleaning is a comprehensive approach that targets built-up grime, allergens, and dirt hiding in hard-to-reach areas.
+            Unlike weekly chores, it includes detailed tasks such as scrubbing grout, degreasing appliances, and lifting stubborn stains
+            so every surface is truly sanitized.
+          </p>
+        </section>
 
-<ul class="list-disc pl-8 space-y-3 my-6">
-  <li>Removing accumulated grime, dust, and bacteria from hard-to-reach areas</li>
-  <li>Sanitizing high-touch surfaces and disinfecting germ-prone zones</li>
-  <li>Restoring surfaces to their original condition</li>
-  <li>Addressing areas typically neglected during routine cleaning</li>
-</ul>
+        <section class="border border-gray-200 shadow-sm p-6 rounded-lg">
+          <h3 class="text-2xl font-semibold text-gray-900 mb-3">Benefits of Deep Cleaning Every Room</h3>
+          <p class="text-gray-600">
+            A deep clean promotes healthier air, removes allergens, eliminates trapped odors, and prolongs the life of your appliances.
+            By addressing hidden dust and grease, you reduce potential hazards and enjoy a calmer, healthier home environment.
+          </p>
+        </section>
 
-<p>This type of cleaning is especially important in Cape Town''s climate, where coastal salt, high humidity, and pollen can create challenging cleaning conditions that require specialized techniques and products.</p>
+        <section class="border border-gray-200 shadow-sm p-6 rounded-lg">
+          <h3 class="text-2xl font-semibold text-gray-900 mb-3">Deep Cleaning vs. Regular Cleaning</h3>
+          <p class="text-gray-600">
+            Regular cleaning keeps surfaces tidy day to day. Deep cleaning is less frequent but far more thorough, covering forgotten zones
+            from baseboards to ceiling fans. Both are essential&mdash;routine care maintains, while deep cleaning restores.
+          </p>
+        </section>
+      </div>
 
-<h2 class="text-3xl font-bold text-gray-900 mt-12 mb-6">The Essential Deep Cleaning Checklist by Room</h2>
+      <h2 class="text-3xl font-bold text-gray-900 mt-12 mb-6">Essential Deep Cleaning Tasks</h2>
 
-<h3 class="text-2xl font-semibold text-gray-900 mt-8 mb-4">Kitchen Deep Clean</h3>
+      <div class="space-y-6">
+        <section class="border border-gray-200 shadow-sm p-6 rounded-lg">
+          <h3 class="text-2xl font-semibold text-gray-900 mb-3">1. Disinfect High-Touch Areas</h3>
+          <p class="text-gray-600">
+            Wipe down light switches, remote controls, doorknobs, and appliance handles with disinfectant.
+            These hotspots harbor germs and should be sanitized first so you do not recontaminate freshly cleaned rooms.
+          </p>
+        </section>
 
-<p>The kitchen is the heart of your home and requires the most thorough attention. Start by removing all items from your cabinets and pantry.</p>
+        <section class="border border-gray-200 shadow-sm p-6 rounded-lg">
+          <h3 class="text-2xl font-semibold text-gray-900 mb-3">2. Deep Clean the Bathroom</h3>
+          <p class="text-gray-600">
+            Remove soap scum and mildew from grout, disinfect the toilet and sink, and polish mirrors and fixtures.
+            Pay attention to shower walls, window sills, and exhaust fans where moisture and mold collect.
+          </p>
+        </section>
 
-<ul class="list-disc pl-8 space-y-2 my-4">
-  <li><strong>Appliances:</strong> Degrease and sanitize your stove, oven, microwave, refrigerator, and dishwasher. Don''t forget to replace refrigerator water filters and clean drip pans.</li>
-  <li><strong>Surfaces:</strong> Scrub countertops with a disinfectant cleaner, paying special attention to grout lines and backsplash tiles. Polish stainless steel appliances to remove fingerprints and streaks.</li>
-  <li><strong>Organization:</strong> Discard expired items from your pantry and refrigerator. Wipe down shelves and reorganize for better airflow and efficiency.</li>
-  <li><strong>Details:</strong> Clean cabinet fronts and handles, disinfect light switches, and sanitize garbage disposal with ice and lemon.</li>
-</ul>
+        <section class="border border-gray-200 shadow-sm p-6 rounded-lg">
+          <h3 class="text-2xl font-semibold text-gray-900 mb-3">3. Refresh Kitchen Appliances</h3>
+          <p class="text-gray-600">
+            Run an empty dishwasher cycle with vinegar, degrease the stovetop, clean the microwave, and purge crumbs from small appliances.
+            Clearing grease and buildup keeps everything running efficiently and odor-free.
+          </p>
+        </section>
+      </div>
 
-<h3 class="text-2xl font-semibold text-gray-900 mt-8 mb-4">Bathroom Deep Clean</h3>
+      <h2 class="text-3xl font-bold text-gray-900 mt-12 mb-6">Deep Cleaning Methods for Every Room</h2>
 
-<p>Bathrooms harbor the most bacteria in your home. A thorough deep clean should address all moisture-prone areas.</p>
+      <div class="space-y-6">
+        <section class="border border-gray-200 shadow-sm p-6 rounded-lg">
+          <h3 class="text-2xl font-semibold text-gray-900 mb-3">4. Clean Every Surface from Top to Bottom</h3>
+          <p class="text-gray-600">
+            Dust ceiling fans, vents, and light fixtures before tackling walls, windows, and floors.
+            Vacuum corners and edges, then mop or steam clean to lift lingering dirt for a polished finish.
+          </p>
+        </section>
 
-<ul class="list-disc pl-8 space-y-2 my-4">
-  <li><strong>Surfaces:</strong> Scrub tiles and grout with a mold and mildew remover. Pay special attention to corners and caulking where bacteria tend to accumulate.</li>
-  <li><strong>Fixtures:</strong> Polish taps, showerheads, and fixtures to remove hard water stains. Soak shower doors in a vinegar solution to remove soap scum.</li>
-  <li><strong>Sanitization:</strong> Deep clean the toilet bowl, including the base and behind the tank. Disinfect handles, flushers, and all touch points.</li>
-  <li><strong>Ventilation:</strong> Clean exhaust fans and ensure proper airflow to prevent future mold growth.</li>
-</ul>
+        <section class="border border-gray-200 shadow-sm p-6 rounded-lg">
+          <h3 class="text-2xl font-semibold text-gray-900 mb-3">5. Use Microfiber Cloths Wisely</h3>
+          <p class="text-gray-600">
+            Microfiber traps dust more effectively than cotton. Keep a stack on hand so you are always working with a clean cloth
+            when wiping counters, polishing mirrors, or dusting electronics.
+          </p>
+        </section>
 
-<h3 class="text-2xl font-semibold text-gray-900 mt-8 mb-4">Living and Dining Areas</h3>
+        <section class="border border-gray-200 shadow-sm p-6 rounded-lg">
+          <h3 class="text-2xl font-semibold text-gray-900 mb-3">6. Remove Stains from Carpets and Upholstery</h3>
+          <p class="text-gray-600">
+            Pre-treat stains with an appropriate solution, then blot gently before vacuuming or using a carpet cleaner.
+            For upholstery, follow fabric care labels to avoid damage and keep textiles looking new.
+          </p>
+        </section>
+      </div>
 
-<p>These spaces may look clean at first glance, but dust and allergens settle in hidden places.</p>
+      <h2 class="text-3xl font-bold text-gray-900 mt-12 mb-6">Tools and Products for Deep Cleaning</h2>
 
-<ul class="list-disc pl-8 space-y-2 my-4">
-  <li><strong>High places:</strong> Dust ceiling fans, light fixtures, crown molding, and the tops of cabinets.</li>
-  <li><strong>Behind and under:</strong> Move furniture to vacuum and mop beneath. Clean baseboards and vent covers that trap dust.</li>
-  <li><strong>Electronics:</strong> Gently clean televisions, computers, and remote controls with appropriate cleaning solutions.</li>
-  <li><strong>Fabrics:</strong> Steam clean or professionally launder curtains, cushions, and upholstered furniture.</li>
-</ul>
+      <div class="space-y-6">
+        <section class="border border-gray-200 shadow-sm p-6 rounded-lg">
+          <h3 class="text-2xl font-semibold text-gray-900 mb-3">7. Stock Essential Supplies</h3>
+          <p class="text-gray-600">
+            Build a kit with all-purpose cleaner, disinfectant wipes, glass cleaner, microfiber cloths, sponges, and scrub brushes.
+            Having the right tools within reach keeps your momentum going.
+          </p>
+        </section>
 
-<h3 class="text-2xl font-semibold text-gray-900 mt-8 mb-4">Bedrooms</h3>
+        <section class="border border-gray-200 shadow-sm p-6 rounded-lg">
+          <h3 class="text-2xl font-semibold text-gray-900 mb-3">8. Choose the Right Mop and Vacuum</h3>
+          <p class="text-gray-600">
+            Use a vacuum with strong suction and attachments to reach crevices and upholstery.
+            Pair it with a mop that lifts grime without streaks&mdash;steam mops are excellent for sanitizing sealed floors.
+          </p>
+        </section>
 
-<p>Your bedroom should be a sanctuary, and deep cleaning ensures it stays that way.</p>
+        <section class="border border-gray-200 shadow-sm p-6 rounded-lg">
+          <h3 class="text-2xl font-semibold text-gray-900 mb-3">9. Keep Glass Crystal Clear</h3>
+          <p class="text-gray-600">
+            Select a glass cleaner that cuts through fingerprints and residue without leaving streaks.
+            Wipe windows, mirrors, and frames with a clean microfiber cloth or squeegee for a brilliant shine.
+          </p>
+        </section>
+      </div>
 
-<ul class="list-disc pl-8 space-y-2 my-4">
-  <li><strong>Bedding:</strong> Wash all bedding including pillows, comforters, and mattress protectors in hot water to kill dust mites.</li>
-  <li><strong>Storage:</strong> Clean out and organize closets. Vacuum or wipe down shelves and drawers.</li>
-  <li><strong>Surfaces:</strong> Dust ceiling corners, fan blades, and window treatments. Clean mirrors and glass surfaces.</li>
-  <li><strong>Mattress:</strong> Vacuum mattress thoroughly using an upholstery attachment. Consider professional mattress cleaning for allergens.</li>
-</ul>
+      <h2 class="text-3xl font-bold text-gray-900 mt-12 mb-6">Tips to Maintain a Clean Home</h2>
 
-<h2 class="text-3xl font-bold text-gray-900 mt-12 mb-6">Professional Tools and Products for Effective Deep Cleaning</h2>
+      <div class="space-y-6">
+        <section class="border border-gray-200 shadow-sm p-6 rounded-lg">
+          <h3 class="text-2xl font-semibold text-gray-900 mb-3">10. Balance Regular and Deep Cleaning</h3>
+          <p class="text-gray-600">
+            Schedule routine tasks like vacuuming, dusting, and wiping counters weekly, then layer in seasonal deep cleans.
+            This combination keeps your home looking immaculate between major cleaning sessions.
+          </p>
+        </section>
 
-<p>Having the right tools makes all the difference in deep cleaning effectiveness. For South African homes, we recommend:</p>
+        <section class="border border-gray-200 shadow-sm p-6 rounded-lg">
+          <h3 class="text-2xl font-semibold text-gray-900 mb-3">Organize Clutter First</h3>
+          <p class="text-gray-600">
+            Decluttering before you start frees up surfaces and prevents dust from collecting around piles.
+            Sort items into keep, donate, and discard categories, and rely on bins or shelving for long-term order.
+          </p>
+        </section>
 
-<h3 class="text-xl font-semibold text-gray-900 mt-6 mb-3">Essential Cleaning Tools</h3>
+        <section class="border border-gray-200 shadow-sm p-6 rounded-lg">
+          <h3 class="text-2xl font-semibold text-gray-900 mb-3">Keep Germs and Odors Away</h3>
+          <p class="text-gray-600">
+            Disinfect high-traffic surfaces frequently, boost ventilation by opening windows, and use natural deodorizers or diffusers.
+            Address spills immediately to stop stains and smells from settling in.
+          </p>
+        </section>
+      </div>
 
-<ul class="list-disc pl-8 space-y-2 my-4">
-  <li><strong>Microfiber cloths:</strong> Ideal for dusting and polishing without leaving lint or streaks</li>
-  <li><strong>Steam cleaner:</strong> Effective for sanitizing without harsh chemicals</li>
-  <li><strong>Grout brush:</strong> Removes dirt from tile grout lines</li>
-  <li><strong>Extendable duster:</strong> Reaches high places safely</li>
-  <li><strong>Quality vacuum with HEPA filter:</strong> Traps allergens and improves air quality</li>
-</ul>
+      <div class="bg-primary/5 border border-primary/30 p-6 rounded-lg mt-12">
+        <p class="text-gray-800 font-semibold mb-2">Need a head start?</p>
+        <p class="text-gray-600">
+          Book a Shalean deep clean and we will reset your busiest rooms in a single visit. You handle the maintenance;
+          our specialists tackle the grime, detail the appliances, and leave a shine that lasts.
+        </p>
+      </div>';
 
-<h3 class="text-xl font-semibold text-gray-900 mt-6 mb-3">Recommended South African Products</h3>
-
-<p>For Cape Town homes, we suggest using locally available, effective products:</p>
-
-<ul class="list-disc pl-8 space-y-2 my-4">
-  <li><strong>Better Earth:</strong> Eco-friendly cleaning solutions available in major South African stores</li>
-  <li><strong>EcoSmart:</strong> Natural cleaning products that are safe for families and pets</li>
-  <li><strong>Triple Orange:</strong> Heavy-duty degreasing and disinfecting solutions</li>
-  <li><strong>Sunlight Dishwashing Liquid:</strong> Versatile for multiple surfaces and excellent for grease cutting</li>
-</ul>
-
-<p class="my-4 font-medium">Avoid harsh chemicals like ammonia and bleach combinations, as they can damage surfaces and pose health risks. Always test products on small, hidden areas first.</p>
-
-<h2 class="text-3xl font-bold text-gray-900 mt-12 mb-6">How Often Should You Deep Clean? A Practical Schedule for Cape Town Homes</h2>
-
-<p>Frequency depends on your living situation, lifestyle, and location. Here''s a realistic approach:</p>
-
-<ul class="list-disc pl-8 space-y-2 my-4">
-  <li><strong>Small apartments and studios:</strong> Every 3-4 months, with weekly maintenance cleaning</li>
-  <li><strong>Family homes:</strong> Every 2-3 months, especially homes with pets or children</li>
-  <li><strong>Coastal properties (Cape Town):</strong> Every 2 months, due to salt air, humidity, and sandy dust</li>
-  <li><strong>High-traffic areas:</strong> Monthly deep cleaning for kitchens and bathrooms in busy households</li>
-</ul>
-
-<p>Creating a quarterly deep cleaning schedule with a professional service ensures your home maintains its value and creates a healthier living environment. This is especially important for the humid coastal areas of Cape Town.</p>
-
-<h2 class="text-3xl font-bold text-gray-900 mt-12 mb-6">When to Call Professional Deep Cleaning Services</h2>
-
-<p>While DIY deep cleaning can be satisfying, there are times when professional expertise makes a significant difference:</p>
-
-<h3 class="text-xl font-semibold text-gray-900 mt-6 mb-3">Consider Hiring Professionals For:</h3>
-
-<ul class="list-disc pl-8 space-y-2 my-4">
-  <li><strong>Time constraints:</strong> Deep cleaning a home takes 8-12 hours—professionals work efficiently in teams</li>
-  <li><strong>Specialized equipment:</strong> Professional steam cleaners, carpet cleaning machines, and high-quality vacuums deliver superior results</li>
-  <li><strong>Move-in/move-out:</strong> Ensuring property security deposits and creating excellent first impressions</li>
-  <li><strong>Health concerns:</strong> Reducing allergens and bacteria for family members with respiratory issues</li>
-  <li><strong>Attention to detail:</strong> Trained professionals notice and address issues that might be missed in DIY attempts</li>
-</ul>
-
-<h3 class="text-xl font-semibold text-gray-900 mt-6 mb-3">Why Choose Shalean Cleaning Services?</h3>
-
-<p>At Shalean Cleaning Services, we bring years of expertise to every deep clean. Our team uses:</p>
-
-<ul class="list-disc pl-8 space-y-2 my-4">
-  <li>Commercial-grade equipment and eco-friendly products</li>
-  <li>Systematic approach ensuring no area is overlooked</li>
-  <li>Attention to Cape Town-specific challenges like salt air and coastal dust</li>
-  <li>Flexible scheduling to work around your busy life</li>
-  <li>Detailed checklists and quality assurance for guaranteed results</li>
-</ul>
-
-<h2 class="text-3xl font-bold text-gray-900 mt-12 mb-6">Cape Town-Specific Deep Cleaning Considerations</h2>
-
-<p>Living in Cape Town presents unique cleaning challenges:</p>
-
-<h3 class="text-xl font-semibold text-gray-900 mt-6 mb-3">Coastal Climate Factors</h3>
-
-<ul class="list-disc pl-8 space-y-2 my-4">
-  <li><strong>Salt air corrosion:</strong> Regular cleaning and protection of metal surfaces prevents deterioration</li>
-  <li><strong>High humidity:</strong> Requires extra attention to mold-prone areas like bathrooms and basements</li>
-  <li><strong>Sandy dust:</strong> More frequent cleaning of floors and window sills</li>
-  <li><strong>Pollen and allergens:</strong> Important for homes near Table Mountain and green spaces</li>
-</ul>
-
-<h3 class="text-xl font-semibold text-gray-900 mt-6 mb-3">Seasonal Deep Cleaning Tips</h3>
-
-<ul class="list-disc pl-8 space-y-2 my-4">
-  <li><strong>Summer (December-February):</strong> Focus on outdoor areas, windows, and ventilation systems</li>
-  <li><strong>Winter (June-August):</strong> Address moisture and humidity control, clean heating systems</li>
-  <li><strong>Spring (September-November):</strong> Comprehensive renewal—ideal for annual deep cleaning</li>
-  <li><strong>Year-round:</strong> Regular maintenance with quarterly deep cleans</li>
-</ul>
-
-<h2 class="text-3xl font-bold text-gray-900 mt-12 mb-6">Cost-Effective Deep Cleaning Tips</h2>
-
-<p>Maximize your deep cleaning efficiency with these budget-friendly strategies:</p>
-
-<ul class="list-disc pl-8 space-y-2 my-4">
-  <li>Work from top to bottom (ceilings to floors) to avoid re-cleaning surfaces</li>
-  <li>Use natural cleaners like white vinegar and baking soda for many tasks</li>
-  <li>Clean during optimal times (morning light helps you see dirt better)</li>
-  <li>Focus on high-traffic areas that collect the most bacteria and allergens</li>
-  <li>Create a checklist to stay organized and avoid missing areas</li>
-</ul>
-
-<h2 class="text-3xl font-bold text-gray-900 mt-12 mb-6">Conclusion: Your Home Deserves a Fresh Start</h2>
-
-<p>Deep cleaning is an investment in your home''s longevity, your family''s health, and your peace of mind. Whether you tackle it yourself or bring in professional help, regular deep cleaning maintains your property''s value and creates a healthier, more comfortable living environment.</p>
-
-<p class="my-6">For Cape Town residents, incorporating quarterly professional deep cleaning into your home maintenance routine is a smart choice that saves time, reduces stress, and delivers exceptional results.</p>
-
-<div class="bg-gradient-to-r from-primary/10 via-primary/15 to-primary/20 rounded-2xl p-8 my-12 border-l-4 border-primary">
-  <h3 class="text-2xl font-bold text-gray-900 mb-4">Ready to Transform Your Home?</h3>
-  <p class="text-gray-700 mb-6">Let our experienced team handle your deep cleaning with attention to detail and Cape Town-specific expertise. We bring the tools, the knowledge, and the dedication to make your home shine.</p>
-  <a href="/booking" class="inline-block bg-primary text-white px-8 py-4 rounded-lg font-semibold hover:bg-primary/90 transition-colors shadow-lg">
-    Book Your Deep Cleaning Service Today →
-  </a>
-</div>
-
-<h3 class="text-2xl font-semibold text-gray-900 mt-12 mb-4">Related Articles</h3>
-
-<p>Continue improving your home with these helpful guides:</p>
-
-<ul class="list-disc pl-8 space-y-2 my-4">
-  <li><a href="/blog/eco-friendly-cleaning-south-africa" class="text-primary hover:text-primary/80 underline">Eco-Friendly Cleaning Practices for South African Homes</a></li>
-  <li><a href="/blog/move-out-cleaning-cost-guide" class="text-primary hover:text-primary/80 underline">Complete Guide to Move-Out Cleaning in Cape Town</a></li>
-  <li><a href="/services" class="text-primary hover:text-primary/80 underline">Explore All Our Cleaning Services</a></li>
-</ul>';
-
-    -- Calculate read time (approximately 10 minutes for this content)
-    v_read_time := 10;
+    -- Calculate read time (approximately 6 minutes for this content)
+    v_read_time := 6;
 
     -- Insert the blog post
     INSERT INTO blog_posts (
@@ -228,26 +209,26 @@ BEGIN
         read_time,
         published_at
     ) VALUES (
-        'The Complete Guide to Deep Cleaning Your Home in Cape Town',
-        'deep-cleaning-cape-town',
+        '10 Essential Deep Cleaning Tips for Every Home',
+        '10-essential-deep-cleaning-tips-for-every-home',
         v_full_content,
-        'Master deep cleaning for your Cape Town home with expert tips, room-by-room checklists, and when to hire professional deep cleaning services.',
-        '/images/blog/deep-cleaning-cape-town.jpg',
-        'Professional deep cleaning service in Cape Town showing thorough home cleaning',
+        'Your complete guide to deep cleaning high-touch areas, bathrooms, kitchens, and every surface for a healthier home.',
+        '/images/deep-specialty.jpg',
+        'Deep cleaning tips and techniques',
         v_category_id,
         'published',
-        'Deep Cleaning Guide Cape Town | Expert Tips | Shalean',
-        'Complete guide to deep cleaning your Cape Town home: room-by-room checklist, products, schedules, and professional services.',
+        '10 Essential Deep Cleaning Tips for Every Home | Shalean',
+        'Master deep cleaning with ten expert tips covering sanitizing high-touch areas, refreshing appliances, and keeping every room in your home spotless.',
         v_read_time,
-        '2025-10-27 08:00:00+00'
+        '2025-10-15 08:00:00+00'
     );
 
-    RAISE NOTICE '✅ Deep cleaning blog post inserted successfully!';
+    RAISE NOTICE 'Deep cleaning blog post inserted successfully!';
     RAISE NOTICE 'Category ID: %', v_category_id;
 END $$;
 
 -- Verify the post was created
 SELECT id, title, slug, status, published_at, category_id
 FROM blog_posts
-WHERE slug = 'deep-cleaning-cape-town';
+WHERE slug = '10-essential-deep-cleaning-tips-for-every-home';
 

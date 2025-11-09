@@ -37,19 +37,19 @@ export function BlogPostHero({ post }: BlogPostHeroProps) {
       </nav>
 
       {/* Article Hero */}
-      <section className="py-16 bg-gradient-to-b from-white to-gray-50/50">
+      <section className="py-12 md:py-14 bg-gradient-to-b from-white to-gray-50/50">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <div className="mb-8">
+          <div className="mb-6">
             {post.category_name && (
               <Badge className="bg-primary/10 text-primary border-primary/20 text-sm px-3 py-1">
                 {post.category_name}
               </Badge>
             )}
           </div>
-          <h1 className="mb-8 text-4xl md:text-5xl font-bold text-gray-900 leading-tight">
+          <h1 className="mb-6 text-4xl md:text-[2.75rem] font-bold text-gray-900 leading-tight">
             {post.title}
           </h1>
-          <div className="flex flex-wrap items-center gap-6 text-gray-600 mb-12">
+          <div className="flex flex-wrap items-center gap-5 text-gray-600 mb-10">
             <span className="flex items-center gap-2 text-sm">
               <Calendar className="h-4 w-4 text-primary" />
               {post.published_at
@@ -66,18 +66,18 @@ export function BlogPostHero({ post }: BlogPostHeroProps) {
             </span>
           </div>
           {post.featured_image && post.featured_image.trim() !== '' ? (
-            <div className="relative h-96 md:h-[500px] rounded-xl overflow-hidden shadow-lg border border-gray-200">
+            <div className="relative aspect-[16/9] md:aspect-[21/9] max-h-[420px] rounded-xl overflow-hidden shadow-lg border border-gray-200">
               <Image
                 src={post.featured_image}
                 alt={post.featured_image_alt || post.title}
                 fill
                 className="object-cover"
                 priority
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1024px"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 85vw, 960px"
               />
             </div>
           ) : (
-            <div className="relative h-96 md:h-[500px] rounded-xl overflow-hidden shadow-lg border border-gray-200 bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
+            <div className="relative aspect-[16/9] max-h-[420px] rounded-xl overflow-hidden shadow-lg border border-gray-200 bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
               <span className="text-primary/60 text-lg font-medium">No Featured Image</span>
             </div>
           )}

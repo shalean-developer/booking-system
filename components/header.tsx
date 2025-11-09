@@ -81,6 +81,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   
   // Get booking state for stepper display
   const { state: bookingState, isLoaded: bookingLoaded } = useBooking();
@@ -149,6 +150,10 @@ export function Header({ variant = 'default' }: HeaderProps) {
     );
 
     return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    setIsMounted(true);
   }, []);
 
   // Logout handler using centralized safe logout utility
@@ -274,108 +279,121 @@ export function Header({ variant = 'default' }: HeaderProps) {
 
           {/* Action Buttons - Desktop & Mobile */}
           <div className="flex flex-shrink-0 items-center gap-2 md:gap-3">
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-10 w-10 rounded-full border-gray-200 text-gray-700 hover:border-primary hover:text-primary md:hidden"
-                >
-                  <Menu className="h-5 w-5" />
-                  <span className="sr-only">Open menu</span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-full max-w-xs border-r border-gray-200 p-0">
-                <div className="flex h-full flex-col">
-                  <SheetDialogHeader className="sr-only">
-                    <SheetDialogTitle>Mobile navigation</SheetDialogTitle>
-                  </SheetDialogHeader>
-                  <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-                    <Link href="/" className="flex items-center gap-2">
-                      <Logo />
-                      <span className="text-lg font-semibold text-primary">Shalean</span>
-                    </Link>
-                  </div>
-                  <nav className="flex-1 overflow-y-auto px-6 py-6">
-                    <ul className="space-y-3">
-                      {navigationItems.map((item) => {
-                        const Icon = item.icon;
-                        const isActive = currentPage === item.key;
+            {isMounted ? (
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-10 w-10 rounded-full border-gray-200 text-gray-700 hover:border-primary hover:text-primary md:hidden"
+                  >
+                    <Menu className="h-5 w-5" />
+                    <span className="sr-only">Open menu</span>
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-full max-w-xs border-r border-gray-200 p-0">
+                  <div className="flex h-full flex-col">
+                    <SheetDialogHeader className="sr-only">
+                      <SheetDialogTitle>Mobile navigation</SheetDialogTitle>
+                    </SheetDialogHeader>
+                    <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+                      <Link href="/" className="flex items-center gap-2">
+                        <Logo />
+                        <span className="text-lg font-semibold text-primary">Shalean</span>
+                      </Link>
+                    </div>
+                    <nav className="flex-1 overflow-y-auto px-6 py-6">
+                      <ul className="space-y-3">
+                        {navigationItems.map((item) => {
+                          const Icon = item.icon;
+                          const isActive = currentPage === item.key;
 
-                        return (
-                          <li key={item.key}>
-                            <SheetClose asChild>
-                              <Link
-                                href={item.href}
-                                className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition ${
-                                  isActive
-                                    ? 'border-primary bg-primary/10 text-primary'
-                                    : 'border-gray-200 bg-white text-gray-700 hover:border-primary hover:bg-primary/5 hover:text-primary'
-                                }`}
-                              >
-                                <Icon className="h-4 w-4" />
-                                {item.name}
-                              </Link>
-                            </SheetClose>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </nav>
-                  <div className="space-y-3 border-t border-gray-200 px-6 py-6">
-                    <SheetClose asChild>
-                      <Button className="w-full rounded-full bg-primary text-white hover:bg-primary/90" asChild>
-                        <Link href={user ? '/booking/service/select' : '/booking/quote'}>
-                          {user ? 'Book a Service' : 'Get a Free Quote'}
-                        </Link>
-                      </Button>
-                    </SheetClose>
-                    {user ? (
-                      <>
-                        <SheetClose asChild>
-                          <Link
-                            href="/dashboard"
-                            className="flex w-full items-center justify-between rounded-full border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 transition hover:border-primary hover:text-primary"
-                          >
-                            <span>My Dashboard</span>
+                          return (
+                            <li key={item.key}>
+                              <SheetClose asChild>
+                                <Link
+                                  href={item.href}
+                                  className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition ${
+                                    isActive
+                                      ? 'border-primary bg-primary/10 text-primary'
+                                      : 'border-gray-200 bg-white text-gray-700 hover:border-primary hover:bg-primary/5 hover:text-primary'
+                                  }`}
+                                >
+                                  <Icon className="h-4 w-4" />
+                                  {item.name}
+                                </Link>
+                              </SheetClose>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </nav>
+                    <div className="space-y-3 border-t border-gray-200 px-6 py-6">
+                      <SheetClose asChild>
+                        <Button className="w-full rounded-full bg-primary text-white hover:bg-primary/90" asChild>
+                          <Link href={user ? '/booking/service/select' : '/booking/quote'}>
+                            {user ? 'Book a Service' : 'Get a Free Quote'}
                           </Link>
-                        </SheetClose>
-                        <SheetClose asChild>
-                          <Button
-                            variant="outline"
-                            className="w-full rounded-full border-red-200 text-red-600 hover:bg-red-50"
-                            onClick={async () => {
-                              await handleLogout();
-                            }}
-                          >
-                            Log out
-                          </Button>
-                        </SheetClose>
-                      </>
-                    ) : (
-                      <div className="space-y-2">
-                        <SheetClose asChild>
-                          <Link
-                            href="/login"
-                            className="flex w-full items-center justify-center rounded-full border border-primary/40 px-4 py-3 text-sm font-semibold text-primary transition hover:bg-primary/10"
-                          >
-                            Sign in
-                          </Link>
-                        </SheetClose>
-                        <SheetClose asChild>
-                          <Link
-                            href="/signup"
-                            className="flex w-full items-center justify-center rounded-full bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/90"
-                          >
-                            Create account
-                          </Link>
-                        </SheetClose>
-                      </div>
-                    )}
+                        </Button>
+                      </SheetClose>
+                      {user ? (
+                        <>
+                          <SheetClose asChild>
+                            <Link
+                              href="/dashboard"
+                              className="flex w-full items-center justify-between rounded-full border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 transition hover:border-primary hover:text-primary"
+                            >
+                              <span>My Dashboard</span>
+                            </Link>
+                          </SheetClose>
+                          <SheetClose asChild>
+                            <Button
+                              variant="outline"
+                              className="w-full rounded-full border-red-200 text-red-600 hover:bg-red-50"
+                              onClick={async () => {
+                                await handleLogout();
+                              }}
+                            >
+                              Log out
+                            </Button>
+                          </SheetClose>
+                        </>
+                      ) : (
+                        <div className="space-y-2">
+                          <SheetClose asChild>
+                            <Link
+                              href="/login"
+                              className="flex w-full items-center justify-center rounded-full border border-primary/40 px-4 py-3 text-sm font-semibold text-primary transition hover:bg-primary/10"
+                            >
+                              Sign in
+                            </Link>
+                          </SheetClose>
+                          <SheetClose asChild>
+                            <Link
+                              href="/signup"
+                              className="flex w-full items-center justify-center rounded-full bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/90"
+                            >
+                              Create account
+                            </Link>
+                          </SheetClose>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </SheetContent>
-            </Sheet>
+                </SheetContent>
+              </Sheet>
+            ) : (
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-10 w-10 rounded-full border-gray-200 text-gray-700 md:hidden"
+                aria-hidden
+                disabled
+              >
+                <Menu className="h-5 w-5" />
+                <span className="sr-only">Menu loading</span>
+              </Button>
+            )}
             {!isBookingPage && (
               <Button className="hidden md:flex rounded-full bg-primary px-4 py-2 text-sm text-white hover:bg-primary/90" asChild>
                 <Link href={user ? "/booking/service/select" : "/booking/quote"}>

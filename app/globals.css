@@ -161,7 +161,7 @@
   }
 
   .blog-prose img {
-    @apply rounded-lg shadow-md my-8;
+    @apply rounded-lg shadow-md my-6 w-full max-h-[400px] object-cover;
   }
 
   .blog-prose table {
