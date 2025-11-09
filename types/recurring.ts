@@ -16,6 +16,8 @@ export interface RecurringSchedule {
   bedrooms: number;
   bathrooms: number;
   extras: string[];
+  extrasQuantities?: Record<string, number>;
+  extras_quantities?: Record<string, number>;
   notes?: string;
   address_line1: string;
   address_suburb: string;
