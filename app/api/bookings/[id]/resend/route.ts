@@ -39,11 +39,18 @@ export async function POST(
 
     // Generate and send confirmation email
     try {
+      const extrasQuantities = (
+        booking.price_snapshot?.extras_quantities ??
+        booking.extras_quantities ??
+        {}
+      ) as Record<string, number>;
+
       const emailData = generateBookingConfirmationEmail({
         service: booking.service_type as any,
         bedrooms: booking.bedrooms || 0,
         bathrooms: booking.bathrooms || 0,
         extras: (booking.extras as string[]) || [],
+        extrasQuantities,
         date: booking.booking_date,
         time: booking.booking_time,
         firstName: booking.customer_name.split(' ')[0] || '',
