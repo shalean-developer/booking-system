@@ -8,10 +8,14 @@ import { BookingSummary } from '@/components/booking-summary';
 import { StepService } from '@/components/step-service';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import type { ServiceType } from '@/types/booking';
 
 export default function ServiceSelectPage() {
-  const { state, isLoaded } = useBooking();
+  const { state, isLoaded, updateField } = useBooking();
   const router = useRouter();
+  const handleServiceSelect = (serviceType: ServiceType) => {
+    updateField('service', serviceType);
+  };
 
   // Ensure user is on step 1, or reset to step 1
   useEffect(() => {
@@ -60,7 +64,7 @@ export default function ServiceSelectPage() {
         <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_380px]">
           {/* Step Content */}
           <div className="min-h-[420px]">
-            <StepService />
+            <StepService selectedService={state.service} onSelect={handleServiceSelect} />
           </div>
 
           {/* Sticky Summary (Desktop) */}
