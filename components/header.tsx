@@ -19,16 +19,24 @@ import { Stepper } from '@/components/stepper';
 import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
 import {
-  Home,
-  Wrench,
-  Settings,
-  MapPin,
-  Droplets,
-  User,
-  LogOut,
-  Shield,
   ChevronDown,
+  Home,
+  LogOut,
+  MapPin,
+  Menu,
+  Settings,
+  Shield,
+  User,
+  Wrench,
 } from 'lucide-react';
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetHeader as SheetDialogHeader,
+  SheetTrigger,
+  SheetTitle as SheetDialogTitle,
+} from '@/components/ui/sheet';
 
 // Lazy load AuthModal to reduce initial bundle size
 const AuthModal = dynamic(() => import('@/components/auth-modal').then(mod => ({ default: mod.AuthModal })), {
@@ -221,7 +229,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
     <header className="bg-white border-b sticky top-0 z-50">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Top Row: Logo, Navigation/Stepper, Buttons */}
-        <div className="flex items-center justify-between py-4 gap-4">
+        <div className="flex items-center justify-between gap-4 py-4">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 flex-shrink-0">
             <Logo />
@@ -229,7 +237,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
           </Link>
 
           {/* Center Section: Navigation or Stepper */}
-          <div className="flex-1 flex justify-center min-w-0">
+          <div className="flex min-w-0 flex-1 justify-center">
             {isBookingPage && bookingLoaded ? (
               /* Stepper for booking pages - Show on all screens but hide mobile stepper text */
               <div className="w-full max-w-2xl">
@@ -265,63 +273,163 @@ export function Header({ variant = 'default' }: HeaderProps) {
           </div>
 
           {/* Action Buttons - Desktop & Mobile */}
-          <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+          <div className="flex flex-shrink-0 items-center gap-2 md:gap-3">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10 rounded-full border-gray-200 text-gray-700 hover:border-primary hover:text-primary md:hidden"
+                >
+                  <Menu className="h-5 w-5" />
+                  <span className="sr-only">Open menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-full max-w-xs border-r border-gray-200 p-0">
+                <div className="flex h-full flex-col">
+                  <SheetDialogHeader className="sr-only">
+                    <SheetDialogTitle>Mobile navigation</SheetDialogTitle>
+                  </SheetDialogHeader>
+                  <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+                    <Link href="/" className="flex items-center gap-2">
+                      <Logo />
+                      <span className="text-lg font-semibold text-primary">Shalean</span>
+                    </Link>
+                  </div>
+                  <nav className="flex-1 overflow-y-auto px-6 py-6">
+                    <ul className="space-y-3">
+                      {navigationItems.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = currentPage === item.key;
+
+                        return (
+                          <li key={item.key}>
+                            <SheetClose asChild>
+                              <Link
+                                href={item.href}
+                                className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition ${
+                                  isActive
+                                    ? 'border-primary bg-primary/10 text-primary'
+                                    : 'border-gray-200 bg-white text-gray-700 hover:border-primary hover:bg-primary/5 hover:text-primary'
+                                }`}
+                              >
+                                <Icon className="h-4 w-4" />
+                                {item.name}
+                              </Link>
+                            </SheetClose>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </nav>
+                  <div className="space-y-3 border-t border-gray-200 px-6 py-6">
+                    <SheetClose asChild>
+                      <Button className="w-full rounded-full bg-primary text-white hover:bg-primary/90" asChild>
+                        <Link href={user ? '/booking/service/select' : '/booking/quote'}>
+                          {user ? 'Book a Service' : 'Get a Free Quote'}
+                        </Link>
+                      </Button>
+                    </SheetClose>
+                    {user ? (
+                      <>
+                        <SheetClose asChild>
+                          <Link
+                            href="/dashboard"
+                            className="flex w-full items-center justify-between rounded-full border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 transition hover:border-primary hover:text-primary"
+                          >
+                            <span>My Dashboard</span>
+                          </Link>
+                        </SheetClose>
+                        <SheetClose asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full rounded-full border-red-200 text-red-600 hover:bg-red-50"
+                            onClick={async () => {
+                              await handleLogout();
+                            }}
+                          >
+                            Log out
+                          </Button>
+                        </SheetClose>
+                      </>
+                    ) : (
+                      <div className="space-y-2">
+                        <SheetClose asChild>
+                          <Link
+                            href="/login"
+                            className="flex w-full items-center justify-center rounded-full border border-primary/40 px-4 py-3 text-sm font-semibold text-primary transition hover:bg-primary/10"
+                          >
+                            Sign in
+                          </Link>
+                        </SheetClose>
+                        <SheetClose asChild>
+                          <Link
+                            href="/signup"
+                            className="flex w-full items-center justify-center rounded-full bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/90"
+                          >
+                            Create account
+                          </Link>
+                        </SheetClose>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
             {!isBookingPage && (
-              <Button className="bg-primary hover:bg-primary/90 text-white rounded-full text-xs sm:text-sm px-3 sm:px-4 h-9 sm:h-10" asChild>
+              <Button className="hidden md:flex rounded-full bg-primary px-4 py-2 text-sm text-white hover:bg-primary/90" asChild>
                 <Link href={user ? "/booking/service/select" : "/booking/quote"}>
                   {user ? "Book a Service" : "Get Free Quote"}
                 </Link>
               </Button>
             )}
             
-            {user ? (
-              /* Logged In State - User Dropdown */
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="rounded-full text-xs sm:text-sm px-3 sm:px-4 h-9 sm:h-10 gap-1"
-                  >
-                    <User className="h-3 w-3 sm:h-4 sm:w-4" />
-                    <span className="hidden sm:inline">
-                      {user.user_metadata?.first_name || user.email?.split('@')[0] || 'Account'}
-                    </span>
-                    <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {isAdmin && (
-                    <>
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin" className="flex items-center gap-2">
-                          <Shield className="h-4 w-4" />
-                          Admin Dashboard
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                    </>
-                  )}
-                  <DropdownMenuItem asChild>
-                    <Link href="/dashboard" className="flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-2">
+              {user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="rounded-full px-4 py-2 text-sm gap-2"
+                    >
                       <User className="h-4 w-4" />
-                      My Dashboard
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    onClick={handleLogout}
-                    disabled={isLoggingOut}
-                    className="text-red-600 focus:text-red-600"
-                  >
-                    <LogOut className="h-4 w-4 mr-2" />
-                    {isLoggingOut ? 'Logging out...' : 'Logout'}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              /* Logged Out State */
-              <AuthModal />
-            )}
+                      {user.user_metadata?.first_name || user.email?.split('@')[0] || 'Account'}
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {isAdmin && (
+                      <>
+                        <DropdownMenuItem asChild>
+                          <Link href="/admin" className="flex items-center gap-2">
+                            <Shield className="h-4 w-4" />
+                            Admin Dashboard
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
+                    <DropdownMenuItem asChild>
+                      <Link href="/dashboard" className="flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        My Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={handleLogout}
+                      disabled={isLoggingOut}
+                      className="text-red-600 focus:text-red-600"
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      {isLoggingOut ? 'Logging out...' : 'Logout'}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <AuthModal />
+              )}
+            </div>
           </div>
         </div>
       </div>
