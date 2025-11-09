@@ -14,6 +14,11 @@ interface FrequencySelectorProps {
     monthly?: number;
   };
   className?: string;
+  pricingByFrequency?: Partial<Record<'one-time' | 'weekly' | 'bi-weekly' | 'monthly', {
+    total: number;
+    subtotal: number;
+    frequencyDiscountPercent: number;
+  }>>;
 }
 
 const FREQUENCY_OPTIONS = [
@@ -46,11 +51,18 @@ const FREQUENCY_OPTIONS = [
   },
 ];
 
+const currencyFormatter = new Intl.NumberFormat('en-ZA', {
+  style: 'currency',
+  currency: 'ZAR',
+  maximumFractionDigits: 0,
+});
+
 export function FrequencySelector({ 
   value, 
   onChange, 
   discounts = {},
-  className 
+  className,
+  pricingByFrequency,
 }: FrequencySelectorProps) {
   return (
     <div className={cn('space-y-3', className)}>
@@ -59,18 +71,31 @@ export function FrequencySelector({
           How often do you need cleaning?
         </Label>
         <p className="text-sm text-gray-600 mt-1">
-          Save money with recurring services
+          Choose a frequency now—you can always tweak it before confirming.
         </p>
       </div>
 
       <RadioGroup
         value={value}
         onValueChange={(val) => onChange(val as any)}
-        className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+        className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4"
       >
         {FREQUENCY_OPTIONS.map((option) => {
           const discount = option.discountKey ? discounts[option.discountKey] : undefined;
           const isSelected = value === option.value;
+          const pricing = pricingByFrequency?.[option.value];
+          const helperText = (() => {
+            if (discount && discount > 0) {
+              return `Save ${discount}% per visit versus one-time pricing`;
+            }
+            if (option.value === 'one-time') {
+              return 'Perfect for deep cleans or move-outs';
+            }
+            if (option.value === 'monthly') {
+              return 'Keeps things fresh between big cleans';
+            }
+            return 'Keeps the same cleaner on rotation';
+          })();
 
           return (
             <div key={option.value} className="relative">
@@ -117,6 +142,12 @@ export function FrequencySelector({
                 {/* Description */}
                 <span className="text-xs text-gray-600 text-center mt-1">
                   {option.description}
+                </span>
+                <span className="text-sm text-gray-900 font-semibold text-center mt-2">
+                  {pricing ? `${currencyFormatter.format(pricing.total)} per visit` : 'Pricing shown on next step'}
+                </span>
+                <span className="text-xs text-primary/80 text-center mt-2 font-semibold">
+                  {helperText}
                 </span>
               </Label>
             </div>

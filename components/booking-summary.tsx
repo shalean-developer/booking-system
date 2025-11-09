@@ -1,12 +1,13 @@
 'use client';
 
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef, type ReactNode } from 'react';
+import Link from 'next/link';
 import { useBooking } from '@/lib/useBooking';
-import { calcTotal, calcTotalAsync, PRICING, getServicePricing, getCurrentPricing } from '@/lib/pricing';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { calcTotalSync, calcTotalAsync, PRICING, getServicePricing, getCurrentPricing } from '@/lib/pricing';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, MapPin, Clock, Home, Receipt, User, X, ChevronRight, Percent, Check } from 'lucide-react';
+import { Calendar, MapPin, Clock, Home, Receipt, User, X, ChevronRight, Percent, Check, Info, LifeBuoy } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -21,9 +22,10 @@ export function BookingSummary() {
       bedrooms: state.bedrooms,
       bathrooms: state.bathrooms,
       extras: state.extras,
-      extrasCount: state.extras.length
+      extrasCount: state.extras.length,
+      extrasQuantities: state.extrasQuantities,
     });
-  }, [state.bedrooms, state.bathrooms, state.extras]);
+  }, [state.bedrooms, state.bathrooms, state.extras, state.extrasQuantities]);
   const [pricingDetails, setPricingDetails] = useState<{
     subtotal: number;
     serviceFee: number;
@@ -32,12 +34,16 @@ export function BookingSummary() {
     total: number;
   } | null>(null);
   const [extraPrices, setExtraPrices] = useState<{ [key: string]: number }>({});
+  const [serviceFeeAmount, setServiceFeeAmount] = useState<number>(PRICING.serviceFee);
 
   // Get service-specific pricing (sync for display)
   const servicePricing = useMemo(() => getServicePricing(state.service), [state.service]);
   
   // Create stable string key for extras array to detect changes
-  const extrasKey = useMemo(() => state.extras.join(','), [state.extras]);
+  const extrasKey = useMemo(
+    () => state.extras.map((extra) => `${extra}:${state.extrasQuantities[extra] ?? 1}`).join('|'),
+    [state.extras, state.extrasQuantities]
+  );
 
   // Single optimized effect for immediate price updates
   useEffect(() => {
@@ -46,25 +52,25 @@ export function BookingSummary() {
       bedrooms: state.bedrooms,
       bathrooms: state.bathrooms,
       extras: state.extras,
-      extrasLength: state.extras.length
+      extrasLength: state.extras.length,
+      extrasQuantities: state.extrasQuantities,
     });
     
     // Immediate synchronous calculation for instant display
     if (state.service) {
-      const syncTotal = calcTotal({
+      const syncDetails = calcTotalSync(
+        {
         service: state.service,
         bedrooms: state.bedrooms,
         bathrooms: state.bathrooms,
         extras: state.extras,
-      });
-      console.log('💰 Calculated total:', syncTotal, 'for service:', state.service);
-      setPricingDetails({
-        subtotal: syncTotal,
-        serviceFee: 0,
-        frequencyDiscount: 0,
-        frequencyDiscountPercent: 0,
-        total: syncTotal,
-      });
+          extrasQuantities: state.extrasQuantities,
+        },
+        state.frequency
+      );
+      console.log('💰 Calculated total (sync):', syncDetails);
+      setPricingDetails(syncDetails);
+      setServiceFeeAmount(syncDetails.serviceFee);
     } else {
       console.log('⚠️ No service selected, setting total to 0');
       setPricingDetails({
@@ -74,6 +80,7 @@ export function BookingSummary() {
         frequencyDiscountPercent: 0,
         total: 0,
       });
+      setServiceFeeAmount(PRICING.serviceFee);
     }
 
     // Then fetch detailed pricing asynchronously (no loading state shown)
@@ -81,6 +88,9 @@ export function BookingSummary() {
       try {
         const pricing = await getCurrentPricing();
         setExtraPrices(pricing.extras);
+        if (pricing.serviceFee != null) {
+          setServiceFeeAmount(pricing.serviceFee);
+        }
 
         const details = await calcTotalAsync(
           {
@@ -88,10 +98,12 @@ export function BookingSummary() {
             bedrooms: state.bedrooms,
             bathrooms: state.bathrooms,
             extras: state.extras,
+            extrasQuantities: state.extrasQuantities,
           },
           state.frequency
         );
         setPricingDetails(details);
+        setServiceFeeAmount(details.serviceFee);
       } catch (error) {
         // Already have sync fallback displayed
         console.error('Failed to fetch pricing:', error);
@@ -102,6 +114,22 @@ export function BookingSummary() {
   }, [state.service, state.bedrooms, state.bathrooms, extrasKey, state.frequency]);
 
   const total = pricingDetails?.total || 0;
+
+  const extrasDisplay = useMemo(() => {
+    if (!state.extras || state.extras.length === 0) return [];
+    const uniqueExtras = Array.from(new Set(state.extras));
+    return uniqueExtras.map((extra) => {
+      const quantity = state.extrasQuantities[extra] ?? 1;
+      const unitPrice = extraPrices[extra] ?? PRICING.extras[extra as keyof typeof PRICING.extras] ?? 0;
+      const normalizedQuantity = Math.max(quantity, 1);
+      return {
+        name: extra,
+        quantity: normalizedQuantity,
+        unitPrice,
+        total: unitPrice * normalizedQuantity,
+      };
+    });
+  }, [state.extras, state.extrasQuantities, extraPrices]);
 
   // Focus management - return focus to chip when slide-over closes
   useEffect(() => {
@@ -130,6 +158,41 @@ export function BookingSummary() {
     };
   }, [isSlideOverOpen]);
 
+  const InfoTooltip = ({ children }: { children: ReactNode }) => (
+    <span className="relative ml-1 group inline-flex">
+      <button
+        type="button"
+        className="flex h-5 w-5 items-center justify-center rounded-full text-slate-400 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+        aria-label="More information"
+      >
+        <Info className="h-4 w-4" />
+      </button>
+      <div className="absolute right-0 mt-2 hidden w-72 max-w-xs rounded-lg border border-primary/20 bg-white p-3 text-xs text-slate-600 shadow-lg group-hover:block group-focus-within:block group-hover:pointer-events-auto group-focus-within:pointer-events-auto">
+        {children}
+      </div>
+    </span>
+  );
+
+  const HeaderWithInfo = ({
+    icon: Icon,
+    title,
+    infoContent,
+  }: {
+    icon: typeof Home;
+    title: string;
+    infoContent?: ReactNode;
+  }) => (
+    <div className="mb-2 flex items-start justify-between gap-2">
+      <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+        <Icon className="h-4 w-4" />
+        <span className="flex items-center gap-1">
+          {title}
+          {infoContent}
+        </span>
+      </h3>
+    </div>
+  );
+
   const SummaryContent = () => {
     return (
     <div className="space-y-6">
@@ -137,10 +200,16 @@ export function BookingSummary() {
       {/* Service */}
       {state.service && (
         <div>
-          <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-            <Home className="h-4 w-4" />
-            Service Type
-          </h3>
+          <HeaderWithInfo
+            icon={Home}
+            title="Service Type"
+            infoContent={
+              <InfoTooltip>
+                <p className="font-semibold text-primary mb-1">Service selection</p>
+                <p>Pricing adjusts automatically when you change the cleaning type on Step 1 of the booking flow.</p>
+              </InfoTooltip>
+            }
+          />
           <Badge variant="secondary" className="text-sm">
             {state.service}
           </Badge>
@@ -150,11 +219,20 @@ export function BookingSummary() {
       {/* Price Breakdown */}
       {servicePricing && (
         <div>
-          <h3 className="mb-2 text-sm font-semibold text-slate-700">Price Breakdown</h3>
+          <HeaderWithInfo
+            icon={Receipt}
+            title="Price Breakdown"
+            infoContent={
+              <InfoTooltip>
+                <p className="font-semibold text-primary mb-1">How we calculate this</p>
+                <p>Base price plus bedrooms, bathrooms and extras update here in real-time as you tweak your selections.</p>
+              </InfoTooltip>
+            }
+          />
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">Base Price</span>
-              <span className="font-medium text-slate-900">R{servicePricing.base}</span>
+              <span className="font-medium text-slate-900">R{servicePricing.base.toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">Bedrooms ({state.bedrooms})</span>
@@ -168,20 +246,46 @@ export function BookingSummary() {
                 R{(state.bathrooms * servicePricing.bathroom).toFixed(2)}
               </span>
             </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="flex items-center gap-1 text-slate-600">
+                Service Fee
+                <InfoTooltip>
+                  <p className="font-semibold text-primary mb-1">Why a service fee?</p>
+                  <p>
+                    This covers secure payments, customer support, and cleaner vetting so every visit runs smoothly.
+                  </p>
+                </InfoTooltip>
+              </span>
+              <span className="font-medium text-slate-900">
+                R{serviceFeeAmount.toFixed(2)}
+              </span>
+            </div>
           </div>
         </div>
       )}
 
       {/* Extras */}
-      {state.extras.length > 0 && (
+      {extrasDisplay.length > 0 && (
         <div>
-          <h3 className="mb-2 text-sm font-semibold text-slate-700">Additional Services</h3>
+          <HeaderWithInfo
+            icon={Check}
+            title="Additional Services"
+            infoContent={
+              <InfoTooltip>
+                <p className="font-semibold text-primary mb-1">Extras</p>
+                <p>Each add-on extends the visit and adds to the total. Remove items on the previous step to adjust.</p>
+              </InfoTooltip>
+            }
+          />
           <div className="space-y-1">
-            {state.extras.map((extra) => (
-              <div key={extra} className="flex items-center justify-between text-sm">
-                <span className="text-slate-600">{extra}</span>
+            {extrasDisplay.map(({ name, quantity, total }) => (
+              <div key={name} className="flex items-center justify-between text-sm">
+                <span className="text-slate-600">
+                  {name}
+                  {quantity > 1 ? ` ×${quantity}` : ''}
+                </span>
                 <span className="font-medium text-slate-900">
-                  R{extraPrices[extra] || PRICING.extras[extra as keyof typeof PRICING.extras] || 0}
+                  R{total.toFixed(2)}
                 </span>
               </div>
             ))}
@@ -192,10 +296,27 @@ export function BookingSummary() {
       {/* Date & Time */}
       {(state.date || state.time) && (
         <div>
-          <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-            <Calendar className="h-4 w-4" />
-            Schedule
-          </h3>
+          <HeaderWithInfo
+            icon={Calendar}
+            title="Schedule"
+            infoContent={
+              state.date && state.time ? (
+                <InfoTooltip>
+                  <p className="font-semibold text-primary mb-1">Arrival window</p>
+                  <p>
+                    You’ve selected {format(new Date(state.date), 'EEE, dd MMM')} at {state.time}. Expect a confirmation with the exact arrival window (±30 minutes).
+                  </p>
+                  <Link
+                    href="/contact?topic=schedule-help"
+                    className="mt-2 inline-flex items-center gap-2 text-primary hover:text-primary/80 font-semibold"
+                  >
+                    <LifeBuoy className="h-4 w-4" />
+                    Can’t find a time that suits? Contact us.
+                  </Link>
+                </InfoTooltip>
+              ) : undefined
+            }
+          />
           <div className="space-y-1 text-sm text-slate-600">
             {state.date && (
               <p className="flex items-center gap-2">
@@ -216,10 +337,16 @@ export function BookingSummary() {
       {/* Selected Cleaner/Team */}
       {(state.cleaner_id || state.selected_team) && state.step >= 5 && (
         <div>
-          <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-            <User className="h-4 w-4" />
-            {state.requires_team ? 'Your Team' : 'Your Cleaner'}
-          </h3>
+          <HeaderWithInfo
+            icon={User}
+            title={state.requires_team ? 'Your Team' : 'Your Cleaner'}
+            infoContent={
+              <InfoTooltip>
+                <p className="font-semibold text-primary mb-1">Assignment</p>
+                <p>We’ll confirm the professional assigned once the booking is locked in. You can request changes via support.</p>
+              </InfoTooltip>
+            }
+          />
           {state.requires_team ? (
             <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
@@ -257,10 +384,16 @@ export function BookingSummary() {
       {/* Address */}
       {state.address.line1 && (
         <div>
-          <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-            <MapPin className="h-4 w-4" />
-            Location
-          </h3>
+          <HeaderWithInfo
+            icon={MapPin}
+            title="Location"
+            infoContent={
+              <InfoTooltip>
+                <p className="font-semibold text-primary mb-1">Service address</p>
+                <p>We’ll use this address for the cleaner’s directions. Update it on the contact step if anything changes.</p>
+              </InfoTooltip>
+            }
+          />
           <div className="text-sm text-slate-600">
             <p>{state.address.line1}</p>
             {state.address.suburb && <p>{state.address.suburb}</p>}
@@ -272,10 +405,16 @@ export function BookingSummary() {
       {/* Frequency */}
       {state.frequency && state.frequency !== 'one-time' && (
         <div>
-          <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-            <Calendar className="h-4 w-4" />
-            Frequency
-          </h3>
+          <HeaderWithInfo
+            icon={Calendar}
+            title="Frequency"
+            infoContent={
+              <InfoTooltip>
+                <p className="font-semibold text-primary mb-1">Recurring plan</p>
+                <p>Save more by keeping the same cadence—swap frequencies or cancel anytime from your dashboard.</p>
+              </InfoTooltip>
+            }
+          />
           <Badge variant="secondary" className="capitalize">
             {state.frequency === 'bi-weekly' ? 'Bi-Weekly' : state.frequency}
           </Badge>
@@ -291,14 +430,6 @@ export function BookingSummary() {
               <span className="text-slate-600">Subtotal</span>
               <span className="font-medium text-slate-900">R{pricingDetails.subtotal}</span>
             </div>
-
-            {/* Service Fee */}
-            {pricingDetails.serviceFee > 0 && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-600">Service Fee</span>
-                <span className="font-medium text-slate-900">R{pricingDetails.serviceFee}</span>
-              </div>
-            )}
 
             {/* Frequency Discount */}
             {pricingDetails.frequencyDiscount > 0 && (
@@ -317,7 +448,13 @@ export function BookingSummary() {
         <div className="flex items-center justify-between pt-2 border-t">
           <div className="flex items-center gap-2">
             <Receipt className="h-5 w-5 text-slate-600" />
-            <span className="text-lg font-semibold text-slate-900">Total</span>
+            <span className="text-lg font-semibold text-slate-900 flex items-center gap-1">
+              Total
+              <InfoTooltip>
+                <p className="font-semibold text-primary mb-1">Estimated total</p>
+                <p>Includes service fee and any discounts. Final charge happens after your cleaner confirms the appointment.</p>
+              </InfoTooltip>
+            </span>
           </div>
           <motion.span 
             key={`${state.service}-${total}`}
@@ -341,15 +478,28 @@ export function BookingSummary() {
   return (
     <>
       {/* Desktop: Sticky Card */}
-      <Card className="sticky top-6 hidden border-0 shadow-lg lg:block">
+      <Card className="sticky top-6 hidden border border-slate-100 shadow-lg lg:block">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Receipt className="h-5 w-5" />
             Booking Summary
           </CardTitle>
+          <CardDescription className="flex items-center gap-2 text-xs text-slate-500">
+            <Info className="h-4 w-4 text-primary" />
+            Pricing updates as you adjust rooms, extras or schedule. Taxes and service fees included.
+          </CardDescription>
         </CardHeader>
         <CardContent key={`summary-${state.bedrooms}-${state.bathrooms}-${extrasKey}`}>
           <SummaryContent />
+          <div className="mt-6 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs text-slate-600">
+            <p className="font-semibold text-primary mb-1 flex items-center gap-2">
+              <Percent className="h-3.5 w-3.5" />
+              Recurring discounts
+            </p>
+            <p>
+              Switch to a weekly, bi-weekly or monthly plan later in the flow to save up to 15% on each visit.
+            </p>
+          </div>
         </CardContent>
       </Card>
 

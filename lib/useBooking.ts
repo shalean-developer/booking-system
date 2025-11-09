@@ -11,6 +11,7 @@ const initial: BookingState = {
   bedrooms: 2,
   bathrooms: 1,
   extras: [],
+  extrasQuantities: {},
   notes: '',
   date: null,
   time: null,
@@ -72,9 +73,13 @@ export function useBooking() {
         try {
           const loadedState = JSON.parse(raw);
           console.log('📦 Loading state from localStorage:', loadedState);
-          globalState = loadedState;
+          globalState = {
+            ...initial,
+            ...loadedState,
+            extrasQuantities: loadedState.extrasQuantities || {},
+          };
           // Update local state immediately and notify all listeners
-          setStateInternal(loadedState);
+          setStateInternal(globalState);
           // Set initialized flag before notifying to avoid re-initialization
           isInitialized = true;
           notifyListeners();

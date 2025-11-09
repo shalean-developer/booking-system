@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Star, User, Award } from 'lucide-react';
+import { Star, User, Award, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import Image from 'next/image';
@@ -12,9 +12,12 @@ interface CleanerCardProps {
   onSelect: (cleanerId: string) => void;
   isSelected?: boolean;
   isLoading?: boolean;
+  badgeLabel?: string;
+  highlight?: string;
+  tags?: string[];
 }
 
-export function CleanerCard({ cleaner, onSelect, isSelected, isLoading }: CleanerCardProps) {
+export function CleanerCard({ cleaner, onSelect, isSelected, isLoading, badgeLabel, highlight }: CleanerCardProps) {
   const handleSelect = () => {
     if (!isLoading && !isSelected) {
       onSelect(cleaner.id);
@@ -54,10 +57,18 @@ export function CleanerCard({ cleaner, onSelect, isSelected, isLoading }: Cleane
               </div>
             </div>
 
+            {/* Badge */}
+            {badgeLabel && (
+              <div className="flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                <Sparkles className="h-3 w-3" />
+                {badgeLabel}
+              </div>
+            )}
+
             {/* Name */}
             <div>
               <h3 className="font-semibold text-lg text-slate-900">{cleaner.name}</h3>
-              
+
               {/* Rating Stars */}
               <div className="flex items-center justify-center space-x-1 mt-1">
                 {[...Array(5)].map((_, i) => (
@@ -87,6 +98,13 @@ export function CleanerCard({ cleaner, onSelect, isSelected, isLoading }: Cleane
               <p className="text-sm text-slate-600 line-clamp-2">
                 {cleaner.bio}
               </p>
+            )}
+
+            {/* Highlight */}
+            {highlight && (
+              <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                {highlight}
+              </div>
             )}
 
             {/* Select Button */}

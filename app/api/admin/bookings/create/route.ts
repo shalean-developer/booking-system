@@ -91,6 +91,8 @@ async function createOneTimeBooking(supabase: any, data: CreateBookingFormData) 
   // Use manual pricing if provided, otherwise calculate automatically
   let totalInCents, serviceFeeInCents, frequencyDiscountInCents, cleanerEarnings;
   
+  const extrasQuantities = (data.extrasQuantities || data.extras_quantities || {}) as Record<string, number>;
+
   if (data.total_amount && data.total_amount > 0) {
     // Use manual pricing
     totalInCents = Math.round(data.total_amount * 100);
@@ -105,6 +107,7 @@ async function createOneTimeBooking(supabase: any, data: CreateBookingFormData) 
         bedrooms: data.bedrooms,
         bathrooms: data.bathrooms,
         extras: data.extras || [],
+        extrasQuantities,
       },
       'one-time'
     );
@@ -136,6 +139,7 @@ async function createOneTimeBooking(supabase: any, data: CreateBookingFormData) 
       bathrooms: data.bathrooms,
     },
     extras: data.extras || [],
+    extras_quantities: extrasQuantities,
     frequency: 'one-time', // Keep 'one-time' in snapshot for historical record
     service_fee: serviceFeeInCents,
     frequency_discount: frequencyDiscountInCents,
@@ -289,6 +293,7 @@ async function createRecurringBooking(supabase: any, data: CreateBookingFormData
           bedrooms: data.bedrooms,
           bathrooms: data.bathrooms,
           extras: data.extras || [],
+          extrasQuantities,
         },
         pricingFrequency as 'weekly' | 'bi-weekly' | 'monthly'
       );
@@ -312,6 +317,7 @@ async function createRecurringBooking(supabase: any, data: CreateBookingFormData
         bathrooms: data.bathrooms,
       },
       extras: data.extras || [],
+      extras_quantities: extrasQuantities,
       frequency: data.frequency,
       service_fee: serviceFeeInCents, // 0 for recurring
       frequency_discount: frequencyDiscountInCents,

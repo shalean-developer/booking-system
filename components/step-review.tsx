@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase-client';
 import type { Cleaner } from '@/types/booking';
 import Image from 'next/image';
+import Link from 'next/link';
 
 // Helper function to convert ServiceType to URL slug
 function serviceTypeToSlug(serviceType: ServiceType): string {
@@ -39,6 +40,46 @@ export function StepReview() {
   const [PaystackHook, setPaystackHook] = useState<any>(null);
   const [selectedCleaner, setSelectedCleaner] = useState<Cleaner | null>(null);
   const [isLoadingCleaner, setIsLoadingCleaner] = useState(false);
+
+  const serviceSlug = useMemo(() => (state.service ? serviceTypeToSlug(state.service) : null), [state.service]);
+  const editButtonClass = 'h-auto px-3 py-1 text-sm font-semibold text-primary hover:text-primary/80 hover:bg-primary/5';
+  const displayAmount = useCallback((value: number) => value.toLocaleString('en-ZA', { minimumFractionDigits: 0, maximumFractionDigits: 2 }), []);
+
+  const handleEditService = useCallback(() => {
+    router.push('/booking/service/select');
+  }, [router]);
+
+  const handleEditHome = useCallback(() => {
+    if (serviceSlug) {
+      router.push(`/booking/service/${serviceSlug}/details`);
+    } else {
+      router.push('/booking/service/select');
+    }
+  }, [router, serviceSlug]);
+
+  const handleEditSchedule = useCallback(() => {
+    if (serviceSlug) {
+      router.push(`/booking/service/${serviceSlug}/schedule`);
+    } else {
+      router.push('/booking/service/select');
+    }
+  }, [router, serviceSlug]);
+
+  const handleEditContact = useCallback(() => {
+    if (serviceSlug) {
+      router.push(`/booking/service/${serviceSlug}/contact`);
+    } else {
+      router.push('/booking/service/select');
+    }
+  }, [router, serviceSlug]);
+
+  const handleEditCleaner = useCallback(() => {
+    if (serviceSlug) {
+      router.push(`/booking/service/${serviceSlug}/select-cleaner`);
+    } else {
+      router.push('/booking/service/select');
+    }
+  }, [router, serviceSlug]);
   
   // Calculate immediate fallback pricing for instant display
   const fallbackPricing = useMemo(() => {
@@ -48,10 +89,11 @@ export function StepReview() {
         bedrooms: state.bedrooms,
         bathrooms: state.bathrooms,
         extras: state.extras || [],
+        extrasQuantities: state.extrasQuantities,
       },
       state.frequency || 'one-time'
     );
-  }, [state.service, state.bedrooms, state.bathrooms, state.extras, state.frequency]);
+  }, [state.service, state.bedrooms, state.bathrooms, state.extras, state.extrasQuantities, state.frequency]);
 
   // Initialize pricingDetails state immediately with fallback (no delay)
   // This ensures price displays instantly instead of "Calculating Pricing..."
@@ -117,6 +159,7 @@ export function StepReview() {
             bedrooms: state.bedrooms,
             bathrooms: state.bathrooms,
             extras: state.extras || [],
+            extrasQuantities: state.extrasQuantities,
           },
           state.frequency || 'one-time'
         );
@@ -135,7 +178,7 @@ export function StepReview() {
     };
 
     fetchPricing();
-  }, [state.service, state.bedrooms, state.bathrooms, state.extras, state.frequency, fallbackPricing]);
+  }, [state.service, state.bedrooms, state.bathrooms, state.extras, state.extrasQuantities, state.frequency, fallbackPricing]);
 
   // Keep ref in sync with pricingDetails
   useEffect(() => {
@@ -201,6 +244,29 @@ export function StepReview() {
   }, [state.cleaner_id, state.requires_team]);
 
   const total = pricingDetails?.total || 0;
+  const extrasTotal = useMemo(() => {
+    return state.extras.reduce((sum, extra) => {
+      const quantity = state.extrasQuantities[extra] ?? 1;
+      const unitPrice = PRICING.extras[extra as keyof typeof PRICING.extras] ?? 0;
+      return sum + unitPrice * Math.max(quantity, 1);
+    }, 0);
+  }, [state.extras, state.extrasQuantities]);
+  const extrasDisplay = useMemo(() => {
+    if (!state.extras || state.extras.length === 0) return [];
+    const uniqueExtras = Array.from(new Set(state.extras));
+    return uniqueExtras.map((extra) => {
+      const quantity = state.extrasQuantities[extra] ?? 1;
+      const unitPrice = PRICING.extras[extra as keyof typeof PRICING.extras] ?? 0;
+      const normalizedQuantity = Math.max(quantity, 1);
+      return {
+        name: extra,
+        quantity: normalizedQuantity,
+        unitPrice,
+        total: unitPrice * normalizedQuantity,
+      };
+    });
+  }, [state.extras, state.extrasQuantities]);
+  const baseAndRoomsTotal = useMemo(() => Math.max(pricingDetails.subtotal - extrasTotal, 0), [pricingDetails.subtotal, extrasTotal]);
 
   // Generate unique payment reference for each render
   const [paymentReference] = useState(
@@ -367,15 +433,33 @@ export function StepReview() {
       className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100"
     >
       {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
-          Review & Confirm
-        </h2>
-        <p className="text-sm md:text-base text-gray-600">
-          Please review your booking details before confirming payment
-        </p>
+      <div className="mb-8 space-y-4">
+        <div>
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+            Review & Confirm
+          </h2>
+          <p className="text-sm md:text-base text-gray-600">
+            Double-check the details below before you complete your booking and secure payment.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-slate-700 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
+              <Shield className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="font-semibold text-slate-900">Secure checkout via Paystack</p>
+              <p className="text-xs md:text-sm text-slate-600">
+                Pay with Visa, Mastercard or Instant EFT. Free reschedule or cancellation up to 24 hours before your clean.
+              </p>
+            </div>
+          </div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-primary/80">
+            SSL encrypted • No hidden fees
+          </div>
+        </div>
         {rebookId && (
-          <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 text-blue-800 p-3 text-sm">
+          <div className="rounded-lg border border-blue-200 bg-blue-50 text-blue-800 p-3 text-sm">
             <p className="font-semibold">Rebooking previous booking</p>
             <p className="mt-1">ID: {rebookId}{previousBooking?.total_amount ? ` • Previous total: R${(previousBooking.total_amount/100).toFixed(2)}` : ''}</p>
           </div>
@@ -386,11 +470,16 @@ export function StepReview() {
       <div className="space-y-6 mb-8">
         {/* Service Type Section */}
         <div className="rounded-xl bg-slate-50/50 p-5 md:p-6 border border-slate-200 hover:border-slate-300 transition-colors">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <Home className="h-5 w-5 text-primary" />
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Home className="h-5 w-5 text-primary" />
+              </div>
+              <h3 className="text-base md:text-lg font-bold text-gray-900">Service Type</h3>
             </div>
-            <h3 className="text-base md:text-lg font-bold text-gray-900">Service Type</h3>
+            <Button type="button" variant="ghost" className={editButtonClass} onClick={handleEditService}>
+              Edit
+            </Button>
           </div>
           <Badge variant="secondary" className="text-sm px-3 py-1.5 font-medium">
             {state.service}
@@ -399,11 +488,16 @@ export function StepReview() {
 
         {/* Home Details Section */}
         <div className="rounded-xl bg-slate-50/50 p-5 md:p-6 border border-slate-200 hover:border-slate-300 transition-colors">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <Home className="h-5 w-5 text-primary" />
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Home className="h-5 w-5 text-primary" />
+              </div>
+              <h3 className="text-base md:text-lg font-bold text-gray-900">Home Details</h3>
             </div>
-            <h3 className="text-base md:text-lg font-bold text-gray-900">Home Details</h3>
+            <Button type="button" variant="ghost" className={editButtonClass} onClick={handleEditHome}>
+              Edit
+            </Button>
           </div>
           <div className="grid gap-3 text-sm">
             <div className="flex justify-between items-center py-1.5 px-2 bg-white/50 rounded-lg">
@@ -418,20 +512,28 @@ export function StepReview() {
         </div>
 
         {/* Additional Services Section */}
-        {state.extras.length > 0 && (
+        {extrasDisplay.length > 0 && (
           <div className="rounded-xl bg-slate-50/50 p-5 md:p-6 border border-slate-200 hover:border-slate-300 transition-colors">
-            <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <Star className="h-5 w-5 text-primary" />
               </div>
               <h3 className="text-base md:text-lg font-bold text-gray-900">Additional Services</h3>
             </div>
+            <Button type="button" variant="ghost" className={editButtonClass} onClick={handleEditHome}>
+              Edit
+            </Button>
+            </div>
             <div className="space-y-2.5">
-              {state.extras.map((extra) => (
-                <div key={extra} className="flex items-center justify-between text-sm py-2 px-3 bg-white/50 rounded-lg">
-                  <span className="text-slate-700 font-medium">{extra}</span>
+              {extrasDisplay.map(({ name, quantity, total }) => (
+                <div key={name} className="flex items-center justify-between text-sm py-2 px-3 bg-white/50 rounded-lg">
+                  <span className="text-slate-700 font-medium">
+                    {name}
+                    {quantity > 1 ? ` ×${quantity}` : ''}
+                  </span>
                   <span className="font-bold text-gray-900">
-                    +R{PRICING.extras[extra as keyof typeof PRICING.extras]}
+                    +R{total.toFixed(2)}
                   </span>
                 </div>
               ))}
@@ -442,11 +544,16 @@ export function StepReview() {
         {/* Special Instructions Section */}
         {state.notes && (
           <div className="rounded-xl bg-slate-50/50 p-5 md:p-6 border border-slate-200 hover:border-slate-300 transition-colors">
-            <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <FileText className="h-5 w-5 text-primary" />
               </div>
               <h3 className="text-base md:text-lg font-bold text-gray-900">Special Instructions</h3>
+            </div>
+            <Button type="button" variant="ghost" className={editButtonClass} onClick={handleEditHome}>
+              Edit
+            </Button>
             </div>
             <p className="text-sm text-slate-700 leading-relaxed bg-white/50 rounded-lg p-4">{state.notes}</p>
           </div>
@@ -454,11 +561,16 @@ export function StepReview() {
 
         {/* Schedule Section */}
         <div className="rounded-xl bg-slate-50/50 p-5 md:p-6 border border-slate-200 hover:border-slate-300 transition-colors">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <Calendar className="h-5 w-5 text-primary" />
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Calendar className="h-5 w-5 text-primary" />
+              </div>
+              <h3 className="text-base md:text-lg font-bold text-gray-900">Schedule</h3>
             </div>
-            <h3 className="text-base md:text-lg font-bold text-gray-900">Schedule</h3>
+            <Button type="button" variant="ghost" className={editButtonClass} onClick={handleEditSchedule}>
+              Edit
+            </Button>
           </div>
           <div className="grid gap-3 text-sm">
             <div className="flex items-center gap-3 py-2 px-3 bg-white/50 rounded-lg">
@@ -476,11 +588,16 @@ export function StepReview() {
 
         {/* Contact Information Section */}
         <div className="rounded-xl bg-slate-50/50 p-5 md:p-6 border border-slate-200 hover:border-slate-300 transition-colors">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <User className="h-5 w-5 text-primary" />
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <User className="h-5 w-5 text-primary" />
+              </div>
+              <h3 className="text-base md:text-lg font-bold text-gray-900">Contact Information</h3>
             </div>
-            <h3 className="text-base md:text-lg font-bold text-gray-900">Contact Information</h3>
+            <Button type="button" variant="ghost" className={editButtonClass} onClick={handleEditContact}>
+              Edit
+            </Button>
           </div>
           <div className="grid gap-2.5 text-sm">
             <div className="flex items-center gap-3 py-2 px-3 bg-white/50 rounded-lg">
@@ -502,11 +619,16 @@ export function StepReview() {
 
         {/* Service Address Section */}
         <div className="rounded-xl bg-slate-50/50 p-5 md:p-6 border border-slate-200 hover:border-slate-300 transition-colors">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <MapPin className="h-5 w-5 text-primary" />
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <MapPin className="h-5 w-5 text-primary" />
+              </div>
+              <h3 className="text-base md:text-lg font-bold text-gray-900">Service Address</h3>
             </div>
-            <h3 className="text-base md:text-lg font-bold text-gray-900">Service Address</h3>
+            <Button type="button" variant="ghost" className={editButtonClass} onClick={handleEditContact}>
+              Edit
+            </Button>
           </div>
           <div className="text-sm text-slate-700 space-y-1.5 bg-white/50 rounded-lg p-4">
             <p className="font-medium">{state.address.line1}</p>
@@ -518,13 +640,18 @@ export function StepReview() {
         {/* Cleaner/Team Assignment Section */}
         {(state.cleaner_id || state.selected_team) && (
           <div className="rounded-xl bg-slate-50/50 p-5 md:p-6 border border-slate-200 hover:border-slate-300 transition-colors">
-            <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <User className="h-5 w-5 text-primary" />
               </div>
               <h3 className="text-base md:text-lg font-bold text-gray-900">
                 {state.requires_team ? 'Team Assignment' : 'Cleaner Assignment'}
               </h3>
+            </div>
+            <Button type="button" variant="ghost" className={editButtonClass} onClick={handleEditCleaner}>
+              Edit
+            </Button>
             </div>
             {state.requires_team ? (
               <div className="rounded-xl bg-blue-50 border-2 border-blue-200 p-4">
@@ -541,7 +668,11 @@ export function StepReview() {
                   Manual Assignment Requested
                 </p>
                 <p className="text-xs text-amber-700 leading-relaxed">
-                  Our team will assign the best available cleaner for you and contact you within 24 hours to confirm.
+                  Our team will assign the best available cleaner for you and contact you within 24 hours to confirm. Need a specific request?{' '}
+                  <Link href="/contact" className="font-semibold underline hover:text-amber-900">
+                    Chat to us
+                  </Link>
+                  .
                 </p>
               </div>
             ) : isLoadingCleaner ? (
@@ -636,9 +767,43 @@ export function StepReview() {
             </div>
           </div>
           <div className="text-right">
-            <span className="text-3xl md:text-4xl font-bold text-primary block leading-tight">R{total}</span>
+            <span className="text-3xl md:text-4xl font-bold text-primary block leading-tight">R{displayAmount(total)}</span>
             <span className="text-xs text-slate-500 mt-1 block">Includes all fees</span>
           </div>
+        </div>
+        <div className="space-y-2.5 text-sm text-slate-700 mb-4">
+          <div className="flex items-center justify-between">
+            <span>Service & rooms</span>
+            <span className="font-semibold">R{displayAmount(baseAndRoomsTotal)}</span>
+          </div>
+          {extrasTotal > 0 && (
+            <div className="flex items-center justify-between">
+              <span>Extras</span>
+              <span className="font-semibold">+R{displayAmount(extrasTotal)}</span>
+            </div>
+          )}
+          {pricingDetails.serviceFee > 0 && (
+            <div className="flex items-center justify-between">
+              <span>Service fee</span>
+              <span className="font-semibold">+R{displayAmount(pricingDetails.serviceFee)}</span>
+            </div>
+          )}
+          {pricingDetails.frequencyDiscount > 0 && (
+            <div className="flex items-center justify-between text-green-600 font-semibold">
+              <span>
+                {state.frequency !== 'one-time' ? `${state.frequency?.replace('-', ' ')} discount` : 'Discount'}
+                {pricingDetails.frequencyDiscountPercent ? ` (${pricingDetails.frequencyDiscountPercent}%)` : ''}
+              </span>
+              <span>-R{displayAmount(pricingDetails.frequencyDiscount)}</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between pt-2 border-t border-primary/20 text-base font-bold text-slate-900">
+            <span>Amount due today</span>
+            <span>R{displayAmount(total)}</span>
+          </div>
+        </div>
+        <div className="text-xs text-slate-600">
+          Accepted payment methods: Visa • Mastercard • Instant EFT via Paystack. You’ll receive a detailed receipt by email immediately after payment.
         </div>
       </div>
 
@@ -816,12 +981,19 @@ export function StepReview() {
           ) : (
             <>
               <CreditCard className="mr-2 h-4 w-4" />
-              <span className="sm:hidden">Pay R{total}</span>
-              <span className="hidden sm:inline">Confirm & Pay R{total}</span>
+              <span className="sm:hidden">Pay R{displayAmount(total)}</span>
+              <span className="hidden sm:inline">Confirm & Pay R{displayAmount(total)}</span>
             </>
           )}
         </Button>
       </div>
+      <p className="mt-4 text-xs text-slate-500">
+        By confirming you agree to our{' '}
+        <Link href="/terms" className="underline font-semibold hover:text-primary">
+          terms & conditions
+        </Link>
+        . Need to make changes later? You can reschedule or cancel free of charge up to 24 hours before the visit.
+      </p>
     </motion.div>
   );
 }

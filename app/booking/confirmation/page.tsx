@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -8,9 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { SocialShareButtons } from '@/components/social-share-buttons';
 import { BookingFooter } from '@/components/booking-footer';
-import { CheckCircle2, Home, Calendar, MapPin, Clock, Mail, Download, Loader2, AlertCircle, CheckCircle, LayoutGrid } from 'lucide-react';
+import { CheckCircle2, Home, Calendar, MapPin, Clock, Mail, Download, Loader2, AlertCircle, CheckCircle, LayoutGrid, Repeat, MessageSquare, Phone } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { format } from 'date-fns';
+import { addMinutes, format, parseISO } from 'date-fns';
 
 interface BookingDetails {
   id: string;
@@ -262,40 +262,57 @@ function ConfirmationContent() {
                 <Calendar className="h-5 w-5 text-primary" />
                 What&apos;s Next?
               </h3>
-              <ul className="space-y-2 text-sm text-slate-600">
+              <ul className="space-y-3 text-sm text-slate-600">
                 <li className="flex items-start gap-2">
-                  <span className="text-primary mt-0.5">✓</span>
-                  <span>You&apos;ll receive a confirmation email with your booking details and receipt</span>
+                  <CheckCircle className="h-4 w-4 text-primary mt-0.5" />
+                  <span>Check your inbox for the confirmation email and receipt.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-primary mt-0.5">✓</span>
-                  <span>Our team will contact you 24 hours before your scheduled cleaning</span>
+                  <Clock className="h-4 w-4 text-primary mt-0.5" />
+                  <span>Plan to be available 15 minutes before your cleaner arrives.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-primary mt-0.5">✓</span>
-                  <span>If you have any questions, feel free to reach out to us anytime</span>
+                  <MessageSquare className="h-4 w-4 text-primary mt-0.5" />
+                  <span>Need special products? Reply to your confirmation email so we can brief the team.</span>
                 </li>
               </ul>
             </div>
 
-            <div className="bg-primary/5 rounded-xl p-4 sm:p-6 border border-primary/10">
-              <p className="text-sm text-center text-slate-700">
-                <strong className="text-slate-900">Need to make changes?</strong>
-                <br />
-                Reply to your confirmation email or contact us at{' '}
-                <a href="mailto:hello@shalean.co.za" className="text-primary hover:underline font-medium">
-                  hello@shalean.com
-                </a>
+            <div className="bg-primary/5 rounded-xl p-4 sm:p-6 border border-primary/10 space-y-3 text-sm text-slate-700">
+              <p className="text-center">
+                <strong className="text-slate-900">Need to make changes?</strong><br />
+                Reply to your confirmation email or contact us directly.
               </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button
+                  asChild
+                  variant="outline"
+                  className="border-slate-300 hover:bg-slate-50"
+                >
+                  <Link href="tel:+27871535250">
+                    <Phone className="mr-2 h-4 w-4" />
+                    Call +27 87 153 5250
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="border-slate-300 hover:bg-slate-50"
+                >
+                  <Link href="mailto:hello@shalean.com">
+                    <Mail className="mr-2 h-4 w-4" />
+                    Email hello@shalean.com
+                  </Link>
+                </Button>
+              </div>
             </div>
 
-            {/* Action Buttons */}
             {booking && (
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="grid gap-3 sm:grid-cols-3">
                 <Button 
                   size="lg" 
                   variant="outline" 
-                  className="flex-1 border-primary text-primary hover:bg-primary/10"
+                  className="border-primary text-primary hover:bg-primary/10"
                   onClick={handleResendEmail}
                   disabled={resendLoading || !id}
                 >
@@ -312,43 +329,51 @@ function ConfirmationContent() {
                   ) : (
                     <>
                       <Mail className="mr-2 h-4 w-4" />
-                      Resend Confirmation
+                      Resend Email
                     </>
                   )}
                 </Button>
                 <Button 
                   size="lg" 
                   variant="outline" 
-                  className="flex-1"
+                  className="border-slate-300 hover:bg-slate-50"
                   onClick={handleDownloadReceipt}
                   disabled={!id}
                 >
                   <Download className="mr-2 h-4 w-4" />
                   Download Receipt
                 </Button>
+                <Button 
+                  size="lg" 
+                  variant="default"
+                  className="bg-primary hover:bg-primary/90"
+                  asChild
+                >
+                  <Link href="/dashboard/bookings">
+                    <LayoutGrid className="mr-2 h-4 w-4" />
+                    Manage booking
+                  </Link>
+                </Button>
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 px-1">
-              <Button asChild variant="default" size="lg" className="w-full">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Button asChild variant="outline" size="lg" className="border-slate-300 hover:bg-slate-50">
                 <Link href="/">
-                  <Home className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-                  <span className="sm:hidden">Home</span>
-                  <span className="hidden sm:inline">Back to Home</span>
+                  <Home className="mr-2 h-4 w-4" />
+                  Back to Home
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="lg" className="w-full border-primary text-primary hover:bg-primary/10">
-                <Link href="/dashboard">
-                  <LayoutGrid className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-                  <span className="sm:hidden">Dashboard</span>
-                  <span className="hidden sm:inline">View Dashboard</span>
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="lg" className="w-full">
+              <Button asChild variant="outline" size="lg" className="border-slate-300 hover:bg-slate-50">
                 <Link href="/booking/service/select">
-                  <Calendar className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-                  <span className="sm:hidden">Book Again</span>
-                  <span className="hidden sm:inline">Book Another Service</span>
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Book Another Service
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="lg" className="border-slate-300 hover:bg-slate-50">
+                <Link href="/booking/service/select?frequency=weekly">
+                  <Repeat className="mr-2 h-4 w-4" />
+                  Explore recurring
                 </Link>
               </Button>
             </div>

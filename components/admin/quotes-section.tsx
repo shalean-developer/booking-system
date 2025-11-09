@@ -606,22 +606,34 @@ export function QuotesSection() {
       <Dialog open={!!viewingQuote} onOpenChange={(open) => !open && setViewingQuote(null)}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           {viewingQuote && (() => {
+            const extrasQuantities = viewingQuote.extras.reduce<Record<string, number>>((acc, extra) => {
+              acc[extra] = (acc[extra] || 0) + 1;
+              return acc;
+            }, {});
+            const extrasList = Object.keys(extrasQuantities);
+
             // Calculate pricing breakdown using actual pricing calculation
             const pricingDetails = calcTotalSync(
               {
                 service: viewingQuote.service_type as ServiceType,
                 bedrooms: viewingQuote.bedrooms,
                 bathrooms: viewingQuote.bathrooms,
-                extras: viewingQuote.extras,
+                extras: extrasList,
+                extrasQuantities,
               },
               'one-time'
             );
 
             // Calculate extras breakdown
-            const extrasBreakdown = viewingQuote.extras.map(extra => ({
-              name: extra,
-              price: PRICING.extras[extra as keyof typeof PRICING.extras] || 0
-            }));
+            const extrasBreakdown = extrasList.map(extra => {
+              const quantity = extrasQuantities[extra] ?? 1;
+              const unitPrice = PRICING.extras[extra as keyof typeof PRICING.extras] || 0;
+              return {
+                name: extra,
+                quantity,
+                price: unitPrice * quantity,
+              };
+            });
 
             const extrasTotal = extrasBreakdown.reduce((sum, e) => sum + e.price, 0);
             const serviceBasePrice = pricingDetails.subtotal - extrasTotal;
@@ -809,7 +821,10 @@ export function QuotesSection() {
                         
                         {extrasBreakdown.map((extra, idx) => (
                           <div key={idx} className="flex justify-between">
-                            <p className="text-sm">{extra.name}</p>
+                            <p className="text-sm">
+                              {extra.name}
+                              {extra.quantity > 1 ? ` ×${extra.quantity}` : ''}
+                            </p>
                             <p className="text-sm">{formatCurrency(extra.price)}</p>
                           </div>
                         ))}

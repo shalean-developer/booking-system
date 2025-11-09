@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ServiceType } from '@/types/booking';
 import { useBooking } from '@/lib/useBooking';
@@ -10,11 +10,51 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { motion } from 'framer-motion';
 import { PRICING } from '@/lib/pricing';
-import { Check } from 'lucide-react';
+import { BadgeCheck, Check, Info, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EXTRA_ICONS } from '@/components/extra-service-icons';
 
-const extrasList = Object.keys(PRICING.extras) as Array<keyof typeof PRICING.extras>;
+const allExtrasList = Object.keys(PRICING.extras) as Array<keyof typeof PRICING.extras>;
+const standardAndAirbnbExtras: Array<keyof typeof PRICING.extras> = [
+  'Inside Fridge',
+  'Inside Oven',
+  'Laundry',
+  'Interior Walls',
+  'Interior Windows',
+  'Inside Cabinets',
+  'Ironing',
+];
+const deepAndMoveExtras = allExtrasList.filter(
+  (extra) => !standardAndAirbnbExtras.includes(extra)
+);
+const recommendedExtras = new Set<keyof typeof PRICING.extras>([
+  'Inside Oven',
+  'Interior Windows',
+  'Carpet Cleaning',
+  'Outside Window Cleaning',
+]);
+const quantityExtras = new Set<keyof typeof PRICING.extras>([
+  'Carpet Cleaning',
+  'Couch Cleaning',
+  'Ceiling Cleaning',
+]);
+const DEFAULT_QUANTITY = 1;
+const MAX_QUANTITY = 5;
+const extrasMeta: Record<keyof typeof PRICING.extras, { blurb: string }> = {
+  'Inside Fridge': { blurb: 'Wipe shelves, trays and seals' },
+  'Inside Oven': { blurb: 'Remove grease and baked-on mess' },
+  'Inside Cabinets': { blurb: 'Empty, dust and reset cupboards' },
+  'Interior Windows': { blurb: 'Inside glass, tracks and frames' },
+  'Interior Walls': { blurb: 'Spot-clean scuffs and marks' },
+  'Ironing': { blurb: 'Press 10–15 garments per visit' },
+  'Laundry': { blurb: 'Wash, dry and fold one load' },
+  'Carpet Cleaning': { blurb: 'Deep clean high-traffic carpet zones' },
+  'Ceiling Cleaning': { blurb: 'Remove cobwebs and ceiling dust build-up' },
+  'Garage Cleaning': { blurb: 'Sweep, dust and organise your garage floor' },
+  'Balcony Cleaning': { blurb: 'Wash floors, railings and outdoor furniture' },
+  'Couch Cleaning': { blurb: 'Refresh upholstery with fabric-safe cleaner' },
+  'Outside Window Cleaning': { blurb: 'Exterior glass and frames washed' },
+};
 
 // Helper function to convert ServiceType to URL slug
 function serviceTypeToSlug(serviceType: ServiceType): string {
@@ -31,6 +71,65 @@ function serviceTypeToSlug(serviceType: ServiceType): string {
 export function StepDetails() {
   const router = useRouter();
   const { state, updateField } = useBooking();
+  const stepLabel = useMemo(() => {
+    if (!state.service) return 'Step 1 of 3 · Service Setup';
+    return `Step 1 of 3 · ${state.service} setup`;
+  }, [state.service]);
+
+  const allowedExtras = useMemo(() => {
+    switch (state.service) {
+      case 'Deep':
+      case 'Move In/Out':
+        return deepAndMoveExtras;
+      case 'Standard':
+      case 'Airbnb':
+        return standardAndAirbnbExtras;
+      default:
+        return allExtrasList;
+    }
+  }, [state.service]);
+
+  useEffect(() => {
+    const allowedSet = new Set(allowedExtras);
+    const filteredExtras = state.extras.filter((extra) => allowedSet.has(extra as keyof typeof PRICING.extras));
+    if (filteredExtras.length !== state.extras.length) {
+      updateField('extras', filteredExtras);
+    }
+
+    const filteredQuantities = Object.entries(state.extrasQuantities).reduce<Record<string, number>>((acc, [extra, qty]) => {
+      if (allowedSet.has(extra as keyof typeof PRICING.extras) && filteredExtras.includes(extra)) {
+        acc[extra] = qty;
+      }
+      return acc;
+    }, {});
+
+    if (Object.keys(filteredQuantities).length !== Object.keys(state.extrasQuantities).length) {
+      updateField('extrasQuantities', filteredQuantities);
+    }
+  }, [allowedExtras, state.extras, state.extrasQuantities, updateField]);
+  useEffect(() => {
+    const updates: Record<string, number> = {};
+    let shouldUpdate = false;
+
+    state.extras.forEach((extra) => {
+      const extraKey = extra as keyof typeof PRICING.extras;
+      if (!quantityExtras.has(extraKey)) {
+        return;
+      }
+      const currentQty = state.extrasQuantities[extra];
+      if (!currentQty || currentQty < DEFAULT_QUANTITY) {
+        updates[extra] = DEFAULT_QUANTITY;
+        shouldUpdate = true;
+      }
+    });
+
+    if (shouldUpdate) {
+      updateField('extrasQuantities', {
+        ...state.extrasQuantities,
+        ...updates,
+      });
+    }
+  }, [state.extras, state.extrasQuantities, updateField]);
   
   // Diagnostic logging
   useEffect(() => {
@@ -76,12 +175,42 @@ export function StepDetails() {
   const toggleExtra = useCallback((extra: string) => {
     const isCurrentlySelected = state.extras.includes(extra);
     console.log('⭐ Extra toggled:', extra, 'currently selected:', isCurrentlySelected);
-    const newExtras = isCurrentlySelected 
-      ? state.extras.filter((e) => e !== extra)
-      : [...state.extras, extra];
-    console.log('⭐ New extras array:', newExtras);
-    updateField('extras', newExtras);
-  }, [state.extras, updateField]);
+
+    if (isCurrentlySelected) {
+      const newExtras = state.extras.filter((e) => e !== extra);
+      const { [extra]: _removed, ...rest } = state.extrasQuantities;
+      updateField('extras', newExtras);
+      updateField('extrasQuantities', rest);
+    } else {
+      const newExtras = [...state.extras, extra];
+      const extraKey = extra as keyof typeof PRICING.extras;
+      const initialQty = quantityExtras.has(extraKey) ? DEFAULT_QUANTITY : 1;
+      updateField('extras', newExtras);
+      updateField('extrasQuantities', {
+        ...state.extrasQuantities,
+        [extra]: initialQty,
+      });
+    }
+  }, [state.extras, state.extrasQuantities, updateField]);
+
+  const adjustQuantity = useCallback((extra: string, delta: number) => {
+    const extraKey = extra as keyof typeof PRICING.extras;
+    if (!quantityExtras.has(extraKey)) return;
+    if (!state.extras.includes(extra)) {
+      // Select the extra first if not already selected
+      toggleExtra(extra);
+      return;
+    }
+
+    const currentQty = state.extrasQuantities[extra] ?? DEFAULT_QUANTITY;
+    const nextQty = Math.min(MAX_QUANTITY, Math.max(DEFAULT_QUANTITY, currentQty + delta));
+    if (nextQty === currentQty) return;
+
+    updateField('extrasQuantities', {
+      ...state.extrasQuantities,
+      [extra]: nextQty,
+    });
+  }, [state.extras, state.extrasQuantities, toggleExtra, updateField]);
 
   // Validation: Ensure minimum 1 bathroom
   const isValid = state.bathrooms >= 1;
@@ -95,22 +224,37 @@ export function StepDetails() {
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
-      className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100"
+      className="bg-white rounded-2xl shadow-md p-6 md:p-8 border border-slate-100"
     >
       {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
-          Home Details
-        </h2>
-        <p className="text-sm md:text-base text-gray-600">
-          Tell us about your space and any extras you need
-        </p>
+      <div className="mb-8 space-y-3">
+        <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
+          <BadgeCheck className="h-3.5 w-3.5" />
+          {stepLabel}
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
+            Home details
+          </h2>
+          <p className="text-sm md:text-base text-gray-600 max-w-2xl">
+            This helps us size the team, estimate timing and fine-tune your price instantly. You can adjust anything later.
+          </p>
+        </div>
       </div>
 
       {/* Form Content */}
-      <div className="space-y-8">
+      <div className="space-y-10">
         {/* Bedrooms & Bathrooms */}
-        <div className="grid gap-6 sm:grid-cols-2">
+        <section aria-labelledby="home-size">
+          <div className="mb-4 space-y-1">
+            <h3 id="home-size" className="text-base font-semibold text-slate-900">
+              Home size
+            </h3>
+            <p className="text-sm text-slate-500">
+              Let us know how many rooms you’d like cleaned this visit.
+            </p>
+          </div>
+          <div className="grid gap-6 sm:grid-cols-2">
           {/* Bedrooms */}
           <div className="space-y-2">
             <Label htmlFor="bedrooms" className="text-sm font-semibold text-gray-900">
@@ -149,38 +293,58 @@ export function StepDetails() {
               </SelectContent>
             </Select>
           </div>
-        </div>
+          </div>
+        </section>
 
         {/* Extras */}
-        <div className="space-y-4">
-          <div>
-            <Label className="text-base font-bold text-gray-900">
-              Extra Services
-            </Label>
-            <p className="text-sm text-gray-600 mt-1">
-              Select any extras to enhance your cleaning service
-            </p>
+        <section className="space-y-4" aria-labelledby="extra-services">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <Label id="extra-services" className="text-base font-semibold text-gray-900">
+                Extra services
+              </Label>
+              <p className="text-sm text-gray-600 mt-1 max-w-xl">
+                Add-on tasks our clients book most often. We’ll build them into the time estimate and checklist.
+              </p>
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              Most popular add-ons highlighted
+            </div>
           </div>
           
           <div 
-            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 lg:gap-6"
+            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4"
             role="group"
             aria-label="Extra services"
           >
-            {extrasList.map((extra) => {
+            {allowedExtras.map((extra) => {
               const isSelected = state.extras.includes(extra);
-              const IconComponent = EXTRA_ICONS[extra as keyof typeof EXTRA_ICONS];
+              const extraKey = extra as keyof typeof PRICING.extras;
+              const IconComponent = EXTRA_ICONS[extraKey];
+              const meta = extrasMeta[extraKey];
+              const isRecommended = recommendedExtras.has(extraKey);
+              const isQuantityExtra = quantityExtras.has(extraKey);
+              const quantity = state.extrasQuantities[extra] ?? (isSelected ? DEFAULT_QUANTITY : 0);
+              const unitPrice = PRICING.extras[extraKey];
+              const totalPrice = unitPrice * Math.max(quantity || 0, 1);
+
               return (
-                <motion.button
+                <motion.div
                   key={extra}
                   onClick={() => toggleExtra(extra)}
-                  type="button"
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      toggleExtra(extra);
+                    }
+                  }}
+                  tabIndex={0}
                   className={cn(
-                    'relative rounded-2xl border p-5 flex flex-col items-center gap-3 cursor-pointer transition-all',
-                    'focus:outline-none focus:ring-2 focus:ring-primary/30 min-h-[120px]',
+                    'group relative flex cursor-pointer flex-col items-center gap-4 rounded-2xl border px-4 py-6 text-center transition-all focus:outline-none focus:ring-2 focus:ring-primary/25 focus:ring-offset-2 min-h-[170px]',
                     isSelected
-                      ? 'bg-primary/10 ring-4 ring-primary shadow-lg border-primary/30'
-                      : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-md'
+                      ? 'border-primary/50 bg-gradient-to-br from-primary/10 via-white to-white shadow-lg shadow-primary/10 ring-2 ring-primary'
+                      : 'border-slate-200 bg-white hover:border-primary/40 hover:shadow-md'
                   )}
                   whileHover={{ scale: 1.02, y: -2 }}
                   whileTap={{ scale: 0.98 }}
@@ -189,100 +353,155 @@ export function StepDetails() {
                   aria-checked={isSelected}
                   aria-labelledby={`extra-${extra}-label`}
                 >
-                  {/* Icon Container - Green outlined circle */}
-                  <div className={cn(
-                    "w-14 h-14 rounded-full flex items-center justify-center transition-all border-2",
-                    isSelected 
-                      ? 'border-primary bg-primary/5 text-primary' 
-                      : 'border-primary/30 bg-white text-gray-700'
-                  )}>
+                  <div
+                    className={cn(
+                      'flex h-14 w-14 items-center justify-center rounded-2xl border-2 bg-slate-50 text-gray-700 shadow-sm transition-all',
+                      isSelected
+                        ? 'border-primary/60 bg-gradient-to-br from-primary/10 to-transparent text-primary shadow-primary/20'
+                        : 'border-slate-200 group-hover:border-primary/30 group-hover:text-primary group-hover:shadow-primary/20'
+                    )}
+                  >
                     {IconComponent ? (
-                      <IconComponent className="w-6 h-6" />
+                      <IconComponent className="h-7 w-7" />
                     ) : (
-                      <div className="w-6 h-6 rounded bg-gray-300" />
+                      <div className="h-7 w-7 rounded-lg bg-gray-300" />
                     )}
                   </div>
 
-                  {/* Extra Details */}
-                  <div className="text-center space-y-1">
-                    <div 
+                  <div className="space-y-1.5">
+                    <div
                       id={`extra-${extra}-label`}
                       className={cn(
-                        "text-sm font-semibold leading-tight",
-                        isSelected ? 'text-gray-900' : 'text-gray-700'
+                        'text-sm font-semibold leading-snug',
+                        isSelected ? 'text-primary' : 'text-gray-900'
                       )}
                     >
                       {extra}
                     </div>
-                    <div className="text-xs font-medium text-gray-600">
-                      +R{PRICING.extras[extra]}
+                    <div className="text-xs font-medium uppercase tracking-wide text-gray-600">
+                      {isQuantityExtra ? `+R${unitPrice} each` : `+R${unitPrice}`}
                     </div>
+                    {meta && (
+                      <p className="text-xs leading-relaxed text-gray-500">
+                        {meta.blurb}
+                      </p>
+                    )}
                   </div>
 
-                  {/* Selected Check Mark Badge */}
+                  {isSelected && isQuantityExtra && (
+                    <div className="mt-1 flex items-center gap-3 rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          adjustQuantity(extra, -1);
+                        }}
+                        onKeyDown={(event) => event.stopPropagation()}
+                        className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-slate-600 shadow-sm transition hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        aria-label={`Decrease ${extra} quantity`}
+                      >
+                        –
+                      </button>
+                      <span className="min-w-[1.5rem] text-center text-slate-900">
+                        {quantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          adjustQuantity(extra, 1);
+                        }}
+                        onKeyDown={(event) => event.stopPropagation()}
+                        className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-slate-600 shadow-sm transition hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        aria-label={`Increase ${extra} quantity`}
+                      >
+                        +
+                      </button>
+                    </div>
+                  )}
+
+                  {isSelected && (
+                    <div className="text-xs font-semibold uppercase tracking-wide text-primary">
+                      {isQuantityExtra && quantity > 1 ? `Total +R${totalPrice}` : 'Added'}
+                    </div>
+                  )}
+
                   {isSelected && (
                     <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      className="absolute top-3 right-3 w-5 h-5 rounded-full bg-primary flex items-center justify-center"
+                      className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-primary shadow-sm"
                     >
-                      <Check className="h-3 w-3 text-white" strokeWidth={3} />
+                      <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
                     </motion.div>
                   )}
-                </motion.button>
+
+                  {isRecommended && (
+                    <span className="pointer-events-none absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full border border-primary/20 bg-white px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary shadow-sm">
+                      <Sparkles className="h-3 w-3" />
+                      Popular
+                    </span>
+                  )}
+                </motion.div>
               );
             })}
           </div>
-        </div>
+        </section>
 
         {/* Special Instructions */}
-        <div className="space-y-2">
+        <section className="space-y-3" aria-labelledby="special-instructions">
           <Label htmlFor="notes" className="text-sm font-semibold text-gray-900">
             Special Instructions
             <span className="text-gray-500 font-normal ml-2">(Optional)</span>
           </Label>
           <Textarea
             id="notes"
-            placeholder="Any specific requirements, areas of focus, or special considerations..."
+            placeholder="Example: focus on pet hair in lounge, bring eco products, gate code #4582"
             value={state.notes}
             onChange={(e) => updateField('notes', e.target.value)}
             rows={4}
             className="resize-none focus:ring-2 focus:ring-primary/30"
           />
-        </div>
+          <p className="text-xs text-slate-500">
+            Sharing specifics helps us brief your cleaning team ahead of time.
+          </p>
+        </section>
       </div>
 
       {/* Navigation */}
-      <div className="flex justify-between gap-3 mt-8 pt-6 border-t">
-        <Button 
-          variant="outline" 
-          onClick={handleBack} 
-          size="lg" 
-          className={cn(
-            "rounded-full px-6 font-semibold",
-            "focus:ring-2 focus:ring-primary/30 focus:outline-none",
-            "transition-all duration-200"
-          )}
-          type="button"
-        >
-          <span className="sm:hidden">Back</span>
-          <span className="hidden sm:inline">Back to Service</span>
-        </Button>
-        <Button 
-          onClick={handleNext} 
-          size="lg" 
-          disabled={!isValid}
-          className={cn(
-            "rounded-full px-8 py-3 font-semibold shadow-lg",
-            isValid ? "bg-primary hover:bg-primary/90 text-white" : "bg-gray-300 text-gray-500 cursor-not-allowed",
-            "focus:ring-2 focus:ring-primary/30 focus:outline-none",
-            "transition-all duration-200"
-          )}
-          type="button"
-        >
-          <span className="sm:hidden">Continue</span>
-          <span className="hidden sm:inline">Continue to Schedule</span>
-        </Button>
+      <div className="mt-8 space-y-4 border-t pt-6">
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <Button 
+            variant="ghost" 
+            onClick={handleBack} 
+            size="lg" 
+            className={cn(
+              "rounded-full px-4 font-semibold text-slate-600 hover:text-primary",
+              "focus:ring-2 focus:ring-primary/30 focus:outline-none",
+              "transition-all duration-200 w-full sm:w-auto justify-center sm:justify-start"
+            )}
+            type="button"
+          >
+            Back to service
+          </Button>
+          <Button 
+            onClick={handleNext} 
+            size="lg" 
+            disabled={!isValid}
+            className={cn(
+              "rounded-full px-8 py-3 font-semibold shadow-lg w-full sm:w-auto justify-center",
+              isValid ? "bg-primary hover:bg-primary/90 text-white" : "bg-gray-300 text-gray-500 cursor-not-allowed",
+              "focus:ring-2 focus:ring-primary/30 focus:outline-none",
+              "transition-all duration-200"
+            )}
+            type="button"
+          >
+            Continue to schedule
+          </Button>
+        </div>
+        <p className="text-xs text-slate-500">
+          You can always tweak these selections in the next steps before confirming your booking.
+        </p>
       </div>
 
       {/* Validation Message */}

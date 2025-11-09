@@ -11,10 +11,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { User, MapPin, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { User, MapPin, AlertCircle, CheckCircle, Loader2, CalendarDays, Clock, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getCachedCustomer, setCachedCustomer } from '@/lib/customer-cache';
 import { AddressAutocomplete } from '@/components/address-autocomplete';
+import { format } from 'date-fns';
 
 // Helper function to convert ServiceType to URL slug
 function serviceTypeToSlug(serviceType: ServiceType): string {
@@ -168,6 +169,17 @@ export function StepContact() {
     }
   }, [state, setState, router]);
 
+  const scheduledDateLabel = useMemo(() => {
+    if (!state.date) return null;
+    try {
+      return format(new Date(state.date), 'EEE, dd MMM yyyy');
+    } catch {
+      return state.date;
+    }
+  }, [state.date]);
+
+  const scheduledTimeLabel = state.time;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -176,13 +188,20 @@ export function StepContact() {
       className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100"
     >
       {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
-          Contact & Address
-        </h2>
-        <p className="text-sm md:text-base text-gray-600">
-          Where should we send confirmation and arrive for cleaning?
-        </p>
+      <div className="mb-8 space-y-5">
+        <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
+          <CalendarDays className="h-3.5 w-3.5" />
+          Step 2 of 3 · Schedule & Contact
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
+            Contact & address
+          </h2>
+          <p className="text-sm md:text-base text-gray-600 max-w-2xl">
+            We’ll send booking updates to these details and share the address with your assigned cleaner only.
+          </p>
+        </div>
+
       </div>
 
       {/* Form */}
@@ -504,20 +523,38 @@ export function StepContact() {
         </div>
 
         {/* Navigation */}
-        <div className="flex justify-end gap-3 mt-8 pt-6 border-t">
-          <Button 
-            type="submit" 
-            size="lg" 
-            className={cn(
-              "rounded-full px-8 py-3 font-semibold shadow-lg",
-              "bg-primary hover:bg-primary/90 text-white",
-              "focus:ring-2 focus:ring-primary/30 focus:outline-none",
-              "transition-all duration-200"
-            )}
-          >
-            <span className="sm:hidden">Continue</span>
-            <span className="hidden sm:inline">Continue to Cleaner</span>
-          </Button>
+        <div className="mt-8 space-y-3 border-t pt-6">
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <Button 
+              type="button"
+              variant="ghost"
+              onClick={handleBack}
+              size="lg"
+              className={cn(
+                "rounded-full px-4 font-semibold text-slate-600 hover:text-primary",
+                "focus:ring-2 focus:ring-primary/30 focus:outline-none",
+                "transition-all duration-200 w-full sm:w-auto justify-center sm:justify-start"
+              )}
+            >
+              Back to schedule
+            </Button>
+            <Button 
+              type="submit" 
+              size="lg" 
+              className={cn(
+                "rounded-full px-8 py-3 font-semibold shadow-lg w-full sm:w-auto justify-center",
+                "bg-primary hover:bg-primary/90 text-white",
+                "focus:ring-2 focus:ring-primary/30 focus:outline-none",
+                "transition-all duration-200"
+              )}
+            >
+              <span className="sm:hidden">Continue</span>
+              <span className="hidden sm:inline">Continue to cleaner</span>
+            </Button>
+          </div>
+          <p className="text-xs text-slate-500">
+            We’ll only contact you about this booking. You can update details on the next step if anything changes.
+          </p>
         </div>
       </form>
     </motion.div>

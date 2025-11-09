@@ -22,6 +22,12 @@ export const PRICING = {
     'Interior Walls': 35,
     'Ironing': 35,
     'Laundry': 40,
+    'Carpet Cleaning': 120,
+    'Ceiling Cleaning': 85,
+    'Garage Cleaning': 110,
+    'Balcony Cleaning': 90,
+    'Couch Cleaning': 130,
+    'Outside Window Cleaning': 125,
   },
   serviceFee: 50,
   frequencyDiscounts: {
@@ -79,6 +85,7 @@ export function calcTotal(input: {
   bedrooms: number;
   bathrooms: number;
   extras: string[];
+  extrasQuantities?: Record<string, number>;
 }) {
   if (!input.service) return 0;
 
@@ -88,10 +95,11 @@ export function calcTotal(input: {
   const base = servicePricing.base;
   const beds = input.bedrooms * servicePricing.bedroom;
   const baths = input.bathrooms * servicePricing.bathroom;
-  const extras = input.extras.reduce(
-    (sum, k) => sum + (PRICING.extras[k as ExtraKey] ?? 0),
-    0
-  );
+  const extras = input.extras.reduce((sum, extraName) => {
+    const quantity = input.extrasQuantities?.[extraName] ?? 1;
+    const unitPrice = PRICING.extras[extraName as ExtraKey] ?? 0;
+    return sum + unitPrice * Math.max(quantity, 1);
+  }, 0);
 
   return Math.round(base + beds + baths + extras);
 }
@@ -109,6 +117,7 @@ export function calcTotalSync(
     bedrooms: number;
     bathrooms: number;
     extras: string[];
+    extrasQuantities?: Record<string, number>;
   },
   frequency: 'one-time' | 'weekly' | 'bi-weekly' | 'monthly' = 'one-time'
 ): {
@@ -144,7 +153,9 @@ export function calcTotalSync(
   const beds = input.bedrooms * servicePricing.bedroom;
   const baths = input.bathrooms * servicePricing.bathroom;
   const extrasTotal = input.extras.reduce((sum, extraName) => {
-    return sum + (PRICING.extras[extraName as ExtraKey] ?? 0);
+    const quantity = input.extrasQuantities?.[extraName] ?? 1;
+    const unitPrice = PRICING.extras[extraName as ExtraKey] ?? 0;
+    return sum + unitPrice * Math.max(quantity, 1);
   }, 0);
 
   const subtotal = base + beds + baths + extrasTotal;
@@ -182,6 +193,7 @@ export async function calcTotalAsync(
     bedrooms: number;
     bathrooms: number;
     extras: string[];
+    extrasQuantities?: Record<string, number>;
   },
   frequency: 'one-time' | 'weekly' | 'bi-weekly' | 'monthly' = 'one-time'
 ): Promise<{
@@ -214,13 +226,15 @@ export async function calcTotalAsync(
     const beds = input.bedrooms * servicePricing.bedroom;
     const baths = input.bathrooms * servicePricing.bathroom;
     const extrasTotal = input.extras.reduce((sum, extraName) => {
-      return sum + (pricing.extras[extraName] ?? 0);
+      const quantity = input.extrasQuantities?.[extraName] ?? 1;
+      const unitPrice = pricing.extras[extraName] ?? 0;
+      return sum + unitPrice * Math.max(quantity, 1);
     }, 0);
 
     const subtotal = base + beds + baths + extrasTotal;
 
     // Add service fee
-    const serviceFee = pricing.serviceFee || 0;
+    const serviceFee = pricing.serviceFee ?? PRICING.serviceFee ?? 0;
 
     // Calculate frequency discount
     const discountPercent = frequency !== 'one-time' 
@@ -247,11 +261,13 @@ export async function calcTotalAsync(
     const beds = input.bedrooms * servicePricing.bedroom;
     const baths = input.bathrooms * servicePricing.bathroom;
     const extrasTotal = input.extras.reduce((sum, extraName) => {
-      return sum + (PRICING.extras[extraName as ExtraKey] ?? 0);
+      const quantity = input.extrasQuantities?.[extraName] ?? 1;
+      const unitPrice = PRICING.extras[extraName as ExtraKey] ?? 0;
+      return sum + unitPrice * Math.max(quantity, 1);
     }, 0);
 
     const subtotal = base + beds + baths + extrasTotal;
-    const serviceFee = PRICING.serviceFee;
+    const serviceFee = PRICING.serviceFee ?? 0;
     const discountPercent = frequency !== 'one-time' 
       ? (PRICING.frequencyDiscounts[frequency] || 0)
       : 0;

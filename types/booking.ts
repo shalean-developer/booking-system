@@ -8,6 +8,7 @@ export interface BookingState {
   bedrooms: number;
   bathrooms: number;
   extras: string[];
+  extrasQuantities: Record<string, number>;
   notes: string;
   date: string | null; // ISO yyyy-mm-dd
   time: string | null; // "07:00", "07:30", ..., "13:00"
