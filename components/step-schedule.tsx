@@ -160,12 +160,12 @@ export function StepSchedule() {
           // Property
           updateField('bedrooms', b.bedrooms || 0);
           updateField('bathrooms', b.bathrooms || 1);
-          const extrasFromBooking = Array.isArray(b.extras) ? b.extras : [];
+          const extrasFromBooking = Array.isArray(b.extras) ? (b.extras as string[]) : [];
           updateField('extras', extrasFromBooking);
-          const extraCounts = extrasFromBooking.reduce<Record<string, number>>((acc, extra) => {
+          const extraCounts = extrasFromBooking.reduce((acc: Record<string, number>, extra: string) => {
             acc[extra] = (acc[extra] || 0) + 1;
             return acc;
-          }, {});
+          }, {} as Record<string, number>);
           updateField('extrasQuantities', extraCounts);
           updateField('notes', b.notes || '');
           // Contact

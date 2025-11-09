@@ -30,7 +30,12 @@ export function StepSelectCleaner() {
   const [cleaners, setCleaners] = useState<Cleaner[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCleanerId, setSelectedCleanerId] = useState<string | null>(null);
-  const [selectedTeam, setSelectedTeam] = useState<TeamName | null>(state.selected_team ?? null);
+  const initialTeam = useMemo<TeamName | null>(() => {
+    const teamValue = state.selected_team;
+    const validTeams: TeamName[] = ['Team A', 'Team B', 'Team C'];
+    return validTeams.includes(teamValue as TeamName) ? (teamValue as TeamName) : null;
+  }, [state.selected_team]);
+  const [selectedTeam, setSelectedTeam] = useState<TeamName | null>(initialTeam);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sortOption, setSortOption] = useState<'recommended' | 'rating' | 'experience'>('recommended');
