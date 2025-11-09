@@ -252,6 +252,7 @@ async function createRecurringBooking(supabase: any, data: CreateBookingFormData
 
   // Generate bookings for current month if requested
   let bookingsCreated = 0;
+  const extrasQuantities = (data.extrasQuantities || data.extras_quantities || {}) as Record<string, number>;
   if (data.generate_current_month) {
     const currentDate = new Date();
     const year = currentDate.getFullYear();
