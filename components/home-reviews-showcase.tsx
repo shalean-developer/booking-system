@@ -65,9 +65,9 @@ export function HomeReviewsShowcase() {
                 <div className="flex items-center justify-between pt-4 border-t">
                   <div>
                     <p className="font-semibold text-gray-900">{review.name}</p>
-                    <p className="text-sm text-gray-500">{review.location}</p>
+                  <p className="text-sm text-gray-600">{review.location}</p>
                   </div>
-                  <p className="text-sm text-gray-500">{review.date}</p>
+                <p className="text-sm text-gray-600">{review.date}</p>
                 </div>
               </CardContent>
             </Card>

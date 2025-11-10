@@ -15,7 +15,7 @@ export function HomeServiceOfferings() {
     <section className="py-12 sm:py-16 lg:py-20 bg-gray-50">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-8 sm:mb-12 lg:mb-16">
-          <Badge className="bg-primary/10 text-primary border-primary/20 mb-3 sm:mb-4 text-xs sm:text-sm">
+          <Badge className="bg-primary text-white border-primary/80 mb-3 sm:mb-4 text-xs sm:text-sm shadow-sm">
             Our Services
           </Badge>
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4 sm:mb-6">

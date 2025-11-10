@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 export function QuoteHero() {
   return (
     <header className="mb-6 sm:mb-8 text-center">
-      <Badge className="mb-3 sm:mb-4 bg-primary/10 text-primary border-primary/20 text-xs sm:text-sm">
+      <Badge className="mb-3 sm:mb-4 bg-primary text-white border-primary/80 text-xs sm:text-sm shadow-sm">
         Free Quote Request
       </Badge>
       <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 px-2">

@@ -32,7 +32,7 @@ export function HomeHero() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <div className="mb-3 sm:mb-4">
-            <Badge className="bg-primary/10 text-primary border-primary/20 text-xs sm:text-sm">
+            <Badge className="bg-primary text-white border-primary/80 text-xs sm:text-sm shadow-sm">
               Professional Cleaning Excellence
             </Badge>
           </div>

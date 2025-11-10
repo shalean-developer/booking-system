@@ -10,7 +10,7 @@ export function HomeFlagshipServices() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12 items-center">
           <div>
-            <Badge className="bg-primary/10 text-primary border-primary/20 mb-3 sm:mb-4 text-xs sm:text-sm">
+            <Badge className="bg-primary text-white border-primary/80 mb-3 sm:mb-4 text-xs sm:text-sm shadow-sm">
               Most Booked Services
             </Badge>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4 sm:mb-6">
