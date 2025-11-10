@@ -1,7 +1,15 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
-import { RecurringCustomersSection } from '@/components/admin/recurring-customers-section';
+
+const RecurringCustomersSection = dynamic(
+  () => import('@/components/admin/recurring-customers-section').then((mod) => ({ default: mod.RecurringCustomersSection })),
+  {
+    ssr: false,
+    loading: () => <div className="py-12 text-center text-gray-500">Loading recurring customers...</div>,
+  }
+);
 
 export default function RecurringCustomersPage() {
   return (

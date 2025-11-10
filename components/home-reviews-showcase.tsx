@@ -67,7 +67,7 @@ export function HomeReviewsShowcase() {
                     <p className="font-semibold text-gray-900">{review.name}</p>
                     <p className="text-sm text-gray-500">{review.location}</p>
                   </div>
-                  <p className="text-sm text-gray-400">{review.date}</p>
+                  <p className="text-sm text-gray-500">{review.date}</p>
                 </div>
               </CardContent>
             </Card>

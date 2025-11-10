@@ -1,7 +1,15 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
-import { QuotesSection } from '@/components/admin/quotes-section';
+
+const QuotesSection = dynamic(
+  () => import('@/components/admin/quotes-section').then((mod) => ({ default: mod.QuotesSection })),
+  {
+    ssr: false,
+    loading: () => <div className="py-12 text-center text-gray-500">Loading quotes...</div>,
+  }
+);
 
 export default function QuotesPage() {
   return (

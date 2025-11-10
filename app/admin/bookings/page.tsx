@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import { Calendar, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,7 +23,14 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { BookingsSection } from '@/components/admin/bookings-section';
+
+const BookingsSection = dynamic(
+  () => import('@/components/admin/bookings-section').then((mod) => ({ default: mod.BookingsSection })),
+  {
+    ssr: false,
+    suspense: true,
+  }
+);
 
 export default function BookingsPage() {
   return (

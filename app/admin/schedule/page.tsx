@@ -1,7 +1,15 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
-import { ScheduleSection } from '@/components/admin/schedule-section';
+
+const ScheduleSection = dynamic(
+  () => import('@/components/admin/schedule-section').then((mod) => ({ default: mod.ScheduleSection })),
+  {
+    ssr: false,
+    loading: () => <div className="py-12 text-center text-gray-500">Loading schedule...</div>,
+  }
+);
 
 export default function SchedulePage() {
   return (

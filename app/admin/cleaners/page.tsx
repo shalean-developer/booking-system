@@ -1,7 +1,15 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
-import { CleanersSection } from '@/components/admin/cleaners-section';
+
+const CleanersSection = dynamic(
+  () => import('@/components/admin/cleaners-section').then((mod) => ({ default: mod.CleanersSection })),
+  {
+    ssr: false,
+    loading: () => <div className="py-12 text-center text-gray-500">Loading cleaners...</div>,
+  }
+);
 
 export default function CleanersPage() {
   return (

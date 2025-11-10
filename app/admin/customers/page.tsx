@@ -1,7 +1,15 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
-import { CustomersSection } from '@/components/admin/customers-section';
+
+const CustomersSection = dynamic(
+  () => import('@/components/admin/customers-section').then((mod) => ({ default: mod.CustomersSection })),
+  {
+    ssr: false,
+    loading: () => <div className="py-12 text-center text-gray-500">Loading customers...</div>,
+  }
+);
 
 export default function CustomersPage() {
   return (

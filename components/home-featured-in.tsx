@@ -8,18 +8,18 @@ export function HomeFeaturedIn() {
             Leading publications have recognized our commitment to excellence.
           </p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 lg:gap-12 opacity-60">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 lg:gap-12">
           <div className="text-center">
-            <div className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-400">CLEANING TIMES</div>
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-700">CLEANING TIMES</div>
           </div>
           <div className="text-center">
-            <div className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-400">HOME MAGAZINE</div>
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-700">HOME MAGAZINE</div>
           </div>
           <div className="text-center">
-            <div className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-400">BUSINESS WEEKLY</div>
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-700">BUSINESS WEEKLY</div>
           </div>
           <div className="text-center">
-            <div className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-400">LOCAL NEWS</div>
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-700">LOCAL NEWS</div>
           </div>
         </div>
       </div>

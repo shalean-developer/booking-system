@@ -1,7 +1,15 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
-import { BlogSection } from '@/components/admin/blog-section';
+
+const BlogSection = dynamic(
+  () => import('@/components/admin/blog-section').then((mod) => ({ default: mod.BlogSection })),
+  {
+    ssr: false,
+    loading: () => <div className="py-12 text-center text-gray-500">Loading blog manager...</div>,
+  }
+);
 
 export default function BlogPage() {
   return (
