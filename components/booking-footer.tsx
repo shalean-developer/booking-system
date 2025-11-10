@@ -25,7 +25,7 @@ export function BookingFooter() {
                   console.log('Loyalty rewards clicked');
                 }}
               >
-                Learn More
+                View Loyalty Rewards Details
               </Button>
             </div>
             <p className="text-[10px] text-gray-500 whitespace-nowrap">

@@ -54,8 +54,8 @@ export function HomeServiceOfferings() {
                 Regular house cleaning services for ongoing upkeep. Ideal for one-off or recurring visits.
               </p>
               <Link href="/services/home-maintenance">
-                <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10 text-sm sm:text-base" aria-label="Learn more about Home Maintenance">
-                  Learn More
+                <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10 text-sm sm:text-base" aria-label="Explore our home maintenance cleaning services">
+                  Explore Home Maintenance Services
                   <ArrowRight className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
               </Link>
@@ -85,8 +85,8 @@ export function HomeServiceOfferings() {
                 Intensive deep cleaning services and focused specialty cleaning such as deep cleans, carpets & upholstery, and other specialty tasks.
               </p>
               <Link href="/services/deep-specialty">
-                <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10 text-sm sm:text-base" aria-label="Learn more about Deep & Specialty">
-                  Learn More
+                <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10 text-sm sm:text-base" aria-label="Discover our deep and specialty cleaning packages">
+                  Discover Deep & Specialty Cleaning
                   <ArrowRight className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
               </Link>
@@ -116,8 +116,8 @@ export function HomeServiceOfferings() {
                 Move-in/out and Airbnb turnover cleans for transitions and guest changeovers.
               </p>
               <Link href="/services/move-turnover">
-                <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10 text-sm sm:text-base" aria-label="Learn more about Move & Turnover">
-                  Learn More
+                <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10 text-sm sm:text-base" aria-label="Book move in move out and turnover cleaning services">
+                  Book Move & Turnover Cleaning
                   <ArrowRight className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
               </Link>
