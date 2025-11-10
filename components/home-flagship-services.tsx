@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, ArrowRight } from "lucide-react";
+import { CheckCircle } from "lucide-react";
 
 export function HomeFlagshipServices() {
   return (
@@ -59,7 +59,7 @@ export function HomeFlagshipServices() {
             <Link href="/services">
               <Button className="bg-primary hover:bg-primary/90 text-white">
                 Explore All Services
-                <ArrowRight className="ml-2 h-4 w-4" />
+                <span aria-hidden className="ml-2 text-base leading-none">→</span>
               </Button>
             </Link>
           </div>

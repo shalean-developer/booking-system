@@ -3,7 +3,6 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight } from "lucide-react";
 
 export function HomeBlog() {
   return (
@@ -47,7 +46,7 @@ export function HomeBlog() {
               <Link href="/blog/10-essential-deep-cleaning-tips-for-every-home">
                 <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0 text-sm sm:text-base">
                   Read Deep Cleaning Tips
-                  <ArrowRight className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                  <span aria-hidden className="ml-2 text-base leading-none">→</span>
                 </Button>
               </Link>
             </CardContent>
@@ -78,7 +77,7 @@ export function HomeBlog() {
               <Link href="/blog/eco-friendly-products">
                 <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0 text-sm sm:text-base">
                   Learn About Eco-Friendly Cleaning
-                  <ArrowRight className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                  <span aria-hidden className="ml-2 text-base leading-none">→</span>
                 </Button>
               </Link>
             </CardContent>
@@ -109,7 +108,7 @@ export function HomeBlog() {
               <Link href="/blog/airbnb-cleaning-checklist">
                 <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0 text-sm sm:text-base">
                   View Airbnb Cleaning Checklist
-                  <ArrowRight className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                  <span aria-hidden className="ml-2 text-base leading-none">→</span>
                 </Button>
               </Link>
             </CardContent>
@@ -119,7 +118,7 @@ export function HomeBlog() {
           <Link href="/blog">
             <Button variant="outline" size="lg" className="border-primary text-primary hover:bg-primary/10 px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base">
               View All Articles
-              <ArrowRight className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+              <span aria-hidden className="ml-2 text-base leading-none">→</span>
             </Button>
           </Link>
         </div>

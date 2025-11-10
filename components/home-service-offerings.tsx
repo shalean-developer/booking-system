@@ -6,8 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { 
   Home,
   Building,
-  Calendar,
-  ArrowRight
+  Calendar
 } from "lucide-react";
 
 export function HomeServiceOfferings() {
@@ -56,7 +55,7 @@ export function HomeServiceOfferings() {
               <Link href="/services/home-maintenance">
                 <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10 text-sm sm:text-base" aria-label="Explore our home maintenance cleaning services">
                   Explore Home Maintenance Services
-                  <ArrowRight className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                  <span aria-hidden className="ml-2 text-base leading-none">→</span>
                 </Button>
               </Link>
             </CardContent>
@@ -87,7 +86,7 @@ export function HomeServiceOfferings() {
               <Link href="/services/deep-specialty">
                 <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10 text-sm sm:text-base" aria-label="Discover our deep and specialty cleaning packages">
                   Discover Deep & Specialty Cleaning
-                  <ArrowRight className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                  <span aria-hidden className="ml-2 text-base leading-none">→</span>
                 </Button>
               </Link>
             </CardContent>
@@ -118,7 +117,7 @@ export function HomeServiceOfferings() {
               <Link href="/services/move-turnover">
                 <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10 text-sm sm:text-base" aria-label="Book move in move out and turnover cleaning services">
                   Book Move & Turnover Cleaning
-                  <ArrowRight className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                  <span aria-hidden className="ml-2 text-base leading-none">→</span>
                 </Button>
               </Link>
             </CardContent>

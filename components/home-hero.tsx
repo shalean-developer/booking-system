@@ -6,8 +6,7 @@ import {
   CheckCircle, 
   Users, 
   ClipboardList,
-  BookOpen,
-  ArrowRight
+  BookOpen
 } from "lucide-react";
 
 // Optimized Logo component - static import, no client-side detection
@@ -48,7 +47,7 @@ export function HomeHero() {
             <Button size="lg" className="bg-primary hover:bg-primary/90 text-white rounded-full px-6 py-3 sm:px-8 sm:py-4 text-base sm:text-lg" asChild>
               <Link href="/booking/service/select">
                 Book a service
-                <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
+                <span aria-hidden className="ml-2 text-lg sm:text-xl leading-none">→</span>
               </Link>
             </Button>
             <Button variant="outline" size="lg" className="border-primary text-primary hover:bg-primary/10 rounded-full px-6 py-3 sm:px-8 sm:py-4 text-base sm:text-lg" asChild>

@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -238,11 +237,7 @@ export default function SignupPage() {
       {/* Sign Up Form */}
       <section className="py-12 md:py-20">
         <div className="mx-auto max-w-md px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-          >
+          <div className="animate-fade-in motion-safe:animate-fade-in">
             {/* Header */}
             <div className="text-center mb-8">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
@@ -273,99 +268,85 @@ export default function SignupPage() {
             )}
 
             {/* Form Card */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100">
+            <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100 transition-transform duration-300 hover:shadow-xl">
               {/* Success Message */}
-              <AnimatePresence>
-                {successMessage && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="mb-6 rounded-2xl bg-green-50 border-2 border-green-200 p-4"
-                  >
-                    <div className="flex items-start gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <h3 className="text-sm font-semibold text-green-900 mb-1">
-                          Success!
-                        </h3>
-                        <p className="text-sm text-green-700">{successMessage}</p>
-                        {awaitingVerification && (
-                          <div className="mt-4 space-y-3 text-sm text-green-800">
-                            <div className="flex items-start gap-2">
-                              <Info className="h-4 w-4 mt-0.5 text-green-600" />
-                              <span>
-                                Didn’t get the email? Check your spam folder or resend the verification link.
-                              </span>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={handleResendVerification}
-                                disabled={resendStatus === 'sending'}
-                              >
-                                {resendStatus === 'sending' ? (
-                                  <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Sending…
-                                  </>
-                                ) : (
-                                  'Resend email'
-                                )}
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => router.push('/login?returnTo=/dashboard')}
-                              >
-                                Go to login
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                onClick={() => window.open('https://mail.google.com', '_blank', 'noreferrer')}
-                              >
-                                Open Gmail
-                              </Button>
-                            </div>
-                            {resendStatus === 'sent' && (
-                              <p className="text-xs text-green-700">Verification email sent. Give it a few seconds to arrive.</p>
-                            )}
-                            {resendStatus === 'error' && (
-                              <p className="text-xs text-red-600">
-                                We couldn’t resend the email right now. Please wait a moment and try again.
-                              </p>
-                            )}
+              {successMessage && (
+                <div className="mb-6 rounded-2xl bg-green-50 border-2 border-green-200 p-4 animate-slide-down motion-safe:animate-slide-down">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="text-sm font-semibold text-green-900 mb-1">
+                        Success!
+                      </h3>
+                      <p className="text-sm text-green-700">{successMessage}</p>
+                      {awaitingVerification && (
+                        <div className="mt-4 space-y-3 text-sm text-green-800">
+                          <div className="flex items-start gap-2">
+                            <Info className="h-4 w-4 mt-0.5 text-green-600" />
+                            <span>
+                              Didn’t get the email? Check your spam folder or resend the verification link.
+                            </span>
                           </div>
-                        )}
-                      </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              onClick={handleResendVerification}
+                              disabled={resendStatus === 'sending'}
+                            >
+                              {resendStatus === 'sending' ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Sending…
+                                </>
+                              ) : (
+                                'Resend email'
+                              )}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => router.push('/login?returnTo=/dashboard')}
+                            >
+                              Go to login
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => window.open('https://mail.google.com', '_blank', 'noreferrer')}
+                            >
+                              Open Gmail
+                            </Button>
+                          </div>
+                          {resendStatus === 'sent' && (
+                            <p className="text-xs text-green-700">Verification email sent. Give it a few seconds to arrive.</p>
+                          )}
+                          {resendStatus === 'error' && (
+                            <p className="text-xs text-red-600">
+                              We couldn’t resend the email right now. Please wait a moment and try again.
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                  </div>
+                </div>
+              )}
 
               {/* Error Message */}
-              <AnimatePresence>
-                {error && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="mb-6 rounded-2xl bg-red-50 border-2 border-red-200 p-4"
-                  >
-                    <div className="flex items-start gap-3">
-                      <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <h3 className="text-sm font-semibold text-red-900 mb-1">
-                          Error
-                        </h3>
-                        <p className="text-sm text-red-700">{error}</p>
-                      </div>
+              {error && (
+                <div className="mb-6 rounded-2xl bg-red-50 border-2 border-red-200 p-4 animate-slide-down motion-safe:animate-slide-down">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="text-sm font-semibold text-red-900 mb-1">
+                        Error
+                      </h3>
+                      <p className="text-sm text-red-700">{error}</p>
                     </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                  </div>
+                </div>
+              )}
 
               {!successMessage && (
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -553,7 +534,7 @@ export default function SignupPage() {
                 Privacy Policy
               </Link>
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
     </div>
