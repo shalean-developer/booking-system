@@ -1,4 +1,25 @@
-import { createClient } from '@/lib/supabase-server';
+import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@/lib/supabase';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables for blog data fetching');
+}
+
+const staticSupabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: false,
+  },
+});
+
+type SupabasePostWithCategory = BlogPostWithDetails & {
+  blog_categories?: {
+    name: string | null;
+    slug: string | null;
+  } | null;
+};
 
 // Types for blog system
 export type BlogPostStatus = 'draft' | 'published';
@@ -47,16 +68,17 @@ export interface BlogPostWithDetails extends BlogPost {
 // Server-side functions (for use in Server Components and API routes)
 export async function getPublishedPosts(): Promise<BlogPostWithDetails[]> {
   try {
-    const supabase = await createClient();
+    const supabase = staticSupabase;
     
-    // First try the view, if it fails, fall back to direct table query
-    let { data, error } = await supabase
+    const response = await supabase
       .from('blog_posts_with_details')
       .select('*')
       .eq('status', 'published')
       .order('published_at', { ascending: false });
 
-    // If view doesn't exist, fall back to direct table query
+    let data = response.data as SupabasePostWithCategory[] | null;
+    let error = response.error;
+
     if (error && error.code === '42P01') {
       console.log('blog_posts_with_details view not found, falling back to direct query');
       const result = await supabase
@@ -67,8 +89,8 @@ export async function getPublishedPosts(): Promise<BlogPostWithDetails[]> {
         `)
         .eq('status', 'published')
         .order('published_at', { ascending: false });
-      
-      data = result.data;
+
+      data = result.data as SupabasePostWithCategory[] | null;
       error = result.error;
     }
 
@@ -78,11 +100,12 @@ export async function getPublishedPosts(): Promise<BlogPostWithDetails[]> {
     }
 
     // Transform data to match BlogPostWithDetails interface
-    const transformedData = data?.map(post => ({
-      ...post,
-      category_name: post.blog_categories?.name || null,
-      category_slug: post.blog_categories?.slug || null,
-    })) || [];
+    const transformedData =
+      (data as SupabasePostWithCategory[] | null)?.map(({ blog_categories, ...post }) => ({
+        ...post,
+        category_name: blog_categories?.name ?? undefined,
+        category_slug: blog_categories?.slug ?? undefined,
+      })) || [];
 
     return transformedData;
   } catch (error) {
@@ -93,17 +116,18 @@ export async function getPublishedPosts(): Promise<BlogPostWithDetails[]> {
 
 export async function getPublishedPostBySlug(slug: string): Promise<BlogPostWithDetails | null> {
   try {
-    const supabase = await createClient();
+    const supabase = staticSupabase;
     
-    // First try the view, if it fails, fall back to direct table query
-    let { data, error } = await supabase
+    const response = await supabase
       .from('blog_posts_with_details')
       .select('*')
       .eq('slug', slug)
       .eq('status', 'published')
       .single();
 
-    // If view doesn't exist, fall back to direct table query
+    let data = response.data as SupabasePostWithCategory | null;
+    let error = response.error;
+
     if (error && error.code === '42P01') {
       console.log('blog_posts_with_details view not found, falling back to direct query');
       const result = await supabase
@@ -115,8 +139,8 @@ export async function getPublishedPostBySlug(slug: string): Promise<BlogPostWith
         .eq('slug', slug)
         .eq('status', 'published')
         .single();
-      
-      data = result.data;
+
+      data = result.data as SupabasePostWithCategory | null;
       error = result.error;
     }
 
@@ -127,11 +151,13 @@ export async function getPublishedPostBySlug(slug: string): Promise<BlogPostWith
 
     // Transform data to match BlogPostWithDetails interface
     if (data) {
-      return {
-        ...data,
-        category_name: data.blog_categories?.name || null,
-        category_slug: data.blog_categories?.slug || null,
+      const { blog_categories, ...post } = data as SupabasePostWithCategory;
+      const mappedPost: BlogPostWithDetails = {
+        ...post,
+        category_name: blog_categories?.name ?? undefined,
+        category_slug: blog_categories?.slug ?? undefined,
       };
+      return mappedPost;
     }
 
     return null;
@@ -143,10 +169,9 @@ export async function getPublishedPostBySlug(slug: string): Promise<BlogPostWith
 
 export async function getRelatedPosts(categoryId: string, currentPostId: string, limit: number = 3): Promise<BlogPostWithDetails[]> {
   try {
-    const supabase = await createClient();
+    const supabase = staticSupabase;
     
-    // First try the view, if it fails, fall back to direct table query
-    let { data, error } = await supabase
+    const response = await supabase
       .from('blog_posts_with_details')
       .select('*')
       .eq('category_id', categoryId)
@@ -155,7 +180,9 @@ export async function getRelatedPosts(categoryId: string, currentPostId: string,
       .order('published_at', { ascending: false })
       .limit(limit);
 
-    // If view doesn't exist, fall back to direct table query
+    let data = response.data as SupabasePostWithCategory[] | null;
+    let error = response.error;
+
     if (error && error.code === '42P01') {
       console.log('blog_posts_with_details view not found, falling back to direct query');
       const result = await supabase
@@ -169,8 +196,8 @@ export async function getRelatedPosts(categoryId: string, currentPostId: string,
         .neq('id', currentPostId)
         .order('published_at', { ascending: false })
         .limit(limit);
-      
-      data = result.data;
+
+      data = result.data as SupabasePostWithCategory[] | null;
       error = result.error;
     }
 
@@ -180,11 +207,12 @@ export async function getRelatedPosts(categoryId: string, currentPostId: string,
     }
 
     // Transform data to match BlogPostWithDetails interface
-    const transformedData = data?.map(post => ({
-      ...post,
-      category_name: post.blog_categories?.name || null,
-      category_slug: post.blog_categories?.slug || null,
-    })) || [];
+    const transformedData =
+      (data as SupabasePostWithCategory[] | null)?.map(({ blog_categories, ...post }) => ({
+        ...post,
+        category_name: blog_categories?.name ?? undefined,
+        category_slug: blog_categories?.slug ?? undefined,
+      })) || [];
 
     return transformedData;
   } catch (error) {
@@ -194,7 +222,7 @@ export async function getRelatedPosts(categoryId: string, currentPostId: string,
 }
 
 export async function getCategories(): Promise<BlogCategory[]> {
-  const supabase = await createClient();
+  const supabase = staticSupabase;
   
   const { data, error } = await supabase
     .from('blog_categories')
@@ -210,7 +238,7 @@ export async function getCategories(): Promise<BlogCategory[]> {
 }
 
 export async function getTags(): Promise<BlogTag[]> {
-  const supabase = await createClient();
+  const supabase = staticSupabase;
   
   const { data, error } = await supabase
     .from('blog_tags')

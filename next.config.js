@@ -1,8 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Performance optimizations
-  swcMinify: true,
   compress: true,
   poweredByHeader: false,
   images: {
@@ -180,13 +178,8 @@ const nextConfig = {
   experimental: {
     optimizeCss: true,
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons', 'framer-motion'],
-    turbo: {
-      resolveAlias: {
-        // Optimize imports
-        'lucide-react': 'lucide-react/dist/esm/icons',
-      },
-    },
   },
+  turbopack: {},
 }
 
 module.exports = nextConfig
