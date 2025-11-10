@@ -1,6 +1,5 @@
 'use client';
 
-import { Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import { Calendar, Search } from 'lucide-react';
@@ -28,7 +27,7 @@ const BookingsSection = dynamic(
   () => import('@/components/admin/bookings-section').then((mod) => ({ default: mod.BookingsSection })),
   {
     ssr: false,
-    suspense: true,
+    loading: () => <div className="text-center py-12 text-gray-500">Loading bookings...</div>,
   }
 );
 
@@ -42,15 +41,13 @@ export default function BookingsPage() {
       </div>
 
       {/* Bookings Section */}
-      <Suspense fallback={<div className="text-center py-12">Loading bookings...</div>}>
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <BookingsSection />
-        </motion.div>
-      </Suspense>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <BookingsSection />
+      </motion.div>
     </div>
   );
 }
