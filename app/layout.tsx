@@ -1,19 +1,10 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Script from "next/script";
-import dynamic from "next/dynamic";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { stringifyStructuredData } from "@/lib/structured-data-validator";
-
-// Dynamically import Toaster to reduce initial bundle size
-const Toaster = dynamic(
-  () => import("sonner").then((mod) => mod.Toaster),
-  {
-    ssr: false,
-    loading: () => null,
-  }
-);
+import ToasterWrapper from "./components/toaster";
 
 const inter = Inter({ 
   subsets: ["latin"],
@@ -233,7 +224,7 @@ export default function RootLayout({
             </noscript>
           </>
         )}
-        <Toaster position="top-center" richColors />
+        <ToasterWrapper />
         
         {/* Chunk Error Handler */}
         <Script
