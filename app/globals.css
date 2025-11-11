@@ -62,6 +62,19 @@
   html {
     scroll-behavior: smooth;
   }
+  
+  /* Explicitly set font-size for h1 elements to override deprecated user agent stylesheet */
+  /* This mitigates the H1UserAgentFontSizeInSection deprecation warning */
+  h1 {
+    font-size: inherit;
+    font-weight: inherit;
+  }
+  
+  /* Ensure h1 inside sections also inherit from their classes */
+  section h1 {
+    font-size: inherit;
+    font-weight: inherit;
+  }
 }
 
 @layer components {
