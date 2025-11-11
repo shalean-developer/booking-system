@@ -69,8 +69,8 @@ export function HomeFlagshipServices() {
                 <Image
                   src="/images/cleaning-team-hero.jpg"
                   alt="Professional cleaning team working in a modern kitchen"
-                  width={800}
-                  height={600}
+                  width={750}
+                  height={422}
                   className="w-full h-full object-cover"
                   priority
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"

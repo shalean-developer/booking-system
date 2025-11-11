@@ -34,8 +34,8 @@ export function HomeServiceOfferings() {
               <Image
                 src="/images/home-maintenance.jpg"
                 alt="Home maintenance cleaning service"
-                width={400}
-                height={300}
+                width={720}
+                height={477}
                 className="w-full h-full object-cover"
                 loading="lazy"
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -65,8 +65,8 @@ export function HomeServiceOfferings() {
               <Image
                 src="/images/deep-specialty.jpg"
                 alt="Deep cleaning and specialty services"
-                width={400}
-                height={300}
+                width={720}
+                height={477}
                 className="w-full h-full object-cover"
                 loading="lazy"
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -96,8 +96,8 @@ export function HomeServiceOfferings() {
               <Image
                 src="/images/move-turnover.jpg"
                 alt="Move in/out and turnover cleaning services"
-                width={400}
-                height={300}
+                width={720}
+                height={477}
                 className="w-full h-full object-cover"
                 loading="lazy"
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"

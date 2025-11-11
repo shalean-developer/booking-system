@@ -25,8 +25,8 @@ export function HomeBlog() {
               <Image
                 src="/images/deep-specialty.jpg"
                 alt="Deep cleaning tips and techniques"
-                width={400}
-                height={300}
+                width={720}
+                height={477}
                 className="w-full h-full object-cover"
                 loading="lazy"
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -56,11 +56,11 @@ export function HomeBlog() {
               <Image
                 src="/images/home-maintenance.jpg"
                 alt="Eco-friendly cleaning products"
-                width={400}
-                height={300}
+                width={720}
+                height={477}
                 className="w-full h-full object-cover"
                 loading="lazy"
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                sizes="(max-width: 1200px) 50vw, 33vw"
               />
             </div>
             <CardContent className="p-4 sm:p-6">
@@ -87,8 +87,8 @@ export function HomeBlog() {
               <Image
                 src="/images/move-turnover.jpg"
                 alt="Airbnb cleaning checklist"
-                width={400}
-                height={300}
+                width={720}
+                height={477}
                 className="w-full h-full object-cover"
                 loading="lazy"
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
