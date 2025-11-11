@@ -267,6 +267,98 @@ export default function ServicesPage() {
           </Button>
         </div>
       </section>
+
+      {/* Blog Posts Section */}
+      <section className="py-20 bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              Expert Cleaning Tips & Guides
+            </h2>
+            <p className="text-xl text-gray-600">
+              Learn from our professional cleaning experts
+            </p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <CardContent className="p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-3">
+                  <Link href="/blog/deep-cleaning-cape-town" className="hover:text-primary transition-colors">
+                    Deep Cleaning Guide for Cape Town
+                  </Link>
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Complete guide to deep cleaning your Cape Town home with expert tips and room-by-room checklists.
+                </p>
+                <Link href="/blog/deep-cleaning-cape-town">
+                  <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
+                    Read Guide <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <CardContent className="p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-3">
+                  <Link href="/blog/10-essential-deep-cleaning-tips-for-every-home" className="hover:text-primary transition-colors">
+                    10 Essential Deep Cleaning Tips
+                  </Link>
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Master deep cleaning with expert tips covering sanitizing high-touch areas and refreshing appliances.
+                </p>
+                <Link href="/blog/10-essential-deep-cleaning-tips-for-every-home">
+                  <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
+                    Read Tips <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <CardContent className="p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-3">
+                  <Link href="/blog/complete-airbnb-turnover-cleaning-checklist" className="hover:text-primary transition-colors">
+                    Complete Airbnb Cleaning Checklist
+                  </Link>
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Master the art of Airbnb turnover cleaning with our comprehensive checklist for 5-star reviews.
+                </p>
+                <Link href="/blog/complete-airbnb-turnover-cleaning-checklist">
+                  <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
+                    Read Checklist <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <CardContent className="p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-3">
+                  <Link href="/blog/the-benefits-of-eco-friendly-cleaning-products" className="hover:text-primary transition-colors">
+                    Eco-Friendly Cleaning Products
+                  </Link>
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Learn why eco-friendly cleaning products are better for your health, home, and environment.
+                </p>
+                <Link href="/blog/the-benefits-of-eco-friendly-cleaning-products">
+                  <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
+                    Read Article <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="text-center mt-8">
+            <Link href="/blog">
+              <Button variant="outline" className="border-primary text-primary hover:bg-primary/10">
+                View All Blog Posts
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

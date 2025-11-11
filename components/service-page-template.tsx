@@ -176,7 +176,7 @@ export function ServicePageTemplate({
                 Our {title.toLowerCase()} service is designed to meet the highest standards of cleanliness and professionalism. We understand that every space is unique, and our trained team adapts their approach to ensure optimal results for your specific needs.
               </p>
               <p className="text-lg text-gray-700 mb-4">
-                {description} Our commitment to excellence means we use only premium cleaning products that are both effective and safe for your family, pets, and the environment. Each cleaning session is thoroughly planned and executed with attention to detail.
+                {description} Our commitment to excellence means we use only premium <Link href="/blog/the-benefits-of-eco-friendly-cleaning-products" className="text-primary hover:underline font-medium">eco-friendly cleaning products</Link> that are both effective and safe for your family, pets, and the environment. Each cleaning session is thoroughly planned and executed with attention to detail.
               </p>
               <p className="text-lg text-gray-700 mb-4">
                 When you book our {title.toLowerCase()} service, you can expect punctual arrival, respectful and professional service, and a thorough cleaning that exceeds expectations. We stand behind our work with a 100% satisfaction guarantee—if you're not completely happy, we'll return to make it right at no additional cost.
@@ -256,6 +256,187 @@ export function ServicePageTemplate({
                 </Link>
               </Button>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Related Articles Section */}
+      <section className="py-20 bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Learn More About Cleaning
+            </h2>
+            <p className="text-lg text-gray-600">
+              Explore our expert guides and tips for maintaining a clean home
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {slug === 'deep-cleaning' && (
+              <>
+                <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+                  <CardContent className="p-6">
+                    <h3 className="text-xl font-bold text-gray-900 mb-3">
+                      <Link href="/blog/deep-cleaning-cape-town" className="hover:text-primary transition-colors">
+                        Deep Cleaning Guide for Cape Town
+                      </Link>
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      Complete guide to deep cleaning your Cape Town home with expert tips and room-by-room checklists.
+                    </p>
+                    <Link href="/blog/deep-cleaning-cape-town">
+                      <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
+                        Read Guide <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+                <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+                  <CardContent className="p-6">
+                    <h3 className="text-xl font-bold text-gray-900 mb-3">
+                      <Link href="/blog/10-essential-deep-cleaning-tips-for-every-home" className="hover:text-primary transition-colors">
+                        10 Essential Deep Cleaning Tips
+                      </Link>
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      Master deep cleaning with expert tips covering sanitizing high-touch areas and refreshing appliances.
+                    </p>
+                    <Link href="/blog/10-essential-deep-cleaning-tips-for-every-home">
+                      <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
+                        Read Tips <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+                <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+                  <CardContent className="p-6">
+                    <h3 className="text-xl font-bold text-gray-900 mb-3">
+                      <Link href="/blog/the-benefits-of-eco-friendly-cleaning-products" className="hover:text-primary transition-colors">
+                        Eco-Friendly Cleaning Products
+                      </Link>
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      Learn why eco-friendly cleaning products are better for your health, home, and environment.
+                    </p>
+                    <Link href="/blog/the-benefits-of-eco-friendly-cleaning-products">
+                      <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
+                        Read Article <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+            {slug === 'airbnb-cleaning' && (
+              <>
+                <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+                  <CardContent className="p-6">
+                    <h3 className="text-xl font-bold text-gray-900 mb-3">
+                      <Link href="/blog/complete-airbnb-turnover-cleaning-checklist" className="hover:text-primary transition-colors">
+                        Complete Airbnb Cleaning Checklist
+                      </Link>
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      Master the art of Airbnb turnover cleaning with our comprehensive checklist for 5-star reviews.
+                    </p>
+                    <Link href="/blog/complete-airbnb-turnover-cleaning-checklist">
+                      <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
+                        Read Checklist <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+                <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+                  <CardContent className="p-6">
+                    <h3 className="text-xl font-bold text-gray-900 mb-3">
+                      <Link href="/blog/deep-cleaning-cape-town" className="hover:text-primary transition-colors">
+                        Deep Cleaning Guide
+                      </Link>
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      Ensure thorough cleaning between guests with our comprehensive deep cleaning guide.
+                    </p>
+                    <Link href="/blog/deep-cleaning-cape-town">
+                      <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
+                        Read Guide <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+                <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+                  <CardContent className="p-6">
+                    <h3 className="text-xl font-bold text-gray-900 mb-3">
+                      <Link href="/blog/the-benefits-of-eco-friendly-cleaning-products" className="hover:text-primary transition-colors">
+                        Eco-Friendly Cleaning Products
+                      </Link>
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      Use safe, eco-friendly products that guests appreciate and that protect your property.
+                    </p>
+                    <Link href="/blog/the-benefits-of-eco-friendly-cleaning-products">
+                      <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
+                        Read Article <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+            {(slug === 'regular-cleaning' || slug === 'home-maintenance') && (
+              <>
+                <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+                  <CardContent className="p-6">
+                    <h3 className="text-xl font-bold text-gray-900 mb-3">
+                      <Link href="/blog/10-essential-deep-cleaning-tips-for-every-home" className="hover:text-primary transition-colors">
+                        10 Essential Deep Cleaning Tips
+                      </Link>
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      Learn expert tips for maintaining a spotless home between regular cleaning sessions.
+                    </p>
+                    <Link href="/blog/10-essential-deep-cleaning-tips-for-every-home">
+                      <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
+                        Read Tips <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+                <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+                  <CardContent className="p-6">
+                    <h3 className="text-xl font-bold text-gray-900 mb-3">
+                      <Link href="/blog/the-benefits-of-eco-friendly-cleaning-products" className="hover:text-primary transition-colors">
+                        Eco-Friendly Cleaning Products
+                      </Link>
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      Discover why eco-friendly cleaning products are better for your health and environment.
+                    </p>
+                    <Link href="/blog/the-benefits-of-eco-friendly-cleaning-products">
+                      <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
+                        Read Article <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+                <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+                  <CardContent className="p-6">
+                    <h3 className="text-xl font-bold text-gray-900 mb-3">
+                      <Link href="/blog/deep-cleaning-cape-town" className="hover:text-primary transition-colors">
+                        Deep Cleaning Guide
+                      </Link>
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      When regular cleaning isn't enough, learn when and how to do a thorough deep clean.
+                    </p>
+                    <Link href="/blog/deep-cleaning-cape-town">
+                      <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
+                        Read Guide <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              </>
+            )}
           </div>
         </div>
       </section>

@@ -179,22 +179,22 @@ const faqs = [
 
 const blogPosts = [
   {
-    title: "The No-Stress Spring Cleaning Checklist for Cape Town Homes",
-    href: "/blog/the-no-stress-spring-cleaning-checklist-for-cape-town-homes",
-    image: "/images/home-maintenance.jpg",
-    excerpt: "Tackle the new season with a room-by-room checklist created by Cape Town cleaning pros.",
-  },
-  {
-    title: "Why Eco-Friendly Cleaning Matters for Coastal Properties",
-    href: "/blog/eco-friendly-cleaning-south-africa",
+    title: "Deep Cleaning Guide for Cape Town",
+    href: "/blog/deep-cleaning-cape-town",
     image: "/images/deep-specialty.jpg",
-    excerpt: "Protect your finishes and the environment with greener products that still deliver a perfect shine.",
+    excerpt: "Complete guide to deep cleaning your Cape Town home with expert tips and room-by-room checklists.",
   },
   {
-    title: "Creating Airbnb Turnovers Guests Mention in Reviews",
-    href: "/blog/creating-airbnb-turnovers-guests-mention-in-reviews",
+    title: "The Benefits of Eco-Friendly Cleaning Products",
+    href: "/blog/the-benefits-of-eco-friendly-cleaning-products",
+    image: "/images/home-maintenance.jpg",
+    excerpt: "Learn why eco-friendly cleaning products are better for your health, home, and environment.",
+  },
+  {
+    title: "Complete Airbnb Turnover Cleaning Checklist",
+    href: "/blog/complete-airbnb-turnover-cleaning-checklist",
     image: "/images/move-turnover.jpg",
-    excerpt: "From linen rotation to guest welcome touches, here’s how to earn five-star stays every time.",
+    excerpt: "Master the art of Airbnb turnover cleaning with our comprehensive checklist for 5-star reviews.",
   },
 ];
 

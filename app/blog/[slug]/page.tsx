@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createBlogPostMetadata, generateOgImageUrl, validateMetadata, logMetadataValidation } from "@/lib/metadata";
-import { getPublishedPostBySlug, getRelatedPosts } from "@/lib/blog-server";
+import { getPublishedPostBySlug, getRelatedPosts, getPublishedPosts } from "@/lib/blog-server";
 import type { BlogPostWithDetails } from "@/lib/blog-server";
 import { BlogPostHeader } from "@/components/blog-post-header";
 import { BlogPostHero } from "@/components/blog-post-hero";
@@ -411,7 +411,11 @@ export default async function BlogPostPage({ params }: Props) {
     notFound();
   }
 
-  // Get related posts if category exists
+  // Get all published posts and filter out the current post
+  const allPosts = await getPublishedPosts();
+  const otherPosts = allPosts.filter(p => p.slug !== slug && p.status === 'published');
+
+  // Get related posts if category exists (for category-based related section)
   const relatedPosts = post.category_id
     ? await getRelatedPosts(post.category_id, post.id, 3)
     : [];
@@ -432,6 +436,7 @@ export default async function BlogPostPage({ params }: Props) {
         content={post.content} 
         title={post.title}
         url={`https://shalean.co.za/blog/${post.slug}`}
+        otherPosts={otherPosts}
       />
 
       {/* Related Posts - Lazy Loaded */}

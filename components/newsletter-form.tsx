@@ -43,19 +43,23 @@ export function NewsletterForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
-      <input
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="Enter your email"
-        className="flex-1 px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary"
-        disabled={loading}
-        required
-      />
+    <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-4 max-w-md">
+      <div className="flex-1">
+        <label htmlFor="newsletter-email" className="sr-only">Your Email</label>
+        <input
+          id="newsletter-email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Your Email"
+          className="w-full px-4 py-3 rounded-lg border border-white/30 bg-white/10 text-white placeholder:text-white/70 focus:outline-none focus:ring-2 focus:ring-white/50 focus:bg-white/20"
+          disabled={loading}
+          required
+        />
+      </div>
       <Button 
         type="submit" 
-        className="bg-primary hover:bg-primary/90 whitespace-nowrap"
+        className="bg-white text-primary hover:bg-white/90 whitespace-nowrap"
         disabled={loading}
       >
         {loading ? 'Subscribing...' : 'Subscribe'}
