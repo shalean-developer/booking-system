@@ -29,7 +29,8 @@ export function HomeBlog() {
                 height={477}
                 className="w-full h-full object-cover"
                 loading="lazy"
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 400px"
+                quality={90}
               />
             </div>
             <CardContent className="p-4 sm:p-6">
@@ -60,7 +61,8 @@ export function HomeBlog() {
                 height={477}
                 className="w-full h-full object-cover"
                 loading="lazy"
-                sizes="(max-width: 1200px) 50vw, 33vw"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 400px"
+                quality={90}
               />
             </div>
             <CardContent className="p-4 sm:p-6">
@@ -91,7 +93,8 @@ export function HomeBlog() {
                 height={477}
                 className="w-full h-full object-cover"
                 loading="lazy"
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 400px"
+                quality={90}
               />
             </div>
             <CardContent className="p-4 sm:p-6">

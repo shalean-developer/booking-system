@@ -38,7 +38,8 @@ export function HomeServiceOfferings() {
                 height={477}
                 className="w-full h-full object-cover"
                 loading="lazy"
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 400px"
+                quality={90}
               />
               <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
                 <div className="text-center text-white">
@@ -69,7 +70,8 @@ export function HomeServiceOfferings() {
                 height={477}
                 className="w-full h-full object-cover"
                 loading="lazy"
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 400px"
+                quality={90}
               />
               <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
                 <div className="text-center text-white">
@@ -100,7 +102,8 @@ export function HomeServiceOfferings() {
                 height={477}
                 className="w-full h-full object-cover"
                 loading="lazy"
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 400px"
+                quality={90}
               />
               <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
                 <div className="text-center text-white">

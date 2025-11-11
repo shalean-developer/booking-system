@@ -73,7 +73,8 @@ export function HomeFlagshipServices() {
                   height={422}
                   className="w-full h-full object-cover"
                   priority
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 640px"
+                  quality={90}
                 />
               </div>
               <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 right-2 sm:right-4 bg-white rounded-lg p-3 sm:p-4 shadow-lg">
