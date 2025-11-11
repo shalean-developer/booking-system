@@ -1,0 +1,646 @@
+{
+  "matched": [
+    {
+      "slug": "kalk-bay",
+      "from": "/locations/kalk-bay",
+      "to": "/location/cape-town/kalk-bay"
+    },
+    {
+      "slug": "observatory",
+      "from": "/locations/observatory",
+      "to": "/location/cape-town/observatory"
+    },
+    {
+      "slug": "bloubergstrand",
+      "from": "/locations/bloubergstrand",
+      "to": "/location/cape-town/bloubergstrand"
+    },
+    {
+      "slug": "plumstead",
+      "from": "/locations/plumstead",
+      "to": "/location/cape-town/plumstead"
+    },
+    {
+      "slug": "bishopscourt",
+      "from": "/locations/bishopscourt",
+      "to": "/location/cape-town/bishopscourt"
+    },
+    {
+      "slug": "simons-town",
+      "from": "/locations/simons-town",
+      "to": "/location/cape-town/simons-town"
+    },
+    {
+      "slug": "brackenfell",
+      "from": "/locations/brackenfell",
+      "to": "/location/cape-town/brackenfell"
+    },
+    {
+      "slug": "tokai",
+      "from": "/locations/tokai",
+      "to": "/location/cape-town/tokai"
+    },
+    {
+      "slug": "milnerton",
+      "from": "/locations/milnerton",
+      "to": "/location/cape-town/milnerton"
+    },
+    {
+      "slug": "newlands",
+      "from": "/locations/newlands",
+      "to": "/location/cape-town/newlands"
+    },
+    {
+      "slug": "claremont",
+      "from": "/locations/claremont",
+      "to": "/location/cape-town/claremont"
+    },
+    {
+      "slug": "camps-bay",
+      "from": "/locations/camps-bay",
+      "to": "/location/cape-town/camps-bay"
+    },
+    {
+      "slug": "city-bowl",
+      "from": "/locations/city-bowl",
+      "to": "/location/cape-town/city-bowl"
+    },
+    {
+      "slug": "wynberg",
+      "from": "/locations/wynberg",
+      "to": "/location/cape-town/wynberg"
+    },
+    {
+      "slug": "brooklyn",
+      "from": "/locations/brooklyn",
+      "to": "/location/pretoria/brooklyn"
+    },
+    {
+      "slug": "kenilworth",
+      "from": "/locations/kenilworth",
+      "to": "/location/cape-town/kenilworth"
+    },
+    {
+      "slug": "rosebank",
+      "from": "/locations/rosebank",
+      "to": "/location/johannesburg/rosebank"
+    },
+    {
+      "slug": "waterfront",
+      "from": "/locations/waterfront",
+      "to": "/location/cape-town/waterfront"
+    },
+    {
+      "slug": "noordhoek",
+      "from": "/locations/noordhoek",
+      "to": "/location/cape-town/noordhoek"
+    },
+    {
+      "slug": "sea-point",
+      "from": "/locations/sea-point",
+      "to": "/location/cape-town/sea-point"
+    },
+    {
+      "slug": "tamboerskloof",
+      "from": "/locations/tamboerskloof",
+      "to": "/location/cape-town/tamboerskloof"
+    },
+    {
+      "slug": "bellville",
+      "from": "/locations/bellville",
+      "to": "/location/cape-town/bellville"
+    },
+    {
+      "slug": "bantry-bay",
+      "from": "/locations/bantry-bay",
+      "to": "/location/cape-town/bantry-bay"
+    },
+    {
+      "slug": "stellenbosch",
+      "from": "/locations/stellenbosch",
+      "to": "/location/cape-town/stellenbosch"
+    },
+    {
+      "slug": "kommetjie",
+      "from": "/locations/kommetjie",
+      "to": "/location/cape-town/kommetjie"
+    },
+    {
+      "slug": "sunnyside",
+      "from": "/locations/sunnyside",
+      "to": "/location/pretoria/sunnyside"
+    },
+    {
+      "slug": "gardens",
+      "from": "/locations/gardens",
+      "to": "/location/cape-town/gardens"
+    },
+    {
+      "slug": "oranjezicht",
+      "from": "/locations/oranjezicht",
+      "to": "/location/cape-town/oranjezicht"
+    },
+    {
+      "slug": "cape-town",
+      "from": "/locations/cape-town",
+      "to": "/location/cape-town"
+    }
+  ],
+  "unmatched": [
+    {
+      "slug": "-city-bowl",
+      "pathname": "/locations/-city-bowl"
+    },
+    {
+      "slug": "glencairn",
+      "pathname": "/locations/glencairn"
+    },
+    {
+      "slug": "1638594952524x177837048280828260",
+      "pathname": "/locations/1638594952524x177837048280828260"
+    },
+    {
+      "slug": "monte-vista",
+      "pathname": "/locations/monte-vista"
+    },
+    {
+      "slug": "1723406479757x273422380116912000",
+      "pathname": "/locations/1723406479757x273422380116912000"
+    },
+    {
+      "slug": "maitland",
+      "pathname": "/locations/maitland"
+    },
+    {
+      "slug": "mutual-park",
+      "pathname": "/locations/mutual-park"
+    },
+    {
+      "slug": "meadowridge",
+      "pathname": "/locations/meadowridge"
+    },
+    {
+      "slug": "groote-schuur",
+      "pathname": "/locations/groote-schuur"
+    },
+    {
+      "slug": "three-anchor-bay",
+      "pathname": "/locations/three-anchor-bay"
+    },
+    {
+      "slug": "durbanvale",
+      "pathname": "/locations/durbanvale"
+    },
+    {
+      "slug": "de-waterkant",
+      "pathname": "/locations/de-waterkant"
+    },
+    {
+      "slug": "lower-vrede",
+      "pathname": "/locations/lower-vrede"
+    },
+    {
+      "slug": "athlone",
+      "pathname": "/locations/athlone"
+    },
+    {
+      "slug": "glosderry",
+      "pathname": "/locations/glosderry"
+    },
+    {
+      "slug": "1723404541591x597428109844812700",
+      "pathname": "/locations/1723404541591x597428109844812700"
+    },
+    {
+      "slug": "edgemead",
+      "pathname": "/locations/edgemead"
+    },
+    {
+      "slug": "retreat",
+      "pathname": "/locations/retreat"
+    },
+    {
+      "slug": "clovelly",
+      "pathname": "/locations/clovelly"
+    },
+    {
+      "slug": "loevenstein",
+      "pathname": "/locations/loevenstein"
+    },
+    {
+      "slug": "foreshore",
+      "pathname": "/locations/foreshore"
+    },
+    {
+      "slug": "welgemoed",
+      "pathname": "/locations/welgemoed"
+    },
+    {
+      "slug": "1723404541393x207476290251421120",
+      "pathname": "/locations/1723404541393x207476290251421120"
+    },
+    {
+      "slug": "clareinch",
+      "pathname": "/locations/clareinch"
+    },
+    {
+      "slug": "chempet",
+      "pathname": "/locations/chempet"
+    },
+    {
+      "slug": "old-oak",
+      "pathname": "/locations/old-oak"
+    },
+    {
+      "slug": "",
+      "reason": "missing slug",
+      "pathname": "/locations"
+    },
+    {
+      "slug": "llandudno",
+      "pathname": "/locations/llandudno"
+    },
+    {
+      "slug": "macassar",
+      "pathname": "/locations/macassar"
+    },
+    {
+      "slug": "van-riebeeckshof",
+      "pathname": "/locations/van-riebeeckshof"
+    },
+    {
+      "slug": "1723404541575x804652188126590500",
+      "pathname": "/locations/1723404541575x804652188126590500"
+    },
+    {
+      "slug": "thornton",
+      "pathname": "/locations/thornton"
+    },
+    {
+      "slug": "1723404541402x365158486381364400",
+      "pathname": "/locations/1723404541402x365158486381364400"
+    },
+    {
+      "slug": "1723404541394x332446533324096900",
+      "pathname": "/locations/1723404541394x332446533324096900"
+    },
+    {
+      "slug": "1723404541575x592381351492491600",
+      "pathname": "/locations/1723404541575x592381351492491600"
+    },
+    {
+      "slug": "oudtshoorn",
+      "pathname": "/locations/oudtshoorn"
+    },
+    {
+      "slug": "higgovale",
+      "pathname": "/locations/higgovale"
+    },
+    {
+      "slug": "parow-east",
+      "pathname": "/locations/parow-east"
+    },
+    {
+      "slug": "1723404541586x829577357540598400",
+      "pathname": "/locations/1723404541586x829577357540598400"
+    },
+    {
+      "slug": "1723406479753x117124549946829630",
+      "pathname": "/locations/1723406479753x117124549946829630"
+    },
+    {
+      "slug": "1723404541394x678633903044543900",
+      "pathname": "/locations/1723404541394x678633903044543900"
+    },
+    {
+      "slug": "sunset-beach",
+      "pathname": "/locations/sunset-beach"
+    },
+    {
+      "slug": "1723404541373x641633399374293100",
+      "pathname": "/locations/1723404541373x641633399374293100"
+    },
+    {
+      "slug": "1723406479762x677701714818894640",
+      "pathname": "/locations/1723406479762x677701714818894640"
+    },
+    {
+      "slug": "1723404541587x104860797770280240",
+      "pathname": "/locations/1723404541587x104860797770280240"
+    },
+    {
+      "slug": "1725107027712x665925896524924400",
+      "pathname": "/locations/1725107027712x665925896524924400"
+    },
+    {
+      "slug": "plattekloof",
+      "pathname": "/locations/plattekloof"
+    },
+    {
+      "slug": "1723406479759x309108687506598900",
+      "pathname": "/locations/1723406479759x309108687506598900"
+    },
+    {
+      "slug": "strandfontein",
+      "pathname": "/locations/strandfontein"
+    },
+    {
+      "slug": "1723404541591x528106434414954600",
+      "pathname": "/locations/1723404541591x528106434414954600"
+    },
+    {
+      "slug": "university-estate",
+      "pathname": "/locations/university-estate"
+    },
+    {
+      "slug": "1723406479760x488574470735951170",
+      "pathname": "/locations/1723406479760x488574470735951170"
+    },
+    {
+      "slug": "1723404541582x972375444865589800",
+      "pathname": "/locations/1723404541582x972375444865589800"
+    },
+    {
+      "slug": "1723406479759x454061671716091260",
+      "pathname": "/locations/1723406479759x454061671716091260"
+    },
+    {
+      "slug": "1723406479761x124422263714269570",
+      "pathname": "/locations/1723406479761x124422263714269570"
+    },
+    {
+      "slug": "ravensmead",
+      "pathname": "/locations/ravensmead"
+    },
+    {
+      "slug": "1725107027715x482798313608664200",
+      "pathname": "/locations/1725107027715x482798313608664200"
+    },
+    {
+      "slug": "1725107027216x729686649442405500",
+      "pathname": "/locations/1725107027216x729686649442405500"
+    },
+    {
+      "slug": "1723404541394x201269946688797730",
+      "pathname": "/locations/1723404541394x201269946688797730"
+    },
+    {
+      "slug": "1723404541374x670074130830884400",
+      "pathname": "/locations/1723404541374x670074130830884400"
+    },
+    {
+      "slug": "1723404541363x440893114772744800",
+      "pathname": "/locations/1723404541363x440893114772744800"
+    },
+    {
+      "slug": "1723406479761x699781107175029200",
+      "pathname": "/locations/1723406479761x699781107175029200"
+    },
+    {
+      "slug": "1638594952703x880433625598874800",
+      "pathname": "/locations/1638594952703x880433625598874800"
+    },
+    {
+      "slug": "faure",
+      "pathname": "/locations/faure"
+    },
+    {
+      "slug": "1723406479762x403280309074479400",
+      "pathname": "/locations/1723406479762x403280309074479400"
+    },
+    {
+      "slug": "heathfield",
+      "pathname": "/locations/heathfield"
+    },
+    {
+      "slug": "1723404541394x192959346524542050",
+      "pathname": "/locations/1723404541394x192959346524542050"
+    },
+    {
+      "slug": "tableview",
+      "pathname": "/locations/tableview"
+    },
+    {
+      "slug": "paarl",
+      "pathname": "/locations/paarl"
+    },
+    {
+      "slug": "kuils-river",
+      "pathname": "/locations/kuils-river"
+    },
+    {
+      "slug": "1723406479761x681210857209897360",
+      "pathname": "/locations/1723406479761x681210857209897360"
+    },
+    {
+      "slug": "vredehoek",
+      "pathname": "/locations/vredehoek"
+    },
+    {
+      "slug": "1723404541383x984932676482345200",
+      "pathname": "/locations/1723404541383x984932676482345200"
+    },
+    {
+      "slug": "1723404541576x268118268576985180",
+      "pathname": "/locations/1723404541576x268118268576985180"
+    },
+    {
+      "slug": "1723404541587x231918622432351740",
+      "pathname": "/locations/1723404541587x231918622432351740"
+    },
+    {
+      "slug": "1725107027231x311263435958061950",
+      "pathname": "/locations/1725107027231x311263435958061950"
+    },
+    {
+      "slug": "zonnebloem",
+      "pathname": "/locations/zonnebloem"
+    },
+    {
+      "slug": "1723404541362x106975045854449620",
+      "pathname": "/locations/1723404541362x106975045854449620"
+    },
+    {
+      "slug": "kreupelbosch",
+      "pathname": "/locations/kreupelbosch"
+    },
+    {
+      "slug": "bothasig",
+      "pathname": "/locations/bothasig"
+    },
+    {
+      "slug": "1725107027227x661156351868037400",
+      "pathname": "/locations/1725107027227x661156351868037400"
+    },
+    {
+      "slug": "1723404541373x950093720434667100",
+      "pathname": "/locations/1723404541373x950093720434667100"
+    },
+    {
+      "slug": "firgrove",
+      "pathname": "/locations/firgrove"
+    },
+    {
+      "slug": "1723404541365x230187516026493900",
+      "pathname": "/locations/1723404541365x230187516026493900"
+    },
+    {
+      "slug": "southfield",
+      "pathname": "/locations/southfield"
+    },
+    {
+      "slug": "panorama",
+      "pathname": "/locations/panorama"
+    },
+    {
+      "slug": "grassy-park",
+      "pathname": "/locations/grassy-park"
+    },
+    {
+      "slug": "epping",
+      "pathname": "/locations/epping"
+    },
+    {
+      "slug": "walmer-estate",
+      "pathname": "/locations/walmer-estate"
+    },
+    {
+      "slug": "1723406479756x626171546315856800",
+      "pathname": "/locations/1723406479756x626171546315856800"
+    },
+    {
+      "slug": "1725107027235x674425079513805600",
+      "pathname": "/locations/1725107027235x674425079513805600"
+    },
+    {
+      "slug": "1723404541574x514220448599704640",
+      "pathname": "/locations/1723404541574x514220448599704640"
+    },
+    {
+      "slug": "1723404541373x922611323787657900",
+      "pathname": "/locations/1723404541373x922611323787657900"
+    },
+    {
+      "slug": "1723406479760x139471302584910360",
+      "pathname": "/locations/1723406479760x139471302584910360"
+    },
+    {
+      "slug": "",
+      "reason": "missing slug",
+      "pathname": "/locations"
+    },
+    {
+      "slug": "1723404541373x624148153404155800",
+      "pathname": "/locations/1723404541373x624148153404155800"
+    },
+    {
+      "slug": "1638594952571x105396773757325150",
+      "pathname": "/locations/1638594952571x105396773757325150"
+    },
+    {
+      "slug": "1725107027711x259305012310119040",
+      "pathname": "/locations/1725107027711x259305012310119040"
+    },
+    {
+      "slug": "faure",
+      "pathname": "/locations/faure"
+    },
+    {
+      "slug": "kensington",
+      "pathname": "/locations/kensington"
+    },
+    {
+      "slug": "george",
+      "pathname": "/locations/george"
+    },
+    {
+      "slug": "1723404541587x220311069509131700",
+      "pathname": "/locations/1723404541587x220311069509131700"
+    },
+    {
+      "slug": "1723406479754x506031287807998200",
+      "pathname": "/locations/1723406479754x506031287807998200"
+    },
+    {
+      "slug": "sun-valley",
+      "pathname": "/locations/sun-valley"
+    },
+    {
+      "slug": "1638594952523x610652266156815000",
+      "pathname": "/locations/1638594952523x610652266156815000"
+    },
+    {
+      "slug": "1725107027230x415058863785427800",
+      "pathname": "/locations/1725107027230x415058863785427800"
+    },
+    {
+      "slug": "1723406479761x105487432330100050",
+      "pathname": "/locations/1723406479761x105487432330100050"
+    },
+    {
+      "slug": "1723404541586x366450989901252500",
+      "pathname": "/locations/1723404541586x366450989901252500"
+    },
+    {
+      "slug": "bakoven",
+      "pathname": "/locations/bakoven"
+    },
+    {
+      "slug": "1725107027228x423058313381516200",
+      "pathname": "/locations/1725107027228x423058313381516200"
+    },
+    {
+      "slug": "wittebome",
+      "pathname": "/locations/wittebome"
+    },
+    {
+      "slug": "plettenberg-bay",
+      "pathname": "/locations/plettenberg-bay"
+    },
+    {
+      "slug": "1723404541363x499314147507714300",
+      "pathname": "/locations/1723404541363x499314147507714300"
+    },
+    {
+      "slug": "mossel-bay",
+      "pathname": "/locations/mossel-bay"
+    },
+    {
+      "slug": "1638594952480x929796774054236300",
+      "pathname": "/locations/1638594952480x929796774054236300"
+    },
+    {
+      "slug": "%3Cp%3E%3Ca",
+      "pathname": "/locations/%3Cp%3E%3Ca"
+    },
+    {
+      "slug": "1723404541415x330075896640461760",
+      "pathname": "/locations/1723404541415x330075896640461760"
+    },
+    {
+      "slug": "1723404541588x963341400559694100",
+      "pathname": "/locations/1723404541588x963341400559694100"
+    },
+    {
+      "slug": "1723404541363x954121031276008400",
+      "pathname": "/locations/1723404541363x954121031276008400"
+    },
+    {
+      "slug": "",
+      "reason": "missing slug",
+      "pathname": "/locations"
+    },
+    {
+      "slug": "1723404541362x377330702421369900",
+      "pathname": "/locations/1723404541362x377330702421369900"
+    },
+    {
+      "slug": "1725107027713x116551996445657400",
+      "pathname": "/locations/1725107027713x116551996445657400"
+    },
+    {
+      "slug": "1638594952523x694676038292586500",
+      "pathname": "/locations/1638594952523x694676038292586500"
+    }
+  ]
+}

@@ -35,6 +35,18 @@ const nextConfig = {
   // Permanent redirects (301) for SEO
   async redirects() {
     return [
+      // Force apex domain
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'host',
+            value: 'www.shalean.co.za',
+          },
+        ],
+        destination: 'https://shalean.co.za/:path*',
+        permanent: true,
+      },
       // Old blog URLs with domain prefix
       {
         source: '/blog/shalean.co.za',
@@ -75,7 +87,48 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: '/booking/:id([0-9A-Za-z-]+)',
+        destination: '/dashboard/bookings',
+        permanent: true,
+      },
+      // Legacy content URLs
+      {
+        source: '/articles/:path*',
+        destination: '/blog',
+        permanent: true,
+      },
+      {
+        source: '/article_page/:path*',
+        destination: '/blog',
+        permanent: true,
+      },
+      {
+        source: '/blog/cleaning-frequency',
+        destination: '/blog',
+        permanent: true,
+      },
+      {
+        source: '/blog/cleaning-mistakes',
+        destination: '/blog',
+        permanent: true,
+      },
+      {
+        source: '/blog/how-to-prepare-for-a-deep-clean',
+        destination: '/blog',
+        permanent: true,
+      },
+      {
         source: '/cleaning/first-step',
+        destination: '/booking/service/select',
+        permanent: true,
+      },
+      {
+        source: '/cleaning0/:path*',
+        destination: '/booking/service/select',
+        permanent: true,
+      },
+      {
+        source: '/cleaning1',
         destination: '/booking/service/select',
         permanent: true,
       },
@@ -90,6 +143,36 @@ const nextConfig = {
         destination: '/location/cape-town/helderberg-winelands',
         permanent: true,
       },
+      {
+        source: '/locations/tableview',
+        destination: '/location/cape-town/table-view',
+        permanent: true,
+      },
+      {
+        source: '/locations/durbanvale',
+        destination: '/location/cape-town/durbanville',
+        permanent: true,
+      },
+      {
+        source: '/locations/clareinch',
+        destination: '/location/cape-town/claremont',
+        permanent: true,
+      },
+      {
+        source: '/locations/lower-vrede',
+        destination: '/location/cape-town/southern-suburbs',
+        permanent: true,
+      },
+      {
+        source: '/locations/welgemoed',
+        destination: '/location/cape-town/northern-suburbs',
+        permanent: true,
+      },
+      {
+        source: '/locations/de-waterkant',
+        destination: '/location/cape-town/city-bowl',
+        permanent: true,
+      },
       // Old location URLs (plural to singular, add city prefix)
       {
         source: '/locations/-city-bowl',
@@ -99,6 +182,11 @@ const nextConfig = {
       {
         source: '/locations/glencairn',
         destination: '/location/cape-town/false-bay',
+        permanent: true,
+      },
+      {
+        source: '/locations/:slug',
+        destination: '/location/cape-town/:slug',
         permanent: true,
       },
       // Wildcard redirect for all old location URLs
@@ -122,6 +210,11 @@ const nextConfig = {
       {
         source: '/services/carpet-cleaning',
         destination: '/services/deep-specialty',
+        permanent: true,
+      },
+      {
+        source: '/services/office-',
+        destination: '/services/office-cleaning',
         permanent: true,
       },
       {
@@ -153,6 +246,51 @@ const nextConfig = {
       {
         source: '/auth/sign-up',
         destination: '/signup',
+        permanent: true,
+      },
+      {
+        source: '/account',
+        destination: '/login',
+        permanent: true,
+      },
+      {
+        source: '/community/:path*',
+        destination: '/blog',
+        permanent: true,
+      },
+      {
+        source: '/apply',
+        destination: '/careers/apply',
+        permanent: true,
+      },
+      {
+        source: '/user/m',
+        destination: '/login',
+        permanent: true,
+      },
+      {
+        source: '/privacy-policy',
+        destination: '/privacy',
+        permanent: true,
+      },
+      {
+        source: '/refund',
+        destination: '/terms',
+        permanent: true,
+      },
+      {
+        source: '/shipping',
+        destination: '/terms',
+        permanent: true,
+      },
+      {
+        source: '/&',
+        destination: '/',
+        permanent: true,
+      },
+      {
+        source: '/$',
+        destination: '/',
         permanent: true,
       },
       // Fix URL encoding issues for location pages

@@ -1,0 +1,1353 @@
+{
+  "services": [
+    {
+      "url": "https://shalean.co.za/services/deep-cleaning",
+      "pathname": "/services/deep-cleaning",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/services/house-cleaning",
+      "pathname": "/services/house-cleaning",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/services/carpet",
+      "pathname": "/services/carpet",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/services/office-",
+      "pathname": "/services/office-",
+      "query": ""
+    }
+  ],
+  "booking": [
+    {
+      "url": "https://shalean.co.za/booking/service",
+      "pathname": "/booking/service",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/booking",
+      "pathname": "/booking",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/booking?service=standard-cleaning",
+      "pathname": "/booking",
+      "query": "?service=standard-cleaning"
+    },
+    {
+      "url": "https://shalean.co.za/booking?service=moving-cleaning",
+      "pathname": "/booking",
+      "query": "?service=moving-cleaning"
+    },
+    {
+      "url": "https://shalean.co.za/booking/1740571952359x392308191925370900",
+      "pathname": "/booking/1740571952359x392308191925370900",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/booking/1740576255017x934635716086333400",
+      "pathname": "/booking/1740576255017x934635716086333400",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/booking/1740569456617x396668692390740000",
+      "pathname": "/booking/1740569456617x396668692390740000",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/booking/1741180379657x853098507603279900",
+      "pathname": "/booking/1741180379657x853098507603279900",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/booking/1741289256514x824329422768701400",
+      "pathname": "/booking/1741289256514x824329422768701400",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/booking/1741171707917x455269622360834050",
+      "pathname": "/booking/1741171707917x455269622360834050",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/booking/1741284930290x443454354519752700",
+      "pathname": "/booking/1741284930290x443454354519752700",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/booking/1741010142581x416142735940517900",
+      "pathname": "/booking/1741010142581x416142735940517900",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/booking/1740836285429x312681200200187900",
+      "pathname": "/booking/1740836285429x312681200200187900",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/booking/1740947582576x166693653487550460",
+      "pathname": "/booking/1740947582576x166693653487550460",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/booking/1741841024936x198949903171584000",
+      "pathname": "/booking/1741841024936x198949903171584000",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/booking/1741534720581x955360993130053600",
+      "pathname": "/booking/1741534720581x955360993130053600",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/booking/1741810311063x197588797599514620",
+      "pathname": "/booking/1741810311063x197588797599514620",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/booking/1741288648777x590880016377839600",
+      "pathname": "/booking/1741288648777x590880016377839600",
+      "query": ""
+    }
+  ],
+  "reviews": [
+    {
+      "url": "https://shalean.co.za/reviews",
+      "pathname": "/reviews",
+      "query": ""
+    }
+  ],
+  "auth": [
+    {
+      "url": "https://shalean.co.za/auth",
+      "pathname": "/auth",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/auth/sign-up",
+      "pathname": "/auth/sign-up",
+      "query": ""
+    },
+    {
+      "url": "https://www.shalean.co.za/auth",
+      "pathname": "/auth",
+      "query": ""
+    }
+  ],
+  "locations": [
+    {
+      "url": "https://shalean.co.za/locations/kalk-bay",
+      "pathname": "/locations/kalk-bay",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/-city-bowl",
+      "pathname": "/locations/-city-bowl",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/observatory",
+      "pathname": "/locations/observatory",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/glencairn",
+      "pathname": "/locations/glencairn",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1638594952524x177837048280828260",
+      "pathname": "/locations/1638594952524x177837048280828260",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/monte-vista",
+      "pathname": "/locations/monte-vista",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723406479757x273422380116912000",
+      "pathname": "/locations/1723406479757x273422380116912000",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/maitland",
+      "pathname": "/locations/maitland",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/mutual-park",
+      "pathname": "/locations/mutual-park",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/meadowridge",
+      "pathname": "/locations/meadowridge",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/groote-schuur",
+      "pathname": "/locations/groote-schuur",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/three-anchor-bay",
+      "pathname": "/locations/three-anchor-bay",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/durbanvale",
+      "pathname": "/locations/durbanvale",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/bloubergstrand",
+      "pathname": "/locations/bloubergstrand",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/de-waterkant",
+      "pathname": "/locations/de-waterkant",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/plumstead",
+      "pathname": "/locations/plumstead",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/lower-vrede",
+      "pathname": "/locations/lower-vrede",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/athlone",
+      "pathname": "/locations/athlone",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/bishopscourt",
+      "pathname": "/locations/bishopscourt",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/glosderry",
+      "pathname": "/locations/glosderry",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541591x597428109844812700",
+      "pathname": "/locations/1723404541591x597428109844812700",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/edgemead",
+      "pathname": "/locations/edgemead",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/retreat",
+      "pathname": "/locations/retreat",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/clovelly",
+      "pathname": "/locations/clovelly",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/simons-town",
+      "pathname": "/locations/simons-town",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/loevenstein",
+      "pathname": "/locations/loevenstein",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/foreshore",
+      "pathname": "/locations/foreshore",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/welgemoed",
+      "pathname": "/locations/welgemoed",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541393x207476290251421120",
+      "pathname": "/locations/1723404541393x207476290251421120",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/clareinch",
+      "pathname": "/locations/clareinch",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/chempet",
+      "pathname": "/locations/chempet",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/brackenfell",
+      "pathname": "/locations/brackenfell",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/old-oak",
+      "pathname": "/locations/old-oak",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/",
+      "pathname": "/locations",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/llandudno",
+      "pathname": "/locations/llandudno",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/tokai",
+      "pathname": "/locations/tokai",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/macassar",
+      "pathname": "/locations/macassar",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/milnerton",
+      "pathname": "/locations/milnerton",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/newlands",
+      "pathname": "/locations/newlands",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/claremont",
+      "pathname": "/locations/claremont",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/camps-bay",
+      "pathname": "/locations/camps-bay",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/city-bowl",
+      "pathname": "/locations/city-bowl",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/wynberg",
+      "pathname": "/locations/wynberg",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/van-riebeeckshof",
+      "pathname": "/locations/van-riebeeckshof",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541575x804652188126590500",
+      "pathname": "/locations/1723404541575x804652188126590500",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/thornton",
+      "pathname": "/locations/thornton",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541402x365158486381364400",
+      "pathname": "/locations/1723404541402x365158486381364400",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541394x332446533324096900",
+      "pathname": "/locations/1723404541394x332446533324096900",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541575x592381351492491600",
+      "pathname": "/locations/1723404541575x592381351492491600",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/oudtshoorn",
+      "pathname": "/locations/oudtshoorn",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/higgovale",
+      "pathname": "/locations/higgovale",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/parow-east",
+      "pathname": "/locations/parow-east",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541586x829577357540598400",
+      "pathname": "/locations/1723404541586x829577357540598400",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723406479753x117124549946829630",
+      "pathname": "/locations/1723406479753x117124549946829630",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/brooklyn",
+      "pathname": "/locations/brooklyn",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/kenilworth",
+      "pathname": "/locations/kenilworth",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541394x678633903044543900",
+      "pathname": "/locations/1723404541394x678633903044543900",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/sunset-beach",
+      "pathname": "/locations/sunset-beach",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541373x641633399374293100",
+      "pathname": "/locations/1723404541373x641633399374293100",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723406479762x677701714818894640",
+      "pathname": "/locations/1723406479762x677701714818894640",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541587x104860797770280240",
+      "pathname": "/locations/1723404541587x104860797770280240",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1725107027712x665925896524924400",
+      "pathname": "/locations/1725107027712x665925896524924400",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/plattekloof",
+      "pathname": "/locations/plattekloof",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723406479759x309108687506598900",
+      "pathname": "/locations/1723406479759x309108687506598900",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/strandfontein",
+      "pathname": "/locations/strandfontein",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541591x528106434414954600",
+      "pathname": "/locations/1723404541591x528106434414954600",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/university-estate",
+      "pathname": "/locations/university-estate",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723406479760x488574470735951170",
+      "pathname": "/locations/1723406479760x488574470735951170",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541582x972375444865589800",
+      "pathname": "/locations/1723404541582x972375444865589800",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723406479759x454061671716091260",
+      "pathname": "/locations/1723406479759x454061671716091260",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723406479761x124422263714269570",
+      "pathname": "/locations/1723406479761x124422263714269570",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/ravensmead",
+      "pathname": "/locations/ravensmead",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1725107027715x482798313608664200",
+      "pathname": "/locations/1725107027715x482798313608664200",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1725107027216x729686649442405500",
+      "pathname": "/locations/1725107027216x729686649442405500",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541394x201269946688797730",
+      "pathname": "/locations/1723404541394x201269946688797730",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541374x670074130830884400",
+      "pathname": "/locations/1723404541374x670074130830884400",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541363x440893114772744800",
+      "pathname": "/locations/1723404541363x440893114772744800",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/rosebank",
+      "pathname": "/locations/rosebank",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723406479761x699781107175029200",
+      "pathname": "/locations/1723406479761x699781107175029200",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1638594952703x880433625598874800",
+      "pathname": "/locations/1638594952703x880433625598874800",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/faure",
+      "pathname": "/locations/faure",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723406479762x403280309074479400",
+      "pathname": "/locations/1723406479762x403280309074479400",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/heathfield",
+      "pathname": "/locations/heathfield",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/waterfront",
+      "pathname": "/locations/waterfront",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541394x192959346524542050",
+      "pathname": "/locations/1723404541394x192959346524542050",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/tableview",
+      "pathname": "/locations/tableview",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/noordhoek",
+      "pathname": "/locations/noordhoek",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/paarl",
+      "pathname": "/locations/paarl",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/sea-point",
+      "pathname": "/locations/sea-point",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/kuils-river",
+      "pathname": "/locations/kuils-river",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723406479761x681210857209897360",
+      "pathname": "/locations/1723406479761x681210857209897360",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/vredehoek",
+      "pathname": "/locations/vredehoek",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541383x984932676482345200",
+      "pathname": "/locations/1723404541383x984932676482345200",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541576x268118268576985180",
+      "pathname": "/locations/1723404541576x268118268576985180",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/tamboerskloof",
+      "pathname": "/locations/tamboerskloof",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541587x231918622432351740",
+      "pathname": "/locations/1723404541587x231918622432351740",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1725107027231x311263435958061950",
+      "pathname": "/locations/1725107027231x311263435958061950",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/zonnebloem",
+      "pathname": "/locations/zonnebloem",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541362x106975045854449620",
+      "pathname": "/locations/1723404541362x106975045854449620",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/kreupelbosch",
+      "pathname": "/locations/kreupelbosch",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/bothasig",
+      "pathname": "/locations/bothasig",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1725107027227x661156351868037400",
+      "pathname": "/locations/1725107027227x661156351868037400",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541373x950093720434667100",
+      "pathname": "/locations/1723404541373x950093720434667100",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/bellville",
+      "pathname": "/locations/bellville",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/firgrove",
+      "pathname": "/locations/firgrove",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541365x230187516026493900",
+      "pathname": "/locations/1723404541365x230187516026493900",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/bantry-bay",
+      "pathname": "/locations/bantry-bay",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/southfield",
+      "pathname": "/locations/southfield",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/panorama",
+      "pathname": "/locations/panorama",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/stellenbosch",
+      "pathname": "/locations/stellenbosch",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/grassy-park",
+      "pathname": "/locations/grassy-park",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/kommetjie",
+      "pathname": "/locations/kommetjie",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/epping",
+      "pathname": "/locations/epping",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/walmer-estate",
+      "pathname": "/locations/walmer-estate",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723406479756x626171546315856800",
+      "pathname": "/locations/1723406479756x626171546315856800",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1725107027235x674425079513805600",
+      "pathname": "/locations/1725107027235x674425079513805600",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541574x514220448599704640",
+      "pathname": "/locations/1723404541574x514220448599704640",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/sunnyside",
+      "pathname": "/locations/sunnyside",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541373x922611323787657900",
+      "pathname": "/locations/1723404541373x922611323787657900",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723406479760x139471302584910360",
+      "pathname": "/locations/1723406479760x139471302584910360",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations",
+      "pathname": "/locations",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541373x624148153404155800",
+      "pathname": "/locations/1723404541373x624148153404155800",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1638594952571x105396773757325150",
+      "pathname": "/locations/1638594952571x105396773757325150",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1725107027711x259305012310119040",
+      "pathname": "/locations/1725107027711x259305012310119040",
+      "query": ""
+    },
+    {
+      "url": "https://www.shalean.co.za/locations/faure",
+      "pathname": "/locations/faure",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/kensington",
+      "pathname": "/locations/kensington",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/george",
+      "pathname": "/locations/george",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541587x220311069509131700",
+      "pathname": "/locations/1723404541587x220311069509131700",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723406479754x506031287807998200",
+      "pathname": "/locations/1723406479754x506031287807998200",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/sun-valley",
+      "pathname": "/locations/sun-valley",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1638594952523x610652266156815000",
+      "pathname": "/locations/1638594952523x610652266156815000",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1725107027230x415058863785427800",
+      "pathname": "/locations/1725107027230x415058863785427800",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723406479761x105487432330100050",
+      "pathname": "/locations/1723406479761x105487432330100050",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541586x366450989901252500",
+      "pathname": "/locations/1723404541586x366450989901252500",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/bakoven",
+      "pathname": "/locations/bakoven",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1725107027228x423058313381516200",
+      "pathname": "/locations/1725107027228x423058313381516200",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/wittebome",
+      "pathname": "/locations/wittebome",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/plettenberg-bay",
+      "pathname": "/locations/plettenberg-bay",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541363x499314147507714300",
+      "pathname": "/locations/1723404541363x499314147507714300",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/mossel-bay",
+      "pathname": "/locations/mossel-bay",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1638594952480x929796774054236300",
+      "pathname": "/locations/1638594952480x929796774054236300",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/<p><a",
+      "pathname": "/locations/%3Cp%3E%3Ca",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541415x330075896640461760",
+      "pathname": "/locations/1723404541415x330075896640461760",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541588x963341400559694100",
+      "pathname": "/locations/1723404541588x963341400559694100",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541363x954121031276008400",
+      "pathname": "/locations/1723404541363x954121031276008400",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/gardens",
+      "pathname": "/locations/gardens",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/oranjezicht",
+      "pathname": "/locations/oranjezicht",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/cape-town",
+      "pathname": "/locations/cape-town",
+      "query": ""
+    },
+    {
+      "url": "https://www.shalean.co.za/locations",
+      "pathname": "/locations",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1723404541362x377330702421369900",
+      "pathname": "/locations/1723404541362x377330702421369900",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1725107027713x116551996445657400",
+      "pathname": "/locations/1725107027713x116551996445657400",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/locations/1638594952523x694676038292586500",
+      "pathname": "/locations/1638594952523x694676038292586500",
+      "query": ""
+    }
+  ],
+  "cleaning": [
+    {
+      "url": "https://shalean.co.za/cleaning/first-step?step=address",
+      "pathname": "/cleaning/first-step",
+      "query": "?step=address"
+    }
+  ],
+  "blog": [
+    {
+      "url": "https://shalean.co.za/blog/welcome-to-blog-cms",
+      "pathname": "/blog/welcome-to-blog-cms",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/blog/cleaning-frequency",
+      "pathname": "/blog/cleaning-frequency",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/blog/cleaning-mistakes",
+      "pathname": "/blog/cleaning-mistakes",
+      "query": ""
+    },
+    {
+      "url": "https://www.shalean.co.za/blog/welcome-to-blog-cms",
+      "pathname": "/blog/welcome-to-blog-cms",
+      "query": ""
+    },
+    {
+      "url": "https://www.shalean.co.za/blog",
+      "pathname": "/blog",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/blog/how-to-prepare-for-a-deep-clean",
+      "pathname": "/blog/how-to-prepare-for-a-deep-clean",
+      "query": ""
+    }
+  ],
+  "$": [
+    {
+      "url": "https://shalean.co.za/$",
+      "pathname": "/$",
+      "query": ""
+    }
+  ],
+  "_next": [
+    {
+      "url": "https://shalean.co.za/_next/static/media/inter-latin.woff2",
+      "pathname": "/_next/static/media/inter-latin.woff2",
+      "query": ""
+    }
+  ],
+  "&": [
+    {
+      "url": "https://shalean.co.za/&",
+      "pathname": "/&",
+      "query": ""
+    }
+  ],
+  "popia": [
+    {
+      "url": "https://shalean.co.za/popia",
+      "pathname": "/popia",
+      "query": ""
+    }
+  ],
+  "cookies": [
+    {
+      "url": "https://shalean.co.za/cookies",
+      "pathname": "/cookies",
+      "query": ""
+    }
+  ],
+  "shipping": [
+    {
+      "url": "https://shalean.co.za/shipping",
+      "pathname": "/shipping",
+      "query": ""
+    }
+  ],
+  "refund": [
+    {
+      "url": "https://shalean.co.za/refund",
+      "pathname": "/refund",
+      "query": ""
+    }
+  ],
+  "legal": [
+    {
+      "url": "https://shalean.co.za/legal/terms",
+      "pathname": "/legal/terms",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/legal/privacy",
+      "pathname": "/legal/privacy",
+      "query": ""
+    }
+  ],
+  "community": [
+    {
+      "url": "https://shalean.co.za/community/1737406890717x290907459911905000",
+      "pathname": "/community/1737406890717x290907459911905000",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/community/1737655637048x871174504997341200",
+      "pathname": "/community/1737655637048x871174504997341200",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/community/1737573626386x529545469538113000",
+      "pathname": "/community/1737573626386x529545469538113000",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/community/1737529476185x467161277226421950",
+      "pathname": "/community/1737529476185x467161277226421950",
+      "query": ""
+    }
+  ],
+  "article_page": [
+    {
+      "url": "https://shalean.co.za/article_page/10-benefits-of-hiring-professional-home-cleaners-near-you",
+      "pathname": "/article_page/10-benefits-of-hiring-professional-home-cleaners-near-you",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/article_page/professional-deep-cleaning-services-why-your-home-or-office-needs-it",
+      "pathname": "/article_page/professional-deep-cleaning-services-why-your-home-or-office-needs-it",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/article_page/professional-cleaners-for-a-spotless-home--reliable--trusted-services",
+      "pathname": "/article_page/professional-cleaners-for-a-spotless-home--reliable--trusted-services",
+      "query": ""
+    }
+  ],
+  "articles": [
+    {
+      "url": "https://shalean.co.za/articles/expert-home-deep-cleaning-services-near-you",
+      "pathname": "/articles/expert-home-deep-cleaning-services-near-you",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/1737651398029x307501651823951900",
+      "pathname": "/articles/1737651398029x307501651823951900",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/",
+      "pathname": "/articles",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/affordable-deep-cleaning-services-for-your-move-out-needs",
+      "pathname": "/articles/affordable-deep-cleaning-services-for-your-move-out-needs",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/affordable-house-cleaning--professional-deep--move-out-services",
+      "pathname": "/articles/affordable-house-cleaning--professional-deep--move-out-services",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/the-best-cleaning-services-in-cape-town",
+      "pathname": "/articles/the-best-cleaning-services-in-cape-town",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/10-benefits-of-hiring-professional-home-cleaners-near-you",
+      "pathname": "/articles/10-benefits-of-hiring-professional-home-cleaners-near-you",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/how-to-find-reliable-cleaning-services-in-cape-town-1",
+      "pathname": "/articles/how-to-find-reliable-cleaning-services-in-cape-town-1",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/understanding-airbnb-deep-standard-and-carpet-cleaning-differences",
+      "pathname": "/articles/understanding-airbnb-deep-standard-and-carpet-cleaning-differences",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/deep-cleaning-vs-tandard-cleaning-which-service-do-you-really-need",
+      "pathname": "/articles/deep-cleaning-vs-tandard-cleaning-which-service-do-you-really-need",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/the-ultimate-guide-to-deep-cleaning-your-home",
+      "pathname": "/articles/the-ultimate-guide-to-deep-cleaning-your-home",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/keep-your-home-clean-with-shalean-cleaning-services-a-simple-guide",
+      "pathname": "/articles/keep-your-home-clean-with-shalean-cleaning-services-a-simple-guide",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/expert-deep-cleaning-services-in-cape-town-reliable-cleaning-service",
+      "pathname": "/articles/expert-deep-cleaning-services-in-cape-town-reliable-cleaning-service",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/powerful-ways-to-boost-visibility-and-support-local-cleaning-services",
+      "pathname": "/articles/powerful-ways-to-boost-visibility-and-support-local-cleaning-services",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/affordable-house-cleaning-professional-deep--move-out-services",
+      "pathname": "/articles/affordable-house-cleaning-professional-deep--move-out-services",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/unititled-1741771998478x200771216543055870",
+      "pathname": "/articles/unititled-1741771998478x200771216543055870",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/one-time-cleaning-service-costs-what-to-expect-and-how-to-save",
+      "pathname": "/articles/one-time-cleaning-service-costs-what-to-expect-and-how-to-save",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/1732994663698x590807070175395800",
+      "pathname": "/articles/1732994663698x590807070175395800",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/affordable-house-cleaning-pro-deep--move-out-services",
+      "pathname": "/articles/affordable-house-cleaning-pro-deep--move-out-services",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/understanding-airbnb-and-the-differences-in-cleaning-types-explained",
+      "pathname": "/articles/understanding-airbnb-and-the-differences-in-cleaning-types-explained",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/professional-deep-cleaning-services-key-benefits",
+      "pathname": "/articles/professional-deep-cleaning-services-key-benefits",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/affordable-house-cleaning-professional-deep-move-out-services",
+      "pathname": "/articles/affordable-house-cleaning-professional-deep-move-out-services",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/the-ultimate-guide-to-home-cleaning",
+      "pathname": "/articles/the-ultimate-guide-to-home-cleaning",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/1729706726744x872272329260400600",
+      "pathname": "/articles/1729706726744x872272329260400600",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/the-transformative-power-of-professional-deep-cleaning",
+      "pathname": "/articles/the-transformative-power-of-professional-deep-cleaning",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/key-benefits-of-professional-deep-cleaning-services",
+      "pathname": "/articles/key-benefits-of-professional-deep-cleaning-services",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/unititled",
+      "pathname": "/articles/unititled",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/how-to-find-reliable-cleaning-services-in-cape-town",
+      "pathname": "/articles/how-to-find-reliable-cleaning-services-in-cape-town",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/deep-cleaning-vs-standard-cleaning-which-one-is-right-for-you",
+      "pathname": "/articles/deep-cleaning-vs-standard-cleaning-which-one-is-right-for-you",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/the-ultimate-guide-to-home-cleaning-1741985516676x172225791707840500",
+      "pathname": "/articles/the-ultimate-guide-to-home-cleaning-1741985516676x172225791707840500",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/reliable-domestic-cleaner-providing-professional-house-cleaning-services-near-me",
+      "pathname": "/articles/reliable-domestic-cleaner-providing-professional-house-cleaning-services-near-me",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/deep-cleaning-vs-standard-cleaning-which-service-do-you-really-need",
+      "pathname": "/articles/deep-cleaning-vs-standard-cleaning-which-service-do-you-really-need",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/airbnb-cleaning-checklist-how-to-keep-your-guests-coming-back",
+      "pathname": "/articles/airbnb-cleaning-checklist-how-to-keep-your-guests-coming-back",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/unitiled-1741877807406x138708484554752000",
+      "pathname": "/articles/unitiled-1741877807406x138708484554752000",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/airbnb-deep-standard-move-inout--carpet-cleaning--whats-the-difference",
+      "pathname": "/articles/airbnb-deep-standard-move-inout--carpet-cleaning--whats-the-difference",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/airbnb-cleaning-checklist-how-to-keep-your-guests-coming-back-1742032182434x429038824681373700",
+      "pathname": "/articles/airbnb-cleaning-checklist-how-to-keep-your-guests-coming-back-1742032182434x429038824681373700",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/the-best-cleaning-services-in-cape-town-1",
+      "pathname": "/articles/the-best-cleaning-services-in-cape-town-1",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/articles/expert-deep-cleaning-services-in-cape-town-reliable-cleaning",
+      "pathname": "/articles/expert-deep-cleaning-services-in-cape-town-reliable-cleaning",
+      "query": ""
+    }
+  ],
+  "privacy-policy": [
+    {
+      "url": "https://shalean.co.za/privacy-policy",
+      "pathname": "/privacy-policy",
+      "query": ""
+    }
+  ],
+  "cleaning0": [
+    {
+      "url": "https://shalean.co.za/cleaning0/address",
+      "pathname": "/cleaning0/address",
+      "query": ""
+    }
+  ],
+  "account": [
+    {
+      "url": "https://shalean.co.za/account",
+      "pathname": "/account",
+      "query": ""
+    }
+  ],
+  "user": [
+    {
+      "url": "https://shalean.co.za/user/m",
+      "pathname": "/user/m",
+      "query": ""
+    }
+  ],
+  "1oSHSjajNW5Z2NxgJZIlmE+N3hOazXNn7SEjVMrAuw=": [
+    {
+      "url": "https://shalean.co.za/1oSHSjajNW5Z2NxgJZIlmE+N3hOazXNn7SEjVMrAuw=",
+      "pathname": "/1oSHSjajNW5Z2NxgJZIlmE+N3hOazXNn7SEjVMrAuw=",
+      "query": ""
+    }
+  ],
+  "A": [
+    {
+      "url": "https://shalean.co.za/A//4ib50fIh2N/lVRARCnB2rHv5+S555DG22vzYe3U=",
+      "pathname": "/A//4ib50fIh2N/lVRARCnB2rHv5+S555DG22vzYe3U=",
+      "query": ""
+    }
+  ],
+  "puxBT2UsGOegfCO5oQ6JQFEa6GfS6lCxKAorptimss=": [
+    {
+      "url": "https://shalean.co.za/puxBT2UsGOegfCO5oQ6JQFEa6GfS6lCxKAorptimss=",
+      "pathname": "/puxBT2UsGOegfCO5oQ6JQFEa6GfS6lCxKAorptimss=",
+      "query": ""
+    }
+  ],
+  "article": [
+    {
+      "url": "https://shalean.co.za/article/professional-deep-cleaning-services-key-benefits",
+      "pathname": "/article/professional-deep-cleaning-services-key-benefits",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/article/eco-friendly-cleaning-products-for-a-healthier-home",
+      "pathname": "/article/eco-friendly-cleaning-products-for-a-healthier-home",
+      "query": ""
+    },
+    {
+      "url": "https://shalean.co.za/article/5-cleaning-tips-every-busy-parent-should-know",
+      "pathname": "/article/5-cleaning-tips-every-busy-parent-should-know",
+      "query": ""
+    }
+  ],
+  "about_us": [
+    {
+      "url": "https://shalean.co.za/about_us",
+      "pathname": "/about_us",
+      "query": ""
+    }
+  ],
+  "iv5g237LsQ46148kOdmrPiSefV57Wxv4n2WemI": [
+    {
+      "url": "https://shalean.co.za/iv5g237LsQ46148kOdmrPiSefV57Wxv4n2WemI/F2I=",
+      "pathname": "/iv5g237LsQ46148kOdmrPiSefV57Wxv4n2WemI/F2I=",
+      "query": ""
+    }
+  ],
+  "VgQmG7IlpxDYXJS0oPtDxHFmPg4SHZX4g5BiKf276Y=": [
+    {
+      "url": "https://shalean.co.za/VgQmG7IlpxDYXJS0oPtDxHFmPg4SHZX4g5BiKf276Y=",
+      "pathname": "/VgQmG7IlpxDYXJS0oPtDxHFmPg4SHZX4g5BiKf276Y=",
+      "query": ""
+    }
+  ],
+  "apply": [
+    {
+      "url": "https://shalean.co.za/apply?progress=1",
+      "pathname": "/apply",
+      "query": "?progress=1"
+    },
+    {
+      "url": "https://www.shalean.co.za/apply",
+      "pathname": "/apply",
+      "query": ""
+    }
+  ],
+  "cleaning1": [
+    {
+      "url": "https://shalean.co.za/cleaning1",
+      "pathname": "/cleaning1",
+      "query": ""
+    }
+  ],
+  "v6cRZTz5tJkBJ8fO": [
+    {
+      "url": "https://shalean.co.za/v6cRZTz5tJkBJ8fO/m5f1IE5y4aj7sVxZ2T5DAebFk=",
+      "pathname": "/v6cRZTz5tJkBJ8fO/m5f1IE5y4aj7sVxZ2T5DAebFk=",
+      "query": ""
+    }
+  ],
+  "zGEMmjYI": [
+    {
+      "url": "https://shalean.co.za/zGEMmjYI/nReAf5aG9yS1aYApZaeYb9hCLmqRDz9G4=",
+      "pathname": "/zGEMmjYI/nReAf5aG9yS1aYApZaeYb9hCLmqRDz9G4=",
+      "query": ""
+    }
+  ]
+}

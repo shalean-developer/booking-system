@@ -41,7 +41,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const servicePages = [
     'regular-cleaning', 'airbnb-cleaning', 'office-cleaning', 
     'apartment-cleaning', 'window-cleaning', 'home-maintenance', 
-    'deep-specialty', 'move-turnover'
+    'deep-specialty', 'deep-cleaning', 'move-turnover'
   ];
 
   const serviceEntries: MetadataRoute.Sitemap = servicePages.map((service) => ({
@@ -164,6 +164,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/privacy`,
+      lastModified: new Date(),
+      changeFrequency: 'yearly',
+      priority: 0.5,
+    },
+    {
+      url: `${baseUrl}/popia`,
+      lastModified: new Date(),
+      changeFrequency: 'yearly',
+      priority: 0.5,
+    },
+    {
+      url: `${baseUrl}/cookies`,
+      lastModified: new Date(),
+      changeFrequency: 'yearly',
+      priority: 0.5,
     },
     {
       url: `${baseUrl}/blog`,

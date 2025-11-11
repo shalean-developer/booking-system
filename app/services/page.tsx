@@ -36,9 +36,9 @@ export default function ServicesPage() {
       title: "Deep Cleaning",
       icon: Star,
       description: "Thorough, intensive cleaning that tackles every corner and surface. Ideal for seasonal refreshes.",
-      features: ["Detailed scrubbing", "Hard-to-reach areas", "Appliance deep clean", "Comprehensive sanitization"],
-      pricing: "From R1,200",
-      link: "/services/deep-specialty",
+      features: ["Detailed scrubbing", "Hard-to-reach areas", "Appliance deep clean", "Comprehensive sanitisation"],
+      pricing: "From R450",
+      link: "/services/deep-cleaning",
       color: "bg-teal-50",
       iconColor: "text-teal-600"
     },

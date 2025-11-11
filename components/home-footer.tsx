@@ -119,6 +119,8 @@ export function HomeFooter() {
           <div className="flex items-center gap-6 flex-wrap justify-center">
             <Link href="/terms" className="text-sm text-gray-400 hover:text-white transition-colors">Terms & Conditions</Link>
             <Link href="/privacy" className="text-sm text-gray-400 hover:text-white transition-colors">Privacy Policy</Link>
+            <Link href="/cookies" className="text-sm text-gray-400 hover:text-white transition-colors">Cookie Policy</Link>
+            <Link href="/popia" className="text-sm text-gray-400 hover:text-white transition-colors">POPIA Compliance</Link>
             <Link href="/cancellation" className="text-sm text-gray-400 hover:text-white transition-colors">Cancellation Policy</Link>
           </div>
 
