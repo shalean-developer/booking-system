@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { motion, useReducedMotion } from 'framer-motion';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -62,6 +61,25 @@ interface CustomerData {
   addressSuburb?: string | null;
   addressCity?: string | null;
   totalBookings: number;
+}
+
+// Hook to detect reduced motion preference (replaces framer-motion's useReducedMotion)
+function useReducedMotion() {
+  const [shouldReduceMotion, setShouldReduceMotion] = useState(false);
+  
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setShouldReduceMotion(mediaQuery.matches);
+    
+    const handleChange = (e: MediaQueryListEvent) => {
+      setShouldReduceMotion(e.matches);
+    };
+    
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+  
+  return shouldReduceMotion;
 }
 
 export default function DashboardPage() {
@@ -310,11 +328,8 @@ export default function DashboardPage() {
       <section className="py-8 sm:py-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {/* Welcome Header */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: shouldReduceMotion ? 0 : 0.4 }}
-            className="mb-4 sm:mb-8"
+          <div
+            className={`mb-4 sm:mb-8 ${shouldReduceMotion ? '' : 'animate-fade-in-up'}`}
           >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="min-w-0 order-1 sm:order-none">
@@ -358,7 +373,7 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
             )}
-          </motion.div>
+          </div>
 
               {!isLoading && (
             <div className="space-y-4 sm:space-y-6 mb-6">
@@ -410,11 +425,7 @@ export default function DashboardPage() {
 
             {/* Main content column */}
             <div className="flex-1 min-w-0">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: shouldReduceMotion ? 0 : 0.4, delay: shouldReduceMotion ? 0 : 0.2 }}
-              >
+              <div className={shouldReduceMotion ? '' : 'animate-fade-in-up-delayed'}>
                 {/* Overview content (pending reviews etc.), recent list suppressed */}
                 <OverviewTab
                   customer={customer}
@@ -440,7 +451,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             </div>
 
             {/* Right column reserved (empty for now) */}

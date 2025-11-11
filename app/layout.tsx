@@ -1,10 +1,19 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Script from "next/script";
+import dynamic from "next/dynamic";
 import "./globals.css";
 import { cn } from "@/lib/utils";
-import { Toaster } from "sonner";
 import { stringifyStructuredData } from "@/lib/structured-data-validator";
+
+// Dynamically import Toaster to reduce initial bundle size
+const Toaster = dynamic(
+  () => import("sonner").then((mod) => mod.Toaster),
+  {
+    ssr: false,
+    loading: () => null,
+  }
+);
 
 const inter = Inter({ 
   subsets: ["latin"],
