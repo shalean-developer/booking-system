@@ -73,7 +73,7 @@ export function HomeFlagshipServices() {
                   height={422}
                   className="w-full h-full object-cover"
                   priority
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 640px"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 750px"
                   quality={90}
                 />
               </div>
