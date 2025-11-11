@@ -6,8 +6,17 @@ const config = {
     './app/**/*.{ts,tsx}',
     './components/**/*.{ts,tsx}',
     './lib/**/*.{ts,tsx}',
+    './hooks/**/*.{ts,tsx}',
     '!./components/**/__tests__/**/*.{ts,tsx}',
     '!./components/**/stories/**/*.{ts,tsx}',
+  ],
+  // Minimal safelist - only for truly dynamic classes that can't be detected
+  safelist: [
+    // Only include classes that are dynamically generated via string concatenation
+    // and cannot be detected by Tailwind's content scanner
+    {
+      pattern: /^(border-emerald-100|hover:border-primary\/40|hover:text-primary)$/,
+    },
   ],
   prefix: "",
   theme: {
@@ -330,4 +339,3 @@ const config = {
 } satisfies Config
 
 export default config
-

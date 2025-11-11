@@ -21,6 +21,14 @@ export function proxy(request: NextRequest) {
     );
   }
 
+  // Cache CSS chunks aggressively for better parallel loading
+  if (pathname.startsWith('/_next/static/chunks') && pathname.match(/\.css$/)) {
+    response.headers.set(
+      'Cache-Control',
+      'public, max-age=31536000, immutable'
+    );
+  }
+
   // Cache HTML pages for shorter duration with stale-while-revalidate
   if (pathname === '/' || pathname.startsWith('/blog/') || pathname.startsWith('/location/')) {
     response.headers.set(

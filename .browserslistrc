@@ -1,0 +1,15 @@
+# Browserslist configuration for modern browsers
+# Targets browsers that support ES2022+ features (Baseline features)
+# This eliminates unnecessary polyfills for features like Array.prototype.at, Object.hasOwn, etc.
+
+# Modern browsers with >0.5% market share
+> 0.5%
+# Last 2 versions of each browser
+last 2 versions
+# Exclude dead browsers
+not dead
+# Exclude Opera Mini (doesn't support modern JS)
+not op_mini all
+# Exclude IE 11 (doesn't support modern JS)
+not IE 11
+

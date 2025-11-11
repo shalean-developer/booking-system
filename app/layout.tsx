@@ -1,10 +1,19 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Script from "next/script";
+import dynamic from "next/dynamic";
 import "./globals.css";
 import { cn } from "@/lib/utils";
-import { Toaster } from "sonner";
 import { stringifyStructuredData } from "@/lib/structured-data-validator";
+
+// Dynamically import Toaster to reduce initial bundle size
+const Toaster = dynamic(
+  () => import("sonner").then((mod) => mod.Toaster),
+  {
+    ssr: false,
+    loading: () => null,
+  }
+);
 
 const inter = Inter({ 
   subsets: ["latin"],
@@ -119,13 +128,78 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* Resource Hints for Performance */}
+        {/* Resource Hints for Performance - Preconnect for critical origins */}
+        <link rel="preconnect" href="https://shalean.co.za" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
         <link rel="dns-prefetch" href="https://utfvbtcszzafuoyytlpf.supabase.co" />
         
         {/* Preload critical resources */}
         <link rel="preload" href="/logo.svg" as="image" type="image/svg+xml" />
+        
+        {/* Critical CSS - Minimal styles for above-the-fold content */}
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            /* Critical CSS for initial render - prevents FOUC */
+            body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background-color:#f8fafc;color:#0f172a}
+            .min-h-screen{min-height:100vh}
+          `
+        }} />
+        
+        {/* Async CSS Loading Script - Makes CSS non-blocking */}
+        <Script
+          id="async-css-loader"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                // Convert blocking CSS to non-blocking using media="print" trick
+                function makeCSSAsync() {
+                  var links = document.querySelectorAll('link[rel="stylesheet"]');
+                  links.forEach(function(link) {
+                    // Skip if already processed or not a Next.js CSS file
+                    if (link.hasAttribute('data-async-css')) return;
+                    var href = link.href || link.getAttribute('href');
+                    if (!href || !href.includes('_next/static')) return;
+                    
+                    // Mark as processed
+                    link.setAttribute('data-async-css', 'true');
+                    
+                    // Use media="print" trick to load CSS asynchronously
+                    var media = link.media || 'all';
+                    link.media = 'print';
+                    link.onload = function() {
+                      this.media = media;
+                    };
+                    // Fallback: set media back after load
+                    link.addEventListener('load', function() {
+                      this.media = media;
+                    });
+                    // Error fallback
+                    link.addEventListener('error', function() {
+                      this.media = media;
+                    });
+                  });
+                }
+                
+                // Run immediately and also after DOMContentLoaded
+                makeCSSAsync();
+                if (document.readyState === 'loading') {
+                  document.addEventListener('DOMContentLoaded', makeCSSAsync);
+                }
+                
+                // Also check periodically for dynamically added CSS (Next.js may add them)
+                var observer = new MutationObserver(function(mutations) {
+                  makeCSSAsync();
+                });
+                observer.observe(document.head, {
+                  childList: true,
+                  subtree: true
+                });
+              })();
+            `
+          }}
+        />
         
         {/* Organization Schema for Brand Name Display */}
         <script
