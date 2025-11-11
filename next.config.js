@@ -7,6 +7,9 @@ const nextConfig = {
   reactStrictMode: true,
   compress: true,
   poweredByHeader: false,
+  // Add empty turbopack config to silence Next.js 16 warning
+  // We use webpack for custom chunk splitting configuration
+  turbopack: {},
   images: {
     // Remote patterns for external images
     remotePatterns: [
