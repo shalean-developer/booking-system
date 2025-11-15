@@ -128,6 +128,7 @@ export default function RootLayout({
       <head>
         {/* Resource Hints for Performance - Preconnect for critical origins */}
         <link rel="preconnect" href="https://shalean.co.za" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://www.googletagmanager.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
         <link rel="dns-prefetch" href="https://utfvbtcszzafuoyytlpf.supabase.co" />
@@ -203,6 +204,24 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: stringifyStructuredData(organizationSchema, "Organization") }}
+        />
+        
+        {/* Google Analytics (gtag.js) */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-VV357GZWXM"
+          strategy="afterInteractive"
+        />
+        <Script
+          id="google-analytics"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-VV357GZWXM');
+            `,
+          }}
         />
       </head>
       <body className={cn(inter.variable, playfairDisplay.variable, inter.className, "min-h-screen bg-slate-50")}>

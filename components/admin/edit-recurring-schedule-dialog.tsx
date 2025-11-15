@@ -391,14 +391,14 @@ export function EditRecurringScheduleDialog({
           <div className="space-y-3">
             <Label>Assign Cleaner (Optional)</Label>
             <Select
-              value={formData.cleaner_id}
-              onValueChange={(value) => setFormData(prev => ({ ...prev, cleaner_id: value || '' }))}
+              value={formData.cleaner_id || 'none'}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, cleaner_id: value === 'none' ? '' : value }))}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select a cleaner (optional)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No cleaner assigned</SelectItem>
+                <SelectItem value="none">No cleaner assigned</SelectItem>
                 {cleaners.map((cleaner) => (
                   <SelectItem key={cleaner.id} value={cleaner.id}>
                     {cleaner.name}
