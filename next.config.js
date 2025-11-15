@@ -89,11 +89,13 @@ const nextConfig = {
         destination: '/booking/service/select',
         permanent: true,
       },
-      {
-        source: '/booking/:id([0-9A-Za-z-]+)',
-        destination: '/dashboard/bookings',
-        permanent: true,
-      },
+      // DISABLED: This redirect was interfering with new guest booking flow
+      // Old booking IDs should now go to confirmation page, not dashboard
+      // {
+      //   source: '/booking/:id([0-9A-Za-z-]+)',
+      //   destination: '/dashboard/bookings',
+      //   permanent: true,
+      // },
       // Legacy content URLs
       {
         source: '/articles/:path*',
@@ -316,6 +318,40 @@ const nextConfig = {
         source: '/location/cape-town/v%26a-waterfront',
         destination: '/location/cape-town/waterfront',
         permanent: true,
+      },
+    ];
+  },
+  // Internal rewrites for booking flow migration
+  // Old booking URLs internally serve new booking-v2 content without changing browser URL
+  async rewrites() {
+    return [
+      {
+        source: '/booking/service/select',
+        destination: '/booking-v2/select',
+      },
+      {
+        source: '/booking/service/:slug/details',
+        destination: '/booking-v2/:slug/details',
+      },
+      {
+        source: '/booking/service/:slug/schedule',
+        destination: '/booking-v2/:slug/schedule',
+      },
+      {
+        source: '/booking/service/:slug/contact',
+        destination: '/booking-v2/:slug/contact',
+      },
+      {
+        source: '/booking/service/:slug/select-cleaner',
+        destination: '/booking-v2/:slug/cleaner',
+      },
+      {
+        source: '/booking/service/:slug/review',
+        destination: '/booking-v2/:slug/review',
+      },
+      {
+        source: '/booking/confirmation',
+        destination: '/booking-v2/confirmation',
       },
     ];
   },

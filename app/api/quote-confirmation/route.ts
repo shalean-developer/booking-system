@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sendEmail, generateQuoteConfirmationEmail, generateAdminQuoteNotificationEmail, QuoteRequest } from '@/lib/email';
 import { supabase } from '@/lib/supabase';
-import { calcTotal } from '@/lib/pricing';
+import { calcTotalSync } from '@/lib/pricing';
 import type { ServiceType } from '@/types/booking';
 
 /**
@@ -52,12 +52,14 @@ export async function POST(req: Request) {
     const quoteId = `QT-${Date.now()}`;
     
     // Calculate estimated price (for internal use, not shown to customer)
-    const estimatedPrice = calcTotal({
+    const pricingDetails = calcTotalSync({
       service: body.service as ServiceType,
       bedrooms: body.bedrooms || 0,
       bathrooms: body.bathrooms || 1,
-      extras: body.extras || []
-    });
+      extras: body.extras || [],
+      extrasQuantities: undefined // Quotes don't have quantities
+    }, 'one-time');
+    const estimatedPrice = pricingDetails.total;
     
     // Save quote to database
     let quoteSaved = false;

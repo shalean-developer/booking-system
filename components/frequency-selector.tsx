@@ -2,7 +2,6 @@
 
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 interface FrequencySelectorProps {
@@ -25,7 +24,7 @@ const FREQUENCY_OPTIONS = [
   {
     value: 'one-time' as const,
     label: 'One-Time',
-    description: 'Single cleaning session',
+    description: 'Single session',
     icon: '🏠',
   },
   {
@@ -38,14 +37,14 @@ const FREQUENCY_OPTIONS = [
   {
     value: 'bi-weekly' as const,
     label: 'Bi-Weekly',
-    description: 'Every 2 weeks',
+    description: 'Every 2|weeks',
     icon: '📆',
     discountKey: 'bi-weekly' as const,
   },
   {
     value: 'monthly' as const,
     label: 'Monthly',
-    description: 'Once a month',
+    description: 'Once a|month',
     icon: '🗓️',
     discountKey: 'monthly' as const,
   },
@@ -67,14 +66,10 @@ export function FrequencySelector({
   return (
     <div className={cn('space-y-3', className)}>
       <div>
-        <Label className="text-sm font-semibold text-gray-900">
+        <h3 className="text-base font-semibold text-gray-900">
           How often do you need cleaning?
-        </Label>
-        <p className="text-sm text-gray-600 mt-1">
-          Choose a frequency now—you can always tweak it before confirming.
-        </p>
+        </h3>
       </div>
-
       <RadioGroup
         value={value}
         onValueChange={(val) => onChange(val as any)}
@@ -83,33 +78,24 @@ export function FrequencySelector({
         {FREQUENCY_OPTIONS.map((option) => {
           const discount = option.discountKey ? discounts[option.discountKey] : undefined;
           const isSelected = value === option.value;
-          const pricing = pricingByFrequency?.[option.value];
-          const helperText = (() => {
-            if (discount && discount > 0) {
-              return `Save ${discount}% per visit versus one-time pricing`;
-            }
-            if (option.value === 'one-time') {
-              return 'Perfect for deep cleans or move-outs';
-            }
-            if (option.value === 'monthly') {
-              return 'Keeps things fresh between big cleans';
-            }
-            return 'Keeps the same cleaner on rotation';
-          })();
 
           return (
             <div key={option.value} className="relative">
               {/* Discount Badge - Positioned at top halfway across border */}
               {discount && discount > 0 && (
-                <Badge 
-                  variant={isSelected ? "default" : "secondary"}
+                <div 
                   className={cn(
-                    "absolute left-1/2 -translate-x-1/2 -top-3 z-10 text-xs font-semibold px-2 py-0.5",
-                    isSelected && "bg-primary text-white"
+                    "absolute left-1/2 -translate-x-1/2 -top-3 z-10",
+                    "bg-gray-100 rounded-lg px-3 py-1.5",
+                    "shadow-sm border border-gray-200/50",
+                    "flex items-center justify-center",
+                    "min-w-[80px] whitespace-nowrap"
                   )}
                 >
-                  Save {discount}%
-                </Badge>
+                  <span className="text-xs font-bold text-gray-900">
+                    Save {discount}%
+                  </span>
+                </div>
               )}
               
               <RadioGroupItem
@@ -140,14 +126,15 @@ export function FrequencySelector({
                 </span>
 
                 {/* Description */}
-                <span className="text-xs text-gray-600 text-center mt-1">
-                  {option.description}
-                </span>
-                <span className="text-sm text-gray-900 font-semibold text-center mt-2">
-                  {pricing ? `${currencyFormatter.format(pricing.total)} per visit` : 'Pricing shown on next step'}
-                </span>
-                <span className="text-xs text-primary/80 text-center mt-2 font-semibold">
-                  {helperText}
+                <span className="text-xs text-gray-600 text-center mt-1 flex flex-col">
+                  {option.description.includes('|') 
+                    ? option.description.split('|').map((part, idx) => (
+                        <span key={idx}>{part.trim()}</span>
+                      ))
+                    : option.description.split(' ').filter(word => word.trim()).map((word, idx) => (
+                        <span key={idx}>{word}</span>
+                      ))
+                  }
                 </span>
               </Label>
             </div>

@@ -10,6 +10,7 @@ interface BlogPost {
   read_time: number;
   featured_image: string | null;
   featured_image_alt: string | null;
+  content?: string;
 }
 
 interface BlogPostHeroProps {
@@ -63,6 +64,14 @@ export function BlogPostHero({ post }: BlogPostHeroProps) {
             <span className="flex items-center gap-2 text-sm">
               <Clock className="h-4 w-4 text-primary" />
               {post.read_time} min read
+              {post.content && (
+                <>
+                  <span className="text-gray-400">•</span>
+                  <span className="text-sm text-gray-600">
+                    {post.content.split(' ').length.toLocaleString()} words
+                  </span>
+                </>
+              )}
             </span>
           </div>
           {post.featured_image && post.featured_image.trim() !== '' ? (

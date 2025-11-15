@@ -199,10 +199,24 @@ const blogPosts = [
 ];
 
 export const metadata: Metadata = createMetadata({
-  title: "Cape Town Cleaning Services | Shalean",
+  title: "Cleaning Services Cape Town | House & Office Cleaning | Shalean",
   description:
-    "Professional cleaning services across all Cape Town suburbs. Book vetted cleaners for regular housekeeping, deep cleaning, move in/out, and Airbnb turnovers.",
+    "Professional cleaning services across all Cape Town suburbs. Book vetted cleaners for regular housekeeping, deep cleaning, move in/out, and Airbnb turnovers. Same-day available. From R250. Serving Sea Point, Claremont, Constantia, Camps Bay & 50+ suburbs.",
   canonical: generateCanonical("/location/cape-town"),
+  keywords: [
+    "cleaning services Cape Town",
+    "house cleaning Cape Town",
+    "office cleaning Cape Town",
+    "deep cleaning Cape Town",
+    "Airbnb cleaning Cape Town",
+    "move out cleaning Cape Town",
+    "professional cleaners Cape Town",
+    "maid service Cape Town",
+    "cleaning services Sea Point",
+    "cleaning services Claremont",
+    "cleaning services Constantia",
+    "cleaning services Camps Bay"
+  ],
 });
 
 export default function CapeTownPage() {

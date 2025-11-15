@@ -2,6 +2,20 @@
 import { supabase } from './supabase';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+// Service metadata interface
+export interface ServiceMetadata {
+  id: string;
+  service_type: string;
+  display_name: string;
+  icon: string | null;
+  image_url: string | null;
+  display_order: number;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 // Types for pricing data
 export interface PricingRecord {
   id: string;
@@ -102,8 +116,8 @@ export async function fetchActivePricing(forceRefresh = false): Promise<PricingD
         .or('end_date.is.null,end_date.gt.' + new Date().toISOString().split('T')[0]);
 
       if (error) {
-        console.error('❌ Error fetching pricing:', error);
-        throw new Error(`Failed to fetch pricing: ${error.message}`);
+        const errorMessage = error?.message || error?.toString() || 'Unknown error';
+        throw new Error(`Failed to fetch pricing: ${errorMessage}`);
       }
 
       if (!data || data.length === 0) {
@@ -119,8 +133,14 @@ export async function fetchActivePricing(forceRefresh = false): Promise<PricingD
         frequencyDiscounts: {},
       };
 
+      // Track duplicates and validate prices
+      const seenExtras = new Set<string>();
+      const seenServiceFees: number[] = [];
+      const servicePricingTracker: Record<string, { base: number[], bedroom: number[], bathroom: number[] }> = {};
+
       data.forEach((record: any) => {
         const { service_type, price_type, item_name, price } = record;
+        const numericPrice = Number(price);
 
         switch (price_type) {
           case 'base':
@@ -129,28 +149,100 @@ export async function fetchActivePricing(forceRefresh = false): Promise<PricingD
             if (service_type) {
               if (!pricing.services[service_type]) {
                 pricing.services[service_type] = { base: 0, bedroom: 0, bathroom: 0 };
+                servicePricingTracker[service_type] = { base: [], bedroom: [], bathroom: [] };
               }
-              pricing.services[service_type][price_type as keyof ServicePricing] = Number(price);
+              
+              // Track all values to detect duplicates
+              servicePricingTracker[service_type][price_type as 'base' | 'bedroom' | 'bathroom'].push(numericPrice);
+              
+              // Use the last value (most recent effective date)
+              pricing.services[service_type][price_type as keyof ServicePricing] = numericPrice;
             }
             break;
 
           case 'extra':
             if (item_name) {
-              pricing.extras[item_name] = Number(price);
+              // Check for duplicates
+              if (seenExtras.has(item_name)) {
+                console.warn(`⚠️ Duplicate extra found in database: ${item_name}. Previous: ${pricing.extras[item_name]}, New: ${numericPrice}`);
+              }
+              seenExtras.add(item_name);
+              pricing.extras[item_name] = numericPrice;
             }
             break;
 
           case 'service_fee':
-            pricing.serviceFee = Number(price);
+            seenServiceFees.push(numericPrice);
+            // Use the last value (most recent)
+            pricing.serviceFee = numericPrice;
             break;
 
           case 'frequency_discount':
             if (item_name) {
-              pricing.frequencyDiscounts[item_name] = Number(price);
+              pricing.frequencyDiscounts[item_name] = numericPrice;
             }
             break;
         }
       });
+
+      // Validate pricing data
+      const validationErrors: string[] = [];
+      const validationWarnings: string[] = [];
+      
+      // Validate Standard service pricing
+      if (pricing.services['Standard']) {
+        const standard = pricing.services['Standard'];
+        if (standard.base > 500) {
+          validationErrors.push(`Standard base price too high: R${standard.base} (expected ~R250) - fallback will be used`);
+        }
+        if (standard.bedroom > 50) {
+          validationErrors.push(`Standard bedroom price too high: R${standard.bedroom} (expected R20) - fallback will be used`);
+        }
+        if (standard.bathroom > 50) {
+          validationErrors.push(`Standard bathroom price too high: R${standard.bathroom} (expected R30) - fallback will be used`);
+        }
+      }
+
+      // Validate service fee
+      if (pricing.serviceFee > 0 && pricing.serviceFee !== 50 && pricing.serviceFee !== 40) {
+        validationWarnings.push(`Service fee unusual: R${pricing.serviceFee} (expected R50) - fallback will be used if invalid`);
+      }
+      if (seenServiceFees.length > 1) {
+        validationWarnings.push(`Multiple service fees found: ${seenServiceFees.join(', ')}. Using last: R${pricing.serviceFee}`);
+      }
+
+      // Log detailed pricing breakdown
+      console.log('📊 Detailed Database Pricing Breakdown:', {
+        services: Object.entries(pricing.services).map(([service, prices]) => ({
+          service,
+          base: prices.base,
+          bedroom: prices.bedroom,
+          bathroom: prices.bathroom,
+          duplicates: {
+            base: servicePricingTracker[service]?.base.length > 1 ? servicePricingTracker[service].base : undefined,
+            bedroom: servicePricingTracker[service]?.bedroom.length > 1 ? servicePricingTracker[service].bedroom : undefined,
+            bathroom: servicePricingTracker[service]?.bathroom.length > 1 ? servicePricingTracker[service].bathroom : undefined,
+          }
+        })),
+        extras: Object.entries(pricing.extras).slice(0, 10), // First 10 extras
+        extrasCount: Object.keys(pricing.extras).length,
+        serviceFee: pricing.serviceFee,
+        serviceFeeDuplicates: seenServiceFees.length > 1 ? seenServiceFees : undefined,
+        frequencyDiscounts: pricing.frequencyDiscounts,
+        validationErrors: validationErrors.length > 0 ? validationErrors : undefined,
+        validationWarnings: validationWarnings.length > 0 ? validationWarnings : undefined,
+      });
+
+      // Log validation errors (critical issues that will trigger fallback)
+      if (validationErrors.length > 0) {
+        console.warn('⚠️ Database Pricing Validation Issues (fallback pricing will be used automatically):', validationErrors);
+        console.info('ℹ️ The application will automatically use fallback pricing values to ensure correct calculations.');
+      }
+      
+      // Log validation warnings (non-critical issues)
+      if (validationWarnings.length > 0) {
+        console.warn('⚠️ Database Pricing Warnings:', validationWarnings);
+      }
 
       // Update cache
       cachedPricing = pricing;
@@ -165,8 +257,12 @@ export async function fetchActivePricing(forceRefresh = false): Promise<PricingD
 
       return pricing;
     } catch (error) {
-      console.error('❌ Failed to fetch pricing:', error);
-      throw error;
+      // Re-throw if it's already an Error with message, otherwise wrap it
+      if (error instanceof Error) {
+        throw error;
+      }
+      const errorMessage = error?.toString() || 'Unknown error occurred while fetching pricing';
+      throw new Error(errorMessage);
     } finally {
       // Clear the fetching promise so future calls can fetch fresh data
       fetchingPromise = null;
@@ -207,8 +303,8 @@ export async function fetchPricingHistory(filters?: {
     const { data, error } = await query;
 
     if (error) {
-      console.error('❌ Error fetching pricing history:', error);
-      throw new Error(`Failed to fetch pricing history: ${error.message}`);
+      const errorMessage = error?.message || error?.toString() || 'Unknown error';
+      throw new Error(`Failed to fetch pricing history: ${errorMessage}`);
     }
 
     return (data || []) as PricingHistoryRecord[];
@@ -391,6 +487,29 @@ export async function getScheduledPricing(): Promise<PricingRecord[]> {
     return (data || []) as PricingRecord[];
   } catch (error) {
     console.error('❌ Failed to fetch scheduled pricing:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch service metadata from database
+ */
+export async function fetchServicesMetadata(): Promise<ServiceMetadata[]> {
+  try {
+    const { data, error } = await supabase
+      .from('services')
+      .select('*')
+      .eq('is_active', true)
+      .order('display_order', { ascending: true });
+
+    if (error) {
+      const errorMessage = error?.message || error?.toString() || 'Unknown error';
+      throw new Error(`Failed to fetch services: ${errorMessage}`);
+    }
+
+    return (data || []) as ServiceMetadata[];
+  } catch (error) {
+    console.error('❌ Failed to fetch services metadata:', error);
     throw error;
   }
 }

@@ -13,8 +13,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .map((post) => ({
       url: `${baseUrl}/blog/${post.slug}`,
       lastModified: post.updated_at ? new Date(post.updated_at) : new Date(),
-      changeFrequency: 'weekly' as const,
-      priority: 0.7,
+      changeFrequency: 'monthly' as const,
+      priority: 0.75,
     }))
 
   // Cape Town suburbs
@@ -47,8 +47,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const serviceEntries: MetadataRoute.Sitemap = servicePages.map((service) => ({
     url: `${baseUrl}/services/${service}`,
     lastModified: new Date(),
-    changeFrequency: 'monthly',
-    priority: 0.85,
+    changeFrequency: 'monthly' as const,
+    priority: 0.9,
   }));
 
   // Cape Town area hub pages
@@ -132,26 +132,26 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     {
       url: baseUrl,
       lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 1,
+      changeFrequency: 'daily' as const,
+      priority: 1.0,
     },
     {
       url: `${baseUrl}/services`,
       lastModified: new Date(),
-      changeFrequency: 'weekly',
+      changeFrequency: 'weekly' as const,
+      priority: 0.95,
+    },
+    {
+      url: `${baseUrl}/pricing`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly' as const,
       priority: 0.9,
     },
     {
       url: `${baseUrl}/booking/service/select`,
       lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/booking/quote`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.9,
+      changeFrequency: 'monthly' as const,
+      priority: 0.85,
     },
     {
       url: `${baseUrl}/about`,
@@ -216,26 +216,26 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     {
       url: `${baseUrl}/location/cape-town`,
       lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 0.8,
+      changeFrequency: 'weekly' as const,
+      priority: 0.9,
     },
     {
       url: `${baseUrl}/location/johannesburg`,
       lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 0.8,
+      changeFrequency: 'weekly' as const,
+      priority: 0.85,
     },
     {
       url: `${baseUrl}/location/pretoria`,
       lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.7,
+      changeFrequency: 'monthly' as const,
+      priority: 0.8,
     },
     {
       url: `${baseUrl}/location/durban`,
       lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.7,
+      changeFrequency: 'monthly' as const,
+      priority: 0.8,
     },
     // Add all service pages
     ...serviceEntries,

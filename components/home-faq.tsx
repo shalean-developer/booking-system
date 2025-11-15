@@ -1,43 +1,57 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, MessageCircle, Search, Phone } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { stringifyStructuredData } from '@/lib/structured-data-validator';
 
 const faqs = [
   {
-    question: 'Do you provide cleaning services near me?',
-    answer: 'Yes! Shalean serves all major areas in Cape Town including Sea Point, Camps Bay, Claremont, Green Point, CBD, Gardens, Mouille Point, and the V&A Waterfront. We also service surrounding suburbs. Book a cleaner near you today!'
+    question: "How much does house cleaning cost in Cape Town?",
+    answer: "Our cleaning services start from R250 for standard cleaning. Pricing depends on the size of your home, number of bedrooms and bathrooms, and the type of cleaning service you need. We offer transparent pricing with no hidden fees. Get an instant quote online or contact us for a personalized estimate."
   },
   {
-    question: 'What areas in Cape Town do you serve?',
-    answer: 'We provide professional cleaning services throughout Cape Town and surrounding areas. Our most popular service locations include Sea Point, Camps Bay, Claremont, Green Point, City Bowl, Gardens, and the V&A Waterfront. View our full service areas map for complete coverage.'
+    question: "Do you provide same-day cleaning services?",
+    answer: "Yes! We offer same-day cleaning services in Cape Town. Book online and we'll match you with an available cleaner in your area. Same-day availability depends on your location and time of booking, but we strive to accommodate urgent cleaning needs whenever possible."
   },
   {
-    question: 'How much does house cleaning cost?',
-    answer: 'Our pricing is transparent and based on your specific needs. Standard home cleaning starts from R200, while deep cleaning services range from R400-R1500 depending on property size. Get an instant online quote by booking a service—no hidden fees!'
+    question: "Are your cleaners insured and vetted?",
+    answer: "Absolutely. All Shalean cleaners are fully insured, background-checked, and vetted professionals. We conduct thorough screening including identity verification, reference checks, and training before cleaners join our team. Your peace of mind is our priority."
   },
   {
-    question: 'Do you offer same-day cleaning services?',
-    answer: 'Yes, we offer same-day and next-day cleaning appointments when available. Book online to see immediate availability. For urgent cleaning needs, contact us at +27 87 153 5250 and we\'ll do our best to accommodate you.'
+    question: "What areas in Cape Town do you serve?",
+    answer: "We serve all major areas across Cape Town including Sea Point, Claremont, Constantia, Camps Bay, Green Point, City Bowl, Atlantic Seaboard, Southern Suburbs, Northern Suburbs, and more. Check our locations page to see if we service your specific suburb."
   },
   {
-    question: 'Are your cleaners vetted and insured?',
-    answer: 'Absolutely. All Shalean cleaners undergo thorough background checks, are fully insured, and professionally trained. We maintain a 98% customer satisfaction rate and stand behind every cleaning service with our 100% satisfaction guarantee.'
+    question: "What cleaning products do you use?",
+    answer: "We use eco-friendly, non-toxic cleaning products that are safe for your family and pets. Our cleaners are trained to use professional-grade products that effectively clean while being environmentally responsible. If you have specific product preferences or allergies, let us know during booking."
   },
   {
-    question: 'What makes Shalean different from other cleaning companies?',
-    answer: 'Shalean combines professional expertise with exceptional customer service. We use eco-friendly products, provide flexible scheduling, offer online booking 24/7, and back every service with our satisfaction guarantee. With 50+ vetted cleaners and 500+ happy customers, we\'re Cape Town\'s trusted cleaning service.'
+    question: "Can I book recurring cleaning services?",
+    answer: "Yes! We offer flexible recurring cleaning services including weekly, bi-weekly, and monthly schedules. Recurring customers enjoy discounted rates and priority booking. Set up your schedule once and we'll handle the rest. You can modify or cancel anytime."
+  },
+  {
+    question: "What's included in a standard cleaning service?",
+    answer: "Our standard cleaning includes dusting, vacuuming, mopping, bathroom cleaning, kitchen cleaning, trash removal, and general tidying. We clean all accessible surfaces, floors, and fixtures. Deep cleaning services include additional tasks like inside appliances, baseboards, and detailed scrubbing."
+  },
+  {
+    question: "Do you offer Airbnb turnover cleaning?",
+    answer: "Yes! We specialize in Airbnb turnover cleaning in Cape Town. Our team ensures your property is guest-ready with thorough cleaning, fresh linens, and attention to detail. We understand the importance of quick turnarounds and maintain high standards for short-term rental properties."
   }
 ];
 
 export function HomeFAQ() {
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
 
-  // Generate FAQ schema
-  const faqSchema = {
+  const toggleFAQ = (index: number) => {
+    setOpenIndex(openIndex === index ? null : index);
+  };
+
+  // Generate FAQPage structured data
+  const faqStructuredData = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    "mainEntity": faqs.map((faq) => ({
+    "mainEntity": faqs.map(faq => ({
       "@type": "Question",
       "name": faq.question,
       "acceptedAnswer": {
@@ -49,91 +63,90 @@ export function HomeFAQ() {
 
   return (
     <>
-      {/* FAQ Schema */}
+      {/* Structured Data */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+        dangerouslySetInnerHTML={{ __html: stringifyStructuredData(faqStructuredData, "FAQPage") }}
       />
 
-      <section className="py-16 sm:py-20 bg-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16">
-            {/* Left Column - Support Options */}
-            <div>
-              <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-12">
-                Frequently asked questions
-              </h2>
+      <section className="py-16 md:py-24 bg-white">
+        <div className="container mx-auto px-4 max-w-4xl">
+          <motion.div
+            className="text-center mb-12"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Frequently Asked Questions
+            </h2>
+            <p className="text-lg text-gray-600">
+              Everything you need to know about our cleaning services in Cape Town
+            </p>
+          </motion.div>
 
-              {/* Support Cards */}
-              <div className="space-y-4">
-                {/* Live Chat Card */}
-                <div className="flex items-start gap-4 p-6 border-2 border-gray-200 rounded-xl hover:border-primary/50 transition-colors">
-                  <div className="w-12 h-12 flex items-center justify-center flex-shrink-0">
-                    <MessageCircle className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-1">Contact live chat support</h3>
-                    <p className="text-sm text-gray-600">Available 24/7. Quick response time.</p>
-                  </div>
-                </div>
-
-                {/* Search Knowledge Base Card */}
-                <div className="flex items-start gap-4 p-6 border-2 border-gray-200 rounded-xl hover:border-primary/50 transition-colors">
-                  <div className="w-12 h-12 flex items-center justify-center flex-shrink-0">
-                    <Search className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-1">Browse our knowledge base</h3>
-                    <p className="text-sm text-gray-600">Find answers to common questions.</p>
-                  </div>
-                </div>
-
-                {/* Phone Support Card */}
-                <div className="flex items-start gap-4 p-6 border-2 border-gray-200 rounded-xl hover:border-primary/50 transition-colors">
-                  <div className="w-12 h-12 flex items-center justify-center flex-shrink-0">
-                    <Phone className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-1">Call our support team</h3>
-                    <p className="text-sm text-gray-600">+27 87 153 5250</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Column - FAQ Accordion */}
-            <div>
-              <div className="space-y-0">
-                {faqs.map((faq, index) => (
-                  <div key={index} className="border-b border-gray-200">
-                    <button
-                      onClick={() => setOpenIndex(openIndex === index ? null : index)}
-                      className="w-full flex items-center justify-between py-6 text-left group"
+          <div className="space-y-4">
+            {faqs.map((faq, index) => (
+              <motion.div
+                key={index}
+                className="border border-gray-200 rounded-lg overflow-hidden bg-white"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <button
+                  onClick={() => toggleFAQ(index)}
+                  className="w-full px-6 py-5 text-left flex items-center justify-between hover:bg-gray-50 transition-colors"
+                  aria-expanded={openIndex === index}
+                >
+                  <span className="font-semibold text-gray-900 pr-8">
+                    {faq.question}
+                  </span>
+                  {openIndex === index ? (
+                    <ChevronUp className="h-5 w-5 text-primary flex-shrink-0" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                  )}
+                </button>
+                <AnimatePresence>
+                  {openIndex === index && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="overflow-hidden"
                     >
-                      <h3 className="font-semibold text-gray-900 pr-8 group-hover:text-primary transition-colors">
-                        {faq.question}
-                      </h3>
-                      {openIndex === index ? (
-                        <ChevronUp className="h-5 w-5 text-gray-400 flex-shrink-0" />
-                      ) : (
-                        <ChevronDown className="h-5 w-5 text-gray-400 flex-shrink-0 group-hover:text-primary transition-colors" />
-                      )}
-                    </button>
-                    {openIndex === index && (
-                      <div className="pb-6">
-                        <p className="text-gray-600 leading-relaxed">
-                          {faq.answer}
-                        </p>
+                      <div className="px-6 pb-5 text-gray-600 leading-relaxed">
+                        {faq.answer}
                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            ))}
           </div>
+
+          <motion.div
+            className="mt-12 text-center"
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.5 }}
+          >
+            <p className="text-gray-600 mb-4">
+              Still have questions? We're here to help!
+            </p>
+            <a
+              href="/contact"
+              className="text-primary font-semibold hover:underline"
+            >
+              Contact Us →
+            </a>
+          </motion.div>
         </div>
       </section>
     </>
   );
 }
-

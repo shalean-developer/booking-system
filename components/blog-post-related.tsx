@@ -16,15 +16,41 @@ interface RelatedPost {
 
 interface BlogPostRelatedProps {
   posts: RelatedPost[];
+  currentPostSlug?: string;
 }
 
-export function BlogPostRelated({ posts }: BlogPostRelatedProps) {
+export function BlogPostRelated({ posts, currentPostSlug }: BlogPostRelatedProps) {
   if (posts.length === 0) {
     return null;
   }
 
+  // Generate ItemList schema for related posts
+  const relatedPostsSchema = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "itemListElement": posts.map((post, index) => ({
+      "@type": "ListItem",
+      "position": index + 1,
+      "item": {
+        "@type": "BlogPosting",
+        "headline": post.title,
+        "description": post.excerpt,
+        "url": `https://shalean.co.za/blog/${post.slug}`,
+        "image": post.featured_image ? {
+          "@type": "ImageObject",
+          "url": post.featured_image
+        } : undefined
+      }
+    }))
+  };
+
   return (
-    <section className="py-20 bg-gradient-to-br from-gray-50 to-gray-100">
+    <section className="py-20 bg-gradient-to-br from-gray-50 to-gray-100" aria-label="Related articles">
+      {/* Related Posts Schema */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(relatedPostsSchema, null, 2) }}
+      />
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <h2 className="text-3xl font-bold text-gray-900 mb-12 text-center">
           Related Articles

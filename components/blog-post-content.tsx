@@ -63,10 +63,12 @@ export function BlogPostContent({ content, title = "", url = "", otherPosts = []
     .slice(0, 3);
   
   return (
-    <section className="py-16 bg-white">
+    <section className="py-16 bg-white" aria-label="Article content">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <article 
           className="blog-prose"
+          itemScope
+          itemType="https://schema.org/BlogPosting"
           dangerouslySetInnerHTML={{ __html: sanitizedContent }}
         />
         

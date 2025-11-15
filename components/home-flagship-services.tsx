@@ -1,94 +1,99 @@
 import Link from "next/link";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { CheckCircle } from "lucide-react";
+import { ArrowUpRight, Home, Sparkles, Building2, Calendar, BarChart3 } from "lucide-react";
 
 export function HomeFlagshipServices() {
+  const services = [
+    {
+      title: "Standard Cleaning",
+      icon: Home,
+      bgColor: "bg-purple-100",
+      iconColor: "text-purple-600",
+    },
+    {
+      title: "Deep Cleaning",
+      icon: Sparkles,
+      bgColor: "bg-pink-100",
+      iconColor: "text-pink-600",
+    },
+    {
+      title: "Airbnb Cleaning",
+      icon: Building2,
+      bgColor: "bg-blue-100",
+      iconColor: "text-blue-600",
+    },
+    {
+      title: "Move In/Out",
+      icon: Calendar,
+      bgColor: "bg-orange-100",
+      iconColor: "text-orange-600",
+    },
+    {
+      title: "Commercial Cleaning",
+      icon: BarChart3,
+      bgColor: "bg-green-100",
+      iconColor: "text-green-600",
+    },
+  ];
+
   return (
-    <section className="py-12 sm:py-16 lg:py-20 bg-gray-50">
+    <section className="py-12 sm:py-16 lg:py-20 bg-white">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12 items-center">
-          <div>
-            <Badge className="bg-primary text-white border-primary/80 mb-3 sm:mb-4 text-xs sm:text-sm shadow-sm">
-              Most Booked Services
-            </Badge>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4 sm:mb-6">
-              Popular Cape Town Cleaning Services
-            </h2>
-            <p className="text-base sm:text-lg text-gray-600 mb-6 sm:mb-8">
-              Comprehensive house cleaning services and deep cleaning services designed to transform your space 
-              from ordinary to extraordinary. As one of Cape Town's leading cleaning companies, we deliver meticulous attention to detail.
-            </p>
-            <div className="space-y-4 sm:space-y-6 mb-6 sm:mb-8">
-              <div className="flex items-start gap-3 sm:gap-4">
-                <div className="w-5 h-5 sm:w-6 sm:h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                  <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
+        {/* Heading */}
+        <div className="text-center mb-8 sm:mb-12">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900">
+            Where innovation meets <span className="font-playfair italic text-gray-400">aesthetics</span>
+          </h2>
+        </div>
+
+        {/* Service Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6 mb-12 sm:mb-16">
+          {services.map((service) => {
+            const IconComponent = service.icon;
+            return (
+              <div
+                key={service.title}
+                className={`${service.bgColor} rounded-2xl p-6 sm:p-8 flex flex-col items-center text-center hover:scale-105 transition-transform duration-200`}
+              >
+                <div className={`${service.iconColor} mb-4`}>
+                  <IconComponent className="w-10 h-10 sm:w-12 sm:h-12" />
                 </div>
-                <div>
-                  <h3 className="font-semibold text-sm sm:text-base text-gray-900">Standard Cleaning</h3>
-                  <p className="text-sm sm:text-base text-gray-600">Regular maintenance cleaning to keep your space fresh and organized.</p>
-                </div>
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900">
+                  {service.title}
+                </h3>
               </div>
-              <div className="flex items-start gap-3 sm:gap-4">
-                <div className="w-5 h-5 sm:w-6 sm:h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                  <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm sm:text-base text-gray-900">Deep Cleaning Services</h3>
-                  <p className="text-sm sm:text-base text-gray-600">Thorough cleaning sessions that tackle every corner and surface.</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 sm:gap-4">
-                <div className="w-5 h-5 sm:w-6 sm:h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                  <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm sm:text-base text-gray-900">Airbnb Cleaning</h3>
-                  <p className="text-sm sm:text-base text-gray-600">Professional turnover cleaning to ensure guest-ready perfection.</p>
-                </div>
-              </div>
+            );
+          })}
+        </div>
+
+        {/* CTA Section */}
+        <div className="bg-gray-900 rounded-2xl p-6 sm:p-8 lg:p-12">
+          <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
+            <div className="text-center lg:text-left">
+              <p className="text-white text-xl sm:text-2xl lg:text-3xl font-semibold">
+                See Our Work in Action. Start Your Creative Journey with Us!
+              </p>
             </div>
-            <p className="text-sm sm:text-base text-gray-600">
-              Looking for a specific suburb? Explore{" "}
-              <Link href="/location/cape-town" className="text-primary font-semibold hover:text-primary/80">
-                cleaning services across Cape Town
-              </Link>{" "}
-              and find a Shalean team near you.
-            </p>
-            <Link href="/services">
-              <Button className="bg-primary hover:bg-primary/90 text-white">
-                Explore All Services
-                <span aria-hidden className="ml-2 text-base leading-none">→</span>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Button
+                className="bg-white text-gray-900 hover:bg-gray-100 rounded-full px-6 py-3 font-medium flex items-center gap-2"
+                asChild
+              >
+                <Link href="/booking/service/select">
+                  Let&apos;s Collaborate
+                  <ArrowUpRight className="w-4 h-4" />
+                </Link>
               </Button>
-            </Link>
-          </div>
-          <div>
-            <div className="relative">
-              <div className="rounded-lg overflow-hidden h-64 sm:h-80 lg:h-96 bg-gray-100 relative">
-                <Image
-                  src="/images/cleaning-team-hero.jpg"
-                  alt="Professional cleaning team working in a modern kitchen"
-                  width={1500}
-                  height={844}
-                  className="w-full h-full object-cover"
-                  priority
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 750px"
-                  quality={90}
-                />
-              </div>
-              <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 right-2 sm:right-4 bg-white rounded-lg p-3 sm:p-4 shadow-lg">
-                <div className="flex justify-between items-center gap-2">
-                  <div>
-                    <div className="text-base sm:text-xl lg:text-2xl font-bold text-gray-900">100+ Hours</div>
-                    <div className="text-xs sm:text-sm text-gray-600">of Cleaning Experience</div>
-                  </div>
-                  <div>
-                    <div className="text-base sm:text-xl lg:text-2xl font-bold text-gray-900">24/7</div>
-                    <div className="text-xs sm:text-sm text-gray-600">Customer Support</div>
-                  </div>
-                </div>
-              </div>
+              <Button
+                variant="outline"
+                className="border-white text-white hover:bg-white/10 rounded-full px-6 py-3 font-medium flex items-center gap-2"
+                asChild
+              >
+                <Link href="/services">
+                  View Portfolio
+                  <ArrowUpRight className="w-4 h-4" />
+                </Link>
+              </Button>
             </div>
           </div>
         </div>

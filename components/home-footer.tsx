@@ -1,170 +1,218 @@
+'use client';
+
 import Link from "next/link";
 import Image from "next/image";
-import { Instagram, Mail, Facebook, Linkedin, MessageCircle } from "lucide-react";
-
-// Optimized Logo component - static import, no client-side detection
-function Logo() {
-  return (
-    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded overflow-hidden bg-primary flex items-center justify-center">
-      <Image 
-        src="/logo.svg"
-        alt="Shalean Logo"
-        width={32}
-        height={32}
-        className="w-7 h-7 sm:w-8 sm:h-8 object-cover"
-        priority={false}
-      />
-    </div>
-  );
-}
+import { Facebook, Twitter, Instagram, Mail, Phone, MapPin } from "lucide-react";
 
 export function HomeFooter() {
   return (
-    <footer className="bg-gray-900 text-white py-12 sm:py-16">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Main Footer Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-12 mb-8 sm:mb-12">
-          {/* Left Column - Brand & Contact Info (Wider) */}
-          <div className="lg:col-span-2">
-            <div className="flex items-center gap-2 mb-6">
-              <Logo />
-              <span className="text-xl font-bold">Shalean</span>
-            </div>
-            <p className="text-base text-gray-400 mb-8 max-w-md leading-relaxed">
-              Professional cleaning services and solutions helping homeowners and businesses 
-              maintain pristine, healthy environments across Cape Town.
-            </p>
-            
-            {/* Contact Information */}
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <div className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.054-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z" />
-                  </svg>
+    <>
+      <footer className="bg-gray-900 text-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          {/* Main Footer Content */}
+          <div className="py-12 sm:py-16">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
+              {/* Brand Section */}
+              <div className="lg:col-span-1">
+                <Link href="/" className="inline-block mb-4">
+                  <Image
+                    src="/logo.svg"
+                    alt="Shalean Cleaning Services"
+                    width={120}
+                    height={40}
+                    className="h-8 w-auto"
+                  />
+                </Link>
+                <p className="text-sm text-gray-400 mb-4 leading-relaxed">
+                  Professional cleaning services in Cape Town. Trusted cleaners for your home, office, and Airbnb.
+                </p>
+                <div className="mb-6">
+                  <p className="text-xs text-gray-500 mb-2">Serving Cape Town areas:</p>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <Link href="/location/cape-town/sea-point" className="text-gray-400 hover:text-primary transition-colors">
+                      Sea Point
+                    </Link>
+                    <span className="text-gray-600">•</span>
+                    <Link href="/location/cape-town/claremont" className="text-gray-400 hover:text-primary transition-colors">
+                      Claremont
+                    </Link>
+                    <span className="text-gray-600">•</span>
+                    <Link href="/location/cape-town/constantia" className="text-gray-400 hover:text-primary transition-colors">
+                      Constantia
+                    </Link>
+                    <span className="text-gray-600">•</span>
+                    <Link href="/location/cape-town/camps-bay" className="text-gray-400 hover:text-primary transition-colors">
+                      Camps Bay
+                    </Link>
+                    <span className="text-gray-600">•</span>
+                    <Link href="/location/cape-town" className="text-gray-400 hover:text-primary transition-colors">
+                      More areas →
+                    </Link>
+                  </div>
                 </div>
-                <span className="text-gray-400">+27 87 153 5250</span>
-              </div>
-              
-              <div className="flex items-start gap-3">
-                <Mail className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
-                <span className="text-gray-400">bookings@shalean.com</span>
-              </div>
-              
-              <div className="flex items-start gap-3">
-                <div className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25s-7.5-4.108-7.5-11.25a7.5 7.5 0 1 1 15 0Z" />
-                  </svg>
+                {/* Social Media */}
+                <div className="flex items-center gap-3">
+                  <a 
+                    href="https://facebook.com/shaleancleaning" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="w-9 h-9 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-primary transition-colors"
+                    aria-label="Visit our Facebook page"
+                  >
+                    <Facebook className="h-4 w-4 text-white" />
+                  </a>
+                  <a 
+                    href="https://twitter.com/shaleancleaning" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="w-9 h-9 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-primary transition-colors"
+                    aria-label="Visit our Twitter page"
+                  >
+                    <Twitter className="h-4 w-4 text-white" />
+                  </a>
+                  <a 
+                    href="https://instagram.com/shaleancleaning" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="w-9 h-9 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-primary transition-colors"
+                    aria-label="Visit our Instagram profile"
+                  >
+                    <Instagram className="h-4 w-4 text-white" />
+                  </a>
                 </div>
-                <span className="text-gray-400">
-                  Claremont, Cape Town
-                  <br />
-                  Western Cape, South Africa
-                </span>
+              </div>
+
+              {/* Services */}
+              <div>
+                <h3 className="font-semibold mb-4 text-base text-white">Services</h3>
+                <ul className="space-y-3">
+                  <li>
+                    <Link href="/services/regular-cleaning" className="text-sm text-gray-400 hover:text-white transition-colors">
+                      Standard Cleaning
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/services/deep-specialty" className="text-sm text-gray-400 hover:text-white transition-colors">
+                      Deep Cleaning
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/services/move-turnover" className="text-sm text-gray-400 hover:text-white transition-colors">
+                      Move In/Out
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/services/office-cleaning" className="text-sm text-gray-400 hover:text-white transition-colors">
+                      Office Cleaning
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/booking/service/select" className="text-sm text-primary hover:text-primary/80 transition-colors font-medium">
+                      Book Now →
+                    </Link>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Company */}
+              <div>
+                <h3 className="font-semibold mb-4 text-base text-white">Company</h3>
+                <ul className="space-y-3">
+                  <li>
+                    <Link href="/about" className="text-sm text-gray-400 hover:text-white transition-colors">
+                      About Us
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/careers" className="text-sm text-gray-400 hover:text-white transition-colors">
+                      Careers
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/blog" className="text-sm text-gray-400 hover:text-white transition-colors">
+                      Blog
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/contact" className="text-sm text-gray-400 hover:text-white transition-colors">
+                      Contact
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/login" className="text-sm text-primary hover:text-primary/80 transition-colors font-medium">
+                      Sign In →
+                    </Link>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Legal & Support */}
+              <div>
+                <h3 className="font-semibold mb-4 text-base text-white">Legal & Support</h3>
+                <ul className="space-y-3">
+                  <li>
+                    <Link href="/terms" className="text-sm text-gray-400 hover:text-white transition-colors">
+                      Terms & Conditions
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/privacy" className="text-sm text-gray-400 hover:text-white transition-colors">
+                      Privacy Policy
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/contact" className="text-sm text-gray-400 hover:text-white transition-colors">
+                      Help Center
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/faq" className="text-sm text-gray-400 hover:text-white transition-colors">
+                      FAQ
+                    </Link>
+                  </li>
+                </ul>
               </div>
             </div>
           </div>
 
-          {/* Right Columns - Navigation Links (4 columns) */}
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-8 lg:col-span-3">
-            {/* Services */}
-            <div>
-              <h3 className="font-semibold mb-4 text-base">Services</h3>
-              <div className="space-y-3">
-                <Link href="/services/deep-specialty" className="block text-sm text-gray-400 hover:text-white transition-colors">Deep Cleaning</Link>
-                <Link href="/services/home-maintenance" className="block text-sm text-gray-400 hover:text-white transition-colors">Home Maintenance</Link>
-                <Link href="/services/move-turnover" className="block text-sm text-gray-400 hover:text-white transition-colors">Move-in/Turnover</Link>
-                <Link href="/booking/service/select" className="block text-sm text-gray-400 hover:text-white transition-colors">Book Service</Link>
-              </div>
-            </div>
-
-            {/* Service Areas */}
-            <div>
-              <h3 className="font-semibold mb-4 text-base">Service Areas</h3>
-              <div className="space-y-3">
-                <Link href="/location/cape-town/sea-point" className="block text-sm text-gray-400 hover:text-white transition-colors">Sea Point</Link>
-                <Link href="/location/cape-town/camps-bay" className="block text-sm text-gray-400 hover:text-white transition-colors">Camps Bay</Link>
-                <Link href="/location/cape-town/claremont" className="block text-sm text-gray-400 hover:text-white transition-colors">Claremont</Link>
-                <Link href="/location/cape-town" className="block text-sm text-gray-400 hover:text-white transition-colors">All Areas</Link>
-              </div>
-            </div>
-
-            {/* Company */}
-            <div>
-              <h3 className="font-semibold mb-4 text-base">Company</h3>
-              <div className="space-y-3">
-                <Link href="/blog" className="block text-sm text-gray-400 hover:text-white transition-colors">Blog</Link>
-                <Link href="/about" className="block text-sm text-gray-400 hover:text-white transition-colors">About Us</Link>
-                <Link href="/team" className="block text-sm text-gray-400 hover:text-white transition-colors">Our Team</Link>
-                <Link href="/contact" className="block text-sm text-gray-400 hover:text-white transition-colors">Contact</Link>
-                <Link href="/careers" className="block text-sm text-gray-400 hover:text-white transition-colors">Careers</Link>
+          {/* Bottom Bar */}
+          <div className="border-t border-gray-800 py-6">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+              <p className="text-sm text-gray-400 text-center md:text-left">
+                Copyright © {new Date().getFullYear()} Shalean Cleaning Services. All rights reserved.
+              </p>
+              <div className="flex items-center gap-6 text-sm text-gray-400">
+                <a href="mailto:info@shalean.co.za" className="hover:text-white transition-colors flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  <span className="hidden sm:inline">info@shalean.co.za</span>
+                </a>
+                <a href="tel:+27211234567" className="hover:text-white transition-colors flex items-center gap-2">
+                  <Phone className="h-4 w-4" />
+                  <span className="hidden sm:inline">+27 21 123 4567</span>
+                </a>
               </div>
             </div>
           </div>
         </div>
+      </footer>
 
-        {/* Separator Line */}
-        <div className="border-t border-gray-800 mb-8"></div>
-
-        {/* Bottom Bar */}
-        <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-          {/* Left - Copyright */}
-          <p className="text-sm text-gray-400 text-center md:text-left">
-            © 2025 Shalean Cleaning Services. All rights reserved.
-          </p>
-
-          {/* Center - Legal Links */}
-          <div className="flex items-center gap-6 flex-wrap justify-center">
-            <Link href="/terms" className="text-sm text-gray-400 hover:text-white transition-colors">Terms & Conditions</Link>
-            <Link href="/privacy" className="text-sm text-gray-400 hover:text-white transition-colors">Privacy Policy</Link>
-            <Link href="/cookies" className="text-sm text-gray-400 hover:text-white transition-colors">Cookie Policy</Link>
-            <Link href="/popia" className="text-sm text-gray-400 hover:text-white transition-colors">POPIA Compliance</Link>
-            <Link href="/cancellation" className="text-sm text-gray-400 hover:text-white transition-colors">Cancellation Policy</Link>
-          </div>
-
-          {/* Right - Social Icons */}
-          <div className="flex items-center gap-4">
-            <a 
-              href="https://facebook.com/shaleancleaning" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors"
-              aria-label="Visit our Facebook page"
-            >
-              <Facebook className="h-5 w-5 text-gray-300" />
-            </a>
-            <a 
-              href="https://www.linkedin.com/company/shaleancleaning" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors"
-              aria-label="Visit our LinkedIn page"
-            >
-              <Linkedin className="h-5 w-5 text-gray-300" />
-            </a>
-            <a 
-              href="https://instagram.com/shaleancleaning" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors"
-              aria-label="Visit our Instagram profile"
-            >
-              <Instagram className="h-5 w-5 text-gray-300" />
-            </a>
-            <a 
-              href="https://wa.me/27871535250" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors"
-              aria-label="Contact us on WhatsApp"
-            >
-              <MessageCircle className="h-5 w-5 text-gray-300" />
-            </a>
-          </div>
-        </div>
-      </div>
-    </footer>
+      {/* Floating Action Button */}
+      <button
+        className="fixed bottom-6 right-6 w-14 h-14 bg-primary hover:bg-primary/90 text-white rounded-full shadow-lg flex items-center justify-center z-50 transition-all hover:scale-110"
+        aria-label="Quick access"
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={2}
+          stroke="currentColor"
+          className="h-6 w-6"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 19.5v-15m0 0l-6.75 6.75M12 4.5l6.75 6.75" />
+        </svg>
+      </button>
+    </>
   );
 }

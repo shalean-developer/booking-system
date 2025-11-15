@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Playfair_Display } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,13 @@ const inter = Inter({
   fallback: ['system-ui', 'arial'],
   adjustFontFallback: true,
   variable: '--font-inter',
+});
+
+const playfairDisplay = Playfair_Display({
+  subsets: ["latin"],
+  display: 'swap',
+  variable: '--font-playfair',
+  style: ['italic', 'normal'],
 });
 
 export const metadata: Metadata = {
@@ -198,7 +205,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: stringifyStructuredData(organizationSchema, "Organization") }}
         />
       </head>
-      <body className={cn(inter.variable, inter.className, "min-h-screen bg-slate-50")}>
+      <body className={cn(inter.variable, playfairDisplay.variable, inter.className, "min-h-screen bg-slate-50")}>
         {gtmId && (
           <>
             {/* Google Tag Manager */}

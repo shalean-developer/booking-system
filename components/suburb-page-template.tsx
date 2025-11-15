@@ -134,20 +134,28 @@ export function SuburbPageTemplate({
 
   const defaultFaqs: FAQItem[] = [
     {
-      question: `Do you offer same-day cleaning in ${suburb}?`,
-      answer: `Yes. When availability allows, we provide same-day or next-day cleaning in ${suburb} for urgent bookings. It’s best to contact us early so we can secure a vetted cleaner for you.`
+      question: `Do you offer same-day cleaning in ${suburb}, Cape Town?`,
+      answer: `Yes! We provide same-day and next-day cleaning services in ${suburb}, Cape Town when availability allows. Our Cape Town cleaning teams are trained to work efficiently while maintaining high standards. Book early for the best chance of same-day service.`
     },
     {
       question: `What types of properties do you clean in ${suburb}?`,
-      answer: `Our team cleans homes, apartments, townhouses, and offices throughout ${suburb} and the surrounding ${area}. We tailor our checklist to your property and preferences.`
+      answer: `Our professional cleaners serve homes, apartments, townhouses, and offices throughout ${suburb} and the surrounding ${area} in Cape Town. We tailor our cleaning checklist to your property type and specific preferences.`
+    },
+    {
+      question: `How much does cleaning cost in ${suburb}?`,
+      answer: `Cleaning prices in ${suburb} start from R250 for regular cleaning, depending on property size and service type. Deep cleaning starts from R450, and move-in/out cleaning from R980. Get an instant quote online or contact us for custom pricing.`
     },
     {
       question: `Are cleaning products and equipment included?`,
-      answer: `Absolutely. Shalean cleaners arrive with professional equipment and eco-friendly products. If you have specific supplies you prefer, let us know and we’ll gladly use them.`
+      answer: `Absolutely. Shalean cleaners arrive with professional-grade equipment and eco-friendly products that are safe for your family and pets. If you have specific supplies you prefer, let us know and we'll gladly use them.`
     },
     {
-      question: `Can I schedule recurring cleaning services?`,
-      answer: `Yes, we offer weekly, bi-weekly, or monthly cleaning in ${suburb}. Recurring customers get consistent cleaners whenever possible and priority scheduling.`
+      question: `Can I schedule recurring cleaning services in ${suburb}?`,
+      answer: `Yes, we offer weekly, bi-weekly, or monthly cleaning in ${suburb}, Cape Town. Recurring customers get consistent cleaners whenever possible, priority scheduling, and discounts on regular visits.`
+    },
+    {
+      question: `What areas near ${suburb} do you serve?`,
+      answer: `We serve ${suburb} and surrounding areas in the ${area} region of Cape Town. Our cleaning teams regularly service nearby suburbs, so contact us to confirm coverage for your specific location.`
     }
   ];
 

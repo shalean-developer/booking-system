@@ -1,77 +1,43 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
-import { useParams } from 'next/navigation';
-import { useBooking } from '@/lib/useBooking';
-import { StepReview } from '@/components/step-review';
-import { BookingFooter } from '@/components/booking-footer';
-import type { ServiceType } from '@/types/booking';
-
-// Helper function to convert URL slug back to ServiceType
-function slugToServiceType(slug: string): ServiceType | null {
-  const serviceMap: Record<string, ServiceType> = {
-    'standard': 'Standard',
-    'deep': 'Deep',
-    'move-inout': 'Move In/Out',
-    'move-in-out': 'Move In/Out',
-    'airbnb': 'Airbnb',
-  };
-  
-  return serviceMap[slug] || null;
-}
+import { useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { StepReview } from '@/components/booking-v2/step-review';
+import { useBookingV2 } from '@/lib/useBookingV2';
+import { useBookingPath } from '@/lib/useBookingPath';
+import { slugToServiceType } from '@/lib/booking-utils';
+import { Stepper } from '@/components/stepper';
 
 export default function ReviewPage() {
-  const { state, isLoaded, updateField } = useBooking();
   const params = useParams();
+  const router = useRouter();
+  const { state, updateField } = useBookingV2();
+  const { getSelectPath } = useBookingPath();
   const slug = params.slug as string;
+  const serviceFromSlug = slugToServiceType(slug);
 
-  // Derive service type from URL slug
-  const serviceFromSlug = useMemo(() => slugToServiceType(slug), [slug]);
-
-  // Sync service and step from URL
   useEffect(() => {
-    if (!isLoaded || !serviceFromSlug) return;
-
-    // Update service and step to match URL
-    if (state.service !== serviceFromSlug) {
+    updateField('currentStep', 4);
+    if (serviceFromSlug && serviceFromSlug !== state.service) {
       updateField('service', serviceFromSlug);
     }
-    if (state.step !== 6) {
-      updateField('step', 6);
+    if (!state.service) {
+      router.push(getSelectPath);
     }
-  }, [isLoaded, serviceFromSlug, state.service, state.step, updateField]);
+  }, [serviceFromSlug, state.service, updateField, router, getSelectPath]);
 
-  // Wait for localStorage to load
-  if (!isLoaded) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-        </div>
-      </div>
-    );
-  }
-
-  // If service is invalid or not on step 6, don't render
-  if (!serviceFromSlug || state.step !== 6) {
+  if (!state.service) {
     return null;
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-28">
-      <div className="py-6 lg:py-10">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          {/* Main Content - Full Width */}
-          <div className="pb-24 lg:pb-8">
-            <div className="max-w-4xl mx-auto">
-              <StepReview />
-            </div>
-          </div>
+    <div className="min-h-screen bg-slate-50">
+      <div className="container mx-auto px-4 py-8 md:py-12">
+        <div className="max-w-4xl mx-auto">
+          <Stepper currentStep={state.currentStep} />
+          <StepReview />
         </div>
       </div>
-
-      {/* Footer */}
-      <BookingFooter />
     </div>
   );
 }

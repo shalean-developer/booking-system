@@ -16,8 +16,20 @@ export async function generateMetadata(): Promise<Metadata> {
     "Sea Point",
     "Cape Town",
     "Atlantic Seaboard",
-    "Reliable cleaning services for Sea Point residents. From high-rise apartments to family homes, we provide professional cleaning tailored to your needs.",
-    highlights
+    "Professional cleaning services in Sea Point, Cape Town. Trusted cleaners for apartments, homes, and Airbnb properties. Same-day available. From R250. Book vetted cleaners serving Sea Point today!",
+    highlights,
+    {
+      keywords: [
+        "cleaning services Sea Point",
+        "Sea Point cleaners",
+        "apartment cleaning Sea Point",
+        "Airbnb cleaning Sea Point",
+        "house cleaning Sea Point Cape Town",
+        "professional cleaners Sea Point"
+      ],
+      services: ["Regular Cleaning", "Deep Cleaning", "Airbnb Cleaning", "Move In/Out"],
+      propertyTypes: ["Apartments", "Family Homes", "Airbnb Properties"]
+    }
   );
 
   // Validate metadata
@@ -33,7 +45,7 @@ export default function SeaPointPage() {
       suburb="Sea Point"
       city="Cape Town"
       area="Atlantic Seaboard"
-      description="Reliable cleaning services for Sea Point residents. From high-rise apartments to family homes, we provide professional cleaning tailored to your needs."
+      description="Professional cleaning services in Sea Point, Cape Town. Trusted cleaners for high-rise apartments, family homes, and Airbnb properties. Same-day available. Serving Sea Point with vetted, insured cleaners. Book your Sea Point cleaning service today!"
       available={true}
       highlights={[
         "High-rise apartment specialists",

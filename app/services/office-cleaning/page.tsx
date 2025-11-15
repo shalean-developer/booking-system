@@ -4,20 +4,20 @@ import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "Office Cleaning Services | Shalean",
-  description: "Professional commercial office cleaning services. Keep your workplace clean and productive with our experienced cleaners. Desk cleaning, reception maintenance, kitchen cleaning, and restroom sanitization available.",
+  title: "Office Cleaning Services Cape Town | Commercial Cleaning | Shalean",
+  description: "Professional commercial office cleaning services in Cape Town. Keep your workplace clean and productive. Desk cleaning, reception maintenance, kitchen cleaning, and restroom sanitization. From R180. Book today!",
   canonical: generateCanonical("/services/office-cleaning"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/services-office-cleaning-1200x630.jpg",
-    alt: "Professional office cleaning services"
+    alt: "Professional office cleaning services in Cape Town - Shalean Cleaning Services"
   }
 });
 
 export default function OfficeCleaningPage() {
   return (
     <ServicePageTemplate
-      title="Office Cleaning Services"
-      description="Professional commercial cleaning services for offices and workplaces. Keep your business environment clean, healthy, and productive."
+      title="Office Cleaning Services in Cape Town"
+      description="Professional commercial cleaning services for offices and workplaces in Cape Town. Keep your business environment clean, healthy, and productive. Serving businesses across Cape Town CBD, Claremont, and all commercial areas."
       icon={Building}
       features={[
         "Desk and workstation cleaning",

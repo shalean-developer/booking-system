@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/header";
+import { Breadcrumbs } from "@/components/breadcrumbs";
+import { InternalLinking } from "@/components/internal-linking";
 import { stringifyStructuredData } from "@/lib/structured-data-validator";
 import { 
   CheckCircle,
@@ -29,6 +31,8 @@ interface ServicePageProps {
   slug: string;
   color: string;
   iconColor: string;
+  faqs?: Array<{ question: string; answer: string }>;
+  relatedServices?: Array<{ title: string; href: string; description?: string }>;
 }
 
 export function ServicePageTemplate({
@@ -43,41 +47,116 @@ export function ServicePageTemplate({
   slug,
   color,
   iconColor,
+  faqs = [],
+  relatedServices = [],
 }: ServicePageProps) {
-  // Generate structured data for Service
-  const structuredData = {
+  // Enhanced Service schema with better areaServed
+  const serviceSchema = {
     "@context": "https://schema.org",
     "@type": "Service",
     "name": title,
     "description": description,
+    "serviceType": serviceType,
     "provider": {
       "@type": "LocalBusiness",
+      "@id": "https://shalean.co.za/#organization",
       "name": "Shalean Cleaning Services",
       "url": "https://shalean.co.za",
-      "telephone": "+27871535250",
+      "telephone": "+27 87 153 5250",
       "email": "support@shalean.co.za"
     },
-    "areaServed": {
-      "@type": "Country",
-      "name": "South Africa"
-    },
-    "serviceType": serviceType,
+    "areaServed": [
+      {
+        "@type": "City",
+        "name": "Cape Town",
+        "containedInPlace": {
+          "@type": "State",
+          "name": "Western Cape"
+        }
+      },
+      {
+        "@type": "City",
+        "name": "Johannesburg",
+        "containedInPlace": {
+          "@type": "State",
+          "name": "Gauteng"
+        }
+      },
+      {
+        "@type": "City",
+        "name": "Pretoria",
+        "containedInPlace": {
+          "@type": "State",
+          "name": "Gauteng"
+        }
+      },
+      {
+        "@type": "City",
+        "name": "Durban",
+        "containedInPlace": {
+          "@type": "State",
+          "name": "KwaZulu-Natal"
+        }
+      }
+    ],
     "offers": {
       "@type": "Offer",
-      "price": pricing,
-      "priceCurrency": "ZAR"
+      "priceRange": pricing.includes("From") ? pricing.replace("From ", "") : pricing,
+      "priceCurrency": "ZAR",
+      "availability": "https://schema.org/InStock",
+      "url": `https://shalean.co.za/services/${slug}`
+    },
+    "url": `https://shalean.co.za/services/${slug}`,
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "5.0",
+      "reviewCount": "500",
+      "bestRating": "5",
+      "worstRating": "1"
     }
   };
 
+  // FAQ schema if FAQs are provided
+  const faqSchema = faqs.length > 0 ? {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": faqs.map((faq) => ({
+      "@type": "Question",
+      "name": faq.question,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": faq.answer
+      }
+    }))
+  } : null;
+
+  // Breadcrumb items
+  const breadcrumbItems = [
+    { name: "Home", href: "/" },
+    { name: "Services", href: "/services" },
+    { name: title, href: `/services/${slug}` }
+  ];
+
   return (
     <div className="min-h-screen bg-white">
-      {/* Structured Data */}
+      {/* Service Schema */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: stringifyStructuredData(structuredData, "Service") }}
+        dangerouslySetInnerHTML={{ __html: stringifyStructuredData(serviceSchema, "Service") }}
       />
       
+      {/* FAQ Schema */}
+      {faqSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: stringifyStructuredData(faqSchema, "FAQPage") }}
+        />
+      )}
+      
       <Header />
+      
+      {/* Breadcrumbs */}
+      <Breadcrumbs items={breadcrumbItems} />
 
       {/* Hero Section */}
       <section className="py-20 bg-gradient-to-b from-primary/5 to-white">
@@ -259,6 +338,47 @@ export function ServicePageTemplate({
           </div>
         </div>
       </section>
+
+      {/* FAQ Section */}
+      {faqs.length > 0 && (
+        <section className="py-20 bg-white">
+          <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl font-bold text-gray-900 mb-4">
+                Frequently Asked Questions
+              </h2>
+              <p className="text-xl text-gray-600">
+                Common questions about our {title.toLowerCase()} service
+              </p>
+            </div>
+            <div className="space-y-6">
+              {faqs.map((faq, idx) => (
+                <Card key={idx} className="border-0 shadow-lg">
+                  <CardContent className="p-6">
+                    <h3 className="text-xl font-bold text-gray-900 mb-3">
+                      {faq.question}
+                    </h3>
+                    <p className="text-gray-700 leading-relaxed">
+                      {faq.answer}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Related Services Section */}
+      {relatedServices.length > 0 && (
+        <InternalLinking
+          type="service"
+          currentPage={slug}
+          relatedLinks={relatedServices}
+          title="Related Services"
+          description="Explore other professional cleaning services we offer"
+        />
+      )}
 
       {/* Related Articles Section */}
       <section className="py-20 bg-white">

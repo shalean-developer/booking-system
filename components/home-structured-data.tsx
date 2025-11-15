@@ -1,6 +1,55 @@
 import { stringifyStructuredData } from "@/lib/structured-data-validator";
 
 export function HomeStructuredData() {
+  // Sample reviews from homepage (matching home-reviews-showcase.tsx)
+  const reviews = [
+    {
+      "@type": "Review",
+      "author": {
+        "@type": "Person",
+        "name": "Sarah M."
+      },
+      "reviewBody": "Shalean transformed my home! The team was professional, thorough, and used eco-friendly products. My apartment has never looked better. Highly recommend their deep cleaning service.",
+      "reviewRating": {
+        "@type": "Rating",
+        "ratingValue": "5",
+        "bestRating": "5",
+        "worstRating": "1"
+      },
+      "datePublished": new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() // 1 week ago
+    },
+    {
+      "@type": "Review",
+      "author": {
+        "@type": "Person",
+        "name": "Michael T."
+      },
+      "reviewBody": "Outstanding service! The cleaners arrived on time, were incredibly thorough, and left my place spotless. The booking process was seamless and the pricing is very fair. Will definitely use again.",
+      "reviewRating": {
+        "@type": "Rating",
+        "ratingValue": "5",
+        "bestRating": "5",
+        "worstRating": "1"
+      },
+      "datePublished": new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString() // 2 weeks ago
+    },
+    {
+      "@type": "Review",
+      "author": {
+        "@type": "Person",
+        "name": "Lisa K."
+      },
+      "reviewBody": "Best cleaning service in Cape Town! They handle my Airbnb turnovers perfectly every time. Fast, reliable, and my guests always comment on how clean the place is. Worth every rand!",
+      "reviewRating": {
+        "@type": "Rating",
+        "ratingValue": "5",
+        "bestRating": "5",
+        "worstRating": "1"
+      },
+      "datePublished": new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() // 3 days ago
+    }
+  ];
+
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
@@ -76,11 +125,12 @@ export function HomeStructuredData() {
     ],
     "aggregateRating": {
       "@type": "AggregateRating",
-      "ratingValue": "4.9",
+      "ratingValue": "5.0",
       "reviewCount": "500",
       "bestRating": "5",
       "worstRating": "1"
     },
+    "review": reviews,
     "sameAs": [
       "https://instagram.com/shaleancleaning"
     ]

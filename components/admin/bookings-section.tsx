@@ -1148,10 +1148,13 @@ export function BookingsSection() {
                 serviceBasePrice = base + bedsPrice + bathsPrice;
               } else {
                 // Fallback: try to calculate from total_amount
+                // Get quantities from snapshot
+                const snapshotQuantities = snapshot.extras_quantities ?? {};
                 const extrasTotal = extrasFromSnapshot.reduce((sum: number, e: any) => {
                   const extraName = typeof e === 'object' && e !== null && e.name ? e.name : String(e);
-                  const extraPrice = e.price ? (e.price > 100 ? e.price / 100 : e.price) : getExtraPrice(extraName);
-                  return sum + extraPrice;
+                  const quantity = snapshotQuantities[extraName] ?? 1;
+                  const unitPrice = e.price ? (e.price > 100 ? e.price / 100 : e.price) : getExtraPrice(extraName);
+                  return sum + (unitPrice * Math.max(quantity, 1));
                 }, 0);
                 const basePrice = viewingBooking.total_amount ? viewingBooking.total_amount / 100 : 0;
                 const serviceFeeInRands = (snapshot.service_fee || viewingBooking.service_fee || 0) / 100;
@@ -1161,30 +1164,34 @@ export function BookingsSection() {
               
               pricingDetails = {
                 serviceBasePrice: serviceBasePrice,
-                extras: extrasFromSnapshot.map((e: any) => {
-                  const extraName = typeof e === 'object' && e !== null && e.name ? e.name : String(e);
-                  const extraKey = extraName as keyof typeof PRICING.extras;
-                  
-                  // Normalize extra name (trim whitespace)
-                  const normalizedName = extraName.trim();
-                  const extraKeyNormalized = normalizedName as keyof typeof PRICING.extras;
-                  
-                  // Try to get price from snapshot first
-                  let price = 0;
-                  if (typeof e === 'object' && e !== null && e.price != null) {
-                    // If price exists in snapshot, convert from cents to rands if needed
-                    // Price might be stored in cents (large number) or rands (small number)
-                    price = e.price > 100 ? e.price / 100 : e.price;
-                  } else {
-                    // Fallback to database pricing lookup
-                    price = getExtraPrice(extraName);
-                  }
-                  
-                  return {
-                    name: extraName,
-                    price: price
-                  };
-                }),
+                extras: (() => {
+                  const snapshotQuantities = snapshot.extras_quantities ?? {};
+                  return extrasFromSnapshot.map((e: any) => {
+                    const extraName = typeof e === 'object' && e !== null && e.name ? e.name : String(e);
+                    const quantity = snapshotQuantities[extraName] ?? 1;
+                    
+                    // Try to get price from snapshot first
+                    let unitPrice = 0;
+                    if (typeof e === 'object' && e !== null && e.price != null) {
+                      // If price exists in snapshot, convert from cents to rands if needed
+                      // Price might be stored in cents (large number) or rands (small number)
+                      unitPrice = e.price > 100 ? e.price / 100 : e.price;
+                    } else {
+                      // Fallback to database pricing lookup
+                      unitPrice = getExtraPrice(extraName);
+                    }
+                    
+                    // Calculate total price (unit price * quantity)
+                    const totalPrice = unitPrice * Math.max(quantity, 1);
+                    
+                    return {
+                      name: extraName,
+                      price: totalPrice, // Store total price (unit * quantity)
+                      unitPrice: unitPrice, // Store unit price for display
+                      quantity: quantity, // Store quantity for display
+                    };
+                  });
+                })(),
                 serviceFee: (() => {
                   // Try to get service fee from snapshot or booking, convert from cents to rands
                   // Use nullish coalescing to distinguish between 0 and null/undefined
@@ -1215,12 +1222,15 @@ export function BookingsSection() {
                   
                   // If still 0 or too low, calculate from breakdown
                   if (total === 0 || total < serviceBasePrice) {
+                    const snapshotQuantities = snapshot.extras_quantities ?? {};
+                    const extrasTotal = extrasFromSnapshot.reduce((sum: number, e: any) => {
+                      const extraName = typeof e === 'object' && e !== null && e.name ? e.name : String(e);
+                      const quantity = snapshotQuantities[extraName] ?? 1;
+                      const unitPrice = e.price ? (e.price > 100 ? e.price / 100 : e.price) : getExtraPrice(extraName);
+                      return sum + (unitPrice * Math.max(quantity, 1));
+                    }, 0);
                     total = serviceBasePrice + 
-                      extrasFromSnapshot.reduce((sum: number, e: any) => {
-                        const extraName = typeof e === 'object' && e !== null && e.name ? e.name : String(e);
-                        const extraPrice = e.price ? (e.price > 100 ? e.price / 100 : e.price) : getExtraPrice(extraName);
-                        return sum + extraPrice;
-                      }, 0) +
+                      extrasTotal +
                       ((snapshot.service_fee || viewingBooking.service_fee || 0) / 100) -
                       ((snapshot.frequency_discount_amount || snapshot.frequency_discount || 0) / 100);
                   }
@@ -1242,53 +1252,52 @@ export function BookingsSection() {
                 serviceBasePrice = base + bedsPrice + bathsPrice;
               } else {
                 // Fallback: try to calculate from total_amount
-                const extras = viewingBooking.extras ?? viewingBooking.price_snapshot?.extras ?? [];
-                const extrasBreakdown = extras.map((extra: any) => {
-                  const extraName = typeof extra === 'object' && extra !== null && extra.name ? extra.name : String(extra);
-                  const extraKey = extraName as keyof typeof PRICING.extras;
-                  
-                  // Try to get price from object if it exists, otherwise lookup from PRICING
-                  let price = 0;
-                  if (typeof extra === 'object' && extra !== null && extra.price != null) {
-                    // If price exists in object, convert from cents to rands if needed
-                    price = extra.price > 100 ? extra.price / 100 : extra.price;
-                  } else {
-                    // Fallback to database pricing lookup
-                    price = getExtraPrice(extraName);
-                  }
-                  
-                  return {
-                    name: extraName,
-                    price: price
-                  };
-                });
-                
-                const extrasTotal = extrasBreakdown.reduce((sum: number, e: { name: string; price: number }) => sum + e.price, 0);
                 const basePrice = viewingBooking.total_amount ? viewingBooking.total_amount / 100 : 0;
                 const serviceFeeInRands = viewingBooking.service_fee ? viewingBooking.service_fee / 100 : 0;
-                serviceBasePrice = Math.max(0, basePrice - extrasTotal - serviceFeeInRands);
+                // Estimate service base price (will be refined with extras breakdown)
+                serviceBasePrice = Math.max(0, basePrice - serviceFeeInRands);
               }
               
-              // Calculate extras breakdown
+              // Calculate extras breakdown (single calculation, no duplication)
               const extras = viewingBooking.extras ?? viewingBooking.price_snapshot?.extras ?? [];
+              const extrasQuantities = viewingBooking.price_snapshot?.extras_quantities ?? {};
+              
               const extrasBreakdown = extras.map((extra: any) => {
                 const extraName = typeof extra === 'object' && extra !== null && extra.name ? extra.name : String(extra);
                 
+                // Get quantity from snapshot or default to 1
+                const quantity = extrasQuantities[extraName] ?? 1;
+                
                 // Try to get price from object if it exists, otherwise lookup from database pricing
-                let price = 0;
+                let unitPrice = 0;
                 if (typeof extra === 'object' && extra !== null && extra.price != null) {
                   // If price exists in object, convert from cents to rands if needed
-                  price = extra.price > 100 ? extra.price / 100 : extra.price;
+                  unitPrice = extra.price > 100 ? extra.price / 100 : extra.price;
                 } else {
                   // Fallback to database pricing lookup
-                  price = getExtraPrice(extraName);
+                  unitPrice = getExtraPrice(extraName);
                 }
+                
+                // Calculate total price for this extra (unit price * quantity)
+                const totalPrice = unitPrice * Math.max(quantity, 1);
                 
                 return {
                   name: extraName,
-                  price: price
+                  price: totalPrice, // Store total price (unit * quantity)
+                  unitPrice: unitPrice, // Store unit price for display
+                  quantity: quantity, // Store quantity for display
                 };
               });
+              
+              // Calculate total extras cost (sum of all extras with quantities)
+              const extrasTotal = extrasBreakdown.reduce((sum: number, e: { price: number }) => sum + e.price, 0);
+              
+              // Refine service base price if we calculated it from total_amount
+              if (!servicePricing && viewingBooking.total_amount) {
+                const basePrice = viewingBooking.total_amount / 100;
+                const estimatedServiceFee = viewingBooking.service_fee ? viewingBooking.service_fee / 100 : 0;
+                serviceBasePrice = Math.max(0, basePrice - extrasTotal - estimatedServiceFee);
+              }
               
               const serviceFeeInRands = viewingBooking.service_fee != null ? viewingBooking.service_fee / 100 : getPricing().serviceFee;
               

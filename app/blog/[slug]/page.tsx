@@ -429,7 +429,7 @@ export default async function BlogPostPage({ params }: Props) {
       <BlogPostHeader />
 
       {/* Hero Section */}
-      <BlogPostHero post={post} />
+      <BlogPostHero post={{ ...post, content: post.content }} />
 
       {/* Article Content */}
       <BlogPostContent 
@@ -440,7 +440,7 @@ export default async function BlogPostPage({ params }: Props) {
       />
 
       {/* Related Posts - Lazy Loaded */}
-      <BlogPostRelated posts={relatedPosts} />
+      <BlogPostRelated posts={relatedPosts} currentPostSlug={post.slug} />
 
       {/* CTA Section - Lazy Loaded */}
       <BlogPostCTA />

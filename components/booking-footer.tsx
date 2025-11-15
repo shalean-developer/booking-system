@@ -1,10 +1,14 @@
 'use client';
 
-import { Sparkles } from 'lucide-react';
+import { Sparkles, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
 
-export function BookingFooter() {
+interface BookingFooterProps {
+  onShowChecklist?: () => void;
+}
+
+export function BookingFooter({ onShowChecklist }: BookingFooterProps) {
   return (
     <footer className="fixed bottom-0 left-0 right-0 bg-gray-100 border-t border-gray-200 h-20 z-40">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-full">
@@ -33,9 +37,26 @@ export function BookingFooter() {
             </p>
           </div>
 
+          {/* Mobile: Checklist Button */}
+          {onShowChecklist && (
+            <button
+              onClick={onShowChecklist}
+              className={cn(
+                'md:hidden flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-lg transition-colors',
+                'hover:bg-gray-200 active:bg-gray-300'
+              )}
+              aria-label="View checklist"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                <List className="h-5 w-5 text-primary" strokeWidth={1.5} />
+              </div>
+              <span className="text-[10px] font-medium text-gray-700">Checklist</span>
+            </button>
+          )}
+
           {/* Copyright - Right */}
           <div className="flex items-center justify-end flex-shrink-0">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 hidden sm:block">
               © 2025 Shalean (Pty) Ltd, all rights reserved
             </p>
           </div>

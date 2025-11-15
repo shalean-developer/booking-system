@@ -44,10 +44,10 @@ export default function HomeMaintenancePage() {
               </div>
             </div>
             <h1 className="mb-6 text-5xl font-bold text-gray-900">
-              Home Maintenance
+              Home Maintenance Cleaning in Cape Town
             </h1>
             <p className="mx-auto mb-8 max-w-3xl text-xl text-gray-600">
-              Regular home cleaning for ongoing upkeep. Ideal for one-off or recurring visits.
+              Regular home maintenance cleaning services in Cape Town for ongoing upkeep. Ideal for one-off or recurring visits. Serving Sea Point, Claremont, Constantia, and all Cape Town suburbs.
             </p>
             <Link href="/booking/quote">
               <Button size="lg" className="bg-primary hover:bg-primary/90 text-white">

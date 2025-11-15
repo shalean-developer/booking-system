@@ -44,10 +44,10 @@ export default function MoveTurnoverPage() {
               </div>
             </div>
             <h1 className="mb-6 text-5xl font-bold text-gray-900">
-              Move & Turnover
+              Move In/Out & Turnover Cleaning in Cape Town
             </h1>
             <p className="mx-auto mb-8 max-w-3xl text-xl text-gray-600">
-              Move-in/out and Airbnb turnover cleans for transitions and guest changeovers.
+              Professional move-in/out and Airbnb turnover cleaning services in Cape Town. End of lease cleaning, same-day available. Serving Sea Point, Claremont, Constantia, and all Cape Town suburbs.
             </p>
             <Link href="/booking/quote">
               <Button size="lg" className="bg-primary hover:bg-primary/90 text-white">

@@ -292,6 +292,30 @@ export function OutsideWindowIcon({ className = 'w-6 h-6' }: IconProps) {
   );
 }
 
+// Laundry & Ironing - Combined icon (washing machine and iron)
+export function LaundryIroningIcon({ className = 'w-6 h-6' }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      {/* Washing machine */}
+      <rect x="3" y="3" width="10" height="10" rx="1" />
+      <circle cx="8" cy="8" r="3" />
+      <circle cx="8" cy="8" r="1.5" />
+      {/* Iron */}
+      <path d="M16 6l2-2h2l-1 7h-3L16 6z" />
+      <path d="M16 10h3" />
+      <path d="M17 10v6" />
+    </svg>
+  );
+}
+
 // Icon mapping for easy lookup
 export const EXTRA_ICONS = {
   'Inside Fridge': FridgeIcon,
@@ -299,8 +323,7 @@ export const EXTRA_ICONS = {
   'Inside Cabinets': CabinetsIcon,
   'Interior Windows': WindowsIcon,
   'Interior Walls': WallsIcon,
-  'Ironing': IroningIcon,
-  'Laundry': LaundryIcon,
+  'Laundry & Ironing': LaundryIroningIcon,
   'Carpet Cleaning': CarpetIcon,
   'Ceiling Cleaning': CeilingIcon,
   'Garage Cleaning': GarageIcon,

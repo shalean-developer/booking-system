@@ -30,24 +30,6 @@ export const LazyHomeFlagshipServices = dynamic(
   }
 );
 
-export const LazyHomeServiceOfferings = dynamic(
-  () => import('@/components/home-service-offerings').then((mod) => ({ default: mod.HomeServiceOfferings })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="py-12 sm:py-16 lg:py-20 bg-gray-50">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid gap-6 md:grid-cols-3">
-            <div className="animate-pulse bg-gray-200 h-80 rounded-lg" />
-            <div className="animate-pulse bg-gray-200 h-80 rounded-lg" />
-            <div className="animate-pulse bg-gray-200 h-80 rounded-lg" />
-          </div>
-        </div>
-      </div>
-    ),
-  }
-);
-
 export const LazyHomeReviewsShowcase = dynamic(
   () => import('@/components/home-reviews-showcase').then((mod) => ({ default: mod.HomeReviewsShowcase })),
   {

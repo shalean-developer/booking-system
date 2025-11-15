@@ -1,19 +1,18 @@
 import { Header } from "@/components/header";
 import { HomeStructuredData } from "@/components/home-structured-data";
 import { HomeHero } from "@/components/home-hero";
-import { HomeWhyChooseUs } from "@/components/home-why-choose-us";
-import {
-  LazyHomeServiceAreas,
-  LazyHomeFlagshipServices,
-  LazyHomeServiceOfferings,
-  LazyHomeReviewsShowcase,
-  LazyHomeFeaturedIn,
-  LazyHomeFinalCTA,
-  LazyHomeTeam,
-  LazyHomeBlog,
-  LazyHomeFAQ,
-  LazyHomeFooter,
-} from "@/components/lazy-home-sections";
+import { HomeReviewsApp } from "@/components/home-reviews-app";
+import { HomePopularServices } from "@/components/home-popular-projects";
+import { HomePricing } from "@/components/home-pricing";
+import { HomeEverydayLife } from "@/components/home-everyday-life";
+import { HomeFeaturedCleaners } from "@/components/home-featured-taskers";
+import { HomeGoToTeam } from "@/components/home-go-to-team";
+import { HomeGuides } from "@/components/home-guides";
+import { HomeReviewsShowcase } from "@/components/home-reviews-showcase";
+import { HomeCities } from "@/components/home-cities";
+import { HomeFAQ } from "@/components/home-faq";
+import { HomeReadyToStart } from "@/components/home-ready-to-start";
+import { HomeFooter } from "@/components/home-footer";
 
 export function HomeContent() {
   return (
@@ -21,44 +20,74 @@ export function HomeContent() {
       {/* Structured Data for SEO */}
       <HomeStructuredData />
 
-      {/* Header */}
+      {/* Header Navigation */}
       <Header />
 
-      {/* Hero Section */}
-      <HomeHero />
+      {/* Main Content */}
+      <main id="main-content">
+        {/* Hero Section */}
+        <section aria-label="Hero section">
+          <HomeHero />
+        </section>
 
-      {/* Flagship Services Section */}
-      <LazyHomeFlagshipServices />
+        {/* Reviews & App Download Section */}
+        <section aria-label="Customer reviews and app download">
+          <HomeReviewsApp />
+        </section>
 
-      {/* Why Choose Us Section */}
-      <HomeWhyChooseUs />
+        {/* Popular Services Section */}
+        <section aria-label="Our cleaning services">
+          <HomePopularServices />
+        </section>
 
-      {/* Service Areas Section */}
-      <LazyHomeServiceAreas />
+        {/* Pricing Section */}
+        <section aria-label="Cleaning services pricing">
+          <HomePricing />
+        </section>
 
-      {/* Service Offerings Section */}
-      <LazyHomeServiceOfferings />
+        {/* Everyday Life Made Easier Section */}
+        <section aria-label="Benefits of our cleaning services">
+          <HomeEverydayLife />
+        </section>
 
-      {/* Customer Reviews Section */}
-      <LazyHomeReviewsShowcase />
+        {/* Featured Cleaners Section */}
+        <section aria-label="Our expert cleaning team">
+          <HomeFeaturedCleaners />
+        </section>
 
-      {/* Team Section - Lazy Loaded */}
-      <LazyHomeTeam />
+        {/* A Go-To Team Section */}
+        <section aria-label="Why choose our cleaning team">
+          <HomeGoToTeam />
+        </section>
 
-      {/* FAQ Section - Lazy Loaded */}
-      <LazyHomeFAQ />
+        {/* Guides Section */}
+        <section aria-label="Cleaning tips and guides">
+          <HomeGuides />
+        </section>
 
-      {/* As Featured In Section */}
-      <LazyHomeFeaturedIn />
+        {/* Testimonials Section */}
+        <section aria-label="Customer testimonials">
+          <HomeReviewsShowcase />
+        </section>
 
-      {/* Blog Section - Lazy Loaded */}
-      <LazyHomeBlog />
+        {/* Cities Where We Work Section */}
+        <section aria-label="Service areas and locations">
+          <HomeCities />
+        </section>
 
-      {/* Final CTA Section */}
-      <LazyHomeFinalCTA />
+        {/* FAQ Section */}
+        <section aria-label="Frequently asked questions">
+          <HomeFAQ />
+        </section>
 
-      {/* Footer - Lazy Loaded */}
-      <LazyHomeFooter />
+        {/* Ready To Get Started Section */}
+        <section aria-label="Call to action">
+          <HomeReadyToStart />
+        </section>
+      </main>
+
+      {/* Footer */}
+      <HomeFooter />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/header";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { NewsletterForm } from "@/components/newsletter-form";
 import { BlogFilterProvider } from "@/components/blog-filter";
 import { BlogContent } from "@/components/blog-content";
@@ -47,11 +48,19 @@ export default async function BlogPage() {
     const dateB = b.published_at ? new Date(b.published_at).getTime() : 0;
     return dateB - dateA;
   });
+
+  const breadcrumbItems = [
+    { name: "Home", href: "/" },
+    { name: "Blog", href: "/blog" }
+  ];
   
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50/50 via-white to-white">
       {/* Header */}
       <Header />
+      
+      {/* Breadcrumbs */}
+      <Breadcrumbs items={breadcrumbItems} />
 
       <main>
         <BlogFilterProvider allPosts={sortedPosts} categories={categories}>

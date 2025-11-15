@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -34,6 +34,36 @@ function LoginForm() {
   const returnTo = searchParams.get('returnTo');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // CRITICAL: Check if payment was just completed and redirect to confirmation
+  useEffect(() => {
+    const redirectInProgress = sessionStorage.getItem('redirect_in_progress');
+    const paymentComplete = sessionStorage.getItem('payment_complete');
+    const redirectTarget = sessionStorage.getItem('redirect_target');
+    
+    // Only redirect if payment complete AND redirect not already in progress
+    if (paymentComplete === 'true' && redirectTarget && redirectInProgress !== 'true') {
+      console.log('🔍 Login page: Payment complete detected, redirecting to confirmation');
+      console.log('🔍 Redirect target:', redirectTarget);
+      
+      // Mark redirect as in progress to prevent flickering
+      sessionStorage.setItem('redirect_in_progress', 'true');
+      
+      // Single redirect - no multiple attempts
+      try {
+        window.location.replace(redirectTarget);
+        console.log('✅ Redirect initiated from login page');
+      } catch (error) {
+        console.error('❌ Redirect error:', error);
+        // Clear flag on error
+        sessionStorage.removeItem('redirect_in_progress');
+      }
+      return;
+    } else if (redirectInProgress === 'true') {
+      console.log('⏸️ Redirect already in progress, skipping duplicate redirect');
+      return;
+    }
+  }, []);
 
   const {
     register,

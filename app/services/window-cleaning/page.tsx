@@ -4,20 +4,20 @@ import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "Window Cleaning Services | Shalean",
-  description: "Professional window cleaning services for homes and offices. Crystal clear windows with streak-free results. Interior and exterior cleaning, window frame cleaning, and screen maintenance available.",
+  title: "Window Cleaning Services Cape Town | Professional Window Cleaners | Shalean",
+  description: "Professional window cleaning services in Cape Town for homes and offices. Crystal clear windows with streak-free results. Interior and exterior cleaning. From R150. Book trusted cleaners today!",
   canonical: generateCanonical("/services/window-cleaning"),
   ogImage: {
     url: "https://shalean.co.za/assets/og/services-window-cleaning-1200x630.jpg",
-    alt: "Professional window cleaning services"
+    alt: "Professional window cleaning services in Cape Town - Shalean Cleaning Services"
   }
 });
 
 export default function WindowCleaningPage() {
   return (
     <ServicePageTemplate
-      title="Window Cleaning Services"
-      description="Professional window cleaning for crystal clear results. Our specialized window cleaners deliver streak-free, spotless windows every time."
+      title="Window Cleaning Services in Cape Town"
+      description="Professional window cleaning for crystal clear results in Cape Town. Our specialized window cleaners deliver streak-free, spotless windows. Serving homes and offices across Sea Point, Camps Bay, Constantia, and all Cape Town areas."
       icon={Sparkles}
       features={[
         "Interior and exterior window cleaning",
@@ -32,10 +32,11 @@ export default function WindowCleaningPage() {
       pricing="From R150"
       pricingNote="Pricing based on number of windows and accessibility"
       highlights={[
-        "Streak-free guarantee",
+        "Streak-free guarantee for all Cape Town properties",
         "Safety-first approach",
         "Eco-friendly solutions",
-        "Regular maintenance programs"
+        "Regular maintenance programs across Cape Town",
+        "Serving all Cape Town suburbs"
       ]}
       serviceType="Window Cleaning"
       slug="window-cleaning"

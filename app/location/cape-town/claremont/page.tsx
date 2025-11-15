@@ -16,8 +16,20 @@ export async function generateMetadata(): Promise<Metadata> {
     "Claremont",
     "Cape Town",
     "Southern Suburbs",
-    "Professional cleaning services for Claremont residents. Serving families and businesses in Cape Town's vibrant Southern Suburbs.",
-    highlights
+    "Professional cleaning services in Claremont, Cape Town. Trusted cleaners for family homes, offices, and apartments. Same-day available. From R250. Book vetted cleaners serving Claremont and Southern Suburbs today!",
+    highlights,
+    {
+      keywords: [
+        "cleaning services Claremont",
+        "Claremont cleaners",
+        "house cleaning Claremont",
+        "office cleaning Claremont",
+        "deep cleaning Claremont Cape Town",
+        "professional cleaners Claremont"
+      ],
+      services: ["Regular Cleaning", "Deep Cleaning", "Office Cleaning", "Move In/Out"],
+      propertyTypes: ["Family Homes", "Offices", "Apartments"]
+    }
   );
 
   // Validate metadata
@@ -33,7 +45,7 @@ export default function ClaremontPage() {
       suburb="Claremont"
       city="Cape Town"
       area="Southern Suburbs"
-      description="Professional cleaning services for Claremont residents. Serving families and businesses in Cape Town's vibrant Southern Suburbs."
+      description="Professional cleaning services in Claremont, Cape Town. Trusted cleaners for family homes, offices, and apartments in the Southern Suburbs. Same-day available. Serving Claremont with vetted, insured cleaners. Book your Claremont cleaning service today!"
       available={true}
       highlights={[
         "Family home cleaning specialists",

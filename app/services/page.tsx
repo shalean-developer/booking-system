@@ -109,8 +109,10 @@ export default function ServicesPage() {
       {/* Header */}
       <Header />
 
-      {/* Hero Section */}
-      <section className="py-20 bg-gradient-to-b from-primary/5 to-white">
+      {/* Main Content */}
+      <main id="main-content">
+        {/* Hero Section */}
+        <section className="py-20 bg-gradient-to-b from-primary/5 to-white" aria-label="Services overview">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
@@ -128,46 +130,48 @@ export default function ServicesPage() {
       </section>
 
       {/* Services Grid */}
-      <section className="py-20">
+      <section className="py-20" aria-label="Our cleaning services">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 gap-8">
             {services.map((service) => {
               const Icon = service.icon;
               return (
-                <Card key={service.title} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-                  <CardContent className="p-8">
-                    <div className={`w-16 h-16 rounded-full ${service.color} flex items-center justify-center mb-6`}>
-                      <Icon className={`h-8 w-8 ${service.iconColor}`} />
-                    </div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-3">{service.title}</h2>
-                    <p className="text-gray-600 mb-6">{service.description}</p>
-                    
-                    <div className="mb-6">
-                      <h3 className="text-sm font-semibold text-gray-700 mb-3">What's Included:</h3>
-                      <ul className="space-y-2">
-                        {service.features.map((feature, index) => (
-                          <li key={index} className="flex items-center text-sm text-gray-600">
-                            <CheckCircle className="h-4 w-4 text-primary mr-2 flex-shrink-0" />
-                            {feature}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-4 border-t">
-                      <div>
-                        <div className="text-sm text-gray-500">Starting at</div>
-                        <div className="text-2xl font-bold text-primary">{service.pricing}</div>
+                <article key={service.title} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+                  <Card className="h-full">
+                    <CardContent className="p-8">
+                      <div className={`w-16 h-16 rounded-full ${service.color} flex items-center justify-center mb-6`} aria-hidden="true">
+                        <Icon className={`h-8 w-8 ${service.iconColor}`} />
                       </div>
-                      <Button asChild className="bg-primary hover:bg-primary/90">
-                        <Link href={service.link}>
-                          View {service.title} Details
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                      <h2 className="text-2xl font-bold text-gray-900 mb-3">{service.title}</h2>
+                      <p className="text-gray-600 mb-6">{service.description}</p>
+                      
+                      <div className="mb-6">
+                        <h3 className="text-sm font-semibold text-gray-700 mb-3">What's Included:</h3>
+                        <ul className="space-y-2">
+                          {service.features.map((feature, index) => (
+                            <li key={index} className="flex items-center text-sm text-gray-600">
+                              <CheckCircle className="h-4 w-4 text-primary mr-2 flex-shrink-0" aria-hidden="true" />
+                              {feature}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-4 border-t">
+                        <div>
+                          <div className="text-sm text-gray-500">Starting at</div>
+                          <div className="text-2xl font-bold text-primary">{service.pricing}</div>
+                        </div>
+                        <Button asChild className="bg-primary hover:bg-primary/90">
+                          <Link href={service.link}>
+                            View {service.title} Details
+                            <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+                          </Link>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </article>
               );
             })}
           </div>
@@ -175,7 +179,7 @@ export default function ServicesPage() {
       </section>
 
       {/* Service Areas Section */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-white" aria-label="Service areas">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
@@ -186,64 +190,72 @@ export default function ServicesPage() {
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-              <CardContent className="p-6 text-center">
-                <Link href="/location/cape-town" className="block">
-                  <h3 className="text-xl font-bold text-gray-900 mb-2 hover:text-primary transition-colors">
-                    Cape Town
-                  </h3>
-                  <p className="text-gray-600 text-sm mb-4">
-                    Serving Sea Point, Camps Bay, Claremont, and more
-                  </p>
-                  <span className="text-primary text-sm font-medium">View Areas →</span>
-                </Link>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-              <CardContent className="p-6 text-center">
-                <Link href="/location/johannesburg" className="block">
-                  <h3 className="text-xl font-bold text-gray-900 mb-2 hover:text-primary transition-colors">
-                    Johannesburg
-                  </h3>
-                  <p className="text-gray-600 text-sm mb-4">
-                    Professional cleaning across Jozi suburbs
-                  </p>
-                  <span className="text-primary text-sm font-medium">View Areas →</span>
-                </Link>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-              <CardContent className="p-6 text-center">
-                <Link href="/location/pretoria" className="block">
-                  <h3 className="text-xl font-bold text-gray-900 mb-2 hover:text-primary transition-colors">
-                    Pretoria
-                  </h3>
-                  <p className="text-gray-600 text-sm mb-4">
-                    Quality cleaning services in the capital
-                  </p>
-                  <span className="text-primary text-sm font-medium">View Areas →</span>
-                </Link>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-              <CardContent className="p-6 text-center">
-                <Link href="/location/durban" className="block">
-                  <h3 className="text-xl font-bold text-gray-900 mb-2 hover:text-primary transition-colors">
-                    Durban
-                  </h3>
-                  <p className="text-gray-600 text-sm mb-4">
-                    Expert cleaners along the coast
-                  </p>
-                  <span className="text-primary text-sm font-medium">View Areas →</span>
-                </Link>
-              </CardContent>
-            </Card>
+            <article>
+              <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow h-full">
+                <CardContent className="p-6 text-center">
+                  <Link href="/location/cape-town" className="block">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2 hover:text-primary transition-colors">
+                      Cape Town
+                    </h3>
+                    <p className="text-gray-600 text-sm mb-4">
+                      Serving Sea Point, Camps Bay, Claremont, and more
+                    </p>
+                    <span className="text-primary text-sm font-medium">View Areas →</span>
+                  </Link>
+                </CardContent>
+              </Card>
+            </article>
+            <article>
+              <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow h-full">
+                <CardContent className="p-6 text-center">
+                  <Link href="/location/johannesburg" className="block">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2 hover:text-primary transition-colors">
+                      Johannesburg
+                    </h3>
+                    <p className="text-gray-600 text-sm mb-4">
+                      Professional cleaning across Jozi suburbs
+                    </p>
+                    <span className="text-primary text-sm font-medium">View Areas →</span>
+                  </Link>
+                </CardContent>
+              </Card>
+            </article>
+            <article>
+              <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow h-full">
+                <CardContent className="p-6 text-center">
+                  <Link href="/location/pretoria" className="block">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2 hover:text-primary transition-colors">
+                      Pretoria
+                    </h3>
+                    <p className="text-gray-600 text-sm mb-4">
+                      Quality cleaning services in the capital
+                    </p>
+                    <span className="text-primary text-sm font-medium">View Areas →</span>
+                  </Link>
+                </CardContent>
+              </Card>
+            </article>
+            <article>
+              <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow h-full">
+                <CardContent className="p-6 text-center">
+                  <Link href="/location/durban" className="block">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2 hover:text-primary transition-colors">
+                      Durban
+                    </h3>
+                    <p className="text-gray-600 text-sm mb-4">
+                      Expert cleaners along the coast
+                    </p>
+                    <span className="text-primary text-sm font-medium">View Areas →</span>
+                  </Link>
+                </CardContent>
+              </Card>
+            </article>
           </div>
           <div className="text-center mt-8">
             <Link href="/location">
               <Button variant="outline" className="border-primary text-primary hover:bg-primary/10">
                 View All Service Areas
-                <ArrowRight className="ml-2 h-4 w-4" />
+                <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
               </Button>
             </Link>
           </div>
@@ -251,7 +263,7 @@ export default function ServicesPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-primary/10 to-primary/20">
+      <section className="py-20 bg-gradient-to-r from-primary/10 to-primary/20" aria-label="Call to action">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold text-gray-900 mb-6">
             Ready to Book Your Service?
@@ -262,14 +274,14 @@ export default function ServicesPage() {
           <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-8 py-4 text-lg" asChild>
             <Link href="/booking/service/select">
               Book Cleaning Service Now
-              <ArrowRight className="ml-2 h-5 w-5" />
+              <ArrowRight className="ml-2 h-5 w-5" aria-hidden="true" />
             </Link>
           </Button>
         </div>
       </section>
 
       {/* Blog Posts Section */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-white" aria-label="Cleaning tips and guides">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
@@ -280,85 +292,94 @@ export default function ServicesPage() {
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-              <CardContent className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-3">
-                  <Link href="/blog/deep-cleaning-cape-town" className="hover:text-primary transition-colors">
-                    Deep Cleaning Guide for Cape Town
+            <article>
+              <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow h-full">
+                <CardContent className="p-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">
+                    <Link href="/blog/deep-cleaning-cape-town" className="hover:text-primary transition-colors">
+                      Deep Cleaning Guide for Cape Town
+                    </Link>
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    Complete guide to deep cleaning your Cape Town home with expert tips and room-by-room checklists.
+                  </p>
+                  <Link href="/blog/deep-cleaning-cape-town">
+                    <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
+                      Read Guide <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+                    </Button>
                   </Link>
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  Complete guide to deep cleaning your Cape Town home with expert tips and room-by-room checklists.
-                </p>
-                <Link href="/blog/deep-cleaning-cape-town">
-                  <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
-                    Read Guide <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-              <CardContent className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-3">
-                  <Link href="/blog/10-essential-deep-cleaning-tips-for-every-home" className="hover:text-primary transition-colors">
-                    10 Essential Deep Cleaning Tips
+                </CardContent>
+              </Card>
+            </article>
+            <article>
+              <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow h-full">
+                <CardContent className="p-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">
+                    <Link href="/blog/10-essential-deep-cleaning-tips-for-every-home" className="hover:text-primary transition-colors">
+                      10 Essential Deep Cleaning Tips
+                    </Link>
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    Master deep cleaning with expert tips covering sanitizing high-touch areas and refreshing appliances.
+                  </p>
+                  <Link href="/blog/10-essential-deep-cleaning-tips-for-every-home">
+                    <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
+                      Read Tips <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+                    </Button>
                   </Link>
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  Master deep cleaning with expert tips covering sanitizing high-touch areas and refreshing appliances.
-                </p>
-                <Link href="/blog/10-essential-deep-cleaning-tips-for-every-home">
-                  <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
-                    Read Tips <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-              <CardContent className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-3">
-                  <Link href="/blog/complete-airbnb-turnover-cleaning-checklist" className="hover:text-primary transition-colors">
-                    Complete Airbnb Cleaning Checklist
+                </CardContent>
+              </Card>
+            </article>
+            <article>
+              <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow h-full">
+                <CardContent className="p-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">
+                    <Link href="/blog/complete-airbnb-turnover-cleaning-checklist" className="hover:text-primary transition-colors">
+                      Complete Airbnb Cleaning Checklist
+                    </Link>
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    Master the art of Airbnb turnover cleaning with our comprehensive checklist for 5-star reviews.
+                  </p>
+                  <Link href="/blog/complete-airbnb-turnover-cleaning-checklist">
+                    <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
+                      Read Checklist <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+                    </Button>
                   </Link>
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  Master the art of Airbnb turnover cleaning with our comprehensive checklist for 5-star reviews.
-                </p>
-                <Link href="/blog/complete-airbnb-turnover-cleaning-checklist">
-                  <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
-                    Read Checklist <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-              <CardContent className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-3">
-                  <Link href="/blog/the-benefits-of-eco-friendly-cleaning-products" className="hover:text-primary transition-colors">
-                    Eco-Friendly Cleaning Products
+                </CardContent>
+              </Card>
+            </article>
+            <article>
+              <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow h-full">
+                <CardContent className="p-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">
+                    <Link href="/blog/the-benefits-of-eco-friendly-cleaning-products" className="hover:text-primary transition-colors">
+                      Eco-Friendly Cleaning Products
+                    </Link>
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    Learn why eco-friendly cleaning products are better for your health, home, and environment.
+                  </p>
+                  <Link href="/blog/the-benefits-of-eco-friendly-cleaning-products">
+                    <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
+                      Read Article <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+                    </Button>
                   </Link>
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  Learn why eco-friendly cleaning products are better for your health, home, and environment.
-                </p>
-                <Link href="/blog/the-benefits-of-eco-friendly-cleaning-products">
-                  <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
-                    Read Article <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </article>
           </div>
           <div className="text-center mt-8">
             <Link href="/blog">
               <Button variant="outline" className="border-primary text-primary hover:bg-primary/10">
                 View All Blog Posts
-                <ArrowRight className="ml-2 h-4 w-4" />
+                <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
               </Button>
             </Link>
           </div>
         </div>
       </section>
+      </main>
     </div>
   );
 }

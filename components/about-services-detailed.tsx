@@ -1,6 +1,6 @@
-export function HomeAboutServices() {
+export function AboutServicesDetailed() {
   return (
-    <section className="py-12 sm:py-16 lg:py-20 bg-white">
+    <section className="py-20 bg-white">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <div className="prose prose-lg max-w-none">
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-6 sm:mb-8 text-center">

@@ -1,6 +1,6 @@
 import { Resend } from 'resend';
 import { BookingState, ServiceType } from '@/types/booking';
-import { calcTotal } from '@/lib/pricing';
+import { calcTotalSync } from '@/lib/pricing';
 
 // Initialize Resend only when needed to avoid errors if API key is not configured
 function getResendInstance() {
@@ -58,12 +58,14 @@ export interface QuoteRequest {
 }
 
 export function generateBookingConfirmationEmail(booking: BookingState & { bookingId: string }): EmailData {
-  const totalPrice = calcTotal({
+  const pricingDetails = calcTotalSync({
     service: booking.service,
-    bedrooms: booking.bedrooms,
-    bathrooms: booking.bathrooms,
-    extras: booking.extras
-  });
+    bedrooms: booking.bedrooms || 0,
+    bathrooms: booking.bathrooms || 0,
+    extras: booking.extras || [],
+    extrasQuantities: booking.extrasQuantities
+  }, booking.frequency || 'one-time');
+  const totalPrice = pricingDetails.total;
   
   const html = `
     <!DOCTYPE html>
@@ -164,12 +166,14 @@ export function generateBookingConfirmationEmail(booking: BookingState & { booki
 }
 
 export function generateAdminBookingNotificationEmail(booking: BookingState & { bookingId: string }): EmailData {
-  const totalPrice = calcTotal({
+  const pricingDetails = calcTotalSync({
     service: booking.service,
-    bedrooms: booking.bedrooms,
-    bathrooms: booking.bathrooms,
-    extras: booking.extras
-  });
+    bedrooms: booking.bedrooms || 0,
+    bathrooms: booking.bathrooms || 0,
+    extras: booking.extras || [],
+    extrasQuantities: booking.extrasQuantities
+  }, booking.frequency || 'one-time');
+  const totalPrice = pricingDetails.total;
   
   const html = `
     <!DOCTYPE html>
@@ -355,12 +359,14 @@ export function generateQuoteConfirmationEmail(quote: QuoteRequest): EmailData {
 }
 
 export function generateAdminQuoteNotificationEmail(quote: QuoteRequest): EmailData {
-  const totalPrice = calcTotal({
+  const pricingDetails = calcTotalSync({
     service: quote.service as ServiceType,
-    bedrooms: quote.bedrooms,
-    bathrooms: quote.bathrooms,
-    extras: quote.extras
-  });
+    bedrooms: quote.bedrooms || 0,
+    bathrooms: quote.bathrooms || 0,
+    extras: quote.extras || [],
+    extrasQuantities: undefined // Quotes don't have quantities
+  }, 'one-time');
+  const totalPrice = pricingDetails.total;
   
   const html = `
     <!DOCTYPE html>
