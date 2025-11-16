@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { BookingCard } from './booking-card';
 import { BookingDetailsModal } from './booking-details-modal';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Loader2, Briefcase, RefreshCw, Calendar, Search } from 'lucide-react';
 import type { CleanerBooking } from '@/types/booking';
 
@@ -124,18 +124,21 @@ export function AvailableBookings() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#3b82f6]" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-12 px-4">
         <div className="text-red-600 mb-4">{error}</div>
-        <Button onClick={() => fetchAvailableBookings()} variant="outline">
+        <button 
+          onClick={() => fetchAvailableBookings()} 
+          className="px-4 py-2 bg-[#3b82f6] text-white rounded-md hover:bg-[#2563eb] transition-colors"
+        >
           Try Again
-        </Button>
+        </button>
       </div>
     );
   }
@@ -143,20 +146,19 @@ export function AvailableBookings() {
   return (
     <div className="space-y-4">
       {/* Header with Refresh */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">Available Jobs</h2>
-        <Button
-          variant="outline"
-          size="sm"
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-gray-900">Available Bookings</h2>
+        <button
           onClick={handleRefresh}
           disabled={isRefreshing}
+          className="p-2 text-gray-600 hover:text-gray-900 disabled:opacity-50"
         >
           {isRefreshing ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin text-[#3b82f6]" />
           ) : (
             <RefreshCw className="h-4 w-4" />
           )}
-        </Button>
+        </button>
       </div>
 
       {/* Filters */}
@@ -186,7 +188,7 @@ export function AvailableBookings() {
       {location && (
         <div className="text-xs text-gray-500 flex items-center gap-1">
           <Search className="h-3 w-3" />
-          Showing jobs in your service areas
+          Showing bookings in your service areas
         </div>
       )}
 
@@ -194,19 +196,17 @@ export function AvailableBookings() {
       {sortedBookings.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
           <Briefcase className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-          <p className="font-medium">No available jobs right now</p>
+          <p className="font-medium">No available bookings right now</p>
           <p className="text-sm mt-1">
             Check back later or adjust your filters
           </p>
-          <Button
-            variant="outline"
-            size="sm"
+          <button
             onClick={handleRefresh}
-            className="mt-4"
+            className="mt-4 px-4 py-2 bg-[#3b82f6] text-white rounded-md hover:bg-[#2563eb] transition-colors flex items-center gap-2 mx-auto"
           >
-            <RefreshCw className="h-4 w-4 mr-2" />
+            <RefreshCw className="h-4 w-4" />
             Refresh
-          </Button>
+          </button>
         </div>
       ) : (
         <div className="space-y-3">

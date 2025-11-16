@@ -1,21 +1,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CleanerHeader } from '@/components/cleaner/cleaner-header';
-import { LocationTracker } from '@/components/cleaner/location-tracker';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { DayAvailabilityDisplay } from '@/components/admin/day-availability-display';
 import { CleanerMobileBottomNav } from '@/components/cleaner/cleaner-mobile-bottom-nav';
+import { Card, CardContent } from '@/components/ui/card';
+import { Clock, MapPin, User, Phone, Home, Navigation, PlayCircle, CheckCircle, Loader2, X } from 'lucide-react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { createClient as createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import {
-  Calendar,
-  CheckCircle2,
-  DollarSign,
-  Briefcase,
-  TrendingUp,
-  ChevronDown,
-  ChevronUp,
-} from 'lucide-react';
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 
 interface CleanerSession {
   id: string;
@@ -34,398 +35,755 @@ interface CleanerSession {
   available_sunday?: boolean;
 }
 
+interface Booking {
+  id: string;
+  booking_date: string;
+  booking_time: string;
+  status: string;
+  cleaner_accepted_at?: string | null;
+  cleaner_on_my_way_at?: string | null;
+  cleaner_started_at?: string | null;
+  cleaner_completed_at?: string | null;
+  customer_name?: string;
+  customer_phone?: string;
+  address_line1?: string;
+  address_suburb?: string;
+  address_city?: string;
+  total_amount?: number;
+  cleaner_earnings?: number;
+  tip_amount?: number | null; // Tip amount in cents (goes 100% to cleaner)
+}
+
 interface CleanerDashboardClientProps {
   cleaner: CleanerSession;
 }
 
 export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps) {
-  const [localCleaner, setLocalCleaner] = useState(cleaner);
-  const [stats, setStats] = useState({
-    todayBookings: 0,
-    completedToday: 0,
-    totalEarnings: 0,
-    monthlyBookings: 0,
-    monthlyCompleted: 0,
-    monthlyEarnings: 0,
-  });
-  const [showTodayPerformance, setShowTodayPerformance] = useState(false);
-  const [showMonthlyPerformance, setShowMonthlyPerformance] = useState(false);
+  const [todayBookings, setTodayBookings] = useState<Booking[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [actingBookingId, setActingBookingId] = useState<string | null>(null);
+  const [declineOpen, setDeclineOpen] = useState(false);
+  const [declineReason, setDeclineReason] = useState('');
+  const [declineBookingId, setDeclineBookingId] = useState<string | null>(null);
+  const [reschedOpen, setReschedOpen] = useState(false);
+  const [reschedDate, setReschedDate] = useState('');
+  const [reschedTime, setReschedTime] = useState('');
+  const [reschedNotes, setReschedNotes] = useState('');
+  const [reschedBookingId, setReschedBookingId] = useState<string | null>(null);
 
-  // Fetch today's and monthly stats
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const today = new Date().toISOString().split('T')[0];
-        
-        // Get first and last day of current month
-        const now = new Date();
-        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
-
-        console.log('📅 Date Range Debug:', {
-          today,
-          firstDay,
-          lastDay,
-          currentMonth: now.getMonth() + 1,
-          currentYear: now.getFullYear(),
-          cleanerId: cleaner.id,
-          cleanerName: cleaner.name
-        });
-
-        // Fetch today's bookings
-        const todayResponse = await fetch(`/api/cleaner/bookings?startDate=${today}&endDate=${today}`);
-        const todayData = await todayResponse.json();
-
-        // Fetch monthly bookings
-        const monthResponse = await fetch(`/api/cleaner/bookings?startDate=${firstDay}&endDate=${lastDay}`);
-        const monthData = await monthResponse.json();
-
-        // Debug: Fetch ALL bookings for this cleaner to see what's available
-        const allBookingsResponse = await fetch('/api/cleaner/bookings');
-        const allBookingsData = await allBookingsResponse.json();
-
-        // Debug: Also fetch bookings by status to see if completed bookings exist
-        const completedResponse = await fetch('/api/cleaner/bookings?status=completed');
-        const completedData = await completedResponse.json();
-
-        console.log('📊 API Response Debug:', {
-          todayData: todayData,
-          monthData: monthData,
-          monthDataBookings: monthData.bookings,
-          allBookingsData: allBookingsData,
-          allBookings: allBookingsData.bookings,
-          completedData: completedData,
-          completedBookings: completedData.bookings
-        });
-
-        // Enhanced debugging for earnings calculation
-        console.log('💰 Earnings Debug Details:', {
-          todayBookings: todayData.bookings,
-          todayCompleted: todayData.bookings.filter((b: any) => b.status === 'completed'),
-          todayEarningsRaw: todayData.bookings
-            .filter((b: any) => b.status === 'completed')
-            .map((b: any) => ({ id: b.id, cleaner_earnings: b.cleaner_earnings, total_amount: b.total_amount })),
-          monthlyBookings: monthData.bookings,
-          monthlyCompleted: monthData.bookings.filter((b: any) => b.status === 'completed'),
-          monthlyEarningsRaw: monthData.bookings
-            .filter((b: any) => b.status === 'completed')
-            .map((b: any) => ({ id: b.id, cleaner_earnings: b.cleaner_earnings, total_amount: b.total_amount }))
-        });
-
-        if (todayData.ok && monthData.ok) {
-          // Calculate today's stats
-          const todayBookings = todayData.bookings.length;
-          const completedToday = todayData.bookings.filter((b: any) => b.status === 'completed').length;
-          const todayEarnings = todayData.bookings
-            .filter((b: any) => b.status === 'completed')
-            .reduce((sum: number, b: any) => sum + (b.cleaner_earnings || 0), 0);
-
-          // Calculate monthly stats from the filtered monthly bookings
-          const monthlyBookings = monthData.bookings.length;
-          const monthlyCompleted = monthData.bookings.filter((b: any) => b.status === 'completed').length;
-          const monthlyEarnings = monthData.bookings
-            .filter((b: any) => b.status === 'completed')
-            .reduce((sum: number, b: any) => sum + (b.cleaner_earnings || 0), 0);
-
-          console.log('📊 Monthly Stats Debug:', {
-            monthlyBookings,
-            monthlyCompleted,
-            monthlyEarnings,
-            monthlyBookingsData: monthData.bookings,
-            completedBookings: monthData.bookings.filter((b: any) => b.status === 'completed'),
-            bookingDetails: monthData.bookings.map((b: any) => ({
-              id: b.id,
-              status: b.status,
-              cleaner_earnings: b.cleaner_earnings,
-              booking_date: b.booking_date,
-              total_amount: b.total_amount
-            }))
-          });
-
-          setStats({
-            todayBookings,
-            completedToday,
-            totalEarnings: todayEarnings,
-            monthlyBookings,
-            monthlyCompleted,
-            monthlyEarnings,
-          });
-
-          console.log('📊 Stats Updated:', {
-            todayBookings,
-            completedToday,
-            totalEarnings: todayEarnings,
-            monthlyBookings,
-            monthlyCompleted,
-            monthlyEarnings,
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching stats:', error);
-      }
-    };
-
-    fetchStats();
-    // Refresh stats every 5 minutes
-    const interval = setInterval(fetchStats, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleAvailabilityChange = (isAvailable: boolean) => {
-    setLocalCleaner({ ...localCleaner, is_available: isAvailable });
+  const formatTime = (time: string) => {
+    if (!time) return '';
+    try {
+      const [hours, minutes] = time.split(':');
+      const hour = parseInt(hours, 10);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const displayHour = hour % 12 || 12;
+      return `${displayHour}:${minutes} ${ampm}`;
+    } catch {
+      return time;
+    }
   };
 
   const formatCurrency = (cents: number) => {
-    if (cents === 0) {
-      return 'R0.00';
-    }
+    if (!cents || cents === 0) return 'R0.00';
     return `R${(cents / 100).toFixed(2)}`;
   };
 
-  const getEarningsDisplay = (earnings: number, label: string) => {
-    if (earnings === 0) {
-      return (
-        <div>
-          <div className="text-2xl font-bold text-gray-900">R0.00</div>
-          <div className="text-sm text-gray-500">{label}</div>
-          <div className="text-xs text-gray-400 mt-1">No completed bookings yet</div>
-        </div>
-      );
+  // Basic retry helper for fetch calls
+  const requestWithRetry = async (url: string, init: RequestInit, retries = 2): Promise<Response> => {
+    let lastError: any = null;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const res = await fetch(url, init);
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          throw new Error(`${res.status} ${res.statusText} ${text}`.trim());
+        }
+        return res;
+      } catch (err) {
+        lastError = err;
+        // brief backoff
+        await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+      }
     }
-    return (
-      <div>
-        <div className="text-2xl font-bold text-gray-900">{formatCurrency(earnings)}</div>
-        <div className="text-sm text-gray-500">{label}</div>
-      </div>
-    );
+    throw lastError || new Error('Request failed');
+  };
+
+  const formatShortDateTime = (iso?: string | null) => {
+    if (!iso) return null;
+    try {
+      const d = new Date(iso);
+      const date = d.toLocaleDateString('en-ZA', { month: 'short', day: 'numeric' });
+      const time = d.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
+      return `${date} ${time}`;
+    } catch {
+      return null;
+    }
+  };
+
+  const computeDuration = (start?: string | null, end?: string | null) => {
+    if (!start) return null;
+    const startMs = new Date(start).getTime();
+    const endMs = end ? new Date(end).getTime() : Date.now();
+    if (isNaN(startMs) || isNaN(endMs) || endMs <= startMs) return null;
+    const minutes = Math.round((endMs - startMs) / (1000 * 60));
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
+  };
+
+  const fetchTodayBookings = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const response = await fetch(`/api/cleaner/bookings?startDate=${today}&endDate=${today}`);
+      
+      if (!response.ok) {
+        console.error('API response not OK:', response.status, response.statusText);
+        setIsLoading(false);
+        return;
+      }
+      
+      const data = await response.json();
+
+      if (data.ok && data.bookings) {
+        // Filter to show only today's active bookings (pending, accepted, on_my_way, in-progress)
+        const activeBookings = data.bookings.filter(
+          (b: Booking) => 
+            ['pending', 'accepted', 'on_my_way', 'in-progress'].includes(b.status)
+        );
+        setTodayBookings(activeBookings);
+      } else {
+        console.warn('API returned data but not ok or no bookings:', data);
+        setTodayBookings([]);
+      }
+    } catch (error) {
+      console.error('Error fetching today bookings:', error);
+      setTodayBookings([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch today's bookings
+  useEffect(() => {
+    fetchTodayBookings();
+    // Refresh every 5 minutes
+    const interval = setInterval(fetchTodayBookings, 5 * 60 * 1000);
+    // Refetch on tab focus
+    const onFocus = () => fetchTodayBookings();
+    document.addEventListener('visibilitychange', onFocus);
+
+    // Realtime subscription to bookings changes
+    let channel: any;
+    try {
+      const supabase = createSupabaseBrowserClient();
+      channel = supabase
+        .channel('cleaner-bookings-dashboard')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'bookings',
+            filter: `cleaner_id=eq.${cleaner.id}`,
+          },
+          (_payload: any) => {
+            // Debounced lightweight refetch
+            fetchTodayBookings();
+          }
+        )
+        .subscribe();
+    } catch (e) {
+      console.warn('Realtime unavailable:', e);
+    }
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onFocus);
+      try {
+        if (channel) {
+          const supabase = createSupabaseBrowserClient();
+          supabase.removeChannel(channel);
+        }
+      } catch {}
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleAccept = async (bookingId: string) => {
+    setActingBookingId(bookingId);
+    try {
+      const response = await requestWithRetry(`/api/cleaner/bookings/${bookingId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'accepted' }),
+      }, 2);
+
+      const data = await response.json();
+
+      if (!data.ok) {
+        throw new Error(data.error || 'Failed to accept booking');
+      }
+
+      // Refresh bookings
+      await fetchTodayBookings();
+    } catch (err) {
+      console.error('Error accepting booking:', err);
+      alert(err instanceof Error ? err.message : 'Failed to accept booking');
+    } finally {
+      setActingBookingId(null);
+    }
+  };
+
+  const handleOnMyWay = async (bookingId: string) => {
+    setActingBookingId(bookingId);
+    try {
+      const response = await requestWithRetry(`/api/cleaner/bookings/${bookingId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'on_my_way' }),
+      }, 2);
+
+      const data = await response.json();
+
+      if (!data.ok) {
+        throw new Error(data.error || 'Failed to update status');
+      }
+
+      // Refresh bookings
+      await fetchTodayBookings();
+    } catch (err) {
+      console.error('Error updating status:', err);
+      alert(err instanceof Error ? err.message : 'Failed to update status');
+    } finally {
+      setActingBookingId(null);
+    }
+  };
+
+  const handleStart = async (bookingId: string) => {
+    setActingBookingId(bookingId);
+    try {
+      const response = await requestWithRetry(`/api/cleaner/bookings/${bookingId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'in-progress' }),
+      }, 2);
+
+      const data = await response.json();
+
+      if (!data.ok) {
+        throw new Error(data.error || 'Failed to start booking');
+      }
+
+      // Refresh bookings
+      await fetchTodayBookings();
+    } catch (err) {
+      console.error('Error starting booking:', err);
+      alert(err instanceof Error ? err.message : 'Failed to start booking');
+    } finally {
+      setActingBookingId(null);
+    }
+  };
+
+  const handleComplete = async (bookingId: string) => {
+    setActingBookingId(bookingId);
+    try {
+      const response = await requestWithRetry(`/api/cleaner/bookings/${bookingId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'completed' }),
+      }, 2);
+
+      const data = await response.json();
+
+      if (!data.ok) {
+        throw new Error(data.error || 'Failed to complete booking');
+      }
+
+      // Refresh bookings
+      await fetchTodayBookings();
+    } catch (err) {
+      console.error('Error completing booking:', err);
+      alert(err instanceof Error ? err.message : 'Failed to complete booking');
+    } finally {
+      setActingBookingId(null);
+    }
+  };
+
+  const submitDecline = async () => {
+    if (!declineBookingId) return;
+    setActingBookingId(declineBookingId);
+    try {
+      const response = await requestWithRetry(`/api/cleaner/bookings/${declineBookingId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'declined', reason: declineReason }),
+      }, 2);
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error || 'Failed to decline booking');
+      await fetchTodayBookings();
+    } catch (err) {
+      console.error('Error declining booking:', err);
+      alert(err instanceof Error ? err.message : 'Failed to decline booking');
+    } finally {
+      setActingBookingId(null);
+      setDeclineOpen(false);
+      setDeclineBookingId(null);
+      setDeclineReason('');
+    }
+  };
+
+  const submitReschedule = async () => {
+    if (!reschedBookingId || (!reschedDate && !reschedTime)) {
+      alert('Please provide a date or time to propose');
+      return;
+    }
+    setActingBookingId(reschedBookingId);
+    try {
+      const response = await requestWithRetry(`/api/cleaner/bookings/${reschedBookingId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'reschedule_requested',
+          proposed_date: reschedDate || undefined,
+          proposed_time: reschedTime || undefined,
+          notes: reschedNotes || undefined,
+        }),
+      }, 2);
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error || 'Failed to request reschedule');
+      await fetchTodayBookings();
+    } catch (err) {
+      console.error('Error requesting reschedule:', err);
+      alert(err instanceof Error ? err.message : 'Failed to request reschedule');
+    } finally {
+      setActingBookingId(null);
+      setReschedOpen(false);
+      setReschedBookingId(null);
+      setReschedDate('');
+      setReschedTime('');
+      setReschedNotes('');
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <CleanerHeader
-        cleaner={localCleaner}
-        onAvailabilityChange={handleAvailabilityChange}
-      />
+    <div className="min-h-screen bg-white">
+      {/* Blue Header */}
+      <header className="bg-[#3b82f6] text-white py-4 px-4">
+        <div className="flex items-center justify-between max-w-md mx-auto">
+          <Home className="h-6 w-6" strokeWidth={2} />
+          <h1 className="text-lg font-semibold">Home</h1>
+          <button
+            onClick={fetchTodayBookings}
+            className="rounded-md border border-white/30 text-white text-xs px-2 py-1 hover:bg-white/10"
+            aria-label="Refresh"
+          >
+            Refresh
+          </button>
+        </div>
+      </header>
+
+      {/* Blue Banner */}
+      <div className="bg-[#3b82f6] text-white py-6 px-4">
+        <p className="text-base max-w-md mx-auto">
+          Hi{cleaner?.name ? `, ${cleaner.name}` : ''}. Here's what's going on today.
+        </p>
+      </div>
 
       {/* Main Content */}
-      <main className="mx-auto max-w-7xl px-4 py-6">
-        {/* Location Tracker */}
-        <div className="mb-4">
-          <LocationTracker />
-        </div>
+      <main className="bg-white pb-24">
+        <div className="max-w-md mx-auto px-4 py-6">
+          {/* Today's Scheduled Bookings Heading */}
+          <h2 className="text-lg font-semibold text-gray-800 mb-6">
+            TODAY'S SCHEDULED BOOKINGS
+          </h2>
 
-        {/* Welcome Section */}
-        <div className="mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-            Welcome back, {cleaner.name.split(' ')[0]}! 👋
-          </h1>
-          <p className="text-gray-600 text-sm sm:text-base">
-            Manage your bookings and find new jobs in your area
-          </p>
-        </div>
+          {/* Bookings List or Empty State */}
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-gray-400">Loading...</div>
+            </div>
+          ) : todayBookings.length > 0 ? (
+            <div className="space-y-4">
+              {todayBookings.map((booking) => (
+                <Card key={booking.id} className="border border-gray-200 shadow-sm">
+                  <CardContent className="p-4">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-[#3b82f6]" />
+                          <span className="font-semibold text-gray-900">
+                            {formatTime(booking.booking_time)}
+                          </span>
+                        </div>
+                        <span className="text-sm text-gray-500 capitalize">
+                          {booking.status.replace('-', ' ')}
+                        </span>
+                      </div>
 
-        {/* Quick Navigation */}
-        <div className="flex gap-3 mb-6">
-          <button
-            onClick={() => setShowTodayPerformance(!showTodayPerformance)}
-            className="flex-1 flex items-center justify-center gap-2 p-4 bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 rounded-xl transition-colors"
-          >
-            <Calendar className="h-5 w-5 text-blue-600" />
-            <span className="text-sm font-semibold text-blue-900">Today's Performance</span>
-            {showTodayPerformance ? (
-              <ChevronUp className="h-4 w-4 text-blue-600" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-blue-600" />
-            )}
-          </button>
-          <button
-            onClick={() => setShowMonthlyPerformance(!showMonthlyPerformance)}
-            className="flex-1 flex items-center justify-center gap-2 p-4 bg-purple-50 hover:bg-purple-100 border-2 border-purple-200 rounded-xl transition-colors"
-          >
-            <TrendingUp className="h-5 w-5 text-purple-600" />
-            <span className="text-sm font-semibold text-purple-900">Monthly Performance</span>
-            {showMonthlyPerformance ? (
-              <ChevronUp className="h-4 w-4 text-purple-600" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-purple-600" />
-            )}
-          </button>
-        </div>
+                      {(booking.address_line1 || booking.address_suburb || booking.address_city) && (
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                            [booking.address_line1, booking.address_suburb, booking.address_city]
+                              .filter(Boolean)
+                              .join(', ')
+                          )}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-start gap-2 group"
+                        >
+                          <MapPin className="h-4 w-4 text-[#3b82f6] mt-0.5 group-hover:text-[#2563eb]" />
+                          <span className="text-sm text-[#1f2933] flex-1 group-hover:underline">
+                            {[booking.address_line1, booking.address_suburb, booking.address_city]
+                              .filter(Boolean)
+                              .join(', ')}
+                          </span>
+                        </a>
+                      )}
 
-        {/* My Weekly Schedule Card - Hidden when performance sections are visible */}
-        {!showTodayPerformance && !showMonthlyPerformance && (
-          <Card className="mb-6">
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-                <h3 className="text-base sm:text-lg font-semibold text-gray-900">
-                  My Weekly Schedule
-                </h3>
-                <Badge variant="outline" className="text-xs w-fit">
-                  {Object.entries(cleaner).filter(([key, val]) => 
-                    key.startsWith('available_') && val === true
-                  ).length} days/week
-                </Badge>
+                      {booking.customer_name && (
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-gray-400" />
+                          <span className="text-sm text-gray-700">
+                            {booking.customer_name}
+                          </span>
+                        </div>
+                      )}
+
+                      {booking.customer_phone && (
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-4 w-4 text-gray-400" />
+                          <a
+                            href={`tel:${booking.customer_phone}`}
+                            className="text-sm text-[#3b82f6] hover:underline"
+                          >
+                            {booking.customer_phone}
+                          </a>
+                        </div>
+                      )}
+
+                      {/* Time tracking */}
+                      {(booking.cleaner_started_at || booking.cleaner_completed_at) && (
+                        <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                          {booking.cleaner_started_at && (
+                            <div className="rounded-md bg-gray-50 border border-gray-100 px-2 py-1">
+                              <div className="uppercase tracking-wide text-[10px] text-gray-500">Started</div>
+                              <div className="font-medium">
+                                {formatShortDateTime(booking.cleaner_started_at)}
+                              </div>
+                            </div>
+                          )}
+                          {booking.cleaner_completed_at && (
+                            <div className="rounded-md bg-gray-50 border border-gray-100 px-2 py-1">
+                              <div className="uppercase tracking-wide text-[10px] text-gray-500">Completed</div>
+                              <div className="font-medium">
+                                {formatShortDateTime(booking.cleaner_completed_at)}
+                              </div>
+                            </div>
+                          )}
+                          {booking.cleaner_started_at && (
+                            <div className="rounded-md bg-blue-50 border border-blue-100 px-2 py-1 col-span-2">
+                              <div className="uppercase tracking-wide text-[10px] text-blue-700">Duration</div>
+                              <div className="font-semibold text-blue-700">
+                                {computeDuration(booking.cleaner_started_at, booking.cleaner_completed_at) || '—'}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {booking.cleaner_earnings && (
+                        <div className="pt-2 border-t border-gray-100">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-500">Your Earnings</span>
+                            <span className="text-sm font-semibold text-[#3b82f6]">
+                              {formatCurrency(booking.cleaner_earnings)}
+                            </span>
+                          </div>
+                          {/* Show tip only if customer gave a tip */}
+                          {booking.tip_amount && booking.tip_amount > 0 && (
+                            <div className="flex items-center justify-between mt-1.5">
+                              <span className="text-xs text-gray-500 flex items-center gap-1">
+                                <span className="text-yellow-500">💰</span>
+                                Customer Tip
+                              </span>
+                              <span className="text-xs font-semibold text-yellow-600">
+                                +{formatCurrency(booking.tip_amount)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Action Buttons - Always show for today's current bookings */}
+                      <div className="pt-3 border-t border-gray-100 mt-3 flex flex-wrap gap-2">
+                        {/* Accept Button - for pending bookings */}
+                        {booking.status === 'pending' && (
+                          <Button
+                            onClick={() => handleAccept(booking.id)}
+                            disabled={actingBookingId === booking.id}
+                            className="flex-1 bg-[#3b82f6] hover:bg-[#2563eb] text-white"
+                            size="sm"
+                          >
+                            {actingBookingId === booking.id ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Accepting...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Accept
+                              </>
+                            )}
+                          </Button>
+                        )}
+
+                        {/* On My Way Button - for accepted bookings */}
+                        {booking.status === 'accepted' && (
+                          <Button
+                            onClick={() => handleOnMyWay(booking.id)}
+                            disabled={actingBookingId === booking.id}
+                            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white"
+                            size="sm"
+                          >
+                            {actingBookingId === booking.id ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Updating...
+                              </>
+                            ) : (
+                              <>
+                                <Navigation className="h-4 w-4 mr-2" />
+                                On My Way
+                              </>
+                            )}
+                          </Button>
+                        )}
+
+                        {/* Start Job Button - for on_my_way status */}
+                        {booking.status === 'on_my_way' && (
+                          <Button
+                            onClick={() => handleStart(booking.id)}
+                            disabled={actingBookingId === booking.id}
+                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                            size="sm"
+                          >
+                            {actingBookingId === booking.id ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Starting...
+                              </>
+                            ) : (
+                              <>
+                                <PlayCircle className="h-4 w-4 mr-2" />
+                                Start Job
+                              </>
+                            )}
+                          </Button>
+                        )}
+
+                        {/* Complete Button - for in-progress status */}
+                        {booking.status === 'in-progress' && (
+                          <Button
+                            onClick={() => handleComplete(booking.id)}
+                            disabled={actingBookingId === booking.id}
+                            className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                            size="sm"
+                          >
+                            {actingBookingId === booking.id ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Completing...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Complete
+                              </>
+                            )}
+                          </Button>
+                        )}
+
+                        {/* Decline / Reschedule - for pending or accepted */}
+                        {(booking.status === 'pending' || booking.status === 'accepted') && (
+                          <Button
+                            onClick={() => {
+                              setDeclineBookingId(booking.id);
+                              setDeclineOpen(true);
+                            }}
+                            disabled={actingBookingId === booking.id}
+                            className="px-3 py-2 text-sm border border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
+                            size="sm"
+                            variant="outline"
+                          >
+                            Decline
+                          </Button>
+                        )}
+                        {(booking.status === 'pending' || booking.status === 'accepted') && (
+                          <Button
+                            onClick={() => {
+                              setReschedBookingId(booking.id);
+                              setReschedOpen(true);
+                            }}
+                            disabled={actingBookingId === booking.id}
+                            className="px-3 py-2 text-sm border border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
+                            size="sm"
+                            variant="outline"
+                          >
+                            Reschedule
+                          </Button>
+                        )}
+
+                        {/* View Details Link - show for all statuses */}
+                        <Link
+                          href={`/cleaner/dashboard/my-jobs`}
+                          className="flex items-center justify-center px-3 py-2 text-sm text-[#3b82f6] font-medium hover:underline border border-[#3b82f6] rounded-md"
+                        >
+                          Details
+                        </Link>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              {/* Empty State Illustration - Raised Hands with Watches (4 arms) */}
+              <div className="mb-6 flex items-center justify-center">
+                <div className="relative">
+                  {/* Representing 4 raised hands/arms with watches */}
+                  <div className="flex gap-2 items-end">
+                    {/* Arm 1 */}
+                    <div className="flex flex-col items-center">
+                      <div className="w-12 h-12 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center mb-1">
+                        <Clock className="h-5 w-5 text-gray-400" />
+                      </div>
+                      <div className="w-8 h-16 bg-gray-100 rounded-t-md"></div>
+                    </div>
+                    {/* Arm 2 */}
+                    <div className="flex flex-col items-center pt-2">
+                      <div className="w-12 h-12 rounded-full bg-[#dbeafe] border border-[#3b82f6] flex items-center justify-center mb-1">
+                        <Clock className="h-5 w-5 text-[#3b82f6]" />
+                      </div>
+                      <div className="w-8 h-16 bg-[#dbeafe] rounded-t-md"></div>
+                    </div>
+                    {/* Arm 3 */}
+                    <div className="flex flex-col items-center">
+                      <div className="w-12 h-12 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center mb-1">
+                        <Clock className="h-5 w-5 text-gray-400" />
+                      </div>
+                      <div className="w-8 h-16 bg-gray-100 rounded-t-md"></div>
+                    </div>
+                    {/* Arm 4 */}
+                    <div className="flex flex-col items-center pt-3">
+                      <div className="w-12 h-12 rounded-full bg-[#dbeafe] border border-[#3b82f6] flex items-center justify-center mb-1">
+                        <Clock className="h-5 w-5 text-[#3b82f6]" />
+                      </div>
+                      <div className="w-8 h-16 bg-[#dbeafe] rounded-t-md"></div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-center sm:justify-start">
-                <DayAvailabilityDisplay 
-                  schedule={cleaner} 
-                  compact={false}
-                />
-              </div>
-              <p className="text-xs sm:text-sm text-gray-500 mt-3 text-center sm:text-left">
-                Your schedule is set by your manager. Contact admin to request changes.
+
+              <p className="text-gray-700 font-medium mb-2">You have no bookings.</p>
+              <p className="text-sm text-gray-500 max-w-xs mx-auto">
+                Make sure your Availability is up to date so Clients can hire you.
               </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Today's Performance Section */}
-        {showTodayPerformance && (
-          <>
-            <div id="today-performance" className="mb-4 scroll-mt-6">
-              <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-                Today's Performance
-              </h3>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-              <Card className="border-2">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 rounded-full bg-blue-50">
-                      <Calendar className="h-6 w-6 text-blue-600" />
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-gray-900">
-                        {stats.todayBookings}
-                      </div>
-                      <div className="text-sm text-gray-500">Today's Bookings</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-2">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 rounded-full bg-green-50">
-                      <CheckCircle2 className="h-6 w-6 text-green-600" />
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-gray-900">
-                        {stats.completedToday}
-                      </div>
-                      <div className="text-sm text-gray-500">Completed Today</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-2">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 rounded-full bg-primary/10">
-                      <DollarSign className="h-6 w-6 text-primary" />
-                    </div>
-                    {getEarningsDisplay(stats.totalEarnings, "Today's Earnings")}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </>
-        )}
-
-        {/* Monthly Performance Section */}
-        {showMonthlyPerformance && (
-          <>
-            <div id="monthly-performance" className="mt-8 mb-4 scroll-mt-6">
-              <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-                This Month's Performance
-              </h3>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-              <Card className="border-2">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 rounded-full bg-purple-50">
-                      <Briefcase className="h-6 w-6 text-purple-600" />
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-gray-900">
-                        {stats.monthlyBookings}
-                      </div>
-                      <div className="text-sm text-gray-500">This Month's Bookings</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-2">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 rounded-full bg-green-50">
-                      <CheckCircle2 className="h-6 w-6 text-green-600" />
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-gray-900">
-                        {stats.monthlyCompleted}
-                      </div>
-                      <div className="text-sm text-gray-500">Completed This Month</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-2">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 rounded-full bg-purple-50">
-                      <TrendingUp className="h-6 w-6 text-purple-600" />
-                    </div>
-                    {getEarningsDisplay(stats.monthlyEarnings, "This Month's Earnings")}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </>
-        )}
-
-        {/* Service Areas Badge */}
-        <div className="mb-6">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium text-gray-700">Your Service Areas:</span>
-            {cleaner.areas.map((area) => (
-              <Badge key={area} variant="outline" className="text-xs">
-                {area}
-              </Badge>
-            ))}
-          </div>
-        </div>
-
-        {/* Help Section */}
-        <div className="mt-8 p-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
-          <div className="flex items-start gap-3">
-            <div className="p-2 bg-blue-100 rounded-full flex-shrink-0">
-              <TrendingUp className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-blue-900 mb-1">Tips for Success</h3>
-              <ul className="text-sm text-blue-800 space-y-1">
-                <li>• Keep your availability status updated</li>
-                <li>• Respond promptly to bookings</li>
-                <li>• Maintain high customer ratings</li>
-                <li>• Enable location tracking for better job matching</li>
-              </ul>
-            </div>
-          </div>
+          )}
         </div>
       </main>
 
       {/* Mobile Bottom Navigation */}
       <CleanerMobileBottomNav />
 
-      {/* Mobile Bottom Navigation Spacer */}
+      {/* Bottom Spacer */}
       <div className="h-20 sm:h-0" />
+
+      {/* Decline Modal */}
+      <Dialog open={declineOpen} onOpenChange={setDeclineOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Decline booking</DialogTitle>
+            <DialogDescription>Optionally add a reason for declining. This will be visible to admin.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Textarea
+              placeholder="Reason (optional)"
+              value={declineReason}
+              onChange={(e) => setDeclineReason(e.target.value)}
+            />
+          </div>
+          <DialogFooter className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setDeclineOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={submitDecline} disabled={!declineBookingId || actingBookingId === declineBookingId}>
+              {actingBookingId === declineBookingId ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                'Submit'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reschedule Modal */}
+      <Dialog open={reschedOpen} onOpenChange={setReschedOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Request reschedule</DialogTitle>
+            <DialogDescription>Propose a new date and/or time. Admin will review your request.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <div className="text-xs text-gray-600 mb-1">Date</div>
+                <Input
+                  type="date"
+                  value={reschedDate}
+                  onChange={(e) => setReschedDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <div className="text-xs text-gray-600 mb-1">Time</div>
+                <Input
+                  type="time"
+                  value={reschedTime}
+                  onChange={(e) => setReschedTime(e.target.value)}
+                />
+              </div>
+            </div>
+            <Textarea
+              placeholder="Additional note (optional)"
+              value={reschedNotes}
+              onChange={(e) => setReschedNotes(e.target.value)}
+            />
+          </div>
+          <DialogFooter className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setReschedOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={submitReschedule} disabled={!reschedBookingId || actingBookingId === reschedBookingId}>
+              {actingBookingId === reschedBookingId ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                'Submit'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

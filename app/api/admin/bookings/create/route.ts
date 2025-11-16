@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Helper function to calculate cleaner earnings
-async function calculateCleanerEarningsForCleaner(supabase: any, cleanerId: string, totalAmount: number, serviceFee: number): Promise<number> {
+async function calculateCleanerEarningsForCleaner(supabase: any, cleanerId: string, totalAmount: number, serviceFee: number, tipAmount: number = 0): Promise<number> {
   try {
     const { data: cleaner } = await supabase
       .from('cleaners')
@@ -65,10 +65,10 @@ async function calculateCleanerEarningsForCleaner(supabase: any, cleanerId: stri
       .eq('id', cleanerId)
       .single();
     
-    return calculateCleanerEarnings(totalAmount, serviceFee, cleaner?.hire_date);
+    return calculateCleanerEarnings(totalAmount, serviceFee, cleaner?.hire_date, tipAmount);
   } catch (error) {
     console.warn('Failed to fetch cleaner hire date, using default commission rate:', error);
-    return calculateCleanerEarnings(totalAmount, serviceFee, null);
+    return calculateCleanerEarnings(totalAmount, serviceFee, null, tipAmount);
   }
 }
 
@@ -89,18 +89,38 @@ async function createOneTimeBooking(supabase: any, data: CreateBookingFormData) 
   }
 
   // Use manual pricing if provided, otherwise calculate automatically
-  let totalInCents, serviceFeeInCents, frequencyDiscountInCents, cleanerEarnings;
+  let totalInCents, serviceFeeInCents, frequencyDiscountInCents, cleanerEarnings, tipAmountInCents;
   
   const extrasQuantities = (data.extrasQuantities || data.extras_quantities || {}) as Record<string, number>;
+  
+  // Extract tip amount (if provided in manual pricing)
+  const tipAmount = (data as any).tip_amount || 0;
+  tipAmountInCents = Math.round(tipAmount * 100);
 
   if (data.total_amount && data.total_amount > 0) {
     // Use manual pricing
     totalInCents = Math.round(data.total_amount * 100);
     serviceFeeInCents = Math.round((data.service_fee || 0) * 100);
     frequencyDiscountInCents = 0; // Manual pricing doesn't include frequency discounts
-    cleanerEarnings = Math.round((data.cleaner_earnings || 0) * 100);
+    
+    // Calculate service total excluding tip
+    const serviceTotal = data.total_amount - tipAmount;
+    
+    // Calculate cleaner earnings automatically if not manually provided
+    if (data.cleaner_earnings !== undefined && data.cleaner_earnings !== null) {
+      // Use provided cleaner_earnings if explicitly set
+      cleanerEarnings = Math.round(data.cleaner_earnings * 100);
+    } else if (cleanerIdForInsert) {
+      // Auto-calculate if cleaner is assigned but earnings not provided
+      // Calculate: commission on service + 100% of tip
+      cleanerEarnings = await calculateCleanerEarningsForCleaner(supabase, cleanerIdForInsert, data.total_amount, data.service_fee || 0, tipAmount) * 100;
+    } else {
+      // Default to 60% of service subtotal + 100% of tip if no cleaner assigned
+      const serviceSubtotal = serviceTotal - (data.service_fee || 0);
+      cleanerEarnings = Math.round(serviceSubtotal * 0.60 * 100) + tipAmountInCents;
+    }
   } else {
-    // Calculate pricing automatically
+    // Calculate pricing automatically (no tips in automatic pricing for admin-created bookings)
     const pricingDetails = await calcTotalAsync(
       {
         service: data.service_type as ServiceType,
@@ -116,10 +136,11 @@ async function createOneTimeBooking(supabase: any, data: CreateBookingFormData) 
     totalInCents = Math.round(pricingDetails.total * 100);
     serviceFeeInCents = Math.round(pricingDetails.serviceFee * 100);
     frequencyDiscountInCents = Math.round(pricingDetails.frequencyDiscount * 100);
+    tipAmountInCents = 0; // Auto-calculated bookings don't have tips
 
-    // Calculate cleaner earnings (in cents)
+    // Calculate cleaner earnings (in cents) - no tip for auto-calculated
     cleanerEarnings = cleanerIdForInsert 
-      ? await calculateCleanerEarningsForCleaner(supabase, cleanerIdForInsert, pricingDetails.total, pricingDetails.serviceFee) * 100
+      ? await calculateCleanerEarningsForCleaner(supabase, cleanerIdForInsert, pricingDetails.total, pricingDetails.serviceFee, 0) * 100
       : 0;
   }
 
@@ -132,6 +153,9 @@ async function createOneTimeBooking(supabase: any, data: CreateBookingFormData) 
   }
 
   // Create price snapshot for historical record (in cents)
+  // Calculate service subtotal excluding tip
+  const serviceSubtotal = totalInCents - tipAmountInCents - serviceFeeInCents + frequencyDiscountInCents;
+  
   const priceSnapshot = {
     service: {
       type: data.service_type,
@@ -143,8 +167,9 @@ async function createOneTimeBooking(supabase: any, data: CreateBookingFormData) 
     frequency: 'one-time', // Keep 'one-time' in snapshot for historical record
     service_fee: serviceFeeInCents,
     frequency_discount: frequencyDiscountInCents,
-    subtotal: totalInCents - serviceFeeInCents + frequencyDiscountInCents, // Calculate subtotal
-    total: totalInCents,
+    tip_amount: tipAmountInCents, // Store tip separately
+    subtotal: serviceSubtotal, // Service subtotal (excluding tip)
+    total: totalInCents, // Total includes tip
     snapshot_date: new Date().toISOString(),
     manual_pricing: data.total_amount && data.total_amount > 0, // Flag to indicate manual pricing
   };
@@ -164,7 +189,8 @@ async function createOneTimeBooking(supabase: any, data: CreateBookingFormData) 
     booking_time: data.booking_time,
     payment_reference: bookingId, // Use booking ID as reference for admin-created bookings
     status: 'pending', // All bookings start as pending for cleaner workflow
-    total_amount: totalInCents,
+    total_amount: totalInCents, // Total includes tip
+    tip_amount: tipAmountInCents, // Store tip separately (goes 100% to cleaner)
     service_fee: serviceFeeInCents,
     frequency: null, // One-time bookings have NULL frequency
     frequency_discount: frequencyDiscountInCents,
@@ -274,14 +300,29 @@ async function createRecurringBooking(supabase: any, data: CreateBookingFormData
     }
 
     // Use manual pricing if provided, otherwise calculate automatically
-    let totalWithoutServiceFee, serviceFeeInCents, frequencyDiscountInCents, cleanerEarnings;
+    let totalWithoutServiceFee, serviceFeeInCents, frequencyDiscountInCents, cleanerEarnings, tipAmountInCents;
+    
+    // Extract tip amount (if provided in manual pricing for recurring)
+    const tipAmount = (data as any).tip_amount || 0;
+    tipAmountInCents = Math.round(tipAmount * 100);
     
     if (data.total_amount && data.total_amount > 0) {
       // Use manual pricing for recurring bookings
-      totalWithoutServiceFee = Math.round(data.total_amount * 100);
+      // Calculate service total excluding tip
+      const serviceTotal = data.total_amount - tipAmount;
+      totalWithoutServiceFee = Math.round(serviceTotal * 100);
       serviceFeeInCents = 0; // Recurring bookings always have no service fee
       frequencyDiscountInCents = 0; // Manual pricing doesn't include frequency discounts
-      cleanerEarnings = Math.round((data.cleaner_earnings || 0) * 100);
+      
+      // Calculate cleaner earnings: commission on service + 100% of tip
+      if (data.cleaner_earnings !== undefined && data.cleaner_earnings !== null) {
+        cleanerEarnings = Math.round(data.cleaner_earnings * 100);
+      } else if (cleanerIdForInsert) {
+        cleanerEarnings = await calculateCleanerEarningsForCleaner(supabase, cleanerIdForInsert, data.total_amount, 0, tipAmount) * 100;
+      } else {
+        // Default: 60% of service + 100% of tip
+        cleanerEarnings = Math.round(serviceTotal * 0.60 * 100) + tipAmountInCents;
+      }
     } else {
       // Calculate pricing automatically
       const pricingFrequency = data.frequency === 'custom-weekly' ? 'weekly' :
@@ -301,12 +342,14 @@ async function createRecurringBooking(supabase: any, data: CreateBookingFormData
 
       // Recurring bookings have NO service fee
       serviceFeeInCents = 0;
-      totalWithoutServiceFee = Math.round((pricingDetails.subtotal - pricingDetails.frequencyDiscount) * 100);
+      const serviceSubtotal = pricingDetails.subtotal - pricingDetails.frequencyDiscount;
+      totalWithoutServiceFee = Math.round(serviceSubtotal * 100);
       frequencyDiscountInCents = Math.round(pricingDetails.frequencyDiscount * 100);
+      tipAmountInCents = 0; // Auto-calculated recurring bookings don't have tips
 
-      // Calculate cleaner earnings (60% or 70% based on experience)
+      // Calculate cleaner earnings (60% or 70% based on experience) - no tip
       cleanerEarnings = cleanerIdForInsert 
-        ? await calculateCleanerEarningsForCleaner(supabase, cleanerIdForInsert, pricingDetails.subtotal - pricingDetails.frequencyDiscount, 0) * 100
+        ? await calculateCleanerEarningsForCleaner(supabase, cleanerIdForInsert, serviceSubtotal, 0, 0) * 100
         : 0;
     }
 
@@ -322,8 +365,9 @@ async function createRecurringBooking(supabase: any, data: CreateBookingFormData
       frequency: data.frequency,
       service_fee: serviceFeeInCents, // 0 for recurring
       frequency_discount: frequencyDiscountInCents,
-      subtotal: totalWithoutServiceFee,
-      total: totalWithoutServiceFee,
+      tip_amount: tipAmountInCents, // Store tip separately (recurring bookings typically don't have tips)
+      subtotal: totalWithoutServiceFee, // Service subtotal excluding tip
+      total: totalWithoutServiceFee + tipAmountInCents, // Total includes tip
       snapshot_date: new Date().toISOString(),
       manual_pricing: data.total_amount && data.total_amount > 0, // Flag to indicate manual pricing
     };
@@ -343,7 +387,8 @@ async function createRecurringBooking(supabase: any, data: CreateBookingFormData
       booking_time: data.preferred_time,
       payment_reference: generateBookingId(), // Unique reference for each booking
       status: 'pending', // All bookings start as pending for cleaner workflow
-      total_amount: totalWithoutServiceFee,
+      total_amount: totalWithoutServiceFee + tipAmountInCents, // Total includes tip
+      tip_amount: tipAmountInCents, // Store tip separately (goes 100% to cleaner)
       service_fee: serviceFeeInCents, // 0 for recurring
       frequency: data.frequency,
       frequency_discount: frequencyDiscountInCents,

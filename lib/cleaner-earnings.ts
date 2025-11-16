@@ -2,23 +2,28 @@
  * Cleaner Earnings Calculation Utilities
  * 
  * Handles calculation of cleaner earnings based on experience:
- * - < 3 months experience: 60% of subtotal (total - service_fee)
- * - 4+ months experience: 70% of subtotal (total - service_fee)
+ * - < 3 months experience: 60% of subtotal (total - service_fee - tip)
+ * - 4+ months experience: 70% of subtotal (total - service_fee - tip)
  * - Service fee goes 100% to company
+ * - Tips go 100% to cleaner (separate from commission)
  * - Applies to ALL service types
  */
 
 export function calculateCleanerEarnings(
   totalAmount: number | null,
   serviceFee: number | null,
-  cleanerHireDate: string | null
+  cleanerHireDate: string | null,
+  tipAmount: number | null = null
 ): number {
   if (!totalAmount) return 0;
   
-  const subtotal = totalAmount - (serviceFee || 0);
+  // Exclude tip from commission calculation (tips go 100% to cleaner)
+  const serviceSubtotal = totalAmount - (serviceFee || 0) - (tipAmount || 0);
   const commissionRate = getCommissionRate(cleanerHireDate);
+  const commissionEarnings = Math.round(serviceSubtotal * commissionRate);
   
-  return Math.round(subtotal * commissionRate);
+  // Add tip 100% to cleaner earnings
+  return commissionEarnings + (tipAmount || 0);
 }
 
 export function getCommissionRate(hireDate: string | null): number {

@@ -1,12 +1,12 @@
 'use client';
 
-import { Home, Calendar, Briefcase, MoreHorizontal } from 'lucide-react';
+import { Home, Calendar, CalendarClock, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 interface CleanerMobileBottomNavProps {
-  activeTab?: 'dashboard' | 'my-jobs' | 'find-jobs' | 'more';
+  activeTab?: 'home' | 'bookings' | 'earnings' | 'profile';
 }
 
 export function CleanerMobileBottomNav({ activeTab }: CleanerMobileBottomNavProps) {
@@ -14,45 +14,61 @@ export function CleanerMobileBottomNav({ activeTab }: CleanerMobileBottomNavProp
   
   // Determine active tab based on current path
   const getActiveTab = () => {
-    if (pathname === '/cleaner/dashboard') return 'dashboard';
-    if (pathname === '/cleaner/dashboard/my-jobs') return 'my-jobs';
-    if (pathname === '/cleaner/dashboard/find-jobs') return 'find-jobs';
-    if (pathname === '/cleaner/dashboard/more') return 'more';
-    return 'dashboard';
+    // Normalize pathname (remove trailing slash and query params)
+    const normalizedPath = pathname.split('?')[0].replace(/\/$/, '');
+    
+    // Check more specific paths first
+    if (normalizedPath.startsWith('/cleaner/dashboard/my-jobs')) {
+      return 'bookings';
+    }
+    if (normalizedPath.startsWith('/cleaner/dashboard/profile/payments')) {
+      return 'earnings';
+    }
+    if (normalizedPath.startsWith('/cleaner/dashboard/profile')) {
+      return 'profile';
+    }
+    // legacy aliases
+    if (normalizedPath.startsWith('/cleaner/dashboard/availability') || normalizedPath.startsWith('/cleaner/dashboard/more')) {
+      return 'earnings';
+    }
+    if (normalizedPath === '/cleaner/dashboard' || normalizedPath.startsWith('/cleaner/dashboard')) {
+      return 'home';
+    }
+    return 'home';
   };
 
   const currentActiveTab = activeTab || getActiveTab();
 
   const tabs = [
     {
-      id: 'dashboard' as const,
-      label: 'Dashboard',
+      id: 'home' as const,
+      label: 'Home',
       icon: Home,
       href: '/cleaner/dashboard',
     },
     {
-      id: 'my-jobs' as const,
-      label: 'My Jobs',
+      id: 'bookings' as const,
+      label: 'Bookings',
       icon: Calendar,
       href: '/cleaner/dashboard/my-jobs',
     },
     {
-      id: 'find-jobs' as const,
-      label: 'Find Jobs',
-      icon: Briefcase,
-      href: '/cleaner/dashboard/find-jobs',
+      id: 'earnings' as const,
+      label: 'Earnings',
+      icon: CalendarClock,
+      href: '/cleaner/dashboard/profile/payments',
     },
     {
-      id: 'more' as const,
-      label: 'More',
-      icon: MoreHorizontal,
-      href: '/cleaner/dashboard/more',
+      id: 'profile' as const,
+      label: 'Profile',
+      icon: User,
+      href: '/cleaner/dashboard/profile',
     },
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 sm:hidden">
-      <div className="flex items-center justify-around py-2 px-4">
+    <nav className="fixed bottom-0 left-0 right-0 z-[100] bg-white border-t border-gray-200">
+      <div className="flex items-center justify-around py-2 px-2 max-w-md mx-auto">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = currentActiveTab === tab.id;
@@ -61,20 +77,27 @@ export function CleanerMobileBottomNav({ activeTab }: CleanerMobileBottomNavProp
             <Link
               key={tab.id}
               href={tab.href}
+              onClick={(e) => {
+                console.log('Navigation clicked:', tab.label, tab.href);
+              }}
               className={cn(
-                'flex flex-col items-center justify-center py-2 px-3 min-w-0 flex-1 transition-colors',
+                'flex flex-col items-center justify-center py-2 px-2 min-w-0 flex-1 transition-colors cursor-pointer relative z-10',
                 isActive
-                  ? 'text-primary'
-                  : 'text-gray-600'
+                  ? 'text-[#3b82f6]'
+                  : 'text-gray-600 hover:text-gray-900'
               )}
+              aria-label={tab.label}
             >
-              <Icon className={cn(
-                'h-5 w-5 mb-1',
-                isActive && 'text-primary'
-              )} />
+              <Icon 
+                className={cn(
+                  'h-5 w-5 mb-1 pointer-events-none',
+                  isActive ? 'text-[#3b82f6]' : 'text-gray-600'
+                )}
+                strokeWidth={isActive ? 2.5 : 1.5}
+              />
               <span className={cn(
-                'text-xs font-medium truncate',
-                isActive ? 'text-primary' : 'text-gray-600'
+                'text-xs font-medium truncate pointer-events-none',
+                isActive ? 'text-[#3b82f6]' : 'text-gray-600'
               )}>
                 {tab.label}
               </span>
@@ -82,7 +105,7 @@ export function CleanerMobileBottomNav({ activeTab }: CleanerMobileBottomNavProp
           );
         })}
       </div>
-    </div>
+    </nav>
   );
 }
 

@@ -4,10 +4,13 @@ import { useState, useEffect } from 'react';
 import { BookingCard } from './booking-card';
 import { BookingDetailsModal } from './booking-details-modal';
 import { RateCustomerModal } from './rate-customer-modal';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Loader2, Calendar, CheckCircle2, Clock, RefreshCw } from 'lucide-react';
+import { Loader2, Clock } from 'lucide-react';
 import type { CleanerBooking } from '@/types/booking';
+import { createClient as createSupabaseBrowserClient } from '@/lib/supabase-browser';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 
 interface Booking extends CleanerBooking {
   cleaner_claimed_at?: string | null;
@@ -22,23 +25,27 @@ interface Booking extends CleanerBooking {
 export function MyBookings() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'upcoming' | 'completed'>('upcoming');
+  const [activeTab, setActiveTab] = useState<'current' | 'past'>('current');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [ratingBooking, setRatingBooking] = useState<Booking | null>(null);
+  const [declineOpen, setDeclineOpen] = useState(false);
+  const [declineReason, setDeclineReason] = useState('');
+  const [declineBookingId, setDeclineBookingId] = useState<string | null>(null);
+  const [reschedOpen, setReschedOpen] = useState(false);
+  const [reschedDate, setReschedDate] = useState('');
+  const [reschedTime, setReschedTime] = useState('');
+  const [reschedNotes, setReschedNotes] = useState('');
+  const [reschedBookingId, setReschedBookingId] = useState<string | null>(null);
 
-  const fetchBookings = async (showLoading = true) => {
-    if (showLoading) {
-      setIsLoading(true);
-    } else {
-      setIsRefreshing(true);
-    }
+  const fetchBookings = async () => {
+    setIsLoading(true);
     setError(null);
 
     try {
-      const response = await fetch('/api/cleaner/bookings');
-      const data = await response.json();
+      // Use retry + no-store to avoid dev/HMR caching issues
+      const response = await requestWithRetry('/api/cleaner/bookings', { method: 'GET', cache: 'no-store' }, 2);
+      const data = await response.json().catch(() => ({ ok: false, error: 'Invalid response' }));
 
       if (!data.ok) {
         throw new Error(data.error || 'Failed to fetch bookings');
@@ -50,43 +57,108 @@ export function MyBookings() {
       setError(err instanceof Error ? err.message : 'Failed to load bookings');
     } finally {
       setIsLoading(false);
-      setIsRefreshing(false);
     }
   };
 
+  // Track current cleaner id from fetched bookings (first non-null we see)
+  const [listenerCleanerId, setListenerCleanerId] = useState<string | null>(null);
+
   useEffect(() => {
-    fetchBookings();
+    fetchBookings().then(() => {
+      const firstWithCleaner = bookings.find((b) => !!b.cleaner_id);
+      if (firstWithCleaner?.cleaner_id && firstWithCleaner.cleaner_id !== listenerCleanerId) {
+        setListenerCleanerId(firstWithCleaner.cleaner_id);
+      }
+    });
+    const onFocus = () => fetchBookings();
+    document.addEventListener('visibilitychange', onFocus);
+    return () => document.removeEventListener('visibilitychange', onFocus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Realtime subscription, scoped to cleaner_id when known
+  useEffect(() => {
+    let channel: any;
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const opts: any = {
+        event: '*',
+        schema: 'public',
+        table: 'bookings',
+      };
+      if (listenerCleanerId) {
+        opts.filter = `cleaner_id=eq.${listenerCleanerId}`;
+      }
+      channel = supabase
+        .channel('cleaner-bookings-my-jobs')
+        .on('postgres_changes', opts, (_payload: any) => {
+          fetchBookings();
+        })
+        .subscribe();
+    } catch (e) {
+      console.warn('Realtime unavailable:', e);
+    }
+
+    return () => {
+      try {
+        if (channel) {
+          const supabase = createSupabaseBrowserClient();
+          supabase.removeChannel(channel);
+        }
+      } catch {}
+    };
+    // re-subscribe when cleanerId known/changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listenerCleanerId]);
+
+  // Basic retry helper
+  const requestWithRetry = async (url: string, init: RequestInit, retries = 2): Promise<Response> => {
+    let lastError: any = null;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const res = await fetch(url, init);
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          throw new Error(`${res.status} ${res.statusText} ${text}`.trim());
+        }
+        return res;
+      } catch (err) {
+        lastError = err;
+        await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+      }
+    }
+    throw lastError || new Error('Request failed');
+  };
 
   const handleStart = async (bookingId: string) => {
     try {
-      const response = await fetch(`/api/cleaner/bookings/${bookingId}/status`, {
+      const response = await requestWithRetry(`/api/cleaner/bookings/${bookingId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'in-progress' }),
-      });
+      }, 2);
 
       const data = await response.json();
 
       if (!data.ok) {
-        throw new Error(data.error || 'Failed to start job');
+        throw new Error(data.error || 'Failed to start booking');
       }
 
       // Refresh bookings
-      await fetchBookings(false);
+      await fetchBookings();
     } catch (err) {
-      console.error('Error starting job:', err);
-      alert(err instanceof Error ? err.message : 'Failed to start job');
+      console.error('Error starting booking:', err);
+      alert(err instanceof Error ? err.message : 'Failed to start booking');
     }
   };
 
   const handleAccept = async (bookingId: string) => {
     try {
-      const response = await fetch(`/api/cleaner/bookings/${bookingId}/status`, {
+      const response = await requestWithRetry(`/api/cleaner/bookings/${bookingId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'accepted' }),
-      });
+      }, 2);
 
       const data = await response.json();
 
@@ -95,7 +167,7 @@ export function MyBookings() {
       }
 
       // Refresh bookings
-      await fetchBookings(false);
+      await fetchBookings();
     } catch (err) {
       console.error('Error accepting booking:', err);
       alert(err instanceof Error ? err.message : 'Failed to accept booking');
@@ -104,11 +176,11 @@ export function MyBookings() {
 
   const handleOnMyWay = async (bookingId: string) => {
     try {
-      const response = await fetch(`/api/cleaner/bookings/${bookingId}/status`, {
+      const response = await requestWithRetry(`/api/cleaner/bookings/${bookingId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'on_my_way' }),
-      });
+      }, 2);
 
       const data = await response.json();
 
@@ -117,7 +189,7 @@ export function MyBookings() {
       }
 
       // Refresh bookings
-      await fetchBookings(false);
+      await fetchBookings();
     } catch (err) {
       console.error('Error updating status:', err);
       alert(err instanceof Error ? err.message : 'Failed to update status');
@@ -126,16 +198,16 @@ export function MyBookings() {
 
   const handleComplete = async (bookingId: string) => {
     try {
-      const response = await fetch(`/api/cleaner/bookings/${bookingId}/status`, {
+      const response = await requestWithRetry(`/api/cleaner/bookings/${bookingId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'completed' }),
-      });
+      }, 2);
 
       const data = await response.json();
 
       if (!data.ok) {
-        throw new Error(data.error || 'Failed to complete job');
+        throw new Error(data.error || 'Failed to complete booking');
       }
 
       // Find booking and open rating modal
@@ -145,10 +217,58 @@ export function MyBookings() {
       }
 
       // Refresh bookings
-      await fetchBookings(false);
+      await fetchBookings();
     } catch (err) {
-      console.error('Error completing job:', err);
-      alert(err instanceof Error ? err.message : 'Failed to complete job');
+      console.error('Error completing booking:', err);
+      alert(err instanceof Error ? err.message : 'Failed to complete booking');
+    }
+  };
+
+  const submitDecline = async () => {
+    if (!declineBookingId) return;
+    try {
+      const response = await requestWithRetry(`/api/cleaner/bookings/${declineBookingId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'declined', reason: declineReason }),
+      }, 2);
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error || 'Failed to decline booking');
+      await fetchBookings();
+      setDeclineOpen(false);
+      setDeclineReason('');
+      setDeclineBookingId(null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to decline booking');
+    }
+  };
+
+  const submitReschedule = async () => {
+    if (!reschedBookingId || (!reschedDate && !reschedTime)) {
+      alert('Please provide a date or time to propose');
+      return;
+    }
+    try {
+      const response = await requestWithRetry(`/api/cleaner/bookings/${reschedBookingId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'reschedule_requested',
+          proposed_date: reschedDate || undefined,
+          proposed_time: reschedTime || undefined,
+          notes: reschedNotes || undefined,
+        }),
+      }, 2);
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error || 'Failed to request reschedule');
+      await fetchBookings();
+      setReschedOpen(false);
+      setReschedDate('');
+      setReschedTime('');
+      setReschedNotes('');
+      setReschedBookingId(null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to request reschedule');
     }
   };
 
@@ -167,18 +287,18 @@ export function MyBookings() {
       }
 
       // Refresh bookings
-      await fetchBookings(false);
+      await fetchBookings();
     } catch (err) {
       console.error('Error rating customer:', err);
       throw err;
     }
   };
 
-  const upcomingBookings = bookings.filter(
+  const currentBookings = bookings.filter(
     (b) => ['pending', 'accepted', 'on_my_way', 'in-progress'].includes(b.status)
   );
 
-  const completedBookings = bookings.filter((b) => b.status === 'completed');
+  const pastBookings = bookings.filter((b) => b.status === 'completed' || b.status === 'cancelled');
 
   // Sort by date and time
   const sortBookings = (bookingsList: Booking[]) => {
@@ -192,103 +312,118 @@ export function MyBookings() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#3b82f6]" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-12 px-4">
         <div className="text-red-600 mb-4">{error}</div>
-        <Button onClick={() => fetchBookings()} variant="outline">
+        <button 
+          onClick={() => fetchBookings()} 
+          className="px-4 py-2 bg-[#3b82f6] text-white rounded-md hover:bg-[#2563eb] transition-colors"
+        >
           Try Again
-        </Button>
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {/* Header with Refresh */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">My Bookings</h2>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => fetchBookings(false)}
-          disabled={isRefreshing}
-        >
-          {isRefreshing ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw className="h-4 w-4" />
-          )}
-        </Button>
+    <div>
+      {/* Booking Navigation Tabs */}
+      <div className="border-b border-gray-200 px-4">
+        <div className="flex items-center justify-between max-w-md mx-auto">
+          <div className="flex gap-8">
+          <button
+            onClick={() => setActiveTab('current')}
+            className={`py-3 text-sm font-medium relative transition-colors ${
+              activeTab === 'current'
+                ? 'text-[#3b82f6]'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            CURRENT
+            {activeTab === 'current' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#3b82f6]" />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('past')}
+            className={`py-3 text-sm font-medium relative transition-colors ${
+              activeTab === 'past'
+                ? 'text-[#3b82f6]'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            PAST
+            {activeTab === 'past' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#3b82f6]" />
+            )}
+          </button>
+          </div>
+          <button
+            onClick={fetchBookings}
+            className="rounded-md border border-gray-300 text-gray-700 text-xs px-2 py-1 hover:bg-gray-50"
+            aria-label="Refresh"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="upcoming" className="flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            Upcoming ({upcomingBookings.length})
-          </TabsTrigger>
-          <TabsTrigger value="completed" className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4" />
-            Completed ({completedBookings.length})
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Upcoming */}
-        <TabsContent value="upcoming" className="space-y-3 mt-4">
-          {upcomingBookings.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-              <p>No upcoming bookings</p>
-              <p className="text-sm mt-1">
-                Check the Available Jobs tab to claim new bookings
-              </p>
-            </div>
+      {/* Content Area */}
+      <div className="px-4 py-6">
+        {activeTab === 'current' ? (
+          currentBookings.length === 0 ? (
+            <EmptyState />
           ) : (
-            sortBookings(upcomingBookings).map((booking) => (
-              <BookingCard
-                key={booking.id}
-                booking={booking}
-                variant="assigned"
-                onAccept={handleAccept}
-                onOnMyWay={handleOnMyWay}
-                onStart={handleStart}
-                onComplete={handleComplete}
-                onRate={(b) => setRatingBooking(b)}
-                onViewDetails={(b) => setSelectedBooking(b)}
-              />
-            ))
-          )}
-        </TabsContent>
-
-        {/* Completed */}
-        <TabsContent value="completed" className="space-y-3 mt-4">
-          {completedBookings.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-              <p>No completed bookings yet</p>
-            </div>
-          ) : (
-            sortBookings(completedBookings)
-              .reverse()
-              .map((booking) => (
+            <div className="space-y-4">
+              {sortBookings(currentBookings).map((booking) => (
                 <BookingCard
                   key={booking.id}
                   booking={booking}
                   variant="assigned"
+                  onAccept={handleAccept}
+                  onOnMyWay={handleOnMyWay}
+                  onStart={handleStart}
+                  onComplete={handleComplete}
                   onRate={(b) => setRatingBooking(b)}
                   onViewDetails={(b) => setSelectedBooking(b)}
+                  onDecline={(id) => {
+                    setDeclineBookingId(id);
+                    setDeclineOpen(true);
+                  }}
+                  onReschedule={(id) => {
+                    setReschedBookingId(id);
+                    setReschedOpen(true);
+                  }}
                 />
-              ))
-          )}
-        </TabsContent>
-      </Tabs>
+              ))}
+            </div>
+          )
+        ) : (
+          pastBookings.length === 0 ? (
+            <EmptyState />
+          ) : (
+            <div className="space-y-4">
+              {sortBookings(pastBookings)
+                .reverse()
+                .map((booking) => (
+                  <BookingCard
+                    key={booking.id}
+                    booking={booking}
+                    variant="assigned"
+                    onRate={(b) => setRatingBooking(b)}
+                    onViewDetails={(b) => setSelectedBooking(b)}
+                  />
+                ))}
+            </div>
+          )
+        )}
+      </div>
 
       {/* Modals */}
       <BookingDetailsModal
@@ -303,6 +438,122 @@ export function MyBookings() {
         onClose={() => setRatingBooking(null)}
         onSubmit={handleRate}
       />
+
+      {/* Decline Modal */}
+      <Dialog open={declineOpen} onOpenChange={setDeclineOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Decline booking</DialogTitle>
+            <DialogDescription>Optionally add a reason for declining. This will be visible to admin.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Textarea
+              placeholder="Reason (optional)"
+              value={declineReason}
+              onChange={(e) => setDeclineReason(e.target.value)}
+            />
+          </div>
+          <DialogFooter className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setDeclineOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={submitDecline} disabled={!declineBookingId}>
+              Submit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reschedule Modal */}
+      <Dialog open={reschedOpen} onOpenChange={setReschedOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Request reschedule</DialogTitle>
+            <DialogDescription>Propose a new date and/or time. Admin will review your request.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <div className="text-xs text-gray-600 mb-1">Date</div>
+                <Input
+                  type="date"
+                  value={reschedDate}
+                  onChange={(e) => setReschedDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <div className="text-xs text-gray-600 mb-1">Time</div>
+                <Input
+                  type="time"
+                  value={reschedTime}
+                  onChange={(e) => setReschedTime(e.target.value)}
+                />
+              </div>
+            </div>
+            <Textarea
+              placeholder="Additional note (optional)"
+              value={reschedNotes}
+              onChange={(e) => setReschedNotes(e.target.value)}
+            />
+          </div>
+          <DialogFooter className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setReschedOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={submitReschedule} disabled={!reschedBookingId}>
+              Submit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="text-center py-12">
+      {/* Empty State Illustration - Raised Hands with Watches (4 arms) */}
+      <div className="mb-6 flex items-center justify-center">
+        <div className="relative">
+          {/* Representing 4 raised hands/arms with watches */}
+          <div className="flex gap-2 items-end">
+            {/* Arm 1 */}
+            <div className="flex flex-col items-center">
+              <div className="w-12 h-12 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center mb-1">
+                <Clock className="h-5 w-5 text-gray-400" />
+              </div>
+              <div className="w-8 h-16 bg-gray-100 rounded-t-md"></div>
+            </div>
+            {/* Arm 2 */}
+            <div className="flex flex-col items-center pt-2">
+              <div className="w-12 h-12 rounded-full bg-[#dbeafe] border border-[#3b82f6] flex items-center justify-center mb-1">
+                <Clock className="h-5 w-5 text-[#3b82f6]" />
+              </div>
+              <div className="w-8 h-16 bg-[#dbeafe] rounded-t-md"></div>
+            </div>
+            {/* Arm 3 */}
+            <div className="flex flex-col items-center">
+              <div className="w-12 h-12 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center mb-1">
+                <Clock className="h-5 w-5 text-gray-400" />
+              </div>
+              <div className="w-8 h-16 bg-gray-100 rounded-t-md"></div>
+            </div>
+            {/* Arm 4 */}
+            <div className="flex flex-col items-center pt-3">
+              <div className="w-12 h-12 rounded-full bg-[#dbeafe] border border-[#3b82f6] flex items-center justify-center mb-1">
+                <Clock className="h-5 w-5 text-[#3b82f6]" />
+              </div>
+              <div className="w-8 h-16 bg-[#dbeafe] rounded-t-md"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p className="text-gray-700 font-medium mb-2">You have no bookings.</p>
+      <p className="text-sm text-gray-500 max-w-xs mx-auto">
+        Make sure your Availability is up to date so Clients can hire you.
+      </p>
     </div>
   );
 }

@@ -77,6 +77,11 @@ export async function POST(req: Request) {
     // Save booking to database
     const requiresTeam = body.service === 'Deep' || body.service === 'Move In/Out';
     
+    // Extract tip amount (tips go 100% to cleaner, separate from commission)
+    const tipAmount = (body.tipAmount || 0);
+    const tipAmountInCents = Math.round(tipAmount * 100);
+    const serviceTotal = (body.totalAmount || 0) - tipAmount;
+    
     let cleanerEarnings = 0;
     let cleanerIdForInsert = null;
     
@@ -92,10 +97,12 @@ export async function POST(req: Request) {
           .single();
         
         const cleanerHireDate = cleanerData?.hire_date || null;
+        // Calculate earnings: commission on service + 100% of tip
         cleanerEarnings = calculateCleanerEarnings(
-          body.totalAmount ?? null,
+          body.totalAmount ?? null, // Total includes tip
           body.serviceFee ?? null,
-          cleanerHireDate
+          cleanerHireDate,
+          tipAmount // Pass tip amount to exclude from commission calculation
         ) * 100;
       }
     }
@@ -112,8 +119,9 @@ export async function POST(req: Request) {
       frequency: frequencyForDb,
       service_fee: (body.serviceFee || 0) * 100,
       frequency_discount: (body.frequencyDiscount || 0) * 100,
-      subtotal: body.totalAmount ? (body.totalAmount - (body.serviceFee || 0) + (body.frequencyDiscount || 0)) * 100 : 0,
-      total: (body.totalAmount || 0) * 100,
+      tip_amount: tipAmountInCents, // Store tip separately
+      subtotal: serviceTotal ? (serviceTotal - (body.serviceFee || 0) + (body.frequencyDiscount || 0)) * 100 : 0,
+      total: (body.totalAmount || 0) * 100, // Total includes tip
       snapshot_date: new Date().toISOString(),
     };
 
@@ -133,7 +141,8 @@ export async function POST(req: Request) {
         address_suburb: body.address.suburb,
         address_city: body.address.city,
         payment_reference: null, // No payment for guest bookings
-        total_amount: (body.totalAmount || 0) * 100,
+        total_amount: (body.totalAmount || 0) * 100, // Total includes tip
+        tip_amount: tipAmountInCents, // Store tip separately (goes 100% to cleaner)
         cleaner_earnings: cleanerEarnings,
         requires_team: requiresTeam,
         frequency: frequencyForDb,

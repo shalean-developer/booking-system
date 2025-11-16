@@ -30,6 +30,7 @@ export interface BookingState {
   totalAmount?: number; // Total amount paid (in kobo for Paystack)
   serviceFee?: number; // NEW: Service fee amount
   frequencyDiscount?: number; // NEW: Discount amount based on frequency
+  tipAmount?: number; // Tip amount (goes 100% to cleaner)
 }
 
 // Cleaner data types
@@ -137,6 +138,7 @@ export interface CleanerBooking {
   total_amount: number;
   service_fee: number;
   cleaner_earnings: number;
+  tip_amount?: number | null; // Tip amount in cents (goes 100% to cleaner)
   payment_reference: string;
   created_at: string;
   cleaner_id: string | null;

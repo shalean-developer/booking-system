@@ -48,12 +48,12 @@ export function AvailabilityToggle({ isAvailable, onChange }: AvailabilityToggle
           htmlFor="availability-toggle"
           className="text-sm font-semibold text-gray-900 cursor-pointer"
         >
-          {localIsAvailable ? 'Available for Jobs' : 'Not Available'}
+          {localIsAvailable ? 'Available for Bookings' : 'Not Available'}
         </Label>
         <p className="text-xs text-gray-500 mt-0.5">
           {localIsAvailable
             ? 'You can claim available bookings'
-            : 'You won\'t see new available jobs'}
+            : 'You won\'t see new available bookings'}
         </p>
       </div>
       <div className="flex items-center gap-2">

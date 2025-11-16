@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCleanerSession, createCleanerSupabaseClient, cleanerIdToUuid } from '@/lib/cleaner-auth';
 import { generateReviewRequestEmail, sendEmail } from '@/lib/email';
+import { createServiceClient } from '@/lib/supabase-server';
+import { sendWhatsAppTemplate } from '@/lib/notifications/whatsapp';
+import { logNotification } from '@/lib/notifications/log';
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  pending: ['accepted'],
-  accepted: ['on_my_way'],        // Must go to "on my way"
-  confirmed: ['on_my_way'],       // Same as accepted (legacy status)
-  on_my_way: ['in-progress'],     // Must start job from "on my way"
+  pending: ['accepted', 'declined', 'reschedule_requested'],
+  accepted: ['on_my_way', 'declined', 'reschedule_requested'],
+  confirmed: ['on_my_way', 'declined', 'reschedule_requested'], // legacy
+  on_my_way: ['in-progress'],
   'in-progress': ['completed'],
+  reschedule_requested: ['accepted'],
+  declined: [],
   completed: [], // No transitions from completed
 };
 
@@ -27,7 +32,7 @@ export async function PATCH(
 
     const { id: bookingId } = await params;
     const body = await request.json();
-    const { status: newStatus } = body;
+    const { status: newStatus, reason, proposed_date, proposed_time, notes } = body;
 
     if (!newStatus) {
       return NextResponse.json(
@@ -120,6 +125,39 @@ export async function PATCH(
       updateData.cleaner_completed_at = new Date().toISOString();
     }
 
+    // If decline or reschedule, record an internal note for admins
+    try {
+      if (newStatus === 'declined' && (reason || notes)) {
+        await supabase.from('booking_notes').insert({
+          booking_id: bookingId,
+          author_type: 'cleaner',
+          author_id: cleanerUuid,
+          note_type: 'decline',
+          content: reason || notes,
+        });
+      }
+
+      if (newStatus === 'reschedule_requested') {
+        const details = [
+          proposed_date ? `Proposed date: ${proposed_date}` : null,
+          proposed_time ? `Proposed time: ${proposed_time}` : null,
+          notes ? `Notes: ${notes}` : null,
+        ]
+          .filter(Boolean)
+          .join(' | ');
+
+        await supabase.from('booking_notes').insert({
+          booking_id: bookingId,
+          author_type: 'cleaner',
+          author_id: cleanerUuid,
+          note_type: 'reschedule',
+          content: details || 'Reschedule requested',
+        });
+      }
+    } catch (noteErr) {
+      console.warn('⚠️ Failed to write booking note:', noteErr);
+    }
+
     // Update booking (we already verified ownership above)
     const { data: updatedBooking, error: updateError } = await supabase
       .from('bookings')
@@ -171,6 +209,99 @@ export async function PATCH(
         console.error('⚠️ Error logging activity:', activityLogError);
       }
     }
+
+    // WhatsApp status-change notification to cleaner (best-effort, gated by prefs and env)
+    try {
+      const svc = createServiceClient();
+      const { data: prefs } = await svc
+        .from('notification_preferences')
+        .select('whatsapp_opt_in, phone')
+        .eq('cleaner_id', cleanerUuid)
+        .maybeSingle();
+
+      const notifyPhone = (prefs?.phone || updatedBooking.customer_phone || '').trim();
+      const whatsappOptIn = prefs?.whatsapp_opt_in === true;
+
+      if (whatsappOptIn && notifyPhone) {
+        const address = [updatedBooking.address_line1, updatedBooking.address_suburb, updatedBooking.address_city]
+          .filter(Boolean)
+          .join(', ');
+        const waPayloadCleaner = {
+          to: notifyPhone,
+          template: 'booking_status_update',
+          language: 'en',
+          components: [
+            {
+              type: 'body',
+              parameters: [
+                { type: 'text', text: updatedBooking.id }, // {{1}} bookingId
+                { type: 'text', text: newStatus },         // {{2}} newStatus
+                { type: 'text', text: updatedBooking.service_type || 'Cleaning' }, // {{3}}
+                { type: 'text', text: updatedBooking.booking_date },              // {{4}}
+                { type: 'text', text: updatedBooking.booking_time },              // {{5}}
+                { type: 'text', text: address },                                  // {{6}}
+                { type: 'text', text: `https://shalean.co.za/cleaner/dashboard/my-jobs?ref=${updatedBooking.id}` }, // {{7}}
+              ],
+            },
+          ],
+        };
+        const resCleaner = await sendWhatsAppTemplate(waPayloadCleaner as any);
+        await logNotification({
+          channel: 'whatsapp',
+          template: 'booking_status_update',
+          recipient_type: 'cleaner',
+          recipient_phone: notifyPhone,
+          booking_id: updatedBooking.id,
+          payload: waPayloadCleaner,
+          ok: resCleaner.ok,
+          status: resCleaner.status ?? null,
+          error: resCleaner.error ?? null,
+        });
+      }
+    } catch {}
+
+    // Optional customer notification (env-gated to avoid sending without consent)
+    try {
+      if (process.env.ENABLE_WHATSAPP_CUSTOMER === 'true') {
+        const customerPhone = (updatedBooking.customer_phone || '').trim();
+        if (customerPhone) {
+          const address = [updatedBooking.address_line1, updatedBooking.address_suburb, updatedBooking.address_city]
+            .filter(Boolean)
+            .join(', ');
+          const waPayloadCustomer = {
+            to: customerPhone,
+            template: 'booking_status_update',
+            language: 'en',
+            components: [
+              {
+                type: 'body',
+                parameters: [
+                  { type: 'text', text: updatedBooking.id }, // {{1}} bookingId
+                  { type: 'text', text: newStatus },         // {{2}} newStatus
+                  { type: 'text', text: updatedBooking.service_type || 'Cleaning' }, // {{3}}
+                  { type: 'text', text: updatedBooking.booking_date },              // {{4}}
+                  { type: 'text', text: updatedBooking.booking_time },              // {{5}}
+                  { type: 'text', text: address },                                  // {{6}}
+                  { type: 'text', text: `https://shalean.co.za/bookings/${updatedBooking.id}` }, // {{7}}
+                ],
+              },
+            ],
+          };
+          const resCustomer = await sendWhatsAppTemplate(waPayloadCustomer as any);
+          await logNotification({
+            channel: 'whatsapp',
+            template: 'booking_status_update',
+            recipient_type: 'customer',
+            recipient_phone: customerPhone,
+            booking_id: updatedBooking.id,
+            payload: waPayloadCustomer,
+            ok: resCustomer.ok,
+            status: resCustomer.status ?? null,
+            error: resCustomer.error ?? null,
+          });
+        }
+      }
+    } catch {}
 
     // Send review request email if booking is completed
     if (newStatus === 'completed' && process.env.RESEND_API_KEY && cleaner) {

@@ -42,6 +42,8 @@ interface BookingCardProps {
   onComplete?: (bookingId: string) => Promise<void>;
   onViewDetails?: (booking: Booking) => void;
   onRate?: (booking: Booking) => void;
+  onDecline?: (bookingId: string) => void;
+  onReschedule?: (bookingId: string) => void;
 }
 
 export function BookingCard({
@@ -54,6 +56,8 @@ export function BookingCard({
   onComplete,
   onViewDetails,
   onRate,
+  onDecline,
+  onReschedule,
 }: BookingCardProps) {
   const [isActing, setIsActing] = useState(false);
 
@@ -208,6 +212,13 @@ export function BookingCard({
                   Team earnings
                 </div>
               )}
+              {/* Show tip only if customer gave a tip */}
+              {booking.tip_amount && booking.tip_amount > 0 && (
+                <div className="text-xs text-yellow-600 font-medium mt-0.5 flex items-center justify-end gap-0.5">
+                  <span>💰</span>
+                  <span>+{formatAmount(booking.tip_amount)} tip</span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -254,7 +265,7 @@ export function BookingCard({
                   Claiming...
                 </>
               ) : (
-                'Claim Job'
+                'Claim Booking'
               )}
             </Button>
           )}
@@ -303,7 +314,7 @@ export function BookingCard({
             </Button>
           )}
 
-          {/* Start Job Button - only for on_my_way status */}
+          {/* Start Booking Button - only for on_my_way status */}
           {variant === 'assigned' && booking.status === 'on_my_way' && onStart && (
             <Button
               onClick={() => handleAction(() => onStart(booking.id))}
@@ -319,7 +330,7 @@ export function BookingCard({
               ) : (
                 <>
                   <PlayCircle className="h-4 w-4 mr-2" />
-                  Start Job
+                  Start Booking
                 </>
               )}
             </Button>
@@ -390,6 +401,32 @@ export function BookingCard({
           )}
 
           {/* View Details - always available */}
+          {/* Decline / Reschedule - for pending or accepted */}
+          {variant === 'assigned' &&
+            (booking.status === 'pending' || booking.status === 'accepted') && (
+              <>
+                {onDecline && (
+                  <Button
+                    onClick={() => onDecline(booking.id)}
+                    variant="outline"
+                    size="sm"
+                    className="flex-shrink-0"
+                  >
+                    Decline
+                  </Button>
+                )}
+                {onReschedule && (
+                  <Button
+                    onClick={() => onReschedule(booking.id)}
+                    variant="outline"
+                    size="sm"
+                    className="flex-shrink-0"
+                  >
+                    Reschedule
+                  </Button>
+                )}
+              </>
+            )}
           {onViewDetails && (
             <Button
               onClick={() => onViewDetails(booking)}

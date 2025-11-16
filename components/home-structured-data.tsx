@@ -5,6 +5,11 @@ export function HomeStructuredData() {
   const reviews = [
     {
       "@type": "Review",
+      "itemReviewed": {
+        "@type": "LocalBusiness",
+        "name": "Shalean Cleaning Services",
+        "@id": "https://shalean.co.za"
+      },
       "author": {
         "@type": "Person",
         "name": "Sarah M."
@@ -20,6 +25,11 @@ export function HomeStructuredData() {
     },
     {
       "@type": "Review",
+      "itemReviewed": {
+        "@type": "LocalBusiness",
+        "name": "Shalean Cleaning Services",
+        "@id": "https://shalean.co.za"
+      },
       "author": {
         "@type": "Person",
         "name": "Michael T."
@@ -35,6 +45,11 @@ export function HomeStructuredData() {
     },
     {
       "@type": "Review",
+      "itemReviewed": {
+        "@type": "LocalBusiness",
+        "name": "Shalean Cleaning Services",
+        "@id": "https://shalean.co.za"
+      },
       "author": {
         "@type": "Person",
         "name": "Lisa K."

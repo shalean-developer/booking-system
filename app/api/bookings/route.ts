@@ -6,6 +6,7 @@ import { validateBookingEnv } from '@/lib/env-validation';
 import { getServerAuthUser } from '@/lib/supabase-server';
 import { calculateCleanerEarnings } from '@/lib/cleaner-earnings';
 import { generateUniqueBookingId } from '@/lib/booking-id';
+import { notifyCleanerAssignment, notifyCustomerAssignment } from '@/lib/notifications/events';
 
 /**
  * API endpoint to handle booking submissions
@@ -257,6 +258,14 @@ export async function POST(req: Request) {
     
     // Check if Supabase is configured
     if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      // Extract tip amount (tips go 100% to cleaner, separate from commission)
+      const tipAmount = (body.tipAmount || 0);
+      const tipAmountInCents = Math.round(tipAmount * 100);
+      
+      // Calculate service total excluding tip (for commission calculation)
+      // totalAmount includes tip, so we need to extract it
+      const serviceTotal = (body.totalAmount || 0) - tipAmount;
+
       // Create price snapshot for historical record
       // Normalize frequency for consistency
       const frequencyForSnapshot = body.frequency === 'one-time' ? null : body.frequency;
@@ -271,8 +280,9 @@ export async function POST(req: Request) {
         frequency: frequencyForSnapshot, // One-time bookings stored as NULL
         service_fee: (body.serviceFee || 0) * 100, // Convert to cents
         frequency_discount: (body.frequencyDiscount || 0) * 100, // Convert to cents
-        subtotal: body.totalAmount ? (body.totalAmount - (body.serviceFee || 0) + (body.frequencyDiscount || 0)) * 100 : 0,
-        total: (body.totalAmount || 0) * 100, // Convert to cents
+        tip_amount: tipAmountInCents, // Store tip separately
+        subtotal: serviceTotal ? (serviceTotal - (body.serviceFee || 0) + (body.frequencyDiscount || 0)) * 100 : 0,
+        total: (body.totalAmount || 0) * 100, // Total includes tip
         snapshot_date: new Date().toISOString(),
       };
 
@@ -295,10 +305,12 @@ export async function POST(req: Request) {
           .single();
         
         cleanerHireDate = cleanerData?.hire_date || null;
+        // Calculate earnings: commission on service + 100% of tip
         cleanerEarnings = calculateCleanerEarnings(
-          body.totalAmount ?? null,
+          body.totalAmount ?? null, // Total includes tip
           body.serviceFee ?? null,
-          cleanerHireDate
+          cleanerHireDate,
+          tipAmount // Pass tip amount to exclude from commission calculation
         ) * 100; // Convert to cents
       }
 
@@ -339,7 +351,8 @@ export async function POST(req: Request) {
           address_suburb: body.address.suburb,
           address_city: body.address.city,
           payment_reference: body.paymentReference,
-          total_amount: (body.totalAmount || 0) * 100, // Convert rands to cents
+          total_amount: (body.totalAmount || 0) * 100, // Convert rands to cents (includes tip)
+          tip_amount: tipAmountInCents, // Store tip separately (goes 100% to cleaner)
           cleaner_earnings: cleanerEarnings,
           requires_team: requiresTeam, // Flag for team-based bookings
           frequency: frequencyForDb, // One-time bookings must be NULL
@@ -363,6 +376,38 @@ export async function POST(req: Request) {
       console.log('Customer ID:', customerId);
       console.log('Cleaner ID:', body.cleaner_id);
       console.log('Status: pending'); // All bookings start as pending
+
+      // Fire-and-forget WhatsApp notification to cleaner (if enabled and opted-in)
+      try {
+        await notifyCleanerAssignment({
+          bookingId,
+          cleanerId: cleanerIdForInsert,
+          cleanerName: null,
+          date: body.date || '',
+          time: body.time || '',
+          addressLine1: body.address?.line1 ?? '',
+          addressSuburb: body.address?.suburb ?? '',
+          addressCity: body.address?.city ?? '',
+          customerName: `${body.firstName} ${body.lastName}`,
+        });
+      } catch {}
+
+      // Optional WhatsApp notification to customer on assignment (env-gated + customer opt-in)
+      try {
+        if (process.env.ENABLE_WHATSAPP_CUSTOMER === 'true') {
+          await notifyCustomerAssignment({
+            bookingId,
+            customerName: `${body.firstName} ${body.lastName}`,
+            date: body.date || '',
+            time: body.time || '',
+            addressLine1: body.address?.line1 ?? '',
+            addressSuburb: body.address?.suburb ?? '',
+            addressCity: body.address?.city ?? '',
+            customerPhone: body.phone,
+            customerId: customerId,
+          });
+        }
+      } catch {}
 
       // Create team record for team-based bookings
       if (requiresTeam && body.selected_team) {

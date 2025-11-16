@@ -1,19 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DayAvailabilityDisplay } from '@/components/admin/day-availability-display';
-import { CleanerReviews } from '@/components/cleaner/cleaner-reviews';
-import {
-  Calendar,
-  LogOut,
-  User,
-  MapPin,
-  Loader2,
-} from 'lucide-react';
+import { CleanerMobileBottomNav } from '@/components/cleaner/cleaner-mobile-bottom-nav';
+import { DollarSign, Settings } from 'lucide-react';
 
 interface CleanerSession {
   id: string;
@@ -37,143 +29,153 @@ interface MoreClientProps {
 }
 
 export function MoreClient({ cleaner }: MoreClientProps) {
-  const router = useRouter();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [monthlyStats, setMonthlyStats] = useState({
+    totalEarnings: 0,
+    bookingCount: 0,
+  });
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleLogout = async () => {
-    setIsLoggingOut(true);
-    try {
-      await fetch('/api/cleaner/auth/logout', { method: 'POST' });
-      router.push('/cleaner/login');
-      router.refresh();
-    } catch (error) {
-      console.error('Logout error:', error);
-      setIsLoggingOut(false);
-    }
+  // Fetch monthly stats
+  useEffect(() => {
+    const fetchMonthlyStats = async () => {
+      try {
+        const now = new Date();
+        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+
+        const response = await fetch(`/api/cleaner/bookings?startDate=${firstDay}&endDate=${lastDay}`);
+        const data = await response.json();
+
+        if (data.ok && data.bookings) {
+          const completedBookings = data.bookings.filter((b: any) => b.status === 'completed');
+          const totalEarnings = completedBookings.reduce(
+            (sum: number, b: any) => sum + (b.cleaner_earnings || 0),
+            0
+          );
+          setMonthlyStats({
+            totalEarnings,
+            bookingCount: completedBookings.length,
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching monthly stats:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMonthlyStats();
+  }, []);
+
+  const formatCurrency = (cents: number) => {
+    if (!cents || cents === 0) return 'R0.00';
+    return `R${(cents / 100).toFixed(2)}`;
   };
 
-  const initials = cleaner.name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+  const getCurrentMonthName = () => {
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return monthNames[new Date().getMonth()];
+  };
+
+  const availableDaysCount = Object.entries(cleaner).filter(
+    ([key, val]) => key.startsWith('available_') && val === true
+  ).length;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <main className="mx-auto max-w-7xl px-4 py-6">
-        {/* Page Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-            More
-          </h1>
-          <p className="text-gray-600 text-sm sm:text-base">
-            Manage your profile, view reviews, and settings
-          </p>
+    <div className="min-h-screen bg-white">
+      {/* Blue Header */}
+      <header className="bg-[#3b82f6] text-white py-4 px-4">
+        <div className="flex items-center justify-between max-w-md mx-auto">
+          <DollarSign className="h-6 w-6" strokeWidth={2} />
+          <h1 className="text-lg font-semibold">Earnings</h1>
+          <DollarSign className="h-6 w-6" strokeWidth={2} />
         </div>
+      </header>
 
-        {/* Profile Section */}
-        <Card className="mb-6 border-2">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4 mb-6">
-              {cleaner.photo_url ? (
-                <img
-                  src={cleaner.photo_url}
-                  alt={cleaner.name}
-                  className="w-20 h-20 rounded-full object-cover"
-                />
-              ) : (
-                <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
-                  <User className="w-10 h-10 text-primary" />
-                </div>
-              )}
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">{cleaner.name}</h2>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-sm text-gray-600">Rating: {cleaner.rating.toFixed(1)} ⭐</span>
-                </div>
-                <p className="text-sm text-gray-500 mt-1">{cleaner.phone}</p>
-              </div>
-            </div>
+      {/* Blue Banner */}
+      <div className="bg-[#3b82f6] text-white py-6 px-4">
+        <p className="text-base max-w-md mx-auto">Earnings</p>
+      </div>
 
-            {/* Service Areas */}
-            <div className="mt-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                Service Areas
+      {/* Main Content */}
+      <main className="bg-white pb-24">
+        <div className="max-w-md mx-auto px-4 py-6 space-y-6">
+          {/* Monthly Earnings Card */}
+          <Card className="border border-gray-200 shadow-sm">
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold text-[#3b82f6] mb-4">
+                {getCurrentMonthName()} Earnings
               </h3>
-              <div className="flex items-center gap-2 flex-wrap">
-                {cleaner.areas.map((area) => (
-                  <Badge key={area} variant="outline" className="text-xs">
-                    {area}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              
+              <div className="grid grid-cols-2 gap-6">
+                {/* Total Earned */}
+                <div>
+                  <div className="text-2xl font-bold text-gray-900">
+                    {isLoading ? '...' : formatCurrency(monthlyStats.totalEarnings)}
+                  </div>
+                  <div className="text-sm text-gray-500 mt-1">Total earned</div>
+                </div>
 
-        {/* Schedule Section */}
-        <Card className="mb-6 border-2">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
+                {/* Booking Count */}
+                <div>
+                  <div className="text-2xl font-bold text-gray-900">
+                    {isLoading ? '...' : monthlyStats.bookingCount}
+                  </div>
+                  <div className="text-sm text-gray-500 mt-1">Booking count</div>
+                </div>
+              </div>
+
+              {monthlyStats.bookingCount === 0 && (
+                <p className="text-sm text-gray-500 mt-4 text-center">
+                  Once you've completed your first booking, you'll start seeing the money roll in here.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Skills & Rates Card */}
+          <Card className="border border-gray-200 shadow-sm">
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold text-[#3b82f6] mb-4">
                 Weekly Schedule
               </h3>
-              <Badge variant="outline" className="text-xs">
-                {Object.entries(cleaner).filter(([key, val]) => 
-                  key.startsWith('available_') && val === true
-                ).length} days/week
-              </Badge>
-            </div>
-            <DayAvailabilityDisplay 
-              schedule={cleaner} 
-              compact={false}
-            />
-            <p className="text-sm text-gray-500 mt-3">
-              Your schedule is set by your manager. Contact admin to request changes.
-            </p>
-          </CardContent>
-        </Card>
+              
+              <div className="flex items-start gap-3 mb-4">
+                <Settings className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-gray-700 flex-1">
+                  Your weekly schedule shows which days you're available to work. Contact admin to update your schedule.
+                </p>
+              </div>
 
-        {/* Reviews Section */}
-        <div className="mb-6">
-          <Card className="border-2">
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Reviews</h3>
-              <CleanerReviews />
+              {/* Schedule Display */}
+              <div className="mb-4">
+                <DayAvailabilityDisplay schedule={cleaner} compact={false} />
+                <p className="text-xs text-gray-500 mt-2 text-center">
+                  {availableDaysCount} days per week
+                </p>
+              </div>
+
+              <Button
+                className="w-full bg-[#3b82f6] hover:bg-[#2563eb] text-white border border-[#3b82f6]"
+                onClick={() => {
+                  // Could link to contact admin or show info
+                  alert('Please contact your administrator to update your weekly schedule.');
+                }}
+              >
+                Update Schedule
+              </Button>
             </CardContent>
           </Card>
         </div>
-
-        {/* Logout Section */}
-        <Card className="border-2 border-red-100">
-          <CardContent className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Account</h3>
-            <Button
-              variant="destructive"
-              className="w-full"
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-            >
-              {isLoggingOut ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Logging out...
-                </>
-              ) : (
-                <>
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
       </main>
 
-      {/* Mobile Bottom Navigation Spacer */}
+      {/* Mobile Bottom Navigation */}
+      <CleanerMobileBottomNav />
+
+      {/* Bottom Spacer */}
       <div className="h-20 sm:h-0" />
     </div>
   );

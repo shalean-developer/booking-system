@@ -57,6 +57,11 @@ const aggregateRating = {
 const reviewSchemas = testimonials.map((testimonial) => ({
   "@context": "https://schema.org",
   "@type": "Review",
+  "itemReviewed": {
+    "@type": "LocalBusiness",
+    "name": "Shalean Cleaning Services",
+    "@id": "https://shalean.co.za"
+  },
   "author": {
     "@type": "Person",
     "name": testimonial.name
