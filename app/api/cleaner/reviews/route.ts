@@ -36,10 +36,11 @@ export async function GET(request: NextRequest) {
           customer_email,
           customer_phone
         ),
-        users:customer_id (
+        customers:customer_id (
           id,
           name,
-          email
+          email,
+          phone
         )
       `)
       .eq('cleaner_id', cleanerId)
