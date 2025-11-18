@@ -323,7 +323,7 @@ export function PaymentsClient({ cleaner }: PaymentsClientProps) {
                     </div>
                   </div>
                   <div className="rounded-md bg-gray-50 border border-gray-100 px-1.5 py-1">
-                    <div className="text-[10px] uppercase tracking-wide text-gray-500">Commission</div>
+                    <div className="text-[10px] uppercase tracking-wide text-gray-500">COMM</div>
                     <div className="font-semibold text-gray-900">
                       {formatCurrency(summary.monthly_commission || 0)}
                     </div>
@@ -351,7 +351,7 @@ export function PaymentsClient({ cleaner }: PaymentsClientProps) {
                     </div>
                   </div>
                   <div className="rounded-md bg-gray-50 border border-gray-100 px-1.5 py-1">
-                    <div className="text-[10px] uppercase tracking-wide text-gray-500">Commission</div>
+                    <div className="text-[10px] uppercase tracking-wide text-gray-500">COMM</div>
                     <div className="font-semibold text-gray-900">
                       {formatCurrency(summary.total_commission || 0)}
                     </div>
@@ -408,7 +408,7 @@ export function PaymentsClient({ cleaner }: PaymentsClientProps) {
                         {/* Earnings Breakdown - single horizontal row */}
                         <div className="flex items-stretch gap-2 text-xs text-gray-600 pt-1 overflow-x-auto no-scrollbar">
                           <div className="rounded-md bg-gray-50 border border-gray-100 px-2 py-1 min-w-[120px]">
-                            <div className="text-[10px] uppercase tracking-wide text-gray-500">Commission</div>
+                            <div className="text-[10px] uppercase tracking-wide text-gray-500">COMM</div>
                             <div className="font-semibold text-gray-900">
                               {formatCurrency(transaction.commission_earnings ?? Math.max((transaction.cleaner_earnings || 0) - (transaction.tip_amount || 0), 0))}
                             </div>

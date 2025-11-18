@@ -166,7 +166,9 @@ export async function POST(req: Request) {
       cleanerEarnings = calculateCleanerEarnings(
         totalAmount ?? null,
         body.serviceFee ?? null,
-        cleanerHireDate
+        cleanerHireDate,
+        null, // No tip in process route
+        body.service ?? null // Pass service type for minimum commission check
       ) * 100;
     }
 

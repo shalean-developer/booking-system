@@ -55,8 +55,9 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Error fetching reviews:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
       return NextResponse.json(
-        { ok: false, error: 'Failed to fetch reviews' },
+        { ok: false, error: `Failed to fetch reviews: ${error.message || 'Unknown error'}` },
         { status: 500 }
       );
     }

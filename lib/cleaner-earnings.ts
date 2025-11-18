@@ -6,21 +6,32 @@
  * - 4+ months experience: 70% of subtotal (total - service_fee - tip)
  * - Service fee goes 100% to company
  * - Tips go 100% to cleaner (separate from commission)
+ * - For Standard and Airbnb: Minimum R250 (25000 cents) commission
  * - Applies to ALL service types
  */
+
+const MIN_COMMISSION_CENTS = 25000; // R250 minimum for Standard and Airbnb
 
 export function calculateCleanerEarnings(
   totalAmount: number | null,
   serviceFee: number | null,
   cleanerHireDate: string | null,
-  tipAmount: number | null = null
+  tipAmount: number | null = null,
+  serviceType: string | null = null
 ): number {
   if (!totalAmount) return 0;
   
   // Exclude tip from commission calculation (tips go 100% to cleaner)
   const serviceSubtotal = totalAmount - (serviceFee || 0) - (tipAmount || 0);
   const commissionRate = getCommissionRate(cleanerHireDate);
-  const commissionEarnings = Math.round(serviceSubtotal * commissionRate);
+  let commissionEarnings = Math.round(serviceSubtotal * commissionRate);
+  
+  // For Standard and Airbnb services: enforce minimum R250 commission
+  if (serviceType === 'Standard' || serviceType === 'Airbnb') {
+    if (commissionEarnings < MIN_COMMISSION_CENTS) {
+      commissionEarnings = MIN_COMMISSION_CENTS;
+    }
+  }
   
   // Add tip 100% to cleaner earnings
   return commissionEarnings + (tipAmount || 0);

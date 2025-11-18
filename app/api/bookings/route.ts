@@ -310,7 +310,8 @@ export async function POST(req: Request) {
           body.totalAmount ?? null, // Total includes tip
           body.serviceFee ?? null,
           cleanerHireDate,
-          tipAmount // Pass tip amount to exclude from commission calculation
+          tipAmount, // Pass tip amount to exclude from commission calculation
+          body.service ?? null // Pass service type for minimum commission check
         ) * 100; // Convert to cents
       }
 

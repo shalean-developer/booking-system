@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Helper function to calculate cleaner earnings
-async function calculateCleanerEarningsForCleaner(supabase: any, cleanerId: string, totalAmount: number, serviceFee: number, tipAmount: number = 0): Promise<number> {
+async function calculateCleanerEarningsForCleaner(supabase: any, cleanerId: string, totalAmount: number, serviceFee: number, tipAmount: number = 0, serviceType: string | null = null): Promise<number> {
   try {
     const { data: cleaner } = await supabase
       .from('cleaners')
@@ -65,10 +65,10 @@ async function calculateCleanerEarningsForCleaner(supabase: any, cleanerId: stri
       .eq('id', cleanerId)
       .single();
     
-    return calculateCleanerEarnings(totalAmount, serviceFee, cleaner?.hire_date, tipAmount);
+    return calculateCleanerEarnings(totalAmount, serviceFee, cleaner?.hire_date, tipAmount, serviceType);
   } catch (error) {
     console.warn('Failed to fetch cleaner hire date, using default commission rate:', error);
-    return calculateCleanerEarnings(totalAmount, serviceFee, null, tipAmount);
+    return calculateCleanerEarnings(totalAmount, serviceFee, null, tipAmount, serviceType);
   }
 }
 
@@ -113,7 +113,7 @@ async function createOneTimeBooking(supabase: any, data: CreateBookingFormData) 
     } else if (cleanerIdForInsert) {
       // Auto-calculate if cleaner is assigned but earnings not provided
       // Calculate: commission on service + 100% of tip
-      cleanerEarnings = await calculateCleanerEarningsForCleaner(supabase, cleanerIdForInsert, data.total_amount, data.service_fee || 0, tipAmount) * 100;
+      cleanerEarnings = await calculateCleanerEarningsForCleaner(supabase, cleanerIdForInsert, data.total_amount, data.service_fee || 0, tipAmount, data.service_type || null) * 100;
     } else {
       // Default to 60% of service subtotal + 100% of tip if no cleaner assigned
       const serviceSubtotal = serviceTotal - (data.service_fee || 0);
@@ -140,7 +140,7 @@ async function createOneTimeBooking(supabase: any, data: CreateBookingFormData) 
 
     // Calculate cleaner earnings (in cents) - no tip for auto-calculated
     cleanerEarnings = cleanerIdForInsert 
-      ? await calculateCleanerEarningsForCleaner(supabase, cleanerIdForInsert, pricingDetails.total, pricingDetails.serviceFee, 0) * 100
+      ? await calculateCleanerEarningsForCleaner(supabase, cleanerIdForInsert, pricingDetails.total, pricingDetails.serviceFee, 0, data.service_type || null) * 100
       : 0;
   }
 
@@ -318,7 +318,7 @@ async function createRecurringBooking(supabase: any, data: CreateBookingFormData
       if (data.cleaner_earnings !== undefined && data.cleaner_earnings !== null) {
         cleanerEarnings = Math.round(data.cleaner_earnings * 100);
       } else if (cleanerIdForInsert) {
-        cleanerEarnings = await calculateCleanerEarningsForCleaner(supabase, cleanerIdForInsert, data.total_amount, 0, tipAmount) * 100;
+        cleanerEarnings = await calculateCleanerEarningsForCleaner(supabase, cleanerIdForInsert, data.total_amount, 0, tipAmount, data.service_type || null) * 100;
       } else {
         // Default: 60% of service + 100% of tip
         cleanerEarnings = Math.round(serviceTotal * 0.60 * 100) + tipAmountInCents;
@@ -349,7 +349,7 @@ async function createRecurringBooking(supabase: any, data: CreateBookingFormData
 
       // Calculate cleaner earnings (60% or 70% based on experience) - no tip
       cleanerEarnings = cleanerIdForInsert 
-        ? await calculateCleanerEarningsForCleaner(supabase, cleanerIdForInsert, serviceSubtotal, 0, 0) * 100
+        ? await calculateCleanerEarningsForCleaner(supabase, cleanerIdForInsert, serviceSubtotal, 0, 0, data.service_type || null) * 100
         : 0;
     }
 
