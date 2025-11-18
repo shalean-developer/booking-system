@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { BookingCard } from './booking-card';
 import { BookingDetailsModal } from './booking-details-modal';
+import { BookingCardSkeleton } from './booking-card-skeleton';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, Briefcase, RefreshCw, Calendar, Search } from 'lucide-react';
+import { Loader2, Briefcase, RefreshCw, Calendar, Search, AlertCircle } from 'lucide-react';
 import type { CleanerBooking } from '@/types/booking';
 
 interface Booking extends CleanerBooking {
@@ -45,7 +46,14 @@ export function AvailableBookings() {
         params.set('lng', location.lng.toString());
       }
 
-      const response = await fetch(`/api/cleaner/bookings/available?${params}`);
+      const response = await fetch(`/api/cleaner/bookings/available?${params}`, {
+        cache: 'no-store', // Available bookings change frequently
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
       const data = await response.json();
 
       if (!data.ok) {
@@ -55,7 +63,14 @@ export function AvailableBookings() {
       setBookings(data.bookings);
     } catch (err) {
       console.error('Error fetching available bookings:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load available bookings');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load available bookings';
+      
+      // Check if it's a network error
+      if (errorMessage.includes('network') || errorMessage.includes('fetch') || errorMessage.includes('Failed to fetch')) {
+        setError('Network error. Please check your connection and try again.');
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -123,8 +138,10 @@ export function AvailableBookings() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-[#3b82f6]" />
+      <div className="space-y-4">
+        {[1, 2, 3].map((i) => (
+          <BookingCardSkeleton key={i} />
+        ))}
       </div>
     );
   }
@@ -132,13 +149,19 @@ export function AvailableBookings() {
   if (error) {
     return (
       <div className="text-center py-12 px-4">
-        <div className="text-red-600 mb-4">{error}</div>
-        <button 
+        <div className="flex flex-col items-center gap-3 mb-4">
+          <AlertCircle className="h-12 w-12 text-red-500" />
+          <div className="space-y-1">
+            <p className="text-red-600 font-medium">Failed to load bookings</p>
+            <p className="text-sm text-gray-500">{error}</p>
+          </div>
+        </div>
+        <Button 
           onClick={() => fetchAvailableBookings()} 
-          className="px-4 py-2 bg-[#3b82f6] text-white rounded-md hover:bg-[#2563eb] transition-colors"
+          className="bg-[#3b82f6] hover:bg-[#2563eb] text-white"
         >
           Try Again
-        </button>
+        </Button>
       </div>
     );
   }

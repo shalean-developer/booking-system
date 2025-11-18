@@ -26,6 +26,7 @@ import {
   RefreshCw,
   Plus,
   Trash2,
+  DollarSign,
 } from 'lucide-react';
 import {
   Select,
@@ -62,6 +63,7 @@ import { EditBookingDialog } from '@/components/admin/edit-booking-dialog';
 import { AssignCleanerDialog } from '@/components/admin/assign-cleaner-dialog';
 import { AssignTeamDialog } from '@/components/admin/assign-team-dialog';
 import { CreateBookingDialog } from '@/components/admin/create-booking-dialog';
+import { BookingAdjustmentsDialog } from '@/components/admin/booking-adjustments-dialog';
 
 interface Booking {
   id: string;
@@ -125,6 +127,8 @@ export function BookingsSection() {
   const [viewingBooking, setViewingBooking] = useState<Booking | null>(null);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [adjustingBooking, setAdjustingBooking] = useState<Booking | null>(null);
+  const [isAdjustmentsDialogOpen, setIsAdjustmentsDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [bookingToAssign, setBookingToAssign] = useState<Booking | null>(null);
   const [isTeamSelectDialogOpen, setIsTeamSelectDialogOpen] = useState(false);
@@ -964,10 +968,12 @@ export function BookingsSection() {
                               : booking.frequency === 'custom-bi-weekly'
                               ? 'Custom Bi-weekly'
                               : booking.frequency.charAt(0).toUpperCase() + booking.frequency.slice(1))
+                          : booking.recurring_schedule_id
+                          ? 'Recurring'
                           : 'One-time'}
                       </span>
-                      {booking.frequency && (booking.recurring_bookings_count ?? 0) > 0 && (
-                        <Badge className="bg-blue-100 text-blue-700 rounded-full h-6 px-2.5 flex items-center justify-center text-xs font-normal">
+                      {(booking.frequency || booking.recurring_schedule_id) && (booking.recurring_bookings_count ?? 0) > 0 && (
+                        <Badge className="bg-blue-100 text-blue-700 rounded-full h-6 px-2.5 flex items-center justify-center text-xs font-normal" title={`${booking.recurring_bookings_count} bookings in this recurring series`}>
                           {booking.recurring_bookings_count}
                         </Badge>
                       )}
@@ -1920,6 +1926,16 @@ export function BookingsSection() {
                     <Edit className="h-4 w-4 mr-2" />
                     Edit
                   </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setAdjustingBooking(viewingBooking);
+                      setIsAdjustmentsDialogOpen(true);
+                    }}
+                  >
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Adjust
+                  </Button>
                   <Button 
                     variant="destructive"
                     onClick={() => {
@@ -1966,6 +1982,25 @@ export function BookingsSection() {
           setViewingBooking(null); // Close viewing dialog
           setIsEditDialogOpen(false);
           setEditingBooking(null);
+        }}
+      />
+
+      {/* Booking Adjustments Dialog */}
+      <BookingAdjustmentsDialog
+        booking={adjustingBooking ? {
+          id: adjustingBooking.id,
+          booking_date: adjustingBooking.booking_date,
+          booking_time: adjustingBooking.booking_time,
+          cleaner_earnings: adjustingBooking.cleaner_earnings,
+          cleaner_name: adjustingBooking.cleaner_name || null,
+        } : null}
+        open={isAdjustmentsDialogOpen}
+        onClose={() => {
+          setIsAdjustmentsDialogOpen(false);
+          setAdjustingBooking(null);
+        }}
+        onSuccess={() => {
+          mutate();
         }}
       />
 

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { CleanerMobileBottomNav } from '@/components/cleaner/cleaner-mobile-bottom-nav';
-import { User, UserCircle, UserCheck, CreditCard, LogOut, Loader2, Briefcase } from 'lucide-react';
+import { User, UserCircle, UserCheck, CreditCard, LogOut, Loader2, Briefcase, TrendingUp, Calendar, Clock } from 'lucide-react';
 
 interface CleanerSession {
   id: string;
@@ -61,6 +61,24 @@ export function ProfileClient({ cleaner }: ProfileClientProps) {
       label: 'Payments',
       icon: CreditCard,
       href: '/cleaner/dashboard/profile/payments',
+    },
+    {
+      id: 'analytics',
+      label: 'Analytics',
+      icon: TrendingUp,
+      href: '/cleaner/dashboard/profile/analytics',
+    },
+    {
+      id: 'calendar',
+      label: 'Calendar',
+      icon: Calendar,
+      href: '/cleaner/dashboard/calendar',
+    },
+    {
+      id: 'availability',
+      label: 'Availability',
+      icon: Clock,
+      href: '/cleaner/dashboard/profile/availability',
     },
     {
       id: 'notifications',

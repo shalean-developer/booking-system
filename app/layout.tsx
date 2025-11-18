@@ -5,6 +5,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { stringifyStructuredData } from "@/lib/structured-data-validator";
 import ToasterWrapper from "./components/toaster";
+import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
 
 const inter = Inter({ 
   subsets: ["latin"],
@@ -133,9 +134,6 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
         <link rel="dns-prefetch" href="https://utfvbtcszzafuoyytlpf.supabase.co" />
         
-        {/* Preload critical resources */}
-        <link rel="preload" href="/logo.svg" as="image" type="image/svg+xml" />
-        
         {/* Critical CSS - Minimal styles for above-the-fold content */}
         <style dangerouslySetInnerHTML={{
           __html: `
@@ -251,6 +249,7 @@ export default function RootLayout({
           </>
         )}
         <ToasterWrapper />
+        <ServiceWorkerRegister />
         
         {/* Chunk Error Handler */}
         <Script

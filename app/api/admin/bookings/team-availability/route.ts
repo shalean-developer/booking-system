@@ -48,7 +48,7 @@ export async function GET(req: Request) {
       `)
       .eq('team_name', teamName)
       .eq('bookings.booking_date', date)
-      .in('bookings.status', ['pending', 'confirmed', 'in_progress']);
+      .in('bookings.status', ['pending', 'accepted', 'in_progress']);
     
     if (bookingsError) throw bookingsError;
 

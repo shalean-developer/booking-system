@@ -1,8 +1,15 @@
-import { createServiceClient } from '@/lib/supabase-server';
+import { redirect } from 'next/navigation';
+import { isAdmin, createServiceClient } from '@/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminNotificationsPage() {
+  const admin = await isAdmin();
+  
+  if (!admin) {
+    redirect('/admin');
+  }
+
   const svc = createServiceClient();
   // Simple server-side filters via search params
   // Note: Using URLSearchParams on server via headers.referer is unreliable; keep API simple.

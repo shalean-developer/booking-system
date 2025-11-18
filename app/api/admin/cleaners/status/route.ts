@@ -18,27 +18,48 @@ export async function GET(req: Request) {
 
     const supabase = await createClient();
 
-    // Fetch active cleaners (both is_active AND is_available must be true)
-    const { data: cleaners, error } = await supabase
-      .from('cleaners')
-      .select('id, name, is_active, is_available')
-      .eq('is_active', true)
-      .eq('is_available', true)
-      .order('name', { ascending: true });
-
-    if (error) throw error;
-
     // Determine today's date (YYYY-MM-DD in local time)
     const now = new Date();
     const todayISO = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
       .toISOString()
       .split('T')[0];
 
+    // Determine day of week for today (0 = Sunday, 1 = Monday, etc.)
+    const dayOfWeek = now.getDay();
+    const dayColumns = [
+      'available_sunday',
+      'available_monday',
+      'available_tuesday',
+      'available_wednesday',
+      'available_thursday',
+      'available_friday',
+      'available_saturday'
+    ];
+    const todayDayColumn = dayColumns[dayOfWeek];
+
+    // Fetch active cleaners who:
+    // 1. Are active (is_active = true)
+    // 2. Have master toggle ON (is_available = true)
+    // 3. Work on today's day of week (e.g., available_monday = true)
+    // This matches the logic used in booking flow and assign cleaner API
+    const { data: cleaners, error } = await supabase
+      .from('cleaners')
+      .select('id, name, is_active, is_available, rating')
+      .eq('is_active', true)
+      .eq('is_available', true)
+      .eq(todayDayColumn, true) // Must be available on today's day
+      .order('name', { ascending: true });
+
+    if (error) throw error;
+
     // Fetch all bookings for today that would make a cleaner unavailable
+    // Use same status filter as assign cleaner API: pending, accepted, in_progress
+    // Also include on_my_way as these are active bookings
     const { data: todaysBookings, error: todaysBookingsError } = await supabase
       .from('bookings')
-      .select('id, cleaner_id, requires_team')
+      .select('id, cleaner_id, requires_team, status')
       .eq('booking_date', todayISO)
+      .in('status', ['pending', 'accepted', 'in_progress', 'on_my_way'])
       .neq('status', 'cancelled');
 
     if (todaysBookingsError) throw todaysBookingsError;
@@ -89,10 +110,15 @@ export async function GET(req: Request) {
     }
 
     // Only return cleaners who have no assignments for today
+    // These cleaners are:
+    // 1. Active and available (is_active = true, is_available = true)
+    // 2. Available on today's day of week (e.g., available_monday = true)
+    // 3. Not assigned to any bookings today
     const cleanersWithStatus = (cleaners || [])
       .filter((cleaner) => !assignedCleanerIds.has(cleaner.id))
       .map((cleaner) => {
-        const rating = 4.5 + Math.random() * 0.5;
+        // Use actual rating if available, otherwise default to 4.5
+        const rating = cleaner.rating || 4.5;
 
         return {
           id: cleaner.id,

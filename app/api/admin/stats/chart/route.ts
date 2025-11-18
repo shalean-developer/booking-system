@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient, isAdmin } from '@/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
@@ -7,12 +7,13 @@ export const dynamic = 'force-dynamic';
  * Admin Stats Chart Data API
  * GET: Fetch time-series data for charts
  * Query params:
- *   - startDate: ISO date string (default: 30 days ago)
+ *   - days: number of days to fetch (default: 30)
  *   - endDate: ISO date string (default: today)
- *   - period: 'daily' | 'weekly' | 'monthly' (default: 'daily')
  */
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
+    console.log('📊 Chart API called:', request.url);
+    
     // Check admin access with detailed logging
     const adminStatus = await isAdmin();
     if (!adminStatus) {
@@ -39,19 +40,26 @@ export async function GET(request: Request) {
     startDate.setDate(startDate.getDate() - (daysBack - 1));
     
     // Set time boundaries: start at beginning of startDate, end at end of endDate
+    // Use date strings (YYYY-MM-DD) for booking_date filtering (date column, not timestamp)
     startDate.setHours(0, 0, 0, 0);
     const endDateWithTime = new Date(endDate);
     endDateWithTime.setHours(23, 59, 59, 999);
     const startDateISO = startDate.toISOString();
     const endDateISO = endDateWithTime.toISOString();
     
-    // Fetch bookings in date range (include service_type for breakdown and customer_id for customer analysis)
+    // Convert to date strings for booking_date filtering (YYYY-MM-DD format)
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+    
+    // Fetch bookings in date range by booking_date (scheduled date, not creation date)
+    // This matches the cleaner dashboard and admin stats API behavior
+    // Include created_at for customer analysis (to track when customers first appeared)
     const { data: bookings, error } = await supabase
       .from('bookings')
       .select('created_at, total_amount, cleaner_earnings, service_fee, status, service_type, customer_id, booking_date')
-      .gte('created_at', startDateISO)
-      .lte('created_at', endDateISO)
-      .order('created_at', { ascending: true });
+      .gte('booking_date', startDateStr)
+      .lte('booking_date', endDateStr)
+      .order('booking_date', { ascending: true });
     
     if (error) {
       console.error('Error fetching chart data:', error);
@@ -78,7 +86,9 @@ export async function GET(request: Request) {
     }>();
     
     (bookings || []).forEach((booking) => {
-      const date = new Date(booking.created_at).toISOString().split('T')[0]; // YYYY-MM-DD
+      // Use booking_date (scheduled date) for chart grouping, not created_at
+      // This ensures charts show bookings scheduled for each day, matching the filter period
+      const date = booking.booking_date || new Date(booking.created_at).toISOString().split('T')[0]; // YYYY-MM-DD
       
       if (!dailyData.has(date)) {
         dailyData.set(date, {
@@ -169,10 +179,13 @@ export async function GET(request: Request) {
       currentDate.setDate(currentDate.getDate() + 1);
     }
     
-    // Calculate customer categorization for the last 30 days for customer analysis
+    // Calculate customer categorization for customer analysis
+    // Always calculate for periods >= 7 days to provide customer insights
     let customerAnalysis = null;
-    if (daysBack === 30) {
+    
+    if (daysBack >= 7) { // Only calculate for periods >= 7 days to avoid performance issues
       // Fetch all customer IDs and their booking counts in this period
+      // Bookings are already filtered by startDateISO to endDateISO
       const customerMap = new Map<string, { firstBooking: Date; bookingCount: number; bookingDates: Date[]; category?: string }>();
       
       (bookings || []).forEach((booking) => {
@@ -200,22 +213,37 @@ export async function GET(request: Request) {
       });
       
       // Categorize customers based on booking behavior
+      // OPTIMIZATION: Fetch all previous bookings in one query instead of N+1 queries
+      const customerIds = Array.from(customerMap.keys());
+      let previousBookingsMap = new Map<string, boolean>();
+      
+      if (customerIds.length > 0) {
+        // Fetch all previous bookings for these customers in a single query
+        const { data: previousBookings } = await supabase
+          .from('bookings')
+          .select('customer_id')
+          .in('customer_id', customerIds)
+          .lt('created_at', startDateISO);
+        
+        // Create a Set of customer IDs who had previous bookings
+        const previousCustomerIds = new Set(
+          (previousBookings || []).map((b: any) => b.customer_id).filter(Boolean)
+        );
+        
+        // Build map for quick lookup
+        customerIds.forEach(id => {
+          previousBookingsMap.set(id, previousCustomerIds.has(id));
+        });
+      }
+      
       let newCustomers = 0;
       let recurringCustomers = 0;
       let returningCustomers = 0;
       
-      // For each customer, check if they have previous bookings before this period
+      // Categorize customers using the pre-fetched data
       for (const [customerId, data] of customerMap.entries()) {
         const totalBookings = data.bookingCount;
-        
-        // Check if customer had bookings before this period
-        const { count: previousBookings } = await supabase
-          .from('bookings')
-          .select('id', { count: 'exact', head: true })
-          .eq('customer_id', customerId)
-          .lt('created_at', startDateISO);
-        
-        const hadPreviousBookings = (previousBookings || 0) > 0;
+        const hadPreviousBookings = previousBookingsMap.get(customerId) || false;
         
         if (!hadPreviousBookings && totalBookings === 1) {
           // New customer: first booking ever
@@ -297,24 +325,31 @@ export async function GET(request: Request) {
     chartData = filledChartDataWithCustomers;
     
     // Calculate comparison period (previous period of same length)
+    // Use booking_date for comparison period to match main chart data
     const prevStartDate = new Date(startDate);
     prevStartDate.setDate(prevStartDate.getDate() - daysBack);
     const prevEndDate = new Date(startDate);
+    prevEndDate.setDate(prevEndDate.getDate() - 1); // End date is day before startDate
+    
+    const prevStartDateStr = prevStartDate.toISOString().split('T')[0];
+    const prevEndDateStr = prevEndDate.toISOString().split('T')[0];
     
     const { data: prevBookings } = await supabase
       .from('bookings')
       .select('total_amount, cleaner_earnings, status')
-      .gte('created_at', prevStartDate.toISOString())
-      .lt('created_at', prevEndDate.toISOString());
+      .gte('booking_date', prevStartDateStr)
+      .lte('booking_date', prevEndDateStr);
     
     // Calculate comparison metrics
     const currentRevenue = chartData.reduce((sum, d) => sum + d.revenue, 0);
     const currentBookings = chartData.reduce((sum, d) => sum + d.bookings, 0);
     const currentCompleted = chartData.reduce((sum, d) => sum + d.completed, 0);
     
-    const prevRevenue = (prevBookings || []).reduce((sum, b) => sum + ((b.total_amount || 0) / 100), 0);
+    // Calculate previous period metrics (only from completed bookings for revenue)
+    const prevCompletedBookings = (prevBookings || []).filter(b => b.status === 'completed');
+    const prevRevenue = prevCompletedBookings.reduce((sum, b) => sum + ((b.total_amount || 0) / 100), 0);
     const prevBookingsCount = (prevBookings || []).length;
-    const prevCompleted = (prevBookings || []).filter(b => b.status === 'completed').length;
+    const prevCompleted = prevCompletedBookings.length;
     
     const revenueChange = prevRevenue > 0 
       ? ((currentRevenue - prevRevenue) / prevRevenue) * 100 

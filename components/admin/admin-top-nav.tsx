@@ -283,7 +283,6 @@ export function AdminTopNav({ onNavigate, activeTab = 'dashboard' }: AdminTopNav
 
             {/* User Avatar */}
             <Avatar className="h-8 w-8 rounded-md">
-              <AvatarImage src="/placeholder-avatar.jpg" alt="User" />
               <AvatarFallback className="rounded-md bg-gray-200 text-gray-600">
                 U
               </AvatarFallback>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { CleanerMobileBottomNav } from '@/components/cleaner/cleaner-mobile-bottom-nav';
+import { PWAInstallPrompt } from '@/components/pwa/pwa-install-prompt';
 import { Card, CardContent } from '@/components/ui/card';
 import { Clock, MapPin, User, Phone, Home, Navigation, PlayCircle, CheckCircle, Loader2, X } from 'lucide-react';
 import Link from 'next/link';
@@ -134,8 +135,8 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
   };
 
   const fetchTodayBookings = async () => {
-    try {
-      const today = new Date().toISOString().split('T')[0];
+      try {
+        const today = new Date().toISOString().split('T')[0];
       const response = await fetch(`/api/cleaner/bookings?startDate=${today}&endDate=${today}`);
       
       if (!response.ok) {
@@ -165,7 +166,7 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
     }
   };
 
-  // Fetch today's bookings
+        // Fetch today's bookings
   useEffect(() => {
     fetchTodayBookings();
     // Refresh every 5 minutes
@@ -388,8 +389,8 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
       <div className="bg-[#3b82f6] text-white py-6 px-4">
         <p className="text-base max-w-md mx-auto">
           Hi{cleaner?.name ? `, ${cleaner.name}` : ''}. Here's what's going on today.
-        </p>
-      </div>
+          </p>
+        </div>
 
       {/* Main Content */}
       <main className="bg-white pb-24">
@@ -420,7 +421,7 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
                         <span className="text-sm text-gray-500 capitalize">
                           {booking.status.replace('-', ' ')}
                         </span>
-                      </div>
+        </div>
 
                       {(booking.address_line1 || booking.address_suburb || booking.address_city) && (
                         <a
@@ -448,7 +449,7 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
                           <span className="text-sm text-gray-700">
                             {booking.customer_name}
                           </span>
-                        </div>
+              </div>
                       )}
 
                       {booking.customer_phone && (
@@ -460,7 +461,7 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
                           >
                             {booking.customer_phone}
                           </a>
-                        </div>
+              </div>
                       )}
 
                       {/* Time tracking */}
@@ -471,24 +472,24 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
                               <div className="uppercase tracking-wide text-[10px] text-gray-500">Started</div>
                               <div className="font-medium">
                                 {formatShortDateTime(booking.cleaner_started_at)}
-                              </div>
-                            </div>
+            </div>
+                    </div>
                           )}
                           {booking.cleaner_completed_at && (
                             <div className="rounded-md bg-gray-50 border border-gray-100 px-2 py-1">
                               <div className="uppercase tracking-wide text-[10px] text-gray-500">Completed</div>
                               <div className="font-medium">
                                 {formatShortDateTime(booking.cleaner_completed_at)}
-                              </div>
-                            </div>
+                    </div>
+                  </div>
                           )}
                           {booking.cleaner_started_at && (
                             <div className="rounded-md bg-blue-50 border border-blue-100 px-2 py-1 col-span-2">
                               <div className="uppercase tracking-wide text-[10px] text-blue-700">Duration</div>
                               <div className="font-semibold text-blue-700">
                                 {computeDuration(booking.cleaner_started_at, booking.cleaner_completed_at) || '—'}
-                              </div>
-                            </div>
+                    </div>
+                  </div>
                           )}
                         </div>
                       )}
@@ -500,7 +501,7 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
                             <span className="text-sm font-semibold text-[#3b82f6]">
                               {formatCurrency(booking.cleaner_earnings)}
                             </span>
-                          </div>
+                    </div>
                           {/* Show tip only if customer gave a tip */}
                           {booking.tip_amount && booking.tip_amount > 0 && (
                             <div className="flex items-center justify-between mt-1.5">
@@ -511,9 +512,9 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
                               <span className="text-xs font-semibold text-yellow-600">
                                 +{formatCurrency(booking.tip_amount)}
                               </span>
-                            </div>
+                  </div>
                           )}
-                        </div>
+            </div>
                       )}
 
                       {/* Action Buttons - Always show for today's current bookings */}
@@ -643,10 +644,10 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
                         >
                           Details
                         </Link>
-                      </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </CardContent>
+              </Card>
               ))}
             </div>
           ) : (
@@ -667,26 +668,26 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
                     <div className="flex flex-col items-center pt-2">
                       <div className="w-12 h-12 rounded-full bg-[#dbeafe] border border-[#3b82f6] flex items-center justify-center mb-1">
                         <Clock className="h-5 w-5 text-[#3b82f6]" />
-                      </div>
-                      <div className="w-8 h-16 bg-[#dbeafe] rounded-t-md"></div>
                     </div>
+                      <div className="w-8 h-16 bg-[#dbeafe] rounded-t-md"></div>
+                      </div>
                     {/* Arm 3 */}
                     <div className="flex flex-col items-center">
                       <div className="w-12 h-12 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center mb-1">
                         <Clock className="h-5 w-5 text-gray-400" />
-                      </div>
-                      <div className="w-8 h-16 bg-gray-100 rounded-t-md"></div>
                     </div>
+                      <div className="w-8 h-16 bg-gray-100 rounded-t-md"></div>
+                  </div>
                     {/* Arm 4 */}
                     <div className="flex flex-col items-center pt-3">
                       <div className="w-12 h-12 rounded-full bg-[#dbeafe] border border-[#3b82f6] flex items-center justify-center mb-1">
                         <Clock className="h-5 w-5 text-[#3b82f6]" />
-                      </div>
-                      <div className="w-8 h-16 bg-[#dbeafe] rounded-t-md"></div>
                     </div>
+                      <div className="w-8 h-16 bg-[#dbeafe] rounded-t-md"></div>
                   </div>
-                </div>
-              </div>
+            </div>
+          </div>
+        </div>
 
               <p className="text-gray-700 font-medium mb-2">You have no bookings.</p>
               <p className="text-sm text-gray-500 max-w-xs mx-auto">
@@ -696,6 +697,9 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
           )}
         </div>
       </main>
+
+      {/* PWA Install Prompt */}
+      <PWAInstallPrompt />
 
       {/* Mobile Bottom Navigation */}
       <CleanerMobileBottomNav />

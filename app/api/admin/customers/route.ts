@@ -44,6 +44,12 @@ export async function GET(req: Request) {
       // Extract unique customer IDs
       const uniqueCustomerIds = [...new Set((recurringCustomerIds || []).map(r => r.customer_id))];
       
+      // Get total schedules count (for summary stats)
+      const { count: totalSchedulesCount } = await supabase
+        .from('recurring_schedules')
+        .select('*', { count: 'exact', head: true })
+        .in('customer_id', uniqueCustomerIds);
+      
       if (uniqueCustomerIds.length === 0) {
         // No recurring customers found
         return NextResponse.json({
@@ -55,6 +61,7 @@ export async function GET(req: Request) {
             total: 0,
             totalPages: 0,
           },
+          totalSchedules: 0,
         });
       }
       
@@ -101,10 +108,22 @@ export async function GET(req: Request) {
         countsByCustomer[schedule.customer_id] = (countsByCustomer[schedule.customer_id] || 0) + 1;
       });
       
-      // Add recurring_schedules_count to each customer
+      // Fetch booking counts for each customer
+      const { data: bookingCounts } = await supabase
+        .from('bookings')
+        .select('customer_id, id')
+        .in('customer_id', customerIds);
+      
+      const bookingsByCustomer: Record<string, number> = {};
+      (bookingCounts || []).forEach(booking => {
+        bookingsByCustomer[booking.customer_id] = (bookingsByCustomer[booking.customer_id] || 0) + 1;
+      });
+      
+      // Add recurring_schedules_count and calculated total_bookings to each customer
       const customersWithCounts = (customers || []).map(customer => ({
         ...customer,
         recurring_schedules_count: countsByCustomer[customer.id] || 0,
+        total_bookings: bookingsByCustomer[customer.id] || customer.total_bookings || 0,
       }));
       
       console.log(`✅ Fetched ${customersWithCounts.length} recurring customers`);
@@ -118,6 +137,7 @@ export async function GET(req: Request) {
           total: count || 0,
           totalPages: Math.ceil((count || 0) / limit),
         },
+        totalSchedules: totalSchedulesCount ?? 0,
       });
     }
     

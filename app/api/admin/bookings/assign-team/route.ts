@@ -183,7 +183,7 @@ export async function POST(req: Request) {
       .update({
         requires_team: true, // Ensure requires_team is set
         cleaner_earnings: totalTeamEarnings,
-        status: 'confirmed', // Mark as confirmed when team is assigned
+        status: 'accepted', // Mark as accepted when team is assigned
         updated_at: new Date().toISOString(),
       })
       .eq('id', bookingId);

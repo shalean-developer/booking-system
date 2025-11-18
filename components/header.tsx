@@ -76,7 +76,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
           width={40}
           height={40}
           className="w-8 h-8 object-contain"
-          priority={true}
+          priority={false}
         />
       </div>
     );

@@ -123,6 +123,8 @@ export function AdminNavbarV3() {
       name: 'Team',
       tabs: [
         { id: 'cleaners', label: 'Cleaners', path: '/admin/cleaners' },
+        { id: 'cleaner-performance', label: 'Performance', path: '/admin/cleaners/performance' },
+        { id: 'cleaner-reports', label: 'Reports', path: '/admin/cleaners/reports' },
         { id: 'applications', label: 'Applications', path: '/admin/applications' },
       ],
     },
@@ -143,6 +145,8 @@ export function AdminNavbarV3() {
     if (pathname?.includes('/dashboard')) return 'dashboard';
     if (pathname?.includes('/schedule')) return 'schedule';
     if (pathname?.includes('/bookings')) return 'bookings';
+    if (pathname?.includes('/cleaners/performance')) return 'cleaner-performance';
+    if (pathname?.includes('/cleaners/reports')) return 'cleaner-reports';
     if (pathname?.includes('/cleaners')) return 'cleaners';
     if (pathname?.includes('/applications')) return 'applications';
     if (pathname?.includes('/recurring-customers')) return 'recurring';
@@ -363,6 +367,32 @@ export function AdminNavbarV3() {
   const activeGroup = getActiveGroup();
   const domainInitial = selectedDomain?.charAt(0)?.toUpperCase() ?? 'S';
 
+  // Prevent hydration mismatch by only rendering DropdownMenu components after mount
+  // Radix UI generates random IDs that differ between server and client
+  if (!mounted) {
+    return (
+      <div className="w-full">
+        <div className="bg-slate-800 border-b border-slate-700">
+          <div className="relative w-full px-4 sm:px-6 lg:px-10">
+            <div className="flex h-14 items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-full bg-white/10 animate-pulse" />
+              </div>
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-full bg-white/10 animate-pulse" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <nav className="flex h-12 items-center border-b border-gray-200 bg-white px-4 sm:px-6 lg:px-10">
+          <div className="flex items-center gap-1 overflow-x-auto">
+            <div className="h-8 w-24 bg-gray-200 animate-pulse rounded" />
+          </div>
+        </nav>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full">
       {/* Top Header Section - Dark Charcoal Gray */}
@@ -474,7 +504,6 @@ export function AdminNavbarV3() {
                 <Search className="h-4 w-4" />
               </button>
               <Avatar className="h-8 w-8 border border-white/20 bg-white text-slate-900 shadow-sm">
-                <AvatarImage src="/placeholder-avatar.jpg" alt="User" />
                 <AvatarFallback className="bg-white text-slate-900">
                   {user?.email?.charAt(0).toUpperCase() || 'U'}
                 </AvatarFallback>

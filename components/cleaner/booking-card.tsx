@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
+import { setupSwipeGesture } from '@/lib/swipe-gestures';
+import { triggerHaptic } from '@/lib/haptic-feedback';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -60,18 +62,63 @@ export function BookingCard({
   onReschedule,
 }: BookingCardProps) {
   const [isActing, setIsActing] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Setup swipe gestures
+  useEffect(() => {
+    if (!cardRef.current) return;
+
+    const cleanup = setupSwipeGesture(cardRef.current, {
+      onSwipeRight: () => {
+        // Swipe right to accept/claim
+        if (variant === 'available' && onClaim) {
+          triggerHaptic('success');
+          onClaim(booking.id);
+        } else if (booking.status === 'pending' && onAccept) {
+          triggerHaptic('success');
+          onAccept(booking.id);
+        }
+      },
+      onSwipeLeft: () => {
+        // Swipe left to decline
+        if (onDecline) {
+          triggerHaptic('warning');
+          onDecline(booking.id);
+        }
+      },
+    });
+
+    return cleanup;
+  }, [variant, booking.id, booking.status, onClaim, onAccept, onDecline]);
 
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-ZA', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    });
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      return date.toLocaleDateString('en-ZA', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch {
+      return dateStr;
+    }
   };
 
   const formatTime = (timeStr: string) => {
-    return timeStr.slice(0, 5); // HH:MM
+    if (!timeStr) return '';
+    try {
+      const parts = timeStr.split(':');
+      if (parts.length < 2) return timeStr;
+      const hours = parseInt(parts[0], 10);
+      const minutes = parts[1];
+      if (isNaN(hours)) return timeStr;
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const displayHour = hours % 12 || 12;
+      return `${displayHour}:${minutes} ${ampm}`;
+    } catch {
+      return timeStr.slice(0, 5); // Fallback to HH:MM
+    }
   };
 
   const formatAmount = (earnings: number | null) => {
@@ -116,7 +163,8 @@ export function BookingCard({
     }
   };
 
-  const handleAction = async (action: () => Promise<void>) => {
+  const handleAction = async (action: () => Promise<void>, hapticType: 'success' | 'medium' = 'medium') => {
+    triggerHaptic(hapticType);
     setIsActing(true);
     try {
       await action();
@@ -162,7 +210,8 @@ export function BookingCard({
   };
 
   return (
-    <Card className="overflow-hidden border-2 hover:shadow-md transition-shadow">
+    <div ref={cardRef}>
+      <Card className="overflow-hidden border-2 hover:shadow-md transition-shadow">
       <CardContent className="p-4">
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
@@ -254,10 +303,11 @@ export function BookingCard({
         <div className="flex flex-wrap gap-2 mt-4">
           {variant === 'available' && onClaim && (
             <Button
-              onClick={() => handleAction(() => onClaim(booking.id))}
+              onClick={() => handleAction(() => onClaim(booking.id), 'success')}
               disabled={isActing}
-              className="flex-1 min-w-[120px] bg-primary hover:bg-primary/90"
+              className="flex-1 min-w-[120px] bg-primary hover:bg-primary/90 transition-all duration-200"
               size="sm"
+              aria-label={`Claim booking on ${formatDate(booking.booking_date)}`}
             >
               {isActing ? (
                 <>
@@ -273,7 +323,7 @@ export function BookingCard({
           {/* Accept Booking Button - for pending bookings */}
           {variant === 'assigned' && booking.status === 'pending' && onAccept && (
             <Button
-              onClick={() => handleAction(() => onAccept(booking.id))}
+              onClick={() => handleAction(() => onAccept(booking.id), 'success')}
               disabled={isActing}
               className="flex-1 min-w-[120px] bg-purple-600 hover:bg-purple-700"
               size="sm"
@@ -317,7 +367,7 @@ export function BookingCard({
           {/* Start Booking Button - only for on_my_way status */}
           {variant === 'assigned' && booking.status === 'on_my_way' && onStart && (
             <Button
-              onClick={() => handleAction(() => onStart(booking.id))}
+              onClick={() => handleAction(() => onStart(booking.id), 'medium')}
               disabled={isActing}
               className="flex-1 min-w-[100px] bg-blue-600 hover:bg-blue-700"
               size="sm"
@@ -339,7 +389,7 @@ export function BookingCard({
           {/* Complete Button - only for in-progress status */}
           {variant === 'assigned' && booking.status === 'in-progress' && onComplete && (
             <Button
-              onClick={() => handleAction(() => onComplete(booking.id))}
+              onClick={() => handleAction(() => onComplete(booking.id), 'success')}
               disabled={isActing}
               className="flex-1 min-w-[100px] bg-green-600 hover:bg-green-700"
               size="sm"
@@ -383,8 +433,10 @@ export function BookingCard({
                   variant="outline"
                   size="sm"
                   className="flex-shrink-0"
+                  aria-label={`Call customer ${booking.customer_name || 'customer'}`}
+                  title={`Call ${booking.customer_phone}`}
                 >
-                  <Phone className="h-4 w-4" />
+                  <Phone className="h-4 w-4" aria-hidden="true" />
                 </Button>
               )}
               {booking.address_line1 && (
@@ -393,14 +445,15 @@ export function BookingCard({
                   variant="outline"
                   size="sm"
                   className="flex-shrink-0"
+                  aria-label="Open address in maps"
+                  title="Open in Google Maps"
                 >
-                  <Navigation className="h-4 w-4" />
+                  <Navigation className="h-4 w-4" aria-hidden="true" />
                 </Button>
               )}
             </>
           )}
 
-          {/* View Details - always available */}
           {/* Decline / Reschedule - for pending or accepted */}
           {variant === 'assigned' &&
             (booking.status === 'pending' || booking.status === 'accepted') && (
@@ -410,7 +463,8 @@ export function BookingCard({
                     onClick={() => onDecline(booking.id)}
                     variant="outline"
                     size="sm"
-                    className="flex-shrink-0"
+                    className="flex-shrink-0 transition-all duration-200 hover:bg-red-50 hover:border-red-300"
+                    aria-label="Decline this booking"
                   >
                     Decline
                   </Button>
@@ -420,7 +474,8 @@ export function BookingCard({
                     onClick={() => onReschedule(booking.id)}
                     variant="outline"
                     size="sm"
-                    className="flex-shrink-0"
+                    className="flex-shrink-0 transition-all duration-200 hover:bg-blue-50 hover:border-blue-300"
+                    aria-label="Request to reschedule this booking"
                   >
                     Reschedule
                   </Button>
@@ -432,7 +487,8 @@ export function BookingCard({
               onClick={() => onViewDetails(booking)}
               variant="ghost"
               size="sm"
-              className="flex-shrink-0"
+              className="flex-shrink-0 transition-all duration-200 hover:bg-gray-100"
+              aria-label={`View details for booking on ${formatDate(booking.booking_date)}`}
             >
               Details
             </Button>
@@ -440,6 +496,7 @@ export function BookingCard({
         </div>
       </CardContent>
     </Card>
+    </div>
   );
 }
 

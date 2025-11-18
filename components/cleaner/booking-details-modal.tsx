@@ -25,8 +25,23 @@ import {
   Navigation,
   Repeat,
   X,
+  MessageSquare,
+  Star,
 } from 'lucide-react';
 import type { CleanerBooking } from '@/types/booking';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import dynamic from 'next/dynamic';
+
+// Lazy load heavy components
+const BookingChat = dynamic(() => import('./booking-chat').then(mod => ({ default: mod.BookingChat })), {
+  loading: () => <div className="p-4 text-center text-gray-500">Loading chat...</div>,
+  ssr: false,
+});
+
+const ReviewsView = dynamic(() => import('./reviews-view').then(mod => ({ default: mod.ReviewsView })), {
+  loading: () => <div className="p-4 text-center text-gray-500">Loading reviews...</div>,
+  ssr: false,
+});
 
 interface Booking extends CleanerBooking {
   cleaner_claimed_at?: string | null;
@@ -48,6 +63,8 @@ export function BookingDetailsModal({
   isOpen,
   onClose,
 }: BookingDetailsModalProps) {
+  const [activeTab, setActiveTab] = useState('details');
+  
   if (!booking) return null;
 
   // Checklist (service-type presets) with local persistence per booking
@@ -501,7 +518,20 @@ export function BookingDetailsModal({
           </div>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="chat">
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Chat
+            </TabsTrigger>
+            <TabsTrigger value="reviews">
+              <Star className="h-4 w-4 mr-2" />
+              Reviews
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="details" className="space-y-6 py-4">
           {/* Service Info */}
           <div className="space-y-3">
             <h3 className="font-semibold text-gray-900 flex items-center gap-2">
@@ -658,7 +688,13 @@ export function BookingDetailsModal({
                   <div key={i} className="relative group">
                     {p.url ? (
                       <a href={p.url} target="_blank" rel="noreferrer">
-                        <img src={p.url} alt={`before-${i}`} className="h-16 w-16 object-cover rounded border" />
+                        <img 
+                          src={p.url} 
+                          alt={`before-${i}`} 
+                          className="h-16 w-16 object-cover rounded border"
+                          loading="lazy"
+                          decoding="async"
+                        />
                       </a>
                     ) : (
                       <div className="h-16 w-16 rounded border flex items-center justify-center text-[10px] text-gray-500">
@@ -692,7 +728,13 @@ export function BookingDetailsModal({
                   <div key={i} className="relative group">
                     {p.url ? (
                       <a href={p.url} target="_blank" rel="noreferrer">
-                        <img src={p.url} alt={`after-${i}`} className="h-16 w-16 object-cover rounded border" />
+                        <img 
+                          src={p.url} 
+                          alt={`after-${i}`} 
+                          className="h-16 w-16 object-cover rounded border"
+                          loading="lazy"
+                          decoding="async"
+                        />
                       </a>
                     ) : (
                       <div className="h-16 w-16 rounded border flex items-center justify-center text-[10px] text-gray-500">
@@ -800,7 +842,20 @@ export function BookingDetailsModal({
               )}
             </div>
           </div>
-        </div>
+          </TabsContent>
+
+          <TabsContent value="chat" className="py-4">
+            <BookingChat
+              bookingId={booking.id}
+              cleanerName="You"
+              customerName={booking.customer_name || undefined}
+            />
+          </TabsContent>
+
+          <TabsContent value="reviews" className="py-4">
+            <ReviewsView bookingId={booking.id} />
+          </TabsContent>
+        </Tabs>
 
         <div className="flex justify-end pt-4 border-t">
           <Button onClick={onClose} variant="outline">

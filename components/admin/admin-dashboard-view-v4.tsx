@@ -447,11 +447,21 @@ export function AdminDashboardViewV4() {
     try {
       setLoading(true);
 
-      // Fetch stats - use dynamic days based on selected period
-      const statsRes = await fetch(`/api/admin/stats?days=${apiDays}`, {
-        credentials: 'include',
-      });
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+
+      // Fetch all data in parallel for better performance
+      const [statsRes, chartRes] = await Promise.all([
+        fetch(`/api/admin/stats?days=${apiDays}`, {
+          credentials: 'include',
+        }),
+        fetch(`/api/admin/stats/chart?days=${apiDays}&endDate=${todayStr}`, {
+          credentials: 'include',
+          cache: 'no-store', // Ensure fresh data on each request
+        }),
+      ]);
       
+      // Process stats
       if (!statsRes.ok) {
         console.error('Stats API response not OK:', statsRes.status, statsRes.statusText);
         throw new Error(`Failed to fetch stats: ${statsRes.statusText}`);
@@ -470,139 +480,78 @@ export function AdminDashboardViewV4() {
         }
       }
 
-      // Fetch booking chart data - use dynamic days based on selected period
-      try {
-        const today = new Date();
-        const todayStr = today.toISOString().split('T')[0];
-        const chartRes = await fetch(`/api/admin/stats/chart?days=${apiDays}&endDate=${todayStr}`, {
-          credentials: 'include',
-          cache: 'no-store', // Ensure fresh data on each request
-        });
-        
-        if (!chartRes.ok) {
-          console.error('Chart API response not OK:', chartRes.status, chartRes.statusText);
-          // If unauthorized, redirect to login or show message
-          if (chartRes.status === 403) {
-            console.error('Authentication failed - please log in again');
-            // The page should handle this via the admin layout, but log it
-          }
-          throw new Error(`Failed to fetch chart data: ${chartRes.statusText}`);
+      // Process chart data (includes both booking/revenue and customer data)
+      if (!chartRes.ok) {
+        console.error('Chart API response not OK:', chartRes.status, chartRes.statusText);
+        if (chartRes.status === 403) {
+          console.error('Authentication failed - please log in again');
         }
-        
-        const chartData = await chartRes.json();
-        
-        if (chartData.ok && chartData.chartData) {
-          // API returns exactly last 10 days of data from database
-          // Each day includes: revenue, bookings, service type breakdowns
-          const last10Days = chartData.chartData;
-          transformBookingChartData(last10Days);
-          transformRevenueChartData(last10Days);
-          
-          // Calculate totals for last 10 days from database data - sum all days
-          // Revenue comes from completed bookings only (already converted from cents to rands in API)
-          const totalMoveInMoveOut = last10Days.reduce((sum: number, day: any) => sum + (day.moveInMoveOut || 0), 0);
-          const totalStandardCleaning = last10Days.reduce((sum: number, day: any) => sum + (day.standardCleaning || 0), 0);
-          const totalDeepCleaning = last10Days.reduce((sum: number, day: any) => sum + (day.deepCleaning || 0), 0);
-          const totalAirbnb = last10Days.reduce((sum: number, day: any) => sum + (day.airbnb || 0), 0);
-          const totalBookings10Days = last10Days.reduce((sum: number, day: any) => sum + (day.bookings || 0), 0);
-          // Sum revenue from all days (revenue field from completed bookings)
-          const totalRevenue10Days = last10Days.reduce((sum: number, day: any) => sum + (day.revenue || 0), 0);
-          
-          // Update state with real totals from database for last 10 days
-          setMoveInMoveOut(totalMoveInMoveOut);
-          setStandardCleaning(totalStandardCleaning);
-          setDeepCleaning(totalDeepCleaning);
-          setAirbnb(totalAirbnb);
-          setRevenueLast10Days(totalRevenue10Days);
-          
-          // Extract comparison data from API response (if available)
-          if (chartData.comparison) {
-            if (chartData.comparison.revenue) {
-              setRevenuePrev10Days(chartData.comparison.revenue.previous || 0);
-            }
-            if (chartData.comparison.bookings) {
-              setBookingsPrev10Days(chartData.comparison.bookings.previous || 0);
-              setBookingsChange10Days(chartData.comparison.bookings.change || 0);
-            }
-          } else {
-            // Fallback: Calculate previous 10 days revenue for comparison
-            const today = new Date();
-            const prevStartDate = new Date(today);
-            prevStartDate.setDate(prevStartDate.getDate() - 20); // 20 days ago
-            const prevEndDate = new Date(today);
-            prevEndDate.setDate(prevEndDate.getDate() - 11); // 11 days ago (end of previous 10-day period)
-            
-            // Fetch previous 10 days chart data
-            try {
-              const prevChartRes = await fetch(`/api/admin/stats/chart?days=10&endDate=${prevEndDate.toISOString().split('T')[0]}`, {
-                credentials: 'include',
-              });
-              
-              if (prevChartRes.ok) {
-                const prevChartData = await prevChartRes.json();
-                if (prevChartData.ok && prevChartData.chartData) {
-                  const prev10DaysRevenue = prevChartData.chartData.reduce((sum: number, day: any) => sum + (day.revenue || 0), 0);
-                  const prev10DaysBookings = prevChartData.chartData.reduce((sum: number, day: any) => sum + (day.bookings || 0), 0);
-                  setRevenuePrev10Days(prev10DaysRevenue);
-                  setBookingsPrev10Days(prev10DaysBookings);
-                  // Calculate percentage change
-                  if (prev10DaysBookings > 0) {
-                    const change = ((totalBookings10Days - prev10DaysBookings) / prev10DaysBookings) * 100;
-                    setBookingsChange10Days(change);
-                  } else if (totalBookings10Days > 0) {
-                    setBookingsChange10Days(100);
-                  }
-                }
-              }
-            } catch (error) {
-              console.error('Error fetching previous period data:', error);
-            }
-          }
-          
-          // Calculate revenue by service type from bookings
-          await calculateRevenueByServiceType(last10Days);
-        } else {
-          console.error('Failed to fetch chart data:', chartData.error || 'Unknown error');
-        }
-      } catch (error) {
-        console.error('Error fetching chart data:', error);
+        throw new Error(`Failed to fetch chart data: ${chartRes.statusText}`);
       }
-
-      // Fetch customer data - use dynamic days based on selected period
-      try {
-        const customerRes = await fetch(`/api/admin/stats/chart?days=${apiDays}`, {
-          credentials: 'include',
-        });
+      
+      const chartData = await chartRes.json();
+      
+      if (chartData.ok && chartData.chartData) {
+        // API returns chart data for the selected period
+        const chartDataArray = chartData.chartData;
+        transformBookingChartData(chartDataArray);
+        transformRevenueChartData(chartDataArray);
         
-        if (!customerRes.ok) {
-          console.error('Customer chart API response not OK:', customerRes.status, customerRes.statusText);
-          throw new Error(`Failed to fetch customer data: ${customerRes.statusText}`);
-        }
+        // Calculate totals from chart data
+        const totalMoveInMoveOut = chartDataArray.reduce((sum: number, day: any) => sum + (day.moveInMoveOut || 0), 0);
+        const totalStandardCleaning = chartDataArray.reduce((sum: number, day: any) => sum + (day.standardCleaning || 0), 0);
+        const totalDeepCleaning = chartDataArray.reduce((sum: number, day: any) => sum + (day.deepCleaning || 0), 0);
+        const totalAirbnb = chartDataArray.reduce((sum: number, day: any) => sum + (day.airbnb || 0), 0);
+        const totalBookingsPeriod = chartDataArray.reduce((sum: number, day: any) => sum + (day.bookings || 0), 0);
+        const totalRevenuePeriod = chartDataArray.reduce((sum: number, day: any) => sum + (day.revenue || 0), 0);
         
-        const customerChartDataRes = await customerRes.json();
+        // Update state with totals
+        setMoveInMoveOut(totalMoveInMoveOut);
+        setStandardCleaning(totalStandardCleaning);
+        setDeepCleaning(totalDeepCleaning);
+        setAirbnb(totalAirbnb);
+        setRevenueLast10Days(totalRevenuePeriod);
         
-        if (customerChartDataRes.ok && customerChartDataRes.chartData) {
-          const last30Days = customerChartDataRes.chartData.slice(-30);
-          transformCustomerChartData(last30Days);
-          
-          // Set customer analysis data from API if available
-          if (customerChartDataRes.customerAnalysis) {
-            setNewCustomers(customerChartDataRes.customerAnalysis.new || 0);
-            setRecurringCustomers(customerChartDataRes.customerAnalysis.recurring || 0);
-            setReturningCustomers(customerChartDataRes.customerAnalysis.returning || 0);
+        // Extract comparison data from API response (if available)
+        if (chartData.comparison) {
+          if (chartData.comparison.revenue) {
+            setRevenuePrev10Days(chartData.comparison.revenue.previous || 0);
+          }
+          if (chartData.comparison.bookings) {
+            setBookingsPrev10Days(chartData.comparison.bookings.previous || 0);
+            setBookingsChange10Days(chartData.comparison.bookings.change || 0);
           }
         }
-      } catch (error) {
-        console.error('Error fetching customer data:', error);
-        // Set default values to prevent UI from breaking
+        
+        // Process customer data from the same chart API response
+        const last30Days = chartDataArray.slice(-30);
+        transformCustomerChartData(last30Days);
+        
+        // Set customer analysis data from API if available
+        if (chartData.customerAnalysis) {
+          setNewCustomers(chartData.customerAnalysis.new || 0);
+          setRecurringCustomers(chartData.customerAnalysis.recurring || 0);
+          setReturningCustomers(chartData.customerAnalysis.returning || 0);
+        }
+        
+        // Calculate revenue by service type from bookings (non-blocking)
+        calculateRevenueByServiceType(chartDataArray).catch(err => 
+          console.error('Error calculating revenue by service type:', err)
+        );
+      } else {
+        console.error('Failed to fetch chart data:', chartData.error || 'Unknown error');
         transformCustomerChartData([]);
       }
 
-      // Fetch quotes and bookings for today and yesterday
-      await fetchQuoteAndBookingValues();
+      // Fetch quotes and bookings for today and yesterday (non-blocking)
+      fetchQuoteAndBookingValues().catch(err => 
+        console.error('Error fetching quote and booking values:', err)
+      );
 
-      // Fetch conversion stats (quotes and bookings created today)
-      await fetchConversionStats();
+      // Fetch conversion stats (non-blocking)
+      fetchConversionStats().catch(err => 
+        console.error('Error fetching conversion stats:', err)
+      );
 
     } catch (error) {
       console.error('Error fetching dashboard data:', error);

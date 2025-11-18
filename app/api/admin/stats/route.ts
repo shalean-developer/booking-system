@@ -188,7 +188,7 @@ export async function GET(request: Request) {
         .not('cleaner_id', 'is', null)
         .not('cleaner_id', 'eq', 'manual')
         .not('cleaner_id', 'eq', 'team')
-        .in('status', ['pending', 'accepted', 'ongoing', 'confirmed', 'in_progress']),
+        .in('status', ['pending', 'accepted', 'ongoing', 'in_progress']),
       // Diagnostic queries to understand why only 1 booking is found
       // Query 1: All bookings for today (any status) - to see total bookings
       supabase
@@ -374,8 +374,8 @@ export async function GET(request: Request) {
       const hasValidCleaner = booking.cleaner_id && 
                              booking.cleaner_id !== 'manual' && 
                              booking.cleaner_id !== 'team';
-      // Only active statuses: pending, accepted, ongoing, confirmed, in_progress
-      const activeStatuses = ['pending', 'accepted', 'ongoing', 'confirmed', 'in_progress'];
+      // Only active statuses: pending, accepted, ongoing, in_progress
+      const activeStatuses = ['pending', 'accepted', 'ongoing', 'in_progress'];
       const isActiveStatus = booking.status && activeStatuses.includes(booking.status.toLowerCase());
       return hasValidCleaner && isActiveStatus;
     });

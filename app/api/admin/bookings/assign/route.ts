@@ -68,7 +68,7 @@ export async function GET(req: Request) {
       .select('id, cleaner_id, booking_time, service_type, status')
       .eq('booking_date', date)
       .not('cleaner_id', 'is', null)
-      .in('status', ['pending', 'confirmed', 'in_progress']);
+      .in('status', ['pending', 'accepted', 'in_progress']);
     
     if (bookingsError) throw bookingsError;
     
@@ -190,7 +190,7 @@ export async function POST(req: Request) {
         .eq('cleaner_id', cleanerId)
         .eq('booking_date', booking.booking_date)
         .eq('booking_time', booking.booking_time)
-        .in('status', ['pending', 'confirmed', 'in_progress']);
+        .in('status', ['pending', 'accepted', 'in_progress']);
       
       if (conflictError) throw conflictError;
       

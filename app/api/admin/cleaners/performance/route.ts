@@ -28,7 +28,8 @@ export async function GET(request: Request) {
     const { data: cleaners, error: cleanersError } = await supabase
       .from('cleaners')
       .select('id, name, photo_url, rating, is_active, is_available')
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .not('name', 'is', null); // Exclude cleaners with null names
     
     if (cleanersError) {
       throw cleanersError;
@@ -40,10 +41,20 @@ export async function GET(request: Request) {
         cleaners: [],
       });
     }
+
+    // Filter out cleaners with empty or null names and log them
+    const validCleaners = cleaners.filter((c: any) => c.name && c.name.trim() !== '');
+    const invalidCleaners = cleaners.filter((c: any) => !c.name || c.name.trim() === '');
+    
+    if (invalidCleaners.length > 0) {
+      console.warn(`⚠️ Found ${invalidCleaners.length} cleaners with null/empty names:`, invalidCleaners.map((c: any) => ({ id: c.id, name: c.name })));
+    }
+    
+    console.log(`✅ Processing ${validCleaners.length} cleaners with valid names`);
     
     // Fetch performance metrics for each cleaner
     const cleanerPerformanceData = await Promise.all(
-      cleaners.map(async (cleaner) => {
+      validCleaners.map(async (cleaner) => {
         // Get all bookings for this cleaner
         const { data: allBookings } = await supabase
           .from('bookings')
@@ -102,7 +113,7 @@ export async function GET(request: Request) {
         
         return {
           id: cleaner.id,
-          name: cleaner.name,
+          name: cleaner.name || `Cleaner ${cleaner.id}`, // Fallback if name is somehow null
           photo_url: cleaner.photo_url,
           rating: cleaner.rating || 5.0,
           total_bookings: totalBookings,

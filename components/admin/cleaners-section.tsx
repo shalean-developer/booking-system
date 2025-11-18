@@ -52,6 +52,7 @@ interface Cleaner {
 export function CleanersSection() {
   const [cleaners, setCleaners] = useState<Cleaner[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingCleaner, setEditingCleaner] = useState<Cleaner | null>(null);
   const [deletingCleaner, setDeletingCleaner] = useState<Cleaner | null>(null);
@@ -82,23 +83,59 @@ export function CleanersSection() {
   const fetchCleaners = async () => {
     try {
       setIsLoading(true);
+      setError(null);
       const params = new URLSearchParams({
         includeInactive: includeInactive.toString(),
       });
 
+      console.log('Fetching cleaners from:', `/api/admin/cleaners?${params}`);
+      
+      // Add timeout to prevent infinite loading (increased to 60 seconds for complex queries)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.warn('Request timeout - aborting fetch');
+        controller.abort();
+      }, 60000); // 60 second timeout (API does complex earnings calculations)
+
       const response = await fetch(`/api/admin/cleaners?${params}`, {
         credentials: 'include', // Include cookies for server-side auth
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API error response:', response.status, errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText || 'Failed to fetch cleaners'}`);
+      }
+
       const data = await response.json();
+      console.log('API response:', data);
 
       if (!data.ok) {
         throw new Error(data.error || 'Failed to fetch cleaners');
       }
 
-      setCleaners(data.cleaners);
+      setCleaners(data.cleaners || []);
+      setError(null);
       setIsLoading(false);
     } catch (err) {
       console.error('Error fetching cleaners:', err);
+      let errorMessage = 'Failed to fetch cleaners';
+      
+      if (err instanceof Error) {
+        if (err.name === 'AbortError') {
+          errorMessage = 'Request timed out. The server is taking too long to respond. This may happen if there are many cleaners or complex calculations. Please try again.';
+        } else if (err.message.includes('Failed to fetch') || err.message.includes('network')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
+      setError(errorMessage);
+      setCleaners([]);
       setIsLoading(false);
     }
   };
@@ -338,10 +375,40 @@ export function CleanersSection() {
             <Label htmlFor="includeInactive">Show inactive cleaners</Label>
           </div>
 
+          {/* Error Message */}
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-center gap-2 text-red-800">
+                <AlertCircle className="h-5 w-5" />
+                <div className="flex-1">
+                  <p className="font-medium">Error loading cleaners</p>
+                  <p className="text-sm text-red-600 mt-1">{error}</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchCleaners}
+                  className="text-red-800 border-red-300 hover:bg-red-100"
+                >
+                  Retry
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Table */}
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : error ? (
+            <div className="text-center py-12 text-gray-500">
+              <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-500" />
+              <p className="text-red-600 font-medium mb-2">Failed to load cleaners</p>
+              <p className="text-sm text-gray-500 mb-4">{error}</p>
+              <Button onClick={fetchCleaners} variant="outline">
+                Try Again
+              </Button>
             </div>
           ) : cleaners.length === 0 ? (
             <div className="text-center py-12 text-gray-500">

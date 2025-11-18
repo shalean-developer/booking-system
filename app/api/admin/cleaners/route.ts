@@ -56,12 +56,12 @@ export async function GET(req: Request) {
     // 2. Team bookings (deep cleaning/move in/out): earnings stored in booking_team_members.earnings
     
     // Fetch individual (non-team) bookings earnings
+    // Use cleaner_completed_at if available, otherwise use booking_date
+    // This ensures earnings are counted in the month they were completed, not scheduled
     const { data: monthlyBookings, error: bookingsError } = await supabase
       .from('bookings')
-      .select('cleaner_id, cleaner_earnings, requires_team')
+      .select('cleaner_id, cleaner_earnings, requires_team, booking_date, cleaner_completed_at')
       .eq('status', 'completed') // ONLY completed bookings contribute to earnings
-      .gte('booking_date', firstDayISO)
-      .lt('booking_date', firstDayNextMonthISO)
       .not('cleaner_id', 'is', null)
       .not('cleaner_id', 'eq', 'manual')
       .eq('requires_team', false); // Exclude team bookings (handled separately)
@@ -70,6 +70,19 @@ export async function GET(req: Request) {
       console.error('Error fetching monthly bookings:', bookingsError);
       // Continue without earnings if query fails
     }
+    
+    // Filter bookings by completion date (prefer cleaner_completed_at, fallback to booking_date)
+    const filteredMonthlyBookings = (monthlyBookings || []).filter((booking: any) => {
+      // Use completion date if available, otherwise use booking_date
+      const completionDate = booking.cleaner_completed_at 
+        ? new Date(booking.cleaner_completed_at).toISOString().split('T')[0]
+        : booking.booking_date;
+      
+      // Check if completion date falls within current month
+      return completionDate >= firstDayISO && completionDate < firstDayNextMonthISO;
+    });
+    
+    console.log(`📊 Found ${filteredMonthlyBookings.length} individual completed bookings in current month (${firstDayISO} to ${firstDayNextMonthISO})`);
     
     // Fetch team bookings earnings from booking_team_members
     // Step 1: Get all team members (we'll filter by booking status/date in step 2)
@@ -87,19 +100,30 @@ export async function GET(req: Request) {
         .in('id', teamIds);
       
       if (!teamsError && teams && teams.length > 0) {
-        // Step 3: Get bookings that are completed and in current month
+        // Step 3: Get bookings that are completed (filter by completion date in step 4)
         const bookingIds = teams.map(t => t.booking_id);
         const { data: teamBookingsData, error: teamBookingsError } = await supabase
           .from('bookings')
-          .select('id, status, booking_date')
+          .select('id, status, booking_date, cleaner_completed_at')
           .in('id', bookingIds)
-          .eq('status', 'completed')
-          .gte('booking_date', firstDayISO)
-          .lt('booking_date', firstDayNextMonthISO);
+          .eq('status', 'completed');
         
         if (!teamBookingsError && teamBookingsData) {
-          // Step 4: Map team members to their earnings for completed bookings this month
-          const completedBookingIds = new Set(teamBookingsData.map(b => b.id));
+          // Step 4: Filter by completion date and map team members to their earnings
+          const filteredTeamBookings = teamBookingsData.filter((booking: any) => {
+            // Use completion date if available, otherwise use booking_date
+            const completionDate = booking.cleaner_completed_at 
+              ? new Date(booking.cleaner_completed_at).toISOString().split('T')[0]
+              : booking.booking_date;
+            
+            // Check if completion date falls within current month
+            return completionDate >= firstDayISO && completionDate < firstDayNextMonthISO;
+          });
+          
+          console.log(`📊 Found ${filteredTeamBookings.length} team completed bookings in current month`);
+          
+          // Step 5: Map team members to their earnings for completed bookings this month
+          const completedBookingIds = new Set(filteredTeamBookings.map(b => b.id));
           const teamIdToBookingId = new Map(teams.map(t => [t.id, t.booking_id]));
           
           teamBookings = allTeamMembers
@@ -124,8 +148,8 @@ export async function GET(req: Request) {
     const bookingCountMap = new Map<string, number>();
     
     // Process individual (non-team) bookings
-    if (monthlyBookings) {
-      monthlyBookings.forEach((booking: any) => {
+    if (filteredMonthlyBookings && filteredMonthlyBookings.length > 0) {
+      filteredMonthlyBookings.forEach((booking: any) => {
         // Only process valid UUID format cleaner_ids
         if (booking.cleaner_id && 
             /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(booking.cleaner_id)) {
@@ -160,13 +184,22 @@ export async function GET(req: Request) {
     }
     
     // Attach monthly earnings and booking counts to cleaners
-    const cleanersWithEarnings = (cleaners || []).map((cleaner: any) => ({
-      ...cleaner,
-      monthly_earnings: earningsMap.get(cleaner.id) || 0,
-      completed_bookings_count: bookingCountMap.get(cleaner.id) || 0,
-    }));
+    const cleanersWithEarnings = (cleaners || []).map((cleaner: any) => {
+      const earnings = earningsMap.get(cleaner.id) || 0;
+      const count = bookingCountMap.get(cleaner.id) || 0;
+      return {
+        ...cleaner,
+        monthly_earnings: earnings,
+        completed_bookings_count: count,
+      };
+    });
     
-    console.log(`✅ Fetched ${cleanersWithEarnings.length} cleaners with monthly earnings`);
+    // Log summary statistics
+    const cleanersWithEarningsCount = cleanersWithEarnings.filter(c => c.monthly_earnings > 0).length;
+    const totalEarnings = cleanersWithEarnings.reduce((sum, c) => sum + (c.monthly_earnings || 0), 0);
+    console.log(`✅ Fetched ${cleanersWithEarnings.length} cleaners`);
+    console.log(`💰 ${cleanersWithEarningsCount} cleaners have earnings this month (${firstDayISO} to ${firstDayNextMonthISO})`);
+    console.log(`💰 Total monthly earnings: R${(totalEarnings / 100).toFixed(2)}`);
     
     return NextResponse.json({
       ok: true,

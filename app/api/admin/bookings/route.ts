@@ -300,11 +300,12 @@ export async function GET(req: Request) {
         // New bookings are pending bookings
         query = query.eq('status', 'pending');
       } else if (view === 'previous') {
-        // Previous bookings are completed, missed, or cancelled
-        query = query.in('status', ['completed', 'missed', 'cancelled']);
+        // Previous bookings are completed, missed, cancelled, or declined
+        query = query.in('status', ['completed', 'missed', 'cancelled', 'declined']);
       } else if (view === 'recurring') {
-        // Recurring bookings have a frequency field set
-        query = query.not('frequency', 'is', null);
+        // Recurring bookings have a recurring_schedule_id set (more reliable than frequency)
+        // Also check frequency as fallback for backwards compatibility
+        query = query.or('recurring_schedule_id.not.is.null,frequency.not.is.null');
       }
       // 'all' view doesn't add any filter
     }

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCleanerSession, createCleanerSupabaseClient } from '@/lib/cleaner-auth';
+import { getCleanerSession, createCleanerSupabaseClient, cleanerIdToUuid } from '@/lib/cleaner-auth';
+import { createServiceClient } from '@/lib/supabase-server';
+import { checkBookingAvailability } from '@/lib/availability-check';
 
 /**
  * Calculate distance between two coordinates (Haversine formula)
@@ -42,6 +44,8 @@ export async function GET(request: NextRequest) {
     const maxDistance = parseInt(searchParams.get('maxDistance') || '50'); // km
 
     const supabase = await createCleanerSupabaseClient();
+    const serviceSupabase = createServiceClient();
+    const cleanerId = cleanerIdToUuid(session.id);
 
     // Get cleaner details for area matching
     const { data: cleaner } = await supabase
@@ -49,6 +53,13 @@ export async function GET(request: NextRequest) {
       .select('areas, last_location_lat, last_location_lng')
       .eq('id', session.id)
       .single();
+
+    // Get availability preferences
+    const { data: preferences } = await serviceSupabase
+      .from('cleaner_availability_preferences')
+      .select('*')
+      .eq('cleaner_id', cleanerId)
+      .maybeSingle();
 
     if (!cleaner) {
       return NextResponse.json(
@@ -131,6 +142,20 @@ export async function GET(request: NextRequest) {
 
       // If we had real coordinates, we'd filter by distance:
       // filteredBookings = filteredBookings.filter(b => b.distance <= maxDistance);
+    }
+
+    // Filter by availability preferences if enabled
+    if (preferences && (preferences.auto_decline_outside_availability || preferences.auto_decline_below_min_value)) {
+      filteredBookings = filteredBookings.filter((booking: any) => {
+        const result = checkBookingAvailability(preferences, {
+          booking_date: booking.booking_date,
+          booking_time: booking.booking_time,
+          service_type: booking.service_type,
+          total_amount: booking.total_amount || 0,
+          distance_km: booking.distance || null,
+        });
+        return result.allowed;
+      });
     }
 
     return NextResponse.json({

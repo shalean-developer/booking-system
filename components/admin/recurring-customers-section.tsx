@@ -70,6 +70,9 @@ export function RecurringCustomersSection() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalCustomers, setTotalCustomers] = useState(0);
+  const [totalSchedules, setTotalSchedules] = useState(0);
+  const [activeSchedules, setActiveSchedules] = useState(0);
   const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null);
   const [customerSchedules, setCustomerSchedules] = useState<RecurringScheduleWithCustomer[]>([]);
   const [loadingSchedules, setLoadingSchedules] = useState(false);
@@ -99,6 +102,16 @@ export function RecurringCustomersSection() {
 
       setCustomers(data.customers || []);
       setTotalPages(data.pagination.totalPages);
+      setTotalCustomers(data.pagination.total || 0);
+      
+      // Use totalSchedules from API if available, otherwise calculate from current page
+      if (data.totalSchedules !== undefined) {
+        setTotalSchedules(data.totalSchedules);
+      } else {
+        const schedulesSum = (data.customers || []).reduce((sum: number, c: Customer) => sum + (c.recurring_schedules_count || 0), 0);
+        setTotalSchedules(schedulesSum);
+      }
+      
       setIsLoading(false);
     } catch (err) {
       console.error('Error fetching recurring customers:', err);
@@ -110,6 +123,24 @@ export function RecurringCustomersSection() {
     fetchCustomers();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
+
+  // Fetch active schedules count
+  useEffect(() => {
+    const fetchActiveSchedules = async () => {
+      try {
+        const response = await fetch('/api/admin/recurring-schedules?active=true&limit=1000', {
+          credentials: 'include',
+        });
+        const data = await response.json();
+        if (data.ok) {
+          setActiveSchedules(data.pagination?.total || data.schedules?.length || 0);
+        }
+      } catch (err) {
+        console.error('Error fetching active schedules count:', err);
+      }
+    };
+    fetchActiveSchedules();
+  }, []);
 
   const handleSearch = () => {
     setPage(1);
@@ -198,7 +229,7 @@ export function RecurringCustomersSection() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total Recurring Customers</p>
-                <p className="text-2xl font-bold">{customers.length}</p>
+                <p className="text-2xl font-bold">{totalCustomers || customers.length}</p>
               </div>
               <Repeat className="h-8 w-8 text-primary opacity-50" />
             </div>
@@ -209,9 +240,7 @@ export function RecurringCustomersSection() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total Schedules</p>
-                <p className="text-2xl font-bold">
-                  {customers.reduce((sum, c) => sum + (c.recurring_schedules_count || 0), 0)}
-                </p>
+                <p className="text-2xl font-bold">{totalSchedules}</p>
               </div>
               <Calendar className="h-8 w-8 text-primary opacity-50" />
             </div>
@@ -222,9 +251,7 @@ export function RecurringCustomersSection() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Active Schedules</p>
-                <p className="text-2xl font-bold">
-                  {customers.filter(c => (c.recurring_schedules_count || 0) > 0).length}
-                </p>
+                <p className="text-2xl font-bold">{activeSchedules}</p>
               </div>
               <CheckCircle className="h-8 w-8 text-green-500 opacity-50" />
             </div>

@@ -75,7 +75,7 @@ export function ScheduleSection() {
       bookingDate.setHours(0, 0, 0, 0);
       
       // Only show upcoming bookings with active statuses
-      if (bookingDate < today || !['pending', 'accepted', 'confirmed', 'ongoing'].includes(b.status)) {
+      if (bookingDate < today || !['pending', 'accepted', 'ongoing'].includes(b.status)) {
         return false;
       }
       
@@ -127,10 +127,8 @@ export function ScheduleSection() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'confirmed':
-        return 'bg-green-100 text-green-800';
       case 'accepted':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-green-100 text-green-800';
       case 'pending':
         return 'bg-yellow-100 text-yellow-800';
       case 'ongoing':

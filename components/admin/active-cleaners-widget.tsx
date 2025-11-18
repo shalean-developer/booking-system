@@ -69,7 +69,7 @@ export function ActiveCleanersWidget({ totalCleaners }: ActiveCleanersWidgetProp
             <div className="flex flex-col items-center gap-1 sm:flex-row sm:text-left sm:gap-2">
               <User className="h-4 w-4 sm:h-5 sm:w-5" />
               <div className="flex flex-col items-center sm:flex-row sm:items-center">
-                <span className="leading-tight">Active Cleaners</span>
+                <span className="leading-tight">Available Cleaners Today</span>
                 <span className="text-xs font-normal text-gray-500 sm:ml-1 sm:text-sm">
                   ({isLoading ? 0 : cleaners.length})
                 </span>
@@ -102,12 +102,12 @@ export function ActiveCleanersWidget({ totalCleaners }: ActiveCleanersWidgetProp
         <CardTitle className="flex items-center justify-between text-sm font-semibold sm:text-base">
           <div className="flex flex-col items-center gap-1 sm:flex-row sm:text-left sm:gap-2">
             <User className="h-4 w-4 sm:h-5 sm:w-5" />
-            <div className="flex flex-col items-center sm:flex-row sm:items-center">
-              <span className="leading-tight">Active Cleaners</span>
-              <span className="text-xs font-normal text-gray-500 sm:ml-1 sm:text-sm">
-                ({isLoading ? 0 : cleaners.length})
-              </span>
-            </div>
+              <div className="flex flex-col items-center sm:flex-row sm:items-center">
+                <span className="leading-tight">Available Cleaners Today</span>
+                <span className="text-xs font-normal text-gray-500 sm:ml-1 sm:text-sm">
+                  ({isLoading ? 0 : cleaners.length})
+                </span>
+              </div>
           </div>
           {isExpanded ? (
             <ChevronUp className="h-3.5 w-3.5 text-gray-500 sm:h-4 sm:w-4" />
@@ -122,7 +122,7 @@ export function ActiveCleanersWidget({ totalCleaners }: ActiveCleanersWidgetProp
           {cleaners.length === 0 ? (
             <div className="py-6 text-center text-xs text-gray-500 sm:py-8 sm:text-sm">
               <User className="mx-auto mb-2 h-7 w-7 text-gray-400 sm:h-8 sm:w-8" />
-              <p>No active cleaners</p>
+              <p>No cleaners available today</p>
             </div>
           ) : (
             cleaners.map((cleaner) => (

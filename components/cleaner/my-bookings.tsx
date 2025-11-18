@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { BookingCard } from './booking-card';
 import { BookingDetailsModal } from './booking-details-modal';
 import { RateCustomerModal } from './rate-customer-modal';
-import { Loader2, Clock } from 'lucide-react';
+import { BookingCardSkeleton } from './booking-card-skeleton';
+import { Loader2, Clock, AlertCircle } from 'lucide-react';
 import type { CleanerBooking } from '@/types/booking';
 import { createClient as createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { Button } from '@/components/ui/button';
@@ -54,7 +55,14 @@ export function MyBookings() {
       setBookings(data.bookings);
     } catch (err) {
       console.error('Error fetching bookings:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load bookings');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load bookings';
+      
+      // Check if it's a network error
+      if (errorMessage.includes('network') || errorMessage.includes('fetch') || errorMessage.includes('Failed to fetch')) {
+        setError('Network error. Please check your connection and try again.');
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -298,7 +306,9 @@ export function MyBookings() {
     (b) => ['pending', 'accepted', 'on_my_way', 'in-progress'].includes(b.status)
   );
 
-  const pastBookings = bookings.filter((b) => b.status === 'completed' || b.status === 'cancelled');
+  const pastBookings = bookings.filter((b) => 
+    ['completed', 'cancelled', 'declined', 'missed'].includes(b.status)
+  );
 
   // Sort by date and time
   const sortBookings = (bookingsList: Booking[]) => {
@@ -311,8 +321,10 @@ export function MyBookings() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-[#3b82f6]" />
+      <div className="space-y-4">
+        {[1, 2, 3].map((i) => (
+          <BookingCardSkeleton key={i} />
+        ))}
       </div>
     );
   }
@@ -320,13 +332,19 @@ export function MyBookings() {
   if (error) {
     return (
       <div className="text-center py-12 px-4">
-        <div className="text-red-600 mb-4">{error}</div>
-        <button 
+        <div className="flex flex-col items-center gap-3 mb-4">
+          <AlertCircle className="h-12 w-12 text-red-500" />
+          <div className="space-y-1">
+            <p className="text-red-600 font-medium">Failed to load bookings</p>
+            <p className="text-sm text-gray-500">{error}</p>
+          </div>
+        </div>
+        <Button 
           onClick={() => fetchBookings()} 
-          className="px-4 py-2 bg-[#3b82f6] text-white rounded-md hover:bg-[#2563eb] transition-colors"
+          className="bg-[#3b82f6] hover:bg-[#2563eb] text-white"
         >
           Try Again
-        </button>
+        </Button>
       </div>
     );
   }
@@ -339,11 +357,13 @@ export function MyBookings() {
           <div className="flex gap-8">
           <button
             onClick={() => setActiveTab('current')}
-            className={`py-3 text-sm font-medium relative transition-colors ${
+            className={`py-3 text-sm font-medium relative transition-all duration-200 ${
               activeTab === 'current'
                 ? 'text-[#3b82f6]'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
+            aria-label="View current bookings"
+            aria-current={activeTab === 'current' ? 'page' : undefined}
           >
             CURRENT
             {activeTab === 'current' && (
@@ -352,11 +372,13 @@ export function MyBookings() {
           </button>
           <button
             onClick={() => setActiveTab('past')}
-            className={`py-3 text-sm font-medium relative transition-colors ${
+            className={`py-3 text-sm font-medium relative transition-all duration-200 ${
               activeTab === 'past'
                 ? 'text-[#3b82f6]'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
+            aria-label="View past bookings"
+            aria-current={activeTab === 'past' ? 'page' : undefined}
           >
             PAST
             {activeTab === 'past' && (
