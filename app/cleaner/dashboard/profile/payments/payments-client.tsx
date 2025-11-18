@@ -166,9 +166,6 @@ export function PaymentsClient({ cleaner }: PaymentsClientProps) {
         'booking_time',
         'service_type',
         'status',
-        'total_amount_rand',
-        'service_fee_rand',
-        'service_subtotal_rand',
         'tip_amount_rand',
         'commission_earnings_rand',
         'cleaner_earnings_rand',
@@ -179,7 +176,6 @@ export function PaymentsClient({ cleaner }: PaymentsClientProps) {
         'created_at',
       ];
       const rows = transactions.map((t) => {
-        const serviceSubtotal = t.service_subtotal ?? Math.max((t.total_amount || 0) - (t.service_fee || 0) - (t.tip_amount || 0), 0);
         const commission = t.commission_earnings ?? Math.max((t.cleaner_earnings || 0) - (t.tip_amount || 0), 0);
         return [
           t.id,
@@ -187,9 +183,6 @@ export function PaymentsClient({ cleaner }: PaymentsClientProps) {
           formatTime(t.booking_time),
           (t.service_type || '').replace('-', ' '),
           t.status,
-          toRand(t.total_amount),
-          toRand(t.service_fee),
-          toRand(serviceSubtotal),
           toRand(t.tip_amount),
           toRand(commission),
           toRand(t.cleaner_earnings),
@@ -427,12 +420,6 @@ export function PaymentsClient({ cleaner }: PaymentsClientProps) {
                             <div className="text-[10px] uppercase tracking-wide text-yellow-700">Tip</div>
                             <div className="font-semibold text-yellow-700 text-[11px]">
                               {formatCurrency(transaction.tip_amount || 0)}
-                            </div>
-                          </div>
-                          <div className="rounded-md bg-blue-50 border border-blue-100 px-2 py-1 min-w-[140px] flex-1">
-                            <div className="text-[10px] uppercase tracking-wide text-blue-700">Subtotal</div>
-                            <div className="font-semibold text-blue-700">
-                              {formatCurrency(transaction.service_subtotal ?? Math.max((transaction.total_amount || 0) - (transaction.service_fee || 0) - (transaction.tip_amount || 0), 0))}
                             </div>
                           </div>
                         </div>
