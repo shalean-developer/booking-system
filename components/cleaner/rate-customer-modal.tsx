@@ -32,6 +32,7 @@ export function RateCustomerModal({
   onClose,
   onSubmit,
 }: RateCustomerModalProps) {
+  // All hooks must be called before any conditional returns
   const [rating, setRating] = useState(5);
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -58,7 +59,11 @@ export function RateCustomerModal({
     onClose();
   };
 
+  // Early return after all hooks are called
   if (!booking) return null;
+  
+  // TypeScript type guard: booking is now guaranteed to be non-null
+  const bookingData = booking;
 
   const displayRating = hoverRating || rating;
 
@@ -67,9 +72,9 @@ export function RateCustomerModal({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Rate Customer</DialogTitle>
-          {booking.customer_name && (
+          {bookingData.customer_name && (
             <p className="text-sm text-gray-600 mt-1">
-              How was your experience with {booking.customer_name}?
+              How was your experience with {bookingData.customer_name}?
             </p>
           )}
         </DialogHeader>

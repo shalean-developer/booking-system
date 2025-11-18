@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Loader2, Image as ImageIcon, AlertCircle, MessageSquare } from 'lucide-react';
@@ -26,6 +26,7 @@ interface BookingChatProps {
 }
 
 export function BookingChat({ bookingId, cleanerName, customerName }: BookingChatProps) {
+  // All hooks must be called first
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
@@ -34,8 +35,8 @@ export function BookingChat({ bookingId, cleanerName, customerName }: BookingCha
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createSupabaseBrowserClient();
 
-  // Fetch messages
-  const fetchMessages = async () => {
+  // Define fetchMessages with useCallback to ensure stable reference and consistent hook order
+  const fetchMessages = useCallback(async () => {
     try {
       const response = await fetch(`/api/cleaner/bookings/${bookingId}/messages`);
       const data = await response.json();
@@ -51,7 +52,7 @@ export function BookingChat({ bookingId, cleanerName, customerName }: BookingCha
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [bookingId]);
 
   // Subscribe to new messages via Supabase Realtime
   useEffect(() => {
@@ -94,7 +95,7 @@ export function BookingChat({ bookingId, cleanerName, customerName }: BookingCha
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [bookingId]);
+  }, [bookingId, fetchMessages, supabase]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
