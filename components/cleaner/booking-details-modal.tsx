@@ -63,9 +63,8 @@ export function BookingDetailsModal({
   isOpen,
   onClose,
 }: BookingDetailsModalProps) {
+  // All hooks must be called before any conditional returns
   const [activeTab, setActiveTab] = useState('details');
-  
-  if (!booking) return null;
 
   // Checklist (service-type presets) with local persistence per booking
   const defaultChecklistByService: Record<string, string[]> = {
@@ -445,6 +444,7 @@ export function BookingDetailsModal({
   };
 
   const getFullAddress = () => {
+    if (!booking) return '';
     return [booking.address_line1, booking.address_suburb, booking.address_city]
       .filter(Boolean)
       .join(', ');
@@ -457,6 +457,7 @@ export function BookingDetailsModal({
   };
 
   const getStatusBadge = () => {
+    if (!booking) return null;
     switch (booking.status) {
       case 'pending':
         return (
@@ -477,7 +478,7 @@ export function BookingDetailsModal({
           </Badge>
         );
       default:
-        return <Badge>{booking.status}</Badge>;
+        return <Badge>{bookingData.status}</Badge>;
     }
   };
 
@@ -503,6 +504,12 @@ export function BookingDetailsModal({
     return days[day];
   };
 
+  // Early return after all hooks are called
+  if (!booking) return null;
+
+  // TypeScript type guard: booking is now guaranteed to be non-null
+  const bookingData = booking;
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -512,7 +519,7 @@ export function BookingDetailsModal({
               <DialogTitle className="text-xl mb-2">
                 Booking Details
               </DialogTitle>
-              <div className="text-sm text-gray-500">ID: {booking.id}</div>
+              <div className="text-sm text-gray-500">ID: {bookingData.id}</div>
             </div>
             {getStatusBadge()}
           </div>
@@ -542,19 +549,19 @@ export function BookingDetailsModal({
               <div>
                 <div className="text-sm text-gray-500">Service Type</div>
                 <div className="font-medium">
-                  {booking.service_type || 'Cleaning Service'}
+                  {bookingData.service_type || 'Cleaning Service'}
                 </div>
               </div>
               <div>
                 <div className="text-sm text-gray-500">Your Earnings</div>
                 <div className="font-medium text-primary">
-                  {formatAmount(booking.cleaner_earnings)}
+                  {formatAmount(bookingData.cleaner_earnings)}
                 </div>
                 {/* Show tip only if customer gave a tip */}
-                {booking.tip_amount && booking.tip_amount > 0 && (
+                {bookingData.tip_amount && bookingData.tip_amount > 0 && (
                   <div className="text-xs text-yellow-600 font-medium mt-1 flex items-center gap-1">
                     <span>💰</span>
-                    <span>+{formatAmount(booking.tip_amount)} tip</span>
+                    <span>+{formatAmount(bookingData.tip_amount)} tip</span>
                   </div>
                 )}
               </div>
@@ -580,7 +587,7 @@ export function BookingDetailsModal({
           </div>
 
           {/* Recurring Schedule Info */}
-          {booking.recurring_schedule && (
+          {bookingData.recurring_schedule && (
             <div className="space-y-3">
               <h3 className="font-semibold text-gray-900 flex items-center gap-2">
                 <Repeat className="h-5 w-5" />
@@ -589,42 +596,42 @@ export function BookingDetailsModal({
               <div className="ml-7 space-y-2">
                 <div className="flex items-center gap-2">
                   <Badge className="bg-blue-100 text-blue-800 border-blue-200">
-                    {getFrequencyLabel(booking.recurring_schedule.frequency)}
+                    {getFrequencyLabel(bookingData.recurring_schedule.frequency)}
                   </Badge>
-                  {!booking.recurring_schedule.is_active && (
+                  {!bookingData.recurring_schedule.is_active && (
                     <Badge variant="outline" className="bg-gray-100">
                       Paused
                     </Badge>
                   )}
                 </div>
                 <div className="text-sm space-y-1">
-                  {booking.recurring_schedule.day_of_week !== null && booking.recurring_schedule.day_of_week !== undefined ? (
+                  {bookingData.recurring_schedule.day_of_week !== null && bookingData.recurring_schedule.day_of_week !== undefined ? (
                     <div>
                       <span className="text-gray-500">Repeats on:</span>{' '}
                       <span className="font-medium">
-                        {getDayOfWeekLabel(booking.recurring_schedule.day_of_week)}
+                        {getDayOfWeekLabel(bookingData.recurring_schedule.day_of_week)}
                       </span>
                     </div>
                   ) : null}
-                  {booking.recurring_schedule.day_of_month !== undefined && (
+                  {bookingData.recurring_schedule.day_of_month !== undefined && (
                     <div>
                       <span className="text-gray-500">Day of month:</span>{' '}
                       <span className="font-medium">
-                        {booking.recurring_schedule.day_of_month}
+                        {bookingData.recurring_schedule.day_of_month}
                       </span>
                     </div>
                   )}
                   <div>
                     <span className="text-gray-500">Started:</span>{' '}
                     <span className="font-medium">
-                      {new Date(booking.recurring_schedule.start_date).toLocaleDateString('en-ZA')}
+                      {new Date(bookingData.recurring_schedule.start_date).toLocaleDateString('en-ZA')}
                     </span>
                   </div>
-                  {booking.recurring_schedule.end_date && (
+                  {bookingData.recurring_schedule.end_date && (
                     <div>
                       <span className="text-gray-500">Ends:</span>{' '}
                       <span className="font-medium">
-                        {new Date(booking.recurring_schedule.end_date).toLocaleDateString('en-ZA')}
+                        {new Date(bookingData.recurring_schedule.end_date).toLocaleDateString('en-ZA')}
                       </span>
                     </div>
                   )}
@@ -764,31 +771,31 @@ export function BookingDetailsModal({
               Customer Information
             </h3>
             <div className="space-y-2 ml-7">
-              {booking.customer_name && (
+              {bookingData.customer_name && (
                 <div className="flex items-center gap-2">
                   <User className="h-4 w-4 text-gray-400" />
-                  <span>{booking.customer_name}</span>
+                  <span>{bookingData.customer_name}</span>
                 </div>
               )}
-              {booking.customer_phone && (
+              {bookingData.customer_phone && (
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-gray-400" />
                   <a
-                    href={`tel:${booking.customer_phone}`}
+                    href={`tel:${bookingData.customer_phone}`}
                     className="text-primary hover:underline"
                   >
-                    {booking.customer_phone}
+                    {bookingData.customer_phone}
                   </a>
                 </div>
               )}
-              {booking.customer_email && (
+              {bookingData.customer_email && (
                 <div className="flex items-center gap-2">
                   <Mail className="h-4 w-4 text-gray-400" />
                   <a
-                    href={`mailto:${booking.customer_email}`}
+                    href={`mailto:${bookingData.customer_email}`}
                     className="text-primary hover:underline"
                   >
-                    {booking.customer_email}
+                    {bookingData.customer_email}
                   </a>
                 </div>
               )}
@@ -846,9 +853,9 @@ export function BookingDetailsModal({
 
           <TabsContent value="chat" className="py-4">
             <BookingChat
-              bookingId={booking.id}
+              bookingId={bookingData.id}
               cleanerName="You"
-              customerName={booking.customer_name || undefined}
+              customerName={bookingData.customer_name || undefined}
             />
           </TabsContent>
 
