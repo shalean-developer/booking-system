@@ -39,6 +39,28 @@ export function MyBookings() {
   const [reschedNotes, setReschedNotes] = useState('');
   const [reschedBookingId, setReschedBookingId] = useState<string | null>(null);
 
+  // Track current cleaner id from fetched bookings (first non-null we see)
+  const [listenerCleanerId, setListenerCleanerId] = useState<string | null>(null);
+
+  // Basic retry helper - defined before hooks to ensure consistent hook order
+  const requestWithRetry = async (url: string, init: RequestInit, retries = 2): Promise<Response> => {
+    let lastError: any = null;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const res = await fetch(url, init);
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          throw new Error(`${res.status} ${res.statusText} ${text}`.trim());
+        }
+        return res;
+      } catch (err) {
+        lastError = err;
+        await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+      }
+    }
+    throw lastError || new Error('Request failed');
+  };
+
   const fetchBookings = async () => {
     setIsLoading(true);
     setError(null);
@@ -68,21 +90,22 @@ export function MyBookings() {
     }
   };
 
-  // Track current cleaner id from fetched bookings (first non-null we see)
-  const [listenerCleanerId, setListenerCleanerId] = useState<string | null>(null);
-
   useEffect(() => {
-    fetchBookings().then(() => {
-      const firstWithCleaner = bookings.find((b) => !!b.cleaner_id);
-      if (firstWithCleaner?.cleaner_id && firstWithCleaner.cleaner_id !== listenerCleanerId) {
-        setListenerCleanerId(firstWithCleaner.cleaner_id);
-      }
-    });
+    fetchBookings();
     const onFocus = () => fetchBookings();
     document.addEventListener('visibilitychange', onFocus);
     return () => document.removeEventListener('visibilitychange', onFocus);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Update listenerCleanerId when bookings change
+  useEffect(() => {
+    const firstWithCleaner = bookings.find((b) => !!b.cleaner_id);
+    if (firstWithCleaner?.cleaner_id && firstWithCleaner.cleaner_id !== listenerCleanerId) {
+      setListenerCleanerId(firstWithCleaner.cleaner_id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookings]);
 
   // Realtime subscription, scoped to cleaner_id when known
   useEffect(() => {
@@ -118,25 +141,6 @@ export function MyBookings() {
     // re-subscribe when cleanerId known/changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listenerCleanerId]);
-
-  // Basic retry helper
-  const requestWithRetry = async (url: string, init: RequestInit, retries = 2): Promise<Response> => {
-    let lastError: any = null;
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      try {
-        const res = await fetch(url, init);
-        if (!res.ok) {
-          const text = await res.text().catch(() => '');
-          throw new Error(`${res.status} ${res.statusText} ${text}`.trim());
-        }
-        return res;
-      } catch (err) {
-        lastError = err;
-        await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
-      }
-    }
-    throw lastError || new Error('Request failed');
-  };
 
   const handleStart = async (bookingId: string) => {
     try {
