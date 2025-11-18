@@ -394,9 +394,6 @@ export function PaymentsClient({ cleaner }: PaymentsClientProps) {
                             <div className="text-sm font-bold text-[#3b82f6]">
                               {formatCurrency(transaction.cleaner_earnings)}
                             </div>
-                            <div className="text-xs text-gray-500">
-                              of {formatCurrency(transaction.total_amount)}
-                            </div>
                           </div>
                         </div>
 

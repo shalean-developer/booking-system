@@ -162,17 +162,17 @@ export async function GET(request: NextRequest) {
     // Calculate totals
     const transactions = (bookings || []).map((b: any) => {
       const tip = b.tip_amount || 0;
-      const total = b.total_amount || 0;
-      const serviceFee = b.service_fee || 0;
       const cleanerEarnings = b.cleaner_earnings || 0;
       const commissionEarnings = Math.max(cleanerEarnings - tip, 0);
-      const serviceSubtotal = Math.max(total - serviceFee - tip, 0);
 
       return {
         ...b,
         tip_amount: tip,
         commission_earnings: commissionEarnings,
-        service_subtotal: serviceSubtotal,
+        // Remove total_amount, service_fee, and service_subtotal from response
+        total_amount: undefined,
+        service_fee: undefined,
+        service_subtotal: undefined,
       };
     });
 
