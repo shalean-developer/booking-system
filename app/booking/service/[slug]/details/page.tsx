@@ -23,22 +23,14 @@ export default function DetailsPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Debug banner - should always be visible at top */}
-      <div className="bg-purple-500 text-white p-4 text-center font-bold text-xl">
-        🚨 PAGE IS LOADING - If you see this, the page is working
-      </div>
       <div className="mx-auto max-w-7xl px-4 py-8 md:py-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="md:col-span-2">
             <Stepper currentStep={state.currentStep} />
             <StepServiceDetails />
           </div>
-          {/* Always visible test - should appear even on mobile */}
-          <div className="border-4 border-red-500 p-8 bg-yellow-200 min-h-[300px] md:col-span-1">
-            <h2 className="text-2xl font-bold text-red-700 mb-4">🧪 TEST: Grid Column</h2>
-            <p className="text-lg text-gray-800 mb-4">This should be visible on ALL screen sizes</p>
-            <div className="mt-4 p-4 bg-blue-100 border-2 border-blue-500">
-              <p className="font-bold text-blue-700 mb-2">BookingSummaryV2 Component:</p>
+          <div className="md:col-span-1">
+            <div className="hidden md:block">
               <BookingSummaryV2 />
             </div>
           </div>

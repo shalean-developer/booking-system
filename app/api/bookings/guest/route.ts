@@ -162,6 +162,44 @@ export async function POST(req: Request) {
       );
     }
 
+    // Log tip activity if tip was given and cleaner is assigned
+    if (tipAmountInCents > 0 && cleanerIdForInsert) {
+      try {
+        // Get cleaner name for activity log
+        const { data: cleaner } = await supabase
+          .from('cleaners')
+          .select('name')
+          .eq('id', cleanerIdForInsert)
+          .single();
+
+        if (cleaner) {
+          // Insert tip activity log record
+          const { error: tipActivityError } = await supabase
+            .from('booking_activities')
+            .insert({
+              booking_id: bookingId,
+              cleaner_id: cleanerIdForInsert,
+              cleaner_name: cleaner.name,
+              old_status: null, // No status change for tips
+              new_status: 'pending', // Current booking status
+              action_type: 'tip_received',
+              tip_amount: tipAmountInCents,
+              customer_name: `${body.firstName} ${body.lastName}`,
+            });
+
+          if (tipActivityError) {
+            // Log error but don't fail the booking
+            console.error('⚠️ Failed to log tip activity:', tipActivityError);
+          } else {
+            console.log(`✅ Tip activity logged: ${cleaner.name} received R${(tipAmountInCents / 100).toFixed(2)} tip from ${body.firstName} ${body.lastName}`);
+          }
+        }
+      } catch (tipLogError) {
+        // Log error but don't fail the booking
+        console.error('⚠️ Error logging tip activity:', tipLogError);
+      }
+    }
+
     // Create team record if needed
     if (requiresTeam && body.selected_team) {
       await supabase

@@ -3,7 +3,7 @@ import { createMetadata } from "@/lib/metadata";
 import { generateCanonical, generateOgImageUrl } from "@/lib/metadata";
 import { Header } from "@/components/header";
 import { PricingContent } from "./pricing-content";
-import { HomeFooter } from "@/components/home-footer";
+import { HomeFooterClient } from "@/components/home-footer-client";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 
 export const metadata: Metadata = createMetadata({
@@ -38,7 +38,7 @@ export default function PricingPage() {
         <Breadcrumbs items={breadcrumbItems} />
       </div>
       <PricingContent />
-      <HomeFooter />
+      <HomeFooterClient />
     </div>
   );
 }

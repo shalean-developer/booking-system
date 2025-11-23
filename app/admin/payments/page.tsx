@@ -1,261 +1,298 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { CreditCard, Download, Filter } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { PageHeader } from '@/components/admin/shared/page-header';
+import { FilterBar, FilterConfig } from '@/components/admin/shared/filter-bar';
+import { DataTable, Column } from '@/components/admin/shared/data-table';
+import { EmptyState } from '@/components/admin/shared/empty-state';
+import { LoadingState } from '@/components/admin/shared/loading-state';
+import { ExportButton } from '@/components/admin/shared/export-button';
+import { StatCard } from '@/components/admin/shared/stat-card';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { format } from 'date-fns';
+import { DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 
 interface Payment {
   id: string;
   booking_id: string;
+  customer_name: string;
   amount: number;
-  reference: string;
   status: string;
+  payment_method: string;
   created_at: string;
-  customer_name?: string;
+  transaction_id?: string;
 }
 
-export default function PaymentsPage() {
+const statusColors: Record<string, string> = {
+  pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  processing: 'bg-blue-100 text-blue-800 border-blue-200',
+  completed: 'bg-green-100 text-green-800 border-green-200',
+  failed: 'bg-red-100 text-red-800 border-red-200',
+  refunded: 'bg-gray-100 text-gray-800 border-gray-200',
+};
+
+export default function AdminPaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [dateFilter, setDateFilter] = useState('30');
+  const [isLoading, setIsLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebouncedValue(searchQuery, 500);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [stats, setStats] = useState<any>(null);
+  const pageSize = 20;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, statusFilter]);
 
   useEffect(() => {
     fetchPayments();
-  }, [statusFilter, dateFilter]);
+    fetchStats();
+  }, [currentPage, debouncedSearch, statusFilter]);
 
   const fetchPayments = async () => {
     try {
-      setLoading(true);
-      
-      // Fetch bookings with payment references
+      setIsLoading(true);
+      const offset = (currentPage - 1) * pageSize;
       const params = new URLSearchParams({
-        limit: '100',
-        ...(statusFilter !== 'all' && { status: statusFilter }),
+        limit: pageSize.toString(),
+        offset: offset.toString(),
       });
       
-      const response = await fetch(`/api/admin/bookings?${params}`);
+      if (statusFilter && statusFilter !== 'all') {
+        params.append('status', statusFilter);
+      }
+      
+      if (debouncedSearch) {
+        params.append('search', debouncedSearch);
+      }
+
+      const url = `/api/admin/payments?${params.toString()}`;
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
 
-      if (data.ok && data.bookings) {
-        // Transform bookings with payment references into payments
-        const paymentsList: Payment[] = data.bookings
-          .filter((booking: any) => booking.payment_reference)
-          .map((booking: any) => ({
-            id: booking.id,
-            booking_id: booking.id,
-            amount: booking.total_amount || 0,
-            reference: booking.payment_reference || '',
-            status: booking.status === 'completed' ? 'successful' : 
-                   booking.status === 'cancelled' ? 'failed' : 'pending',
-            created_at: booking.created_at,
-            customer_name: booking.customer_name,
-          }));
-
-        // Filter by date if needed
-        if (dateFilter !== 'all') {
-          const daysBack = parseInt(dateFilter);
-          const cutoffDate = new Date();
-          cutoffDate.setDate(cutoffDate.getDate() - daysBack);
-          
-          setPayments(
-            paymentsList.filter(
-              (p) => new Date(p.created_at) >= cutoffDate
-            )
-          );
-        } else {
-          setPayments(paymentsList);
-        }
+      if (data.ok) {
+        setPayments(data.payments || []);
+        setTotal(data.total || 0);
+        setTotalPages(data.totalPages || 1);
+      } else {
+        console.error('API error:', data.error);
+        setPayments([]);
+        setTotal(0);
+        setTotalPages(1);
       }
     } catch (error) {
       console.error('Error fetching payments:', error);
+      setPayments([]);
+      setTotal(0);
+      setTotalPages(1);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-ZA', {
-      style: 'currency',
-      currency: 'ZAR',
-    }).format(amount / 100); // Convert cents to rands
+  const fetchStats = async () => {
+    try {
+      const response = await fetch('/api/admin/payments/stats');
+      const data = await response.json();
+      if (data.ok) {
+        setStats(data.stats);
+      }
+    } catch (error) {
+      console.error('Error fetching payment stats:', error);
+    }
+  };
+
+  const formatCurrency = (cents: number) => {
+    return `R${(cents / 100).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   const formatDate = (dateString: string) => {
-    try {
-      return format(new Date(dateString), 'MMM d, yyyy HH:mm');
-    } catch {
-      return dateString;
-    }
+    return new Date(dateString).toLocaleDateString('en-ZA', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
-  const getStatusBadge = (status: string) => {
-    const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-      successful: { label: 'Successful', variant: 'default' },
-      pending: { label: 'Pending', variant: 'secondary' },
-      failed: { label: 'Failed', variant: 'destructive' },
-    };
+  const handleExport = () => {
+    const csvContent = [
+      ['Date', 'Customer', 'Booking ID', 'Amount', 'Status', 'Method', 'Transaction ID'].join(','),
+      ...payments.map((p) =>
+        [
+          formatDate(p.created_at),
+          p.customer_name || 'Unknown',
+          p.booking_id || 'N/A',
+          formatCurrency(p.amount || 0),
+          p.status || 'unknown',
+          p.payment_method || 'unknown',
+          p.transaction_id || '',
+        ].join(',')
+      ),
+    ].join('\n');
 
-    const statusInfo = statusMap[status.toLowerCase()] || { label: status, variant: 'outline' as const };
-    return <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>;
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `payments-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
   };
 
-  const totalRevenue = payments
-    .filter((p) => p.status === 'successful')
-    .reduce((sum, p) => sum + p.amount, 0);
+  const filterConfigs: FilterConfig[] = [
+    {
+      key: 'status',
+      label: 'Status',
+      type: 'select',
+      options: [
+        { label: 'Pending', value: 'pending' },
+        { label: 'Processing', value: 'processing' },
+        { label: 'Completed', value: 'completed' },
+        { label: 'Failed', value: 'failed' },
+        { label: 'Refunded', value: 'refunded' },
+      ],
+    },
+  ];
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-sm text-gray-500">Loading payments...</p>
-        </div>
-      </div>
-    );
-  }
+  const columns: Column<Payment>[] = [
+    {
+      id: 'date',
+      header: 'Date',
+      accessor: (row) => (
+        <span className="text-sm text-gray-600">{formatDate(row.created_at)}</span>
+      ),
+    },
+    {
+      id: 'customer',
+      header: 'Customer',
+      accessor: (row) => (
+        <span className="font-medium text-gray-900">{row.customer_name}</span>
+      ),
+    },
+    {
+      id: 'booking',
+      header: 'Booking ID',
+      accessor: (row) => (
+        <span className="text-sm text-gray-600 font-mono">
+          {row.booking_id ? `${row.booking_id.slice(0, 8)}...` : 'N/A'}
+        </span>
+      ),
+    },
+    {
+      id: 'amount',
+      header: 'Amount',
+      accessor: (row) => (
+        <span className="font-semibold text-gray-900">{formatCurrency(row.amount)}</span>
+      ),
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      accessor: (row) => (
+        <Badge variant="outline" className={statusColors[row.status] || statusColors.pending}>
+          {row.status}
+        </Badge>
+      ),
+    },
+    {
+      id: 'method',
+      header: 'Payment Method',
+      accessor: (row) => (
+        <span className="text-sm text-gray-600 capitalize">{row.payment_method}</span>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Payments</h1>
-        <p className="text-gray-600 mt-1">View payment history and transaction details</p>
-      </div>
+      <PageHeader
+        title="Payments"
+        description={`Manage and view all payment transactions (${total} total)`}
+        breadcrumbs={[
+          { label: 'Admin', href: '/admin' },
+          { label: 'Payments' },
+        ]}
+        actions={<ExportButton onExport={handleExport} />}
+      />
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">
-              Total Revenue
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(totalRevenue)}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">
-              Successful Payments
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {payments.filter((p) => p.status === 'successful').length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">
-              Pending Payments
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {payments.filter((p) => p.status === 'pending').length}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {stats && (
+        <div className="grid gap-4 md:grid-cols-4">
+          <StatCard
+            title="Total Revenue"
+            value={stats.totalRevenue ? formatCurrency(stats.totalRevenue) : 'R0.00'}
+            icon={DollarSign}
+            iconColor="text-green-600"
+          />
+          <StatCard
+            title="This Month"
+            value={stats.monthRevenue ? formatCurrency(stats.monthRevenue) : 'R0.00'}
+            icon={TrendingUp}
+            iconColor="text-blue-600"
+            delta={stats.monthGrowth}
+            deltaLabel="from last month"
+          />
+          <StatCard
+            title="Pending"
+            value={stats.pendingCount || 0}
+            icon={DollarSign}
+            iconColor="text-yellow-600"
+          />
+          <StatCard
+            title="Failed"
+            value={stats.failedCount || 0}
+            icon={TrendingDown}
+            iconColor="text-red-600"
+          />
+        </div>
+      )}
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Payment History</CardTitle>
-            <div className="flex items-center gap-4">
-              <Select value={dateFilter} onValueChange={setDateFilter}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Date Range" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="7">Last 7 days</SelectItem>
-                  <SelectItem value="30">Last 30 days</SelectItem>
-                  <SelectItem value="90">Last 90 days</SelectItem>
-                  <SelectItem value="all">All time</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="successful">Successful</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="failed">Failed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Booking ID</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Reference</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {payments.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-gray-500 py-8">
-                    No payments found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                payments.map((payment) => (
-                  <TableRow key={payment.id}>
-                    <TableCell>{formatDate(payment.created_at)}</TableCell>
-                    <TableCell>{payment.customer_name || 'N/A'}</TableCell>
-                    <TableCell className="font-mono text-sm">
-                      {payment.booking_id}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {formatCurrency(payment.amount)}
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">
-                      {payment.reference}
-                    </TableCell>
-                    <TableCell>{getStatusBadge(payment.status)}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <FilterBar
+        searchPlaceholder="Search by customer name or booking ID..."
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        filters={filterConfigs}
+        filterValues={{ status: statusFilter }}
+        onFilterChange={(key, value) => {
+          if (key === 'status') {
+            setStatusFilter(value);
+            setCurrentPage(1);
+          }
+        }}
+        onClear={() => {
+          setSearchQuery('');
+          setStatusFilter('');
+          setCurrentPage(1);
+        }}
+      />
+
+      {isLoading ? (
+        <LoadingState rows={5} columns={6} variant="table" />
+      ) : payments.length === 0 ? (
+        <EmptyState
+          icon={DollarSign}
+          title="No payments found"
+          description="Payment transactions will appear here once customers make payments."
+        />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={payments}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          total={total}
+          onPageChange={setCurrentPage}
+          emptyMessage="No payments match your search criteria."
+        />
+      )}
     </div>
   );
 }
-

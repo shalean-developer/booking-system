@@ -27,8 +27,8 @@ The OAuth functionality has been implemented in `components/auth-modal.tsx`. Use
    - Choose **External** user type
    - Fill in App information:
      - App name: `Shalean Cleaning Services`
-     - User support email: `info@shalean.co.za`
-     - Developer contact: `info@shalean.co.za`
+     - User support email: `info@shalean.com`
+     - Developer contact: `info@shalean.com`
    - Click **Save and Continue**
    - Skip scopes (click **Save and Continue**)
    - Add test users if needed (for testing)
@@ -74,7 +74,7 @@ The OAuth functionality has been implemented in `components/auth-modal.tsx`. Use
 3. Select **Consumer** app type
 4. Fill in:
    - **App Name**: `Shalean Cleaning Services`
-   - **App Contact Email**: `info@shalean.co.za`
+   - **App Contact Email**: `info@shalean.com`
    - Click **Create App**
 
 5. In the app dashboard, go to **Settings** → **Basic**

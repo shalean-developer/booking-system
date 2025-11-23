@@ -1,215 +1,137 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient, isAdmin } from '@/lib/supabase-server';
-import { RecurringScheduleWithCustomer } from '@/types/recurring';
+import { createClient } from '@/lib/supabase-server';
+import { isAdmin } from '@/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
-/**
- * Admin endpoint to manage recurring schedules
- * GET: List all recurring schedules
- * PUT: Update a recurring schedule
- * DELETE: Delete a recurring schedule
- */
 export async function GET(request: NextRequest) {
-  console.log('=== ADMIN RECURRING SCHEDULES GET ===');
-  
   try {
-    // Check admin access
     if (!await isAdmin()) {
       return NextResponse.json(
-        { ok: false, error: 'Unauthorized - Admin access required' },
+        { ok: false, error: 'Unauthorized' },
         { status: 403 }
       );
     }
 
     const supabase = await createClient();
-    const url = new URL(request.url);
-    
-    // Get query parameters
-    const page = parseInt(url.searchParams.get('page') || '1');
-    const limit = parseInt(url.searchParams.get('limit') || '50');
-    const search = url.searchParams.get('search') || '';
-    const active = url.searchParams.get('active');
-    const customerId = url.searchParams.get('customer_id');
-    
-    const offset = (page - 1) * limit;
-    
-    // Build query
+    const { searchParams } = new URL(request.url);
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const offset = parseInt(searchParams.get('offset') || '0');
+    const customerId = searchParams.get('customer');
+    const status = searchParams.get('status');
+
     let query = supabase
       .from('recurring_schedules')
       .select(`
         *,
-        customer:customers!inner (
+        customers:customer_id (
           id,
+          name,
           first_name,
           last_name,
-          email,
-          phone
+          email
         ),
-        cleaner:cleaners (
+        cleaners:cleaner_id (
           id,
-          name
+          name,
+          first_name,
+          last_name
         )
-      `, { count: 'exact' });
-    
-    // Apply filters
+      `)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
     if (customerId) {
       query = query.eq('customer_id', customerId);
     }
-    
-    if (active !== null) {
-      query = query.eq('is_active', active === 'true');
-    }
-    
-    if (search) {
-      query = query.or(`service_type.ilike.%${search}%,notes.ilike.%${search}%`);
-    }
-    
-    // Apply pagination and sorting
-    const { data: schedules, error, count } = await query
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
-    
-    if (error) throw error;
-    
-    console.log(`✅ Fetched ${schedules?.length || 0} recurring schedules`);
-    
-    return NextResponse.json({
-      ok: true,
-      schedules: schedules || [],
-      pagination: {
-        page,
-        limit,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit),
-      },
-    });
-    
-  } catch (error) {
-    console.error('=== ADMIN RECURRING SCHEDULES GET ERROR ===', error);
-    return NextResponse.json(
-      { ok: false, error: 'Failed to fetch recurring schedules' },
-      { status: 500 }
-    );
-  }
-}
 
-export async function PUT(request: NextRequest) {
-  console.log('=== ADMIN RECURRING SCHEDULES PUT ===');
-  
-  try {
-    // Check admin access
-    if (!await isAdmin()) {
+    if (status === 'active') {
+      query = query.eq('is_active', true);
+    } else if (status === 'inactive') {
+      query = query.eq('is_active', false);
+    }
+
+    const { data: schedules, error } = await query;
+
+    if (error) {
+      console.error('Error fetching recurring schedules:', error);
       return NextResponse.json(
-        { ok: false, error: 'Unauthorized - Admin access required' },
-        { status: 403 }
+        { ok: false, error: 'Failed to fetch recurring schedules' },
+        { status: 500 }
       );
     }
 
-    const body = await request.json();
-    const { id, ...updateData } = body;
-    
-    if (!id) {
-      return NextResponse.json(
-        { ok: false, error: 'Schedule ID is required' },
-        { status: 400 }
-      );
-    }
-
-    const supabase = await createClient();
-    
-    const { data: schedule, error } = await supabase
+    let countQuery = supabase
       .from('recurring_schedules')
-      .update(updateData)
-      .eq('id', id)
-      .select(`
-        *,
-        customer:customers!inner (
-          id,
-          first_name,
-          last_name,
-          email,
-          phone
-        ),
-        cleaner:cleaners (
-          id,
-          name
-        )
-      `)
-      .single();
-    
-    if (error) throw error;
-    
-    console.log('✅ Recurring schedule updated:', id);
-    
+      .select('*', { count: 'exact', head: true });
+
+    if (customerId) {
+      countQuery = countQuery.eq('customer_id', customerId);
+    }
+
+    if (status === 'active') {
+      countQuery = countQuery.eq('is_active', true);
+    } else if (status === 'inactive') {
+      countQuery = countQuery.eq('is_active', false);
+    }
+
+    const { count } = await countQuery;
+
+    const formattedSchedules = (schedules || []).map((schedule: any) => {
+      const customers = schedule.customers;
+      const customer = Array.isArray(customers) ? customers[0] : customers;
+      const customerName = customer?.name || 
+                          `${customer?.first_name || ''} ${customer?.last_name || ''}`.trim() ||
+                          'Unknown Customer';
+      
+      const cleaners = schedule.cleaners;
+      const cleaner = Array.isArray(cleaners) ? cleaners[0] : cleaners;
+      const cleanerName = cleaner?.name ||
+                          `${cleaner?.first_name || ''} ${cleaner?.last_name || ''}`.trim() ||
+                          null;
+
+      return {
+        id: schedule.id,
+        customer_id: schedule.customer_id,
+        customer_name: customerName,
+        customer_email: customer?.email || '',
+        service_type: schedule.service_type,
+        frequency: schedule.frequency,
+        day_of_week: schedule.day_of_week,
+        day_of_month: schedule.day_of_month,
+        days_of_week: schedule.days_of_week,
+        preferred_time: schedule.preferred_time,
+        bedrooms: schedule.bedrooms,
+        bathrooms: schedule.bathrooms,
+        extras: schedule.extras || [],
+        address_line1: schedule.address_line1,
+        address_suburb: schedule.address_suburb,
+        address_city: schedule.address_city,
+        cleaner_id: schedule.cleaner_id,
+        cleaner_name: cleanerName,
+        is_active: schedule.is_active,
+        start_date: schedule.start_date,
+        end_date: schedule.end_date,
+        last_generated_month: schedule.last_generated_month,
+        created_at: schedule.created_at,
+        updated_at: schedule.updated_at,
+      };
+    });
+
+    const totalPages = Math.ceil((count || 0) / limit);
+
     return NextResponse.json({
       ok: true,
-      schedule,
-      message: 'Recurring schedule updated successfully',
+      schedules: formattedSchedules,
+      total: count || 0,
+      totalPages,
     });
-    
   } catch (error) {
-    console.error('=== ADMIN RECURRING SCHEDULES PUT ERROR ===', error);
+    console.error('Error in recurring schedules API:', error);
     return NextResponse.json(
-      { ok: false, error: 'Failed to update recurring schedule' },
+      { ok: false, error: 'Internal server error' },
       { status: 500 }
     );
   }
 }
 
-export async function DELETE(request: NextRequest) {
-  console.log('=== ADMIN RECURRING SCHEDULES DELETE ===');
-  
-  try {
-    // Check admin access
-    if (!await isAdmin()) {
-      return NextResponse.json(
-        { ok: false, error: 'Unauthorized - Admin access required' },
-        { status: 403 }
-      );
-    }
-
-    const url = new URL(request.url);
-    const id = url.searchParams.get('id');
-    
-    if (!id) {
-      return NextResponse.json(
-        { ok: false, error: 'Schedule ID is required' },
-        { status: 400 }
-      );
-    }
-
-    const supabase = await createClient();
-    
-    // Check if there are future bookings for this schedule
-    const { data: futureBookings, error: bookingsError } = await supabase
-      .from('bookings')
-      .select('id, booking_date')
-      .eq('recurring_schedule_id', id)
-      .gte('booking_date', new Date().toISOString().split('T')[0]);
-    
-    if (bookingsError) throw bookingsError;
-    
-    // Delete the schedule (this will cascade to bookings due to foreign key)
-    const { error } = await supabase
-      .from('recurring_schedules')
-      .delete()
-      .eq('id', id);
-    
-    if (error) throw error;
-    
-    console.log('✅ Recurring schedule deleted:', id);
-    
-    return NextResponse.json({
-      ok: true,
-      message: `Recurring schedule deleted successfully${futureBookings?.length ? `. ${futureBookings.length} future bookings were also cancelled.` : ''}`,
-    });
-    
-  } catch (error) {
-    console.error('=== ADMIN RECURRING SCHEDULES DELETE ERROR ===', error);
-    return NextResponse.json(
-      { ok: false, error: 'Failed to delete recurring schedule' },
-      { status: 500 }
-    );
-  }
-}

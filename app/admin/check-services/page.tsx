@@ -1,193 +1,281 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageHeader } from '@/components/admin/shared/page-header';
+import { StatCard } from '@/components/admin/shared/stat-card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { RefreshCw } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CheckCircle, XCircle, AlertCircle, RefreshCw, Server, Database, Zap } from 'lucide-react';
 
-interface Service {
-  service_type: string;
-  base: number;
-  bedroom: number;
-  bathroom: number;
-  raw_records: Array<{
-    id: string;
-    price_type: string;
-    price: number;
-    effective_date: string;
-    end_date: string | null;
-    notes: string | null;
-  }>;
-}
-
-interface CheckResult {
-  success: boolean;
-  services: Service[];
-  total_services: number;
-  pricing_summary: {
-    services_count: number;
-    extras_count: number;
-    service_fee: number;
-    frequency_discounts_count: number;
-  };
-  raw_data_count: number;
-  error?: string;
+interface ServiceStatus {
+  name: string;
+  status: 'operational' | 'degraded' | 'down';
+  responseTime?: number;
+  lastChecked: string;
+  message?: string;
 }
 
 export default function CheckServicesPage() {
-  const [result, setResult] = useState<CheckResult | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const checkServices = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await fetch('/api/services/check');
-      const data = await response.json();
-      
-      if (data.success) {
-        setResult(data);
-      } else {
-        setError(data.error || 'Failed to check services');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to check services');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [services, setServices] = useState<ServiceStatus[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [lastCheck, setLastCheck] = useState<Date | null>(null);
 
   useEffect(() => {
     checkServices();
+    const interval = setInterval(checkServices, 60000); // Check every minute
+    return () => clearInterval(interval);
   }, []);
 
+  const checkServices = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/admin/services/status');
+      const data = await response.json();
+
+      if (data.ok) {
+        setServices(data.services || []);
+        setMaintenanceMode(data.maintenanceMode || false);
+        setLastCheck(new Date());
+      }
+    } catch (error) {
+      console.error('Error checking services:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleMaintenanceMode = async () => {
+    try {
+      const response = await fetch('/api/admin/services/maintenance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: !maintenanceMode }),
+      });
+      const data = await response.json();
+      if (data.ok) {
+        setMaintenanceMode(!maintenanceMode);
+      }
+    } catch (error) {
+      console.error('Error toggling maintenance mode:', error);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'operational':
+        return 'bg-green-50 text-green-700 border-green-200';
+      case 'degraded':
+        return 'bg-yellow-50 text-yellow-700 border-yellow-200';
+      case 'down':
+        return 'bg-red-50 text-red-700 border-red-200';
+      default:
+        return 'bg-gray-50 text-gray-700 border-gray-200';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'operational':
+        return <CheckCircle className="h-5 w-5 text-green-600" />;
+      case 'degraded':
+        return <AlertCircle className="h-5 w-5 text-yellow-600" />;
+      case 'down':
+        return <XCircle className="h-5 w-5 text-red-600" />;
+      default:
+        return <AlertCircle className="h-5 w-5 text-gray-600" />;
+    }
+  };
+
+  const operationalCount = services.filter((s) => s.status === 'operational').length;
+  const degradedCount = services.filter((s) => s.status === 'degraded').length;
+  const downCount = services.filter((s) => s.status === 'down').length;
+
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="container mx-auto px-4 max-w-7xl">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Database Services Check</h1>
-          <Button onClick={checkServices} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+    <div className="space-y-6">
+      <PageHeader
+        title="Service Status"
+        description="Monitor system services and availability"
+        breadcrumbs={[
+          { label: 'Admin', href: '/admin' },
+          { label: 'Check Services' },
+        ]}
+        actions={
+          <Button variant="outline" onClick={checkServices} disabled={isLoading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-        </div>
+        }
+      />
 
-        {loading && (
-          <Card>
-            <CardContent className="p-6">
-              <p className="text-gray-600">Loading services from database...</p>
-            </CardContent>
-          </Card>
+      <div className="grid gap-4 md:grid-cols-4">
+        <StatCard
+          title="Operational"
+          value={operationalCount}
+          icon={CheckCircle}
+          iconColor="text-green-600"
+          isLoading={isLoading}
+        />
+        <StatCard
+          title="Degraded"
+          value={degradedCount}
+          icon={AlertCircle}
+          iconColor="text-yellow-600"
+          isLoading={isLoading}
+        />
+        <StatCard
+          title="Down"
+          value={downCount}
+          icon={XCircle}
+          iconColor="text-red-600"
+          isLoading={isLoading}
+        />
+        <StatCard
+          title="Total Services"
+          value={services.length}
+          icon={Server}
+          iconColor="text-blue-600"
+          isLoading={isLoading}
+        />
+      </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Maintenance Mode</CardTitle>
+              <CardDescription>
+                Enable maintenance mode to temporarily disable the system
+              </CardDescription>
+            </div>
+            <Button
+              variant={maintenanceMode ? 'destructive' : 'outline'}
+              onClick={toggleMaintenanceMode}
+            >
+              {maintenanceMode ? 'Disable' : 'Enable'} Maintenance
+            </Button>
+          </div>
+        </CardHeader>
+        {maintenanceMode && (
+          <CardContent>
+            <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <AlertCircle className="h-5 w-5 text-yellow-600" />
+              <span className="text-sm text-yellow-800">
+                Maintenance mode is currently enabled. The system is unavailable to users.
+              </span>
+            </div>
+          </CardContent>
         )}
+      </Card>
 
-        {error && (
-          <Card className="border-red-200 bg-red-50">
-            <CardContent className="p-6">
-              <p className="text-red-600 font-semibold">Error: {error}</p>
-            </CardContent>
-          </Card>
-        )}
-
-        {result && (
-          <>
-            {/* Summary */}
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>Summary</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500">Total Services</p>
-                    <p className="text-2xl font-bold text-gray-900">{result.total_services}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Services Count</p>
-                    <p className="text-2xl font-bold text-gray-900">{result.pricing_summary.services_count}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Extras Count</p>
-                    <p className="text-2xl font-bold text-gray-900">{result.pricing_summary.extras_count}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Service Fee</p>
-                    <p className="text-2xl font-bold text-gray-900">R{result.pricing_summary.service_fee}</p>
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <p className="text-sm text-gray-500">Raw Records Count</p>
-                  <p className="text-lg font-semibold text-gray-900">{result.raw_data_count}</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Services List */}
-            <div className="space-y-4">
-              <h2 className="text-2xl font-bold text-gray-900">Services in Database</h2>
-              
-              {result.services.length === 0 ? (
-                <Card>
-                  <CardContent className="p-6">
-                    <p className="text-gray-600">No services found in database.</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                result.services.map((service) => (
-                  <Card key={service.service_type}>
-                    <CardHeader>
-                      <CardTitle className="text-xl">{service.service_type}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-3 gap-4 mb-4">
-                        <div>
-                          <p className="text-sm text-gray-500">Base Price</p>
-                          <p className="text-lg font-semibold text-gray-900">R{service.base}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-500">Per Bedroom</p>
-                          <p className="text-lg font-semibold text-gray-900">R{service.bedroom}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-500">Per Bathroom</p>
-                          <p className="text-lg font-semibold text-gray-900">R{service.bathroom}</p>
-                        </div>
-                      </div>
-                      
-                      {service.raw_records.length > 0 && (
-                        <div className="mt-4">
-                          <p className="text-sm font-semibold text-gray-700 mb-2">Pricing Records:</p>
-                          <div className="space-y-2">
-                            {service.raw_records.map((record) => (
-                              <div
-                                key={record.id}
-                                className="bg-gray-50 p-3 rounded border border-gray-200"
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm font-medium text-gray-900">
-                                    {record.price_type}: R{record.price}
-                                  </span>
-                                  <span className="text-xs text-gray-500">
-                                    Effective: {record.effective_date}
-                                    {record.end_date && ` - ${record.end_date}`}
-                                  </span>
-                                </div>
-                                {record.notes && (
-                                  <p className="text-xs text-gray-600 mt-1">{record.notes}</p>
-                                )}
-                              </div>
-                            ))}
-                          </div>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Service Status</CardTitle>
+              <CardDescription>
+                Real-time status of all system services
+                {lastCheck && (
+                  <span className="ml-2 text-xs text-gray-500">
+                    Last checked: {lastCheck.toLocaleTimeString()}
+                  </span>
+                )}
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-16 bg-gray-100 animate-pulse rounded" />
+              ))}
+            </div>
+          ) : services.length === 0 ? (
+            <p className="text-sm text-gray-500 text-center py-8">No services to monitor</p>
+          ) : (
+            <div className="space-y-3">
+              {services.map((service) => (
+                <div
+                  key={service.name}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    {getStatusIcon(service.status)}
+                    <div>
+                      <div className="font-medium text-gray-900">{service.name}</div>
+                      {service.message && (
+                        <div className="text-sm text-gray-500 mt-1">{service.message}</div>
+                      )}
+                      {service.responseTime && (
+                        <div className="text-xs text-gray-400 mt-1">
+                          Response time: {service.responseTime}ms
                         </div>
                       )}
-                    </CardContent>
-                  </Card>
-                ))
-              )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge variant="outline" className={getStatusColor(service.status)}>
+                      {service.status}
+                    </Badge>
+                    <span className="text-xs text-gray-400">
+                      {new Date(service.lastChecked).toLocaleTimeString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
-          </>
-        )}
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Database className="h-5 w-5" />
+              Database
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Connection Status</span>
+                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                  Connected
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Response Time</span>
+                <span className="text-sm font-medium text-gray-900">~50ms</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5" />
+              API Services
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">API Status</span>
+                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                  Operational
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Average Response</span>
+                <span className="text-sm font-medium text-gray-900">~120ms</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

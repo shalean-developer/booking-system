@@ -1,10 +1,23 @@
 'use client';
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Facebook, Twitter, Instagram, Mail, Phone, MapPin } from "lucide-react";
 
+// Contact email - ensure consistency between server and client
+// IMPORTANT: This must match exactly on server and client to prevent hydration errors
+const CONTACT_EMAIL = 'info@shalean.com' as const;
+
 export function HomeFooter() {
+  const [currentYear, setCurrentYear] = useState(2024);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setCurrentYear(new Date().getFullYear());
+    setMounted(true);
+  }, []);
+
   return (
     <>
       <footer className="bg-gray-900 text-white">
@@ -179,16 +192,22 @@ export function HomeFooter() {
           <div className="border-t border-gray-800 py-6">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <p className="text-sm text-gray-400 text-center md:text-left">
-                Copyright © {new Date().getFullYear()} Shalean Cleaning Services. All rights reserved.
+                Copyright © {currentYear} Shalean Cleaning Services. All rights reserved.
               </p>
               <div className="flex items-center gap-6 text-sm text-gray-400">
-                <a href="mailto:info@shalean.co.za" className="hover:text-white transition-colors flex items-center gap-2">
+                <a 
+                  href={`mailto:${CONTACT_EMAIL}`} 
+                  className="hover:text-white transition-colors flex items-center gap-2"
+                  suppressHydrationWarning
+                >
                   <Mail className="h-4 w-4" />
-                  <span className="hidden sm:inline">info@shalean.co.za</span>
+                  <span className="hidden sm:inline" suppressHydrationWarning>
+                    {mounted ? CONTACT_EMAIL : 'info@shalean.com'}
+                  </span>
                 </a>
-                <a href="tel:+27211234567" className="hover:text-white transition-colors flex items-center gap-2">
+                <a href="tel:+27871535250" className="hover:text-white transition-colors flex items-center gap-2">
                   <Phone className="h-4 w-4" />
-                  <span className="hidden sm:inline">+27 21 123 4567</span>
+                  <span className="hidden sm:inline">+27 87 153 5250</span>
                 </a>
               </div>
             </div>

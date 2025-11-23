@@ -13,6 +13,22 @@ const CACHE_HEADERS = {
 
 export async function GET() {
   try {
+    // Check environment variables first
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.error('❌ Missing Supabase environment variables');
+      return NextResponse.json(
+        { 
+          error: 'Database not configured',
+          message: 'Missing Supabase environment variables. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env.local file.',
+          services: []
+        },
+        { 
+          status: 500,
+          headers: CACHE_HEADERS 
+        }
+      );
+    }
+
     // Fetch both pricing and service metadata from database
     const [pricing, servicesMetadata] = await Promise.all([
       fetchActivePricing(true),
@@ -97,21 +113,38 @@ export async function GET() {
       }
     );
   } catch (error: any) {
-    console.error('Error fetching popular services:', error);
+    console.error('❌ Error fetching popular services:', error);
     console.error('Error details:', {
       message: error?.message,
       stack: error?.stack,
+      name: error?.name,
     });
     
-    // Return error response - let frontend handle it
+    // Provide more specific error messages
+    let errorMessage = error?.message || 'Unknown error occurred';
+    let statusCode = 500;
+
+    // Check for specific error types
+    if (errorMessage.includes('Failed to fetch')) {
+      errorMessage = 'Unable to connect to database. Please check your Supabase configuration.';
+    } else if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
+      errorMessage = 'Services table does not exist. Please run the database migration.';
+      statusCode = 503;
+    } else if (errorMessage.includes('permission denied') || errorMessage.includes('RLS')) {
+      errorMessage = 'Database access denied. Please check Row Level Security (RLS) policies.';
+      statusCode = 403;
+    }
+    
+    // Return error response with helpful message
     return NextResponse.json(
       { 
         error: 'Failed to fetch services',
-        message: error?.message || 'Unknown error occurred',
+        message: errorMessage,
+        hint: 'Check your server console logs for detailed error information.',
         services: []
       },
       { 
-        status: 500,
+        status: statusCode,
         headers: CACHE_HEADERS 
       }
     );

@@ -6,7 +6,7 @@ import { LayoutDashboard, Users, Calendar, DollarSign, Settings, FileText, Messa
 import { Button } from '@/components/ui/button';
 
 const navigation = [
-  { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
+  { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   { name: 'Bookings', href: '/admin/bookings', icon: Calendar },
   { name: 'Cleaners', href: '/admin/cleaners', icon: Users },
   { name: 'Customers', href: '/admin/customers', icon: Users },
@@ -25,7 +25,7 @@ export function AdminNavbarV3() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center">
-            <Link href="/admin/dashboard" className="flex items-center space-x-2">
+            <Link href="/admin" className="flex items-center space-x-2">
               <span className="text-xl font-bold text-[#3b82f6]">Admin</span>
             </Link>
           </div>

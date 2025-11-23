@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DayAvailabilityDisplay } from '@/components/admin/day-availability-display';
+import { DayAvailabilityDisplay } from '@/components/cleaner/day-availability-display';
 import { CleanerMobileBottomNav } from '@/components/cleaner/cleaner-mobile-bottom-nav';
 import { DollarSign, Settings } from 'lucide-react';
 

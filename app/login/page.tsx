@@ -17,7 +17,8 @@ import {
   Lock,
   ArrowRight,
   AlertCircle,
-  Loader2
+  Loader2,
+  CheckCircle2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -32,8 +33,10 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = searchParams.get('returnTo');
+  const passwordReset = searchParams.get('passwordReset');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(passwordReset === 'success');
 
   // CRITICAL: Check if payment was just completed and redirect to confirmation
   useEffect(() => {
@@ -159,6 +162,23 @@ function LoginForm() {
               <h2 className="text-xl font-bold text-gray-900 mb-6">
                 Login to Your Account
               </h2>
+
+              {/* Success Message */}
+              {showSuccess && (
+                <div className="mb-6 rounded-2xl bg-green-50 border-2 border-green-200 p-4 animate-slide-down motion-safe:animate-slide-down">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="text-sm font-semibold text-green-900 mb-1">
+                        Password Reset Successful
+                      </h3>
+                      <p className="text-sm text-green-700">
+                        Your password has been updated. You can now log in with your new password.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Error Message */}
               {error && (

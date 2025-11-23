@@ -1,40 +1,187 @@
 'use client';
 
-import dynamic from 'next/dynamic';
-import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { PageHeader } from '@/components/admin/shared/page-header';
+import { FilterBar } from '@/components/admin/shared/filter-bar';
+import { DataTable, Column } from '@/components/admin/shared/data-table';
+import { EmptyState } from '@/components/admin/shared/empty-state';
+import { LoadingState } from '@/components/admin/shared/loading-state';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Repeat, Mail, Phone } from 'lucide-react';
+import Link from 'next/link';
 
-const RecurringCustomersSection = dynamic(
-  () => import('@/components/admin/recurring-customers-section').then((mod) => ({ default: mod.RecurringCustomersSection })),
-  {
-    ssr: false,
-    loading: () => <div className="py-12 text-center text-gray-500">Loading recurring customers...</div>,
-  }
-);
+interface RecurringCustomer {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  frequency: string;
+  schedulesCount: number;
+  totalBookings: number;
+  startDate: string;
+}
 
 export default function RecurringCustomersPage() {
+  const [customers, setCustomers] = useState<RecurringCustomer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const pageSize = 20;
+
+  useEffect(() => {
+    fetchCustomers();
+  }, [currentPage, searchQuery]);
+
+  const fetchCustomers = async () => {
+    try {
+      setIsLoading(true);
+      const offset = (currentPage - 1) * pageSize;
+      const url = `/api/admin/recurring-customers?limit=${pageSize}&offset=${offset}&search=${encodeURIComponent(searchQuery)}`;
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (data.ok) {
+        setCustomers(data.customers || []);
+        setTotal(data.total || 0);
+        setTotalPages(data.totalPages || 1);
+      }
+    } catch (error) {
+      console.error('Error fetching recurring customers:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-ZA', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  const frequencyLabels: Record<string, string> = {
+    weekly: 'Weekly',
+    'bi-weekly': 'Bi-weekly',
+    monthly: 'Monthly',
+    'custom-weekly': 'Custom Weekly',
+    'custom-bi-weekly': 'Custom Bi-weekly',
+  };
+
+  const columns: Column<RecurringCustomer>[] = [
+    {
+      id: 'customer',
+      header: 'Customer',
+      accessor: (row) => (
+        <div>
+          <div className="font-medium text-gray-900">{row.name}</div>
+          <div className="text-sm text-gray-500 flex items-center gap-2 mt-1">
+            {row.email && (
+              <span className="flex items-center gap-1">
+                <Mail className="h-3 w-3" />
+                {row.email}
+              </span>
+            )}
+            {row.phone && (
+              <span className="flex items-center gap-1">
+                <Phone className="h-3 w-3" />
+                {row.phone}
+              </span>
+            )}
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: 'frequency',
+      header: 'Frequency',
+      accessor: (row) => (
+        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+          {frequencyLabels[row.frequency] || row.frequency}
+        </Badge>
+      ),
+    },
+    {
+      id: 'schedules',
+      header: 'Schedules',
+      accessor: (row) => (
+        <span className="text-sm text-gray-600">{row.schedulesCount} active</span>
+      ),
+    },
+    {
+      id: 'bookings',
+      header: 'Total Bookings',
+      accessor: (row) => (
+        <span className="font-semibold text-gray-900">{row.totalBookings}</span>
+      ),
+    },
+    {
+      id: 'startDate',
+      header: 'Start Date',
+      accessor: (row) => (
+        <span className="text-sm text-gray-600">{formatDate(row.startDate)}</span>
+      ),
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      accessor: (row) => (
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/admin/customers/${row.id}`}>View Customer</Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/admin/recurring-schedules?customer=${row.id}`}>View Schedules</Link>
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Recurring Customers</h1>
-        <p className="text-gray-600 mt-1">View customers with active recurring booking schedules</p>
-      </div>
+      <PageHeader
+        title="Recurring Customers"
+        description={`Customers with active recurring schedules (${total} total)`}
+        breadcrumbs={[
+          { label: 'Admin', href: '/admin' },
+          { label: 'Recurring Customers' },
+        ]}
+      />
 
-      {/* Recurring Customers Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <RecurringCustomersSection />
-      </motion.div>
+      <FilterBar
+        searchPlaceholder="Search by name, email, or phone..."
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        onClear={() => {
+          setSearchQuery('');
+          setCurrentPage(1);
+        }}
+      />
+
+      {isLoading ? (
+        <LoadingState rows={5} columns={6} variant="table" />
+      ) : customers.length === 0 ? (
+        <EmptyState
+          icon={Repeat}
+          title="No recurring customers found"
+          description="Customers with active recurring schedules will appear here."
+        />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={customers}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          total={total}
+          onPageChange={setCurrentPage}
+          emptyMessage="No recurring customers match your search criteria."
+        />
+      )}
     </div>
   );
 }
-
-
-
-
-
-
 

@@ -347,7 +347,7 @@ Copy this entire template into the Supabase **Body** field:
           Professional cleaning services across South Africa
         </p>
         <p style="margin: 0 0 10px 0;">
-          Email: info@shalean.co.za | Phone: +27 87 153 5250
+          Email: info@shalean.com | Phone: +27 87 153 5250
         </p>
         <p style="margin: 20px 0 0 0; font-size: 12px; color: #999;">
           You're receiving this email because you signed up for an account with Shalean Cleaning Services.

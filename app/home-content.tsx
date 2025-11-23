@@ -12,7 +12,7 @@ import { HomeReviewsShowcase } from "@/components/home-reviews-showcase";
 import { HomeCities } from "@/components/home-cities";
 import { HomeFAQ } from "@/components/home-faq";
 import { HomeReadyToStart } from "@/components/home-ready-to-start";
-import { HomeFooter } from "@/components/home-footer";
+import { HomeFooterClient } from "@/components/home-footer-client";
 
 export function HomeContent() {
   return (
@@ -87,7 +87,7 @@ export function HomeContent() {
       </main>
 
       {/* Footer */}
-      <HomeFooter />
+      <HomeFooterClient />
     </div>
   );
 }
