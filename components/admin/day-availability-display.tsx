@@ -1,8 +1,3 @@
-'use client';
-
-import { Badge } from '@/components/ui/badge';
-import { Calendar } from 'lucide-react';
-
 interface DayAvailabilityDisplayProps {
   schedule: {
     available_monday?: boolean;
@@ -13,41 +8,43 @@ interface DayAvailabilityDisplayProps {
     available_saturday?: boolean;
     available_sunday?: boolean;
   };
-  compact?: boolean; // For table view
+  compact?: boolean;
 }
 
-const DAYS = [
-  { key: 'monday', label: 'M', fullName: 'Monday' },
-  { key: 'tuesday', label: 'T', fullName: 'Tuesday' },
-  { key: 'wednesday', label: 'W', fullName: 'Wednesday' },
-  { key: 'thursday', label: 'T', fullName: 'Thursday' },
-  { key: 'friday', label: 'F', fullName: 'Friday' },
-  { key: 'saturday', label: 'S', fullName: 'Saturday' },
-  { key: 'sunday', label: 'S', fullName: 'Sunday' },
+const DAYS_OF_WEEK = [
+  { key: 'monday', label: 'Mon', fullLabel: 'Monday', prop: 'available_monday' },
+  { key: 'tuesday', label: 'Tue', fullLabel: 'Tuesday', prop: 'available_tuesday' },
+  { key: 'wednesday', label: 'Wed', fullLabel: 'Wednesday', prop: 'available_wednesday' },
+  { key: 'thursday', label: 'Thu', fullLabel: 'Thursday', prop: 'available_thursday' },
+  { key: 'friday', label: 'Fri', fullLabel: 'Friday', prop: 'available_friday' },
+  { key: 'saturday', label: 'Sat', fullLabel: 'Saturday', prop: 'available_saturday' },
+  { key: 'sunday', label: 'Sun', fullLabel: 'Sunday', prop: 'available_sunday' },
 ];
 
 export function DayAvailabilityDisplay({ schedule, compact = false }: DayAvailabilityDisplayProps) {
   return (
-    <div className="flex items-center gap-2 sm:gap-1">
-      {compact && <Calendar className="h-3 w-3 text-gray-400 mr-1" />}
-      {DAYS.map((day) => {
-        const isAvailable = schedule[`available_${day.key}` as keyof typeof schedule] ?? true;
+    <div className={compact ? 'flex flex-wrap gap-2' : 'grid grid-cols-7 gap-2'}>
+      {DAYS_OF_WEEK.map((day) => {
+        const isAvailable = schedule[day.prop as keyof typeof schedule] === true;
         
         return (
-          <Badge
+          <div
             key={day.key}
-            variant="outline"
             className={`
-              text-xs px-2.5 sm:px-1.5 py-1 sm:py-0.5 font-medium min-w-[36px] sm:min-w-0 flex items-center justify-center
-              ${isAvailable 
-                ? 'bg-green-100 text-green-700 border-green-200 hover:bg-green-100' 
-                : 'bg-gray-100 text-gray-400 border-gray-200 hover:bg-gray-100'
+              flex items-center justify-center rounded-md text-sm font-medium transition-all
+              ${compact 
+                ? 'px-2 py-1 min-w-[3rem]' 
+                : 'px-3 py-2'
+              }
+              ${isAvailable
+                ? 'bg-green-100 text-green-800 border border-green-300'
+                : 'bg-gray-100 text-gray-500 border border-gray-200'
               }
             `}
-            title={`${day.fullName}: ${isAvailable ? 'Available' : 'Not available'}`}
+            title={compact ? `${day.fullLabel}: ${isAvailable ? 'Available' : 'Not Available'}` : undefined}
           >
             {day.label}
-          </Badge>
+          </div>
         );
       })}
     </div>

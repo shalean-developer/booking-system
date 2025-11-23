@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation';
 import { isAdmin } from '@/lib/supabase-server';
-import { AdminSidebarV3 } from '@/components/admin/sidebar-v3';
 import { AdminNavbarV3 } from '@/components/admin/navbar-v3';
 import { FilterPeriodProvider } from '@/context/FilterPeriodContext';
 

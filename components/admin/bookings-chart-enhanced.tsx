@@ -1,225 +1,75 @@
 'use client';
 
-import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from 'recharts';
-import { Calendar, Loader2, Download, ZoomIn } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
-import { AnimatedCard } from './animated-card';
-import { useFilterPeriod } from '@/context/FilterPeriodContext';
+import dynamic from 'next/dynamic';
 
-interface ChartDataPoint {
-  date: string;
-  revenue: number;
-  bookings: number;
-  completed: number;
-  companyEarnings: number;
-}
+const BookingsChart = dynamic(
+  () => import('recharts').then((mod) => {
+    const { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend } = mod;
+    
+    return function BookingsChartComponent({ data, isLoading }: { data: any[]; isLoading?: boolean }) {
+      if (isLoading || !data || data.length === 0) {
+        return (
+          <div className="h-[250px] flex items-center justify-center text-gray-500">
+            {isLoading ? 'Loading...' : 'No data available'}
+          </div>
+        );
+      }
 
-interface BookingsChartEnhancedProps {
-  data: ChartDataPoint[];
+      // Transform data for the chart
+      const chartData = data.map((item: any) => ({
+        date: item.date || item.period || item.label || '',
+        bookings: item.bookings || item.count || item.value || 0,
+      }));
+
+      return (
+        <ResponsiveContainer width="100%" height={250}>
+          <BarChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis 
+              dataKey="date" 
+              tick={{ fontSize: 12 }}
+              angle={-45}
+              textAnchor="end"
+              height={60}
+            />
+            <YAxis 
+              tick={{ fontSize: 12 }}
+            />
+            <Tooltip 
+              formatter={(value: number) => [value, 'Bookings']}
+              labelStyle={{ color: '#000' }}
+            />
+            <Legend />
+            <Bar 
+              dataKey="bookings" 
+              fill="#10b981" 
+              name="Bookings"
+              radius={[4, 4, 0, 0]}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      );
+    };
+  }),
+  { ssr: false, loading: () => <div className="h-[250px] animate-pulse bg-gray-100 rounded" /> }
+);
+
+export interface BookingsChartEnhancedProps {
+  data: any[];
   isLoading?: boolean;
 }
 
-const formatDate = (dateStr: string) => {
-  try {
-    const date = typeof dateStr === 'string' ? parseISO(dateStr) : new Date(dateStr);
-    return format(date, 'MMM dd');
-  } catch {
-    return dateStr;
-  }
-};
-
 export function BookingsChartEnhanced({ data, isLoading }: BookingsChartEnhancedProps) {
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const { selectedPeriod } = useFilterPeriod();
-
-  // Helper function to get display label for selected period
-  const getPeriodLabel = (): string => {
-    switch (selectedPeriod) {
-      case 'Today':
-        return 'Today';
-      case '7 days':
-        return 'Last 7 days';
-      case 'Last 10 days':
-        return 'Last 10 days';
-      case '30 days':
-        return 'Last 30 days';
-      case '90 days':
-        return 'Last 90 days';
-      case 'Month':
-        return 'This Month';
-      default:
-        return 'Last 30 days';
-    }
-  };
-
-  const periodLabel = getPeriodLabel();
-
-  const handleExport = () => {
-    const headers = ['Date', 'Total Bookings', 'Completed'];
-    const rows = data.map(d => [
-      d.date,
-      d.bookings,
-      d.completed,
-    ]);
-    
-    const csv = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `bookings-data-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
-
-  const handleChartClick = (data: any) => {
-    if (data && data.activePayload && data.activePayload[0]) {
-      setSelectedDate(data.activePayload[0].payload.date);
-    }
-  };
-
-  const handleResetZoom = () => {
-    setSelectedDate(null);
-  };
-
-  // Filter data if date selected (drill-down)
-  const displayData = selectedDate 
-    ? data.filter(d => d.date === selectedDate)
-    : data;
-
-  if (isLoading) {
-    return (
-      <AnimatedCard>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Bookings Volume
-              <span className="text-xs text-gray-500 font-normal">({periodLabel})</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[250px] flex items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          </CardContent>
-        </Card>
-      </AnimatedCard>
-    );
-  }
-
-  if (!data || data.length === 0) {
-    return (
-      <AnimatedCard>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Bookings Volume
-              <span className="text-xs text-gray-500 font-normal">({periodLabel})</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[250px] flex items-center justify-center">
-              <p className="text-sm text-muted-foreground">No data available</p>
-            </div>
-          </CardContent>
-        </Card>
-      </AnimatedCard>
-    );
-  }
-
   return (
-    <AnimatedCard>
-      <Card className="overflow-hidden">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-blue-600" />
-              Bookings Volume
-              <span className="text-xs text-gray-500 font-normal">({periodLabel})</span>
-              {selectedDate && (
-                <span className="text-xs text-gray-500 font-normal">
-                  ({format(parseISO(selectedDate), 'MMM dd, yyyy')})
-                </span>
-              )}
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              {selectedDate && (
-                <Button variant="outline" size="sm" onClick={handleResetZoom}>
-                  <ZoomIn className="h-4 w-4 mr-1" />
-                  Reset
-                </Button>
-              )}
-              <Button variant="outline" size="sm" onClick={handleExport}>
-                <Download className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-4">
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart 
-              data={displayData} 
-              margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
-              onClick={handleChartClick}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-              <XAxis 
-                dataKey="date"
-                tickFormatter={formatDate}
-                tick={{ fontSize: 11, fill: '#6b7280' }}
-                stroke="#d1d5db"
-              />
-              <YAxis 
-                tick={{ fontSize: 11, fill: '#6b7280' }}
-                stroke="#d1d5db"
-              />
-              <Tooltip
-                labelFormatter={(label) => {
-                  try {
-                    return format(typeof label === 'string' ? parseISO(label) : new Date(label), 'MMM dd, yyyy');
-                  } catch {
-                    return label;
-                  }
-                }}
-                contentStyle={{
-                  backgroundColor: 'white',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                }}
-              />
-              <Legend />
-              <Bar 
-                dataKey="bookings" 
-                fill="#6366f1" 
-                name="Total Bookings" 
-                radius={[6, 6, 0, 0]}
-              />
-              <Bar 
-                dataKey="completed" 
-                fill="#10b981" 
-                name="Completed" 
-                radius={[6, 6, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-    </AnimatedCard>
+    <Card>
+      <CardHeader>
+        <CardTitle>Bookings Trends</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <BookingsChart data={data} isLoading={isLoading} />
+      </CardContent>
+    </Card>
   );
 }
 
