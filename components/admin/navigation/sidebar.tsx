@@ -43,13 +43,13 @@ const navigationSections: NavSection[] = [
   {
     title: 'Overview',
     items: [
-      { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+  { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
     ],
   },
   {
     title: 'Operations',
     items: [
-      { name: 'Bookings', href: '/admin/bookings', icon: Calendar },
+  { name: 'Bookings', href: '/admin/bookings', icon: Calendar },
       { name: 'Schedule', href: '/admin/schedule', icon: Clock },
       { name: 'Recurring Schedules', href: '/admin/recurring-schedules', icon: Repeat },
     ],
@@ -59,13 +59,13 @@ const navigationSections: NavSection[] = [
     items: [
       { name: 'Customers', href: '/admin/customers', icon: Users },
       { name: 'Recurring Customers', href: '/admin/recurring-customers', icon: Repeat },
-      { name: 'Cleaners', href: '/admin/cleaners', icon: Users },
+  { name: 'Cleaners', href: '/admin/cleaners', icon: Users },
     ],
   },
   {
     title: 'Financial',
     items: [
-      { name: 'Payments', href: '/admin/payments', icon: DollarSign },
+  { name: 'Payments', href: '/admin/payments', icon: DollarSign },
       { name: 'Pricing', href: '/admin/pricing', icon: Tag },
     ],
   },
@@ -74,14 +74,14 @@ const navigationSections: NavSection[] = [
     items: [
       { name: 'Blog', href: '/admin/blog', icon: BookOpen },
       { name: 'CMS', href: '/admin/cms', icon: FileEdit },
-      { name: 'Reviews', href: '/admin/reviews', icon: MessageSquare },
+  { name: 'Reviews', href: '/admin/reviews', icon: MessageSquare },
     ],
   },
   {
     title: 'Business',
     items: [
-      { name: 'Quotes', href: '/admin/quotes', icon: FileText },
-      { name: 'Applications', href: '/admin/applications', icon: Briefcase },
+  { name: 'Quotes', href: '/admin/quotes', icon: FileText },
+  { name: 'Applications', href: '/admin/applications', icon: Briefcase },
       { name: 'Services', href: '/admin/services', icon: Package },
     ],
   },
@@ -90,7 +90,7 @@ const navigationSections: NavSection[] = [
     items: [
       { name: 'Notifications', href: '/admin/notifications', icon: Bell },
       { name: 'Check Services', href: '/admin/check-services', icon: Server },
-      { name: 'Settings', href: '/admin/settings', icon: Settings },
+  { name: 'Settings', href: '/admin/settings', icon: Settings },
     ],
   },
 ];
@@ -165,24 +165,24 @@ export function AdminSidebar() {
               <div className="space-y-1">
                 {section.items.map((item) => {
                   const active = isActive(item.href);
-                  const Icon = item.icon;
+            const Icon = item.icon;
                   const badgeCount = badges[item.name.toLowerCase()] || item.badge;
 
-                  return (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      onClick={() => setIsOpen(false)}
-                      className={cn(
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                onClick={() => setIsOpen(false)}
+                className={cn(
                         'flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                         active
-                          ? 'bg-[#3b82f6] text-white'
-                          : 'text-gray-700 hover:bg-gray-100'
-                      )}
-                    >
+                    ? 'bg-[#3b82f6] text-white'
+                    : 'text-gray-700 hover:bg-gray-100'
+                )}
+              >
                       <div className="flex items-center gap-3">
-                        <Icon className="h-5 w-5" />
-                        <span>{item.name}</span>
+                <Icon className="h-5 w-5" />
+                <span>{item.name}</span>
                       </div>
                       {badgeCount !== null && badgeCount !== undefined && badgeCount > 0 && (
                         <Badge
@@ -195,9 +195,9 @@ export function AdminSidebar() {
                           {badgeCount > 99 ? '99+' : badgeCount}
                         </Badge>
                       )}
-                    </Link>
-                  );
-                })}
+              </Link>
+            );
+          })}
               </div>
             </div>
           ))}

@@ -238,9 +238,9 @@ export default function AdminApplicationsPage() {
         />
       )}
 
-      {isLoading ? (
+          {isLoading ? (
         <LoadingState rows={5} columns={6} variant="table" />
-      ) : applications.length === 0 ? (
+          ) : applications.length === 0 ? (
         <EmptyState
           icon={Briefcase}
           title="No applications found"

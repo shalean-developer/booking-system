@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { isAdmin } from '@/lib/supabase-server';
+import { calcTotalAsync } from '@/lib/pricing';
+import { generateUniqueBookingId } from '@/lib/booking-id';
 
 export const dynamic = 'force-dynamic';
 
@@ -96,6 +98,178 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error in bookings API:', error);
+    return NextResponse.json(
+      { ok: false, error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    if (!await isAdmin()) {
+      return NextResponse.json(
+        { ok: false, error: 'Unauthorized' },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+    const supabase = await createClient();
+
+    // Validate required fields
+    if (!body.service_type || !body.booking_date || !body.booking_time) {
+      return NextResponse.json(
+        { ok: false, error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // Generate booking ID
+    const bookingId = generateUniqueBookingId();
+
+    // Calculate pricing
+    const pricing = await calcTotalAsync(
+      {
+        service: body.service_type,
+        bedrooms: body.bedrooms || 1,
+        bathrooms: body.bathrooms || 1,
+        extras: body.extras || [],
+        extrasQuantities: body.extrasQuantities || {},
+      },
+      'one-time'
+    );
+
+    // Create or find customer profile
+    let customerId = null;
+    if (body.customer_email) {
+      const { data: existingCustomer } = await supabase
+        .from('customers')
+        .select('id, total_bookings')
+        .ilike('email', body.customer_email)
+        .maybeSingle();
+
+      if (existingCustomer) {
+        customerId = existingCustomer.id;
+        // Update customer info and increment bookings
+        await supabase
+          .from('customers')
+          .update({
+            phone: body.customer_phone,
+            first_name: body.customer_first_name,
+            last_name: body.customer_last_name,
+            address_line1: body.address_line1,
+            address_suburb: body.address_suburb,
+            address_city: body.address_city,
+            total_bookings: (existingCustomer.total_bookings || 0) + 1,
+          })
+          .eq('id', existingCustomer.id);
+      } else {
+        const { data: newCustomer } = await supabase
+          .from('customers')
+          .insert({
+            email: body.customer_email.toLowerCase().trim(),
+            phone: body.customer_phone,
+            first_name: body.customer_first_name,
+            last_name: body.customer_last_name,
+            address_line1: body.address_line1,
+            address_suburb: body.address_suburb,
+            address_city: body.address_city,
+            total_bookings: 1,
+          })
+          .select()
+          .single();
+        
+        if (newCustomer) {
+          customerId = newCustomer.id;
+        }
+      }
+    }
+
+    // Build price snapshot
+    const priceSnapshot = {
+      service_type: body.service_type,
+      bedrooms: body.bedrooms || 1,
+      bathrooms: body.bathrooms || 1,
+      extras: body.extras || [],
+      extrasQuantities: body.extrasQuantities || {},
+      subtotal: pricing.subtotal,
+      serviceFee: pricing.serviceFee,
+      frequencyDiscount: pricing.frequencyDiscount,
+      total: pricing.total,
+      snapshot_date: new Date().toISOString(),
+    };
+
+    // Determine if team booking
+    const requiresTeam = body.service_type === 'Deep' || body.service_type === 'Move In/Out';
+    const cleanerIdForInsert = requiresTeam || body.cleaner_ids?.length > 0
+      ? null
+      : (body.cleaner_id || null);
+
+    // Create booking
+    const { data: booking, error: bookingError } = await supabase
+      .from('bookings')
+      .insert({
+        id: bookingId,
+        customer_id: customerId,
+        cleaner_id: cleanerIdForInsert,
+        booking_date: body.booking_date,
+        booking_time: body.booking_time,
+        service_type: body.service_type,
+        customer_name: `${body.customer_first_name} ${body.customer_last_name}`,
+        customer_email: body.customer_email,
+        customer_phone: body.customer_phone,
+        address_line1: body.address_line1,
+        address_suburb: body.address_suburb,
+        address_city: body.address_city,
+        bedrooms: body.bedrooms || 1,
+        bathrooms: body.bathrooms || 1,
+        notes: body.notes || null,
+        total_amount: pricing.total * 100, // Convert to cents
+        requires_team: requiresTeam,
+        price_snapshot: priceSnapshot,
+        status: 'pending',
+      })
+      .select()
+      .single();
+
+    if (bookingError) {
+      console.error('Error creating booking:', bookingError);
+      return NextResponse.json(
+        { ok: false, error: 'Failed to create booking' },
+        { status: 500 }
+      );
+    }
+
+    // Handle team assignment if needed
+    if (requiresTeam && body.cleaner_ids && body.cleaner_ids.length > 0 && body.supervisor_id) {
+      // Create team record
+      const { error: teamError } = await supabase
+        .from('booking_teams')
+        .insert({
+          booking_id: bookingId,
+          team_name: `Team ${bookingId.slice(-3)}`,
+          supervisor_id: body.supervisor_id,
+        });
+
+      if (!teamError) {
+        // Add team members
+        const teamMembers = body.cleaner_ids.map((cleanerId: string) => ({
+          booking_id: bookingId,
+          cleaner_id: cleanerId,
+          is_supervisor: cleanerId === body.supervisor_id,
+        }));
+
+        await supabase.from('booking_team_members').insert(teamMembers);
+      }
+    }
+
+    return NextResponse.json({
+      ok: true,
+      booking,
+    });
+  } catch (error) {
+    console.error('Error creating booking:', error);
     return NextResponse.json(
       { ok: false, error: 'Internal server error' },
       { status: 500 }

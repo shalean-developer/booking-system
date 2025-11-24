@@ -1,49 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { isAdmin } from '@/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    if (!await isAdmin()) {
       return NextResponse.json(
         { ok: false, error: 'Unauthorized' },
-        { status: 401 }
+        { status: 403 }
       );
     }
 
-    // Get date range parameters
-    const { searchParams } = new URL(request.url);
-    const dateFrom = searchParams.get('date_from');
-    const dateTo = searchParams.get('date_to');
+    const supabase = await createClient();
 
-    // Build query
-    let bookingsQuery = supabase
+    // Fetch all bookings with service types
+    const { data: bookings, error } = await supabase
       .from('bookings')
-      .select('service_type, total_amount');
-
-    if (dateFrom) {
-      bookingsQuery = bookingsQuery.gte('created_at', dateFrom);
-    } else {
-      // Default to last 30 days
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      bookingsQuery = bookingsQuery.gte('created_at', thirtyDaysAgo.toISOString());
-    }
-
-    if (dateTo) {
-      const dateToEnd = new Date(dateTo);
-      dateToEnd.setHours(23, 59, 59, 999);
-      bookingsQuery = bookingsQuery.lte('created_at', dateToEnd.toISOString());
-    }
-
-    const { data: bookings, error } = await bookingsQuery;
+      .select('service_type');
 
     if (error) {
-      console.error('Error fetching service breakdown:', error);
+      console.error('Error fetching bookings for service breakdown:', error);
       return NextResponse.json({
         ok: true,
         data: [],
@@ -51,37 +29,28 @@ export async function GET(request: NextRequest) {
     }
 
     // Group by service type
-    const breakdown = new Map<string, { count: number; revenue: number }>();
-
-    bookings?.forEach((booking) => {
-      const serviceType = booking.service_type || 'Standard';
-      const existing = breakdown.get(serviceType) || { count: 0, revenue: 0 };
-      existing.count += 1;
-      existing.revenue += booking.total_amount || 0;
-      breakdown.set(serviceType, existing);
+    const serviceCounts: Record<string, number> = {};
+    
+    (bookings || []).forEach((booking) => {
+      const serviceType = booking.service_type || 'Unknown';
+      serviceCounts[serviceType] = (serviceCounts[serviceType] || 0) + 1;
     });
 
-    // Convert to array
-    const data = Array.from(breakdown.entries()).map(([service_type, stats]) => ({
-      service_type,
-      count: stats.count,
-      revenue: stats.revenue,
+    // Convert to array format expected by component
+    const data = Object.entries(serviceCounts).map(([name, value]) => ({
+      name,
+      value,
     }));
-
-    // Sort by count descending
-    data.sort((a, b) => b.count - a.count);
 
     return NextResponse.json({
       ok: true,
       data,
     });
   } catch (error) {
-    console.error('Error in service breakdown API:', error);
+    console.error('Error fetching service breakdown:', error);
     return NextResponse.json({
       ok: true,
       data: [],
     });
   }
 }
-
-

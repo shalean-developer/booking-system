@@ -271,9 +271,9 @@ export default function AdminQuotesPage() {
         }}
       />
 
-      {isLoading ? (
+          {isLoading ? (
         <LoadingState rows={5} columns={6} variant="table" />
-      ) : quotes.length === 0 ? (
+          ) : quotes.length === 0 ? (
         <EmptyState
           icon={FileText}
           title="No quotes found"

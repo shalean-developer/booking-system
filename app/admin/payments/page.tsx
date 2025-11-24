@@ -73,7 +73,21 @@ export default function AdminPaymentsPage() {
       const response = await fetch(url);
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        // Try to parse error as JSON, fallback to status text
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // If response is not JSON (e.g., HTML error page), use status text
+          errorMessage = `HTTP error! status: ${response.status}`;
+        }
+        throw new Error(errorMessage);
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Invalid response format');
       }
       
       const data = await response.json();
@@ -252,7 +266,7 @@ export default function AdminPaymentsPage() {
             icon={TrendingDown}
             iconColor="text-red-600"
           />
-        </div>
+      </div>
       )}
 
       <FilterBar
@@ -274,9 +288,9 @@ export default function AdminPaymentsPage() {
         }}
       />
 
-      {isLoading ? (
+          {isLoading ? (
         <LoadingState rows={5} columns={6} variant="table" />
-      ) : payments.length === 0 ? (
+          ) : payments.length === 0 ? (
         <EmptyState
           icon={DollarSign}
           title="No payments found"

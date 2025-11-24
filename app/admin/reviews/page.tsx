@@ -242,9 +242,9 @@ export default function AdminReviewsPage() {
         }}
       />
 
-      {isLoading ? (
+          {isLoading ? (
         <LoadingState rows={5} columns={7} variant="table" />
-      ) : reviews.length === 0 ? (
+          ) : reviews.length === 0 ? (
         <EmptyState
           icon={MessageSquare}
           title="No reviews found"

@@ -291,16 +291,16 @@ export default function AdminBookingsPage() {
           onClear={() => setSelectedBookings([])}
           actions={
             <>
-              <Button
-                variant="outline"
-                size="sm"
+                    <Button
+                      variant="outline"
+                      size="sm"
                 onClick={() => handleBulkStatusUpdate('confirmed')}
-              >
+                    >
                 Mark as Confirmed
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                 onClick={() => handleBulkStatusUpdate('completed')}
               >
                 Mark as Completed
@@ -392,10 +392,10 @@ export default function AdminBookingsPage() {
                 </Button>
                 <Button asChild>
                   <Link href={`/admin/bookings/${selectedBooking.id}`}>View Full Details</Link>
-                </Button>
-              </div>
-            </div>
-          )}
+                    </Button>
+                  </div>
+                </div>
+              )}
         </DialogContent>
       </Dialog>
     </div>

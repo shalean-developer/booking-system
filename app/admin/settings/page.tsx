@@ -83,9 +83,9 @@ export default function AdminSettingsPage() {
         </TabsList>
 
         <TabsContent value="general" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>General Settings</CardTitle>
+      <Card>
+        <CardHeader>
+          <CardTitle>General Settings</CardTitle>
               <CardDescription>Basic system configuration</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -122,7 +122,7 @@ export default function AdminSettingsPage() {
             <CardHeader>
               <CardTitle>Business Information</CardTitle>
               <CardDescription>Company details and contact information</CardDescription>
-            </CardHeader>
+        </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="businessName">Business Name</Label>
@@ -156,7 +156,7 @@ export default function AdminSettingsPage() {
                   value={settings.business_address || ''}
                   onChange={(e) => updateSetting('business_address', e.target.value)}
                 />
-              </div>
+            </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -176,7 +176,7 @@ export default function AdminSettingsPage() {
                   value={settings.from_email || ''}
                   onChange={(e) => updateSetting('from_email', e.target.value)}
                 />
-              </div>
+            </div>
               <div className="space-y-2">
                 <Label htmlFor="fromName">From Name</Label>
                 <Input
@@ -184,7 +184,7 @@ export default function AdminSettingsPage() {
                   value={settings.from_name || ''}
                   onChange={(e) => updateSetting('from_name', e.target.value)}
                 />
-              </div>
+            </div>
               <div className="space-y-2">
                 <Label htmlFor="bookingConfirmation">Booking Confirmation Template</Label>
                 <Textarea
@@ -193,9 +193,9 @@ export default function AdminSettingsPage() {
                   value={settings.booking_confirmation_template || ''}
                   onChange={(e) => updateSetting('booking_confirmation_template', e.target.value)}
                 />
-              </div>
-            </CardContent>
-          </Card>
+          </div>
+        </CardContent>
+      </Card>
         </TabsContent>
 
         <TabsContent value="system" className="space-y-4">

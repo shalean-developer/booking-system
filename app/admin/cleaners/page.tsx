@@ -107,23 +107,23 @@ export default function AdminCleanersPage() {
         <div>
           <div className="font-medium text-gray-900">{getCleanerName(row)}</div>
           <div className="text-sm text-gray-500">{row.email}</div>
-        </div>
+                  </div>
       ),
     },
     {
       id: 'status',
       header: 'Status',
       accessor: (row) => (
-        <Badge
-          variant="outline"
+                            <Badge
+                              variant="outline"
           className={
             row.is_active
               ? 'bg-green-50 text-green-700 border-green-200'
               : 'bg-gray-50 text-gray-700 border-gray-200'
           }
-        >
+                            >
           {row.is_active ? 'Active' : 'Inactive'}
-        </Badge>
+                            </Badge>
       ),
     },
     {
@@ -150,8 +150,8 @@ export default function AdminCleanersPage() {
           </span>
           {row.average_rating && (
             <span className="text-yellow-500">★</span>
-          )}
-        </div>
+                            )}
+                          </div>
       ),
     },
     {
@@ -174,9 +174,9 @@ export default function AdminCleanersPage() {
           <Button variant="ghost" size="sm" asChild>
             <Link href={`/admin/cleaners/performance?cleaner=${row.id}`}>
               Performance
-            </Link>
-          </Button>
-        </div>
+                    </Link>
+                    </Button>
+                  </div>
       ),
     },
   ];
@@ -225,8 +225,8 @@ export default function AdminCleanersPage() {
             icon={TrendingUp}
             iconColor="text-yellow-600"
           />
-        </div>
-      )}
+                </div>
+              )}
 
       <FilterBar
         searchPlaceholder="Search by name or email..."

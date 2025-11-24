@@ -67,18 +67,18 @@ export function BookingPipeline({ pipeline, isLoading = false }: BookingPipeline
         <CardDescription>Status distribution of all bookings</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {Object.entries(pipeline).map(([status, count]) => {
+          {Object.entries(pipeline).map(([status, count]) => {
           const percentage = total > 0 ? (count / total) * 100 : 0;
-          return (
+            return (
             <div key={status} className="space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">{statusLabels[status] || status}</span>
                 <span className="font-semibold text-gray-900">{count}</span>
-              </div>
+                </div>
               <Progress value={percentage} className="h-2" />
-            </div>
-          );
-        })}
+              </div>
+            );
+          })}
       </CardContent>
     </Card>
   );

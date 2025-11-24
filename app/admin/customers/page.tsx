@@ -141,8 +141,8 @@ export default function AdminCustomersPage() {
                 {row.phone}
               </span>
             )}
-          </div>
         </div>
+      </div>
       ),
     },
     {
@@ -213,7 +213,7 @@ export default function AdminCustomersPage() {
         }}
       />
 
-      {isLoading ? (
+          {isLoading ? (
         <LoadingState rows={5} columns={5} variant="table" />
       ) : customers.length === 0 ? (
         <EmptyState
@@ -245,7 +245,7 @@ export default function AdminCustomersPage() {
                 <div>
                   <label className="text-sm font-medium text-gray-500">Name</label>
                   <p className="text-sm text-gray-900">{getCustomerName(selectedCustomer)}</p>
-                </div>
+                  </div>
                 <div>
                   <label className="text-sm font-medium text-gray-500">Email</label>
                   <p className="text-sm text-gray-900">{selectedCustomer.email}</p>
@@ -253,34 +253,34 @@ export default function AdminCustomersPage() {
                 <div>
                   <label className="text-sm font-medium text-gray-500">Phone</label>
                   <p className="text-sm text-gray-900">{selectedCustomer.phone || 'N/A'}</p>
-                </div>
+            </div>
                 <div>
                   <label className="text-sm font-medium text-gray-500">Total Bookings</label>
                   <p className="text-sm text-gray-900 font-semibold">
                     {selectedCustomer.total_bookings || 0}
                   </p>
-                </div>
+            </div>
                 <div>
                   <label className="text-sm font-medium text-gray-500">Total Spent</label>
                   <p className="text-sm text-gray-900 font-semibold">
                     {selectedCustomer.total_spent ? formatCurrency(selectedCustomer.total_spent) : 'R0.00'}
-                  </p>
-                </div>
+                            </p>
+                          </div>
                 <div>
                   <label className="text-sm font-medium text-gray-500">Joined</label>
                   <p className="text-sm text-gray-900">{formatDate(selectedCustomer.created_at)}</p>
-                </div>
-              </div>
+                        </div>
+                      </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setIsViewModalOpen(false)}>
                   Close
-                </Button>
+                    </Button>
                 <Button asChild>
                   <Link href={`/admin/customers/${selectedCustomer.id}`}>View Full Details</Link>
-                </Button>
-              </div>
-            </div>
-          )}
+                    </Button>
+                  </div>
+                </div>
+              )}
         </DialogContent>
       </Dialog>
     </div>

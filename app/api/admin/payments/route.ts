@@ -6,14 +6,26 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    if (!await isAdmin()) {
+    // Check admin access first
+    const isAdminUser = await isAdmin();
+    if (!isAdminUser) {
       return NextResponse.json(
         { ok: false, error: 'Unauthorized' },
         { status: 403 }
       );
     }
 
-    const supabase = await createClient();
+    // Create Supabase client
+    let supabase;
+    try {
+      supabase = await createClient();
+    } catch (clientError) {
+      console.error('Error creating Supabase client:', clientError);
+      return NextResponse.json(
+        { ok: false, error: 'Database connection error' },
+        { status: 500 }
+      );
+    }
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const search = searchParams.get('search') || '';
@@ -27,7 +39,6 @@ export async function GET(request: NextRequest) {
         customer_name,
         total_amount,
         payment_reference,
-        payment_method,
         status,
         created_at
       `)
@@ -69,7 +80,7 @@ export async function GET(request: NextRequest) {
     // Get total count
     let countQuery = supabase
       .from('bookings')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .not('payment_reference', 'is', null);
 
     if (status && status !== 'all') {
@@ -92,7 +103,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { count } = await countQuery;
+    const { count, error: countError } = await countQuery;
+    
+    if (countError) {
+      console.error('Error fetching payment count:', countError);
+      // Continue with count = 0 rather than failing
+    }
 
     // Transform to payment format
     const payments = (bookings || []).map((booking: any) => ({
@@ -100,7 +116,7 @@ export async function GET(request: NextRequest) {
       booking_id: booking.id,
       customer_name: booking.customer_name || 'Unknown Customer',
       amount: booking.total_amount || 0,
-      payment_method: booking.payment_method || 'unknown',
+      payment_method: 'card', // Default payment method
       status: booking.status === 'completed' ? 'completed' : 
              booking.status === 'cancelled' ? 'failed' :
              ['pending', 'confirmed', 'accepted'].includes(booking.status) ? 'pending' : 'processing',
