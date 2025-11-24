@@ -16,26 +16,54 @@ export function AdminNavbar() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
 
-  useEffect(() => {
-    setIsMounted(true);
-    fetchUnreadCount();
-
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchUnreadCount, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
   const fetchUnreadCount = async () => {
     try {
       const response = await fetch('/api/admin/notifications/unread-count');
       if (response.ok) {
-        const data = await response.json();
-        setUnreadCount(data.count || 0);
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json();
+          setUnreadCount(data.count || 0);
+        }
       }
     } catch (error) {
-      // Silently fail
+      // Silently fail - don't crash the app
+      console.error('Failed to fetch unread count:', error);
+      setUnreadCount(0);
     }
   };
+
+  useEffect(() => {
+    try {
+      setIsMounted(true);
+      
+      // Only fetch if we're on the client side
+      if (typeof window !== 'undefined') {
+        fetchUnreadCount();
+
+        // Refresh every 30 seconds
+        const interval = setInterval(fetchUnreadCount, 30000);
+        return () => clearInterval(interval);
+      }
+    } catch (error) {
+      console.error('Error in AdminNavbar useEffect:', error);
+    }
+  }, []);
+
+  // Prevent hydration errors by not rendering until mounted
+  if (!isMounted) {
+    return (
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 shadow-sm h-16">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between">
+            <div className="flex items-center">
+              <span className="text-xl font-bold text-[#3b82f6]">Admin Dashboard</span>
+            </div>
+          </div>
+        </div>
+      </nav>
+    );
+  }
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 shadow-sm h-16">

@@ -25,28 +25,46 @@ export default function AdminDashboardPage() {
         setIsLoading(true);
 
         const [statsRes, pipelineRes, serviceRes, chartRes, bookingsRes] = await Promise.all([
-          fetch('/api/admin/stats'),
-          fetch('/api/admin/stats/booking-pipeline'),
-          fetch('/api/admin/stats/service-breakdown'),
-          fetch('/api/admin/stats/chart'),
-          fetch('/api/admin/bookings?limit=10'),
+          fetch('/api/admin/stats').catch(() => ({ ok: false, json: async () => ({ ok: false }) })),
+          fetch('/api/admin/stats/booking-pipeline').catch(() => ({ ok: false, json: async () => ({ ok: false }) })),
+          fetch('/api/admin/stats/service-breakdown').catch(() => ({ ok: false, json: async () => ({ ok: false, data: [] }) })),
+          fetch('/api/admin/stats/chart').catch(() => ({ ok: false, json: async () => ({ ok: false, data: [] }) })),
+          fetch('/api/admin/bookings?limit=10').catch(() => ({ ok: false, json: async () => ({ ok: false, bookings: [] }) })),
         ]);
 
-        const [statsData, pipelineData, serviceData, chartData, bookingsData] = await Promise.all([
-          statsRes.json(),
-          pipelineRes.json(),
-          serviceRes.json(),
-          chartRes.json(),
-          bookingsRes.json(),
+        const results = await Promise.allSettled([
+          statsRes.json().catch(() => ({ ok: false })),
+          pipelineRes.json().catch(() => ({ ok: false })),
+          serviceRes.json().catch(() => ({ ok: false, data: [] })),
+          chartRes.json().catch(() => ({ ok: false, data: [] })),
+          bookingsRes.json().catch(() => ({ ok: false, bookings: [] })),
         ]);
 
-        if (statsData.ok) setStats(statsData.stats);
-        if (pipelineData.ok) setPipeline(pipelineData.pipeline);
-        if (serviceData.ok) setServiceBreakdown(serviceData.data);
-        if (chartData.ok) setChartData(chartData.data);
-        if (bookingsData.ok) setRecentBookings(bookingsData.bookings || []);
+        const [statsResult, pipelineResult, serviceResult, chartResult, bookingsResult] = results;
+
+        if (statsResult.status === 'fulfilled' && statsResult.value.ok) {
+          setStats(statsResult.value.stats);
+        }
+        if (pipelineResult.status === 'fulfilled' && pipelineResult.value.ok) {
+          setPipeline(pipelineResult.value.pipeline);
+        }
+        if (serviceResult.status === 'fulfilled' && serviceResult.value.ok) {
+          setServiceBreakdown(serviceResult.value.data || []);
+        }
+        if (chartResult.status === 'fulfilled' && chartResult.value.ok) {
+          setChartData(chartResult.value.data || []);
+        }
+        if (bookingsResult.status === 'fulfilled' && bookingsResult.value.ok) {
+          setRecentBookings(bookingsResult.value.bookings || []);
+        }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
+        // Set defaults to prevent crashes
+        setStats(null);
+        setPipeline(null);
+        setServiceBreakdown([]);
+        setChartData([]);
+        setRecentBookings([]);
       } finally {
         setIsLoading(false);
       }
