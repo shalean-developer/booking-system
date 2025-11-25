@@ -232,6 +232,11 @@ const nextConfig = {
         destination: '/services/regular-cleaning',
         permanent: true,
       },
+      {
+        source: '/services/move-in-out-cleaning',
+        destination: '/services/move-turnover',
+        permanent: true,
+      },
       // Old page URLs
       {
         source: '/reviews',

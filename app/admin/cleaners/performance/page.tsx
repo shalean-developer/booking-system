@@ -61,6 +61,16 @@ export default function CleanerPerformancePage() {
           'Content-Type': 'application/json',
         },
       });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        // Check if response is HTML (error page)
+        if (errorText.trim().startsWith('<!DOCTYPE') || errorText.trim().startsWith('<html')) {
+          throw new Error(`API route returned HTML instead of JSON. Status: ${response.status}`);
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
 
       if (data.ok) {
@@ -92,12 +102,23 @@ export default function CleanerPerformancePage() {
           'Content-Type': 'application/json',
         },
       });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        // Check if response is HTML (error page)
+        if (errorText.trim().startsWith('<!DOCTYPE') || errorText.trim().startsWith('<html')) {
+          throw new Error(`API route returned HTML instead of JSON. Status: ${response.status}. The route may not exist or there's a server error.`);
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
       if (data.ok) {
         setStats(data.stats);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching performance stats:', error);
+      // Don't set error state for stats, just log it
     }
   };
 

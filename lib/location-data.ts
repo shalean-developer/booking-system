@@ -100,7 +100,15 @@ export const CITY_AREA_DATA: Record<string, CityArea[]> = {
       suburbs: [
         { name: "Somerset West", slug: "somerset-west" },
         { name: "Strand", slug: "strand" },
-        { name: "Stellenbosch", slug: "stellenbosch" }
+        { name: "Stellenbosch", slug: "stellenbosch" },
+        { name: "Paarl", slug: "paarl" }
+      ],
+    },
+    {
+      slug: "garden-route",
+      label: "Garden Route",
+      suburbs: [
+        { name: "George", slug: "george" }
       ],
     },
   ],
@@ -293,7 +301,8 @@ export const CITY_AREA_DATA: Record<string, CityArea[]> = {
       suburbs: [
         { name: "Glenwood", slug: "glenwood" },
         { name: "Sherwood", slug: "sherwood" },
-        { name: "Durban CBD", slug: "durban-cbd" }
+        { name: "Durban CBD", slug: "durban-cbd" },
+        { name: "Pietermaritzburg", slug: "pietermaritzburg" }
       ],
     },
   ],
