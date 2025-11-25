@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
     const status = searchParams.get('status');
     const search = searchParams.get('search') || '';
+    const customerId = searchParams.get('customer'); // Filter by customer ID
     const start = searchParams.get('start');
     const end = searchParams.get('end');
     const excludeRecurring = searchParams.get('exclude_recurring') === 'true';
@@ -68,6 +69,11 @@ export async function GET(request: NextRequest) {
 
     if (status && status !== 'all') {
       query = query.eq('status', status);
+    }
+
+    // Filter by customer ID if provided
+    if (customerId) {
+      query = query.eq('customer_id', customerId);
     }
 
     if (search) {
@@ -126,6 +132,11 @@ export async function GET(request: NextRequest) {
 
     if (status && status !== 'all') {
       countQuery = countQuery.eq('status', status);
+    }
+
+    // Filter by customer ID if provided
+    if (customerId) {
+      countQuery = countQuery.eq('customer_id', customerId);
     }
 
     if (search) {

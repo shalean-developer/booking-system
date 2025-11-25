@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { PageHeader } from '@/components/admin/shared/page-header';
 import { FilterBar, FilterConfig } from '@/components/admin/shared/filter-bar';
 import { DataTable, Column } from '@/components/admin/shared/data-table';
@@ -67,6 +68,8 @@ const statusColors: Record<string, string> = {
 };
 
 export default function AdminBookingsPage() {
+  const searchParams = useSearchParams();
+  const customerFilter = searchParams.get('customer');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -92,7 +95,7 @@ export default function AdminBookingsPage() {
 
   useEffect(() => {
     fetchBookings();
-  }, [statusFilter, currentPage, debouncedSearch]);
+  }, [statusFilter, currentPage, debouncedSearch, customerFilter]);
 
   const fetchBookings = async () => {
     try {
@@ -110,6 +113,10 @@ export default function AdminBookingsPage() {
       
       if (debouncedSearch) {
         params.append('search', debouncedSearch);
+      }
+      
+      if (customerFilter) {
+        params.append('customer', customerFilter);
       }
 
       const url = `/api/admin/bookings?${params.toString()}`;

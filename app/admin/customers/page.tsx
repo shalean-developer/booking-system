@@ -9,7 +9,13 @@ import { LoadingState } from '@/components/admin/shared/loading-state';
 import { ExportButton } from '@/components/admin/shared/export-button';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Users, Eye, Mail, Phone } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Users, Eye, Mail, Phone, MoreVertical, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import {
   Dialog,
@@ -66,7 +72,12 @@ export default function AdminCustomersPage() {
       }
 
       const url = `/api/admin/customers?${params.toString()}`;
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       const data = await response.json();
 
       if (data.ok) {
@@ -141,8 +152,8 @@ export default function AdminCustomersPage() {
                 {row.phone}
               </span>
             )}
+          </div>
         </div>
-      </div>
       ),
     },
     {
@@ -172,21 +183,31 @@ export default function AdminCustomersPage() {
       id: 'actions',
       header: 'Actions',
       accessor: (row) => (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setSelectedCustomer(row);
-              setIsViewModalOpen(true);
-            }}
-          >
-            <Eye className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="sm" asChild>
-            <Link href={`/admin/customers/${row.id}`}>View</Link>
-          </Button>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm">
+              <span className="sr-only">Open menu</span>
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onClick={() => {
+                setSelectedCustomer(row);
+                setIsViewModalOpen(true);
+              }}
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              View Details
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={`/admin/bookings?customer=${row.id}`}>
+                <Calendar className="mr-2 h-4 w-4" />
+                View Bookings
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       ),
     },
   ];
@@ -213,7 +234,7 @@ export default function AdminCustomersPage() {
         }}
       />
 
-          {isLoading ? (
+      {isLoading ? (
         <LoadingState rows={5} columns={5} variant="table" />
       ) : customers.length === 0 ? (
         <EmptyState
@@ -245,7 +266,7 @@ export default function AdminCustomersPage() {
                 <div>
                   <label className="text-sm font-medium text-gray-500">Name</label>
                   <p className="text-sm text-gray-900">{getCustomerName(selectedCustomer)}</p>
-                  </div>
+                </div>
                 <div>
                   <label className="text-sm font-medium text-gray-500">Email</label>
                   <p className="text-sm text-gray-900">{selectedCustomer.email}</p>
@@ -253,34 +274,36 @@ export default function AdminCustomersPage() {
                 <div>
                   <label className="text-sm font-medium text-gray-500">Phone</label>
                   <p className="text-sm text-gray-900">{selectedCustomer.phone || 'N/A'}</p>
-            </div>
+                </div>
                 <div>
                   <label className="text-sm font-medium text-gray-500">Total Bookings</label>
                   <p className="text-sm text-gray-900 font-semibold">
                     {selectedCustomer.total_bookings || 0}
                   </p>
-            </div>
+                </div>
                 <div>
                   <label className="text-sm font-medium text-gray-500">Total Spent</label>
                   <p className="text-sm text-gray-900 font-semibold">
                     {selectedCustomer.total_spent ? formatCurrency(selectedCustomer.total_spent) : 'R0.00'}
-                            </p>
-                          </div>
+                  </p>
+                </div>
                 <div>
                   <label className="text-sm font-medium text-gray-500">Joined</label>
                   <p className="text-sm text-gray-900">{formatDate(selectedCustomer.created_at)}</p>
-                        </div>
-                      </div>
+                </div>
+              </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setIsViewModalOpen(false)}>
                   Close
-                    </Button>
+                </Button>
                 <Button asChild>
-                  <Link href={`/admin/customers/${selectedCustomer.id}`}>View Full Details</Link>
-                    </Button>
-                  </div>
-                </div>
-              )}
+                  <Link href={`/admin/bookings?customer=${selectedCustomer.id}`}>
+                    View Bookings
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
