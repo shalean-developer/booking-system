@@ -170,10 +170,30 @@ export default function NewBookingPage() {
     e.preventDefault();
     setIsSubmitting(true);
 
+    // Validate required fields
+    if (!serviceType || !bookingDate || !bookingTime) {
+      alert('Please fill in all required fields (Service Type, Booking Date, and Booking Time)');
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!customerFirstName || !customerLastName || !customerEmail) {
+      alert('Please fill in customer information (First Name, Last Name, and Email)');
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!addressLine1 || !addressSuburb || !addressCity) {
+      alert('Please fill in the complete address');
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const response = await fetch('/api/admin/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           service_type: serviceType,
           bedrooms,
@@ -197,16 +217,32 @@ export default function NewBookingPage() {
         }),
       });
 
+      if (!response.ok) {
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          const errorText = await response.text();
+          errorMessage = errorText || errorMessage;
+        }
+        console.error('Booking creation failed:', errorMessage);
+        alert(`Failed to create booking: ${errorMessage}`);
+        setIsSubmitting(false);
+        return;
+      }
+
       const data = await response.json();
 
-      if (data.ok) {
+      if (data.ok && data.booking) {
         router.push(`/admin/bookings/${data.booking.id}`);
       } else {
+        console.error('Booking creation failed:', data.error);
         alert(data.error || 'Failed to create booking');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating booking:', error);
-      alert('Failed to create booking');
+      alert(`Failed to create booking: ${error.message || 'Unknown error'}`);
     } finally {
       setIsSubmitting(false);
     }

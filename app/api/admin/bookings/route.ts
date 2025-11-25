@@ -325,16 +325,24 @@ export async function POST(request: NextRequest) {
     // Create or find customer profile
     let customerId = null;
     if (body.customer_email) {
-      const { data: existingCustomer } = await supabase
+      const { data: existingCustomer, error: findError } = await supabase
         .from('customers')
         .select('id, total_bookings')
         .ilike('email', body.customer_email)
         .maybeSingle();
 
+      if (findError) {
+        console.error('Error finding customer:', findError);
+        return NextResponse.json(
+          { ok: false, error: `Failed to find customer: ${findError.message}` },
+          { status: 500 }
+        );
+      }
+
       if (existingCustomer) {
         customerId = existingCustomer.id;
         // Update customer info and increment bookings
-        await supabase
+        const { error: updateError } = await supabase
           .from('customers')
           .update({
             phone: body.customer_phone,
@@ -346,8 +354,13 @@ export async function POST(request: NextRequest) {
             total_bookings: (existingCustomer.total_bookings || 0) + 1,
           })
           .eq('id', existingCustomer.id);
+        
+        if (updateError) {
+          console.error('Error updating customer:', updateError);
+          // Don't fail the booking if customer update fails, just log it
+        }
       } else {
-        const { data: newCustomer } = await supabase
+        const { data: newCustomer, error: createError } = await supabase
           .from('customers')
           .insert({
             email: body.customer_email.toLowerCase().trim(),
@@ -362,10 +375,28 @@ export async function POST(request: NextRequest) {
           .select()
           .single();
         
+        if (createError) {
+          console.error('Error creating customer:', createError);
+          return NextResponse.json(
+            { ok: false, error: `Failed to create customer: ${createError.message}` },
+            { status: 500 }
+          );
+        }
+        
         if (newCustomer) {
           customerId = newCustomer.id;
+        } else {
+          return NextResponse.json(
+            { ok: false, error: 'Failed to create customer profile' },
+            { status: 500 }
+          );
         }
       }
+    } else {
+      return NextResponse.json(
+        { ok: false, error: 'Customer email is required' },
+        { status: 400 }
+      );
     }
 
     // Build price snapshot
@@ -418,7 +449,11 @@ export async function POST(request: NextRequest) {
     if (bookingError) {
       console.error('Error creating booking:', bookingError);
       return NextResponse.json(
-        { ok: false, error: 'Failed to create booking' },
+        { 
+          ok: false, 
+          error: `Failed to create booking: ${bookingError.message || 'Database error'}`,
+          details: process.env.NODE_ENV === 'development' ? bookingError.message : undefined
+        },
         { status: 500 }
       );
     }
@@ -450,10 +485,14 @@ export async function POST(request: NextRequest) {
       ok: true,
       booking,
     });
-  } catch (error) {
-    console.error('Error creating booking:', error);
+  } catch (error: any) {
+    console.error('Error in bookings POST API:', error);
     return NextResponse.json(
-      { ok: false, error: 'Internal server error' },
+      { 
+        ok: false, 
+        error: 'Internal server error',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
       { status: 500 }
     );
   }
