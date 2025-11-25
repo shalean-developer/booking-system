@@ -7,24 +7,44 @@ import { SWRConfiguration } from 'swr';
 
 // Custom fetcher function
 export async function fetcher<T>(url: string): Promise<T> {
-  const response = await fetch(url, {
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
+  try {
+    const response = await fetch(url, {
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Failed to fetch' }));
-    throw new Error(error.error || `HTTP error! status: ${response.status}`);
+    const contentType = response.headers.get('content-type');
+    const isJson = contentType && contentType.includes('application/json');
+
+    if (!response.ok) {
+      let errorMessage = `HTTP error! status: ${response.status}`;
+      if (isJson) {
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // If JSON parsing fails, use status text
+          errorMessage = response.statusText || errorMessage;
+        }
+      }
+      throw new Error(errorMessage);
+    }
+
+    if (!isJson) {
+      throw new Error('Response is not JSON');
+    }
+
+    const data = await response.json();
+    return data as T;
+  } catch (error) {
+    // Re-throw SWR-compatible errors
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Unknown error occurred');
   }
-
-  const contentType = response.headers.get('content-type');
-  if (!contentType || !contentType.includes('application/json')) {
-    throw new Error('Response is not JSON');
-  }
-
-  return response.json();
 }
 
 // Global SWR configuration

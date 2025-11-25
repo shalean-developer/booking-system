@@ -20,17 +20,31 @@ export function useDashboardStats() {
     {
       revalidateOnMount: true,
       refreshInterval: 0, // Disable auto-refresh by default
+      onError: (err) => {
+        console.error('[useDashboardStats] Error:', err);
+      },
+      onSuccess: (data) => {
+        if (data && !data.ok) {
+          console.warn('[useDashboardStats] API returned ok:false', data.error);
+        }
+      },
     }
   );
 
-  const stats = data?.ok && data.stats && validateDashboardStats(data.stats) 
-    ? data.stats 
-    : null;
+  // Handle data validation
+  let stats = null;
+  if (data?.ok && data.stats) {
+    if (validateDashboardStats(data.stats)) {
+      stats = data.stats;
+    } else {
+      console.warn('[useDashboardStats] Validation failed for stats data');
+    }
+  }
 
   return {
     stats,
     isLoading,
-    isError: error || (data && !data.ok),
+    isError: !!error || (data !== undefined && !data?.ok),
     error: error?.message || data?.error || null,
     mutate, // For manual revalidation
   };

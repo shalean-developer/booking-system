@@ -24,19 +24,19 @@ export default async function AdminLayout({
   return (
     <ErrorBoundary>
       <SWRProvider>
-        <div className="min-h-screen bg-gray-50">
-          <FilterPeriodProvider>
-            <AdminNavbar />
-            <div className="flex">
-              <AdminSidebar />
-              <main className="flex-1 min-h-[calc(100vh-4rem)] overflow-auto lg:ml-64 pt-0">
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
-                  {children}
-                </div>
-              </main>
-            </div>
-          </FilterPeriodProvider>
-        </div>
+      <div className="min-h-screen bg-gray-50">
+        <FilterPeriodProvider>
+          <AdminNavbar />
+          <div className="flex">
+            <AdminSidebar />
+            <main className="flex-1 min-h-[calc(100vh-4rem)] overflow-auto lg:ml-64 pt-0">
+              <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+                {children}
+              </div>
+            </main>
+          </div>
+        </FilterPeriodProvider>
+      </div>
       </SWRProvider>
     </ErrorBoundary>
   );

@@ -38,6 +38,19 @@ export default function AdminDashboardPage() {
   // Combined loading state
   const isLoading = statsLoading || pipelineLoading || breakdownLoading || chartLoading || bookingsLoading;
   
+  // Debug logging (remove in production)
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Dashboard Debug]', {
+        stats: { data: stats, loading: statsLoading, error: statsError },
+        pipeline: { data: pipeline, loading: pipelineLoading, error: pipelineError },
+        serviceBreakdown: { data: serviceBreakdown, loading: breakdownLoading, error: breakdownError },
+        chartData: { data: chartData, loading: chartLoading, error: chartError },
+        recentBookings: { data: recentBookings, loading: bookingsLoading, error: bookingsError },
+      });
+    }
+  }, [stats, pipeline, serviceBreakdown, chartData, recentBookings, statsLoading, pipelineLoading, breakdownLoading, chartLoading, bookingsLoading, statsError, pipelineError, breakdownError, chartError, bookingsError]);
+  
   // Combined errors
   const errors = {
     stats: statsError ? statsErrorMsg : null,
@@ -70,7 +83,7 @@ export default function AdminDashboardPage() {
       if (autoRefreshInterval) {
         clearInterval(autoRefreshInterval);
         setAutoRefreshInterval(null);
-      }
+        }
     }
   }, [autoRefresh, mutateStats, mutatePipeline, mutateBreakdown, mutateChart, mutateBookings]);
 
@@ -79,14 +92,14 @@ export default function AdminDashboardPage() {
 
   return (
     <ErrorBoundary>
-      <div className="space-y-6 w-full">
-        <PageHeader
-          title="Dashboard"
-          description="Overview of your business metrics and recent activity"
-          breadcrumbs={[
-            { label: 'Admin', href: '/admin' },
-            { label: 'Dashboard' },
-          ]}
+    <div className="space-y-6 w-full">
+      <PageHeader
+        title="Dashboard"
+        description="Overview of your business metrics and recent activity"
+        breadcrumbs={[
+          { label: 'Admin', href: '/admin' },
+          { label: 'Dashboard' },
+        ]}
           actions={
             <div className="flex items-center gap-2 flex-wrap">
               <DateRangeSelector value={dateRange} onChange={setDateRange} />
@@ -155,44 +168,44 @@ export default function AdminDashboardPage() {
         )}
 
         <ErrorBoundary>
-          <OverviewStats stats={stats} isLoading={isLoading} />
+      <OverviewStats stats={stats} isLoading={isLoading} />
         </ErrorBoundary>
 
-        <div className="grid gap-6 md:grid-cols-2 w-full">
+      <div className="grid gap-6 md:grid-cols-2 w-full">
           <ErrorBoundary>
-            <RevenueChartEnhanced data={chartData} isLoading={isLoading} />
+        <RevenueChartEnhanced data={chartData} isLoading={isLoading} />
           </ErrorBoundary>
           <ErrorBoundary>
-            <BookingsChartEnhanced data={chartData} isLoading={isLoading} />
+        <BookingsChartEnhanced data={chartData} isLoading={isLoading} />
           </ErrorBoundary>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3 w-full">
+        <div className="lg:col-span-2 space-y-6">
+            <ErrorBoundary>
+          <ServiceBreakdown data={serviceBreakdown} isLoading={isLoading} />
+            </ErrorBoundary>
+            <ErrorBoundary>
+          <RecentActivity bookings={recentBookings} isLoading={isLoading} />
+            </ErrorBoundary>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3 w-full">
-          <div className="lg:col-span-2 space-y-6">
+        <div className="space-y-6">
             <ErrorBoundary>
-              <ServiceBreakdown data={serviceBreakdown} isLoading={isLoading} />
+          <BookingPipeline pipeline={pipeline} isLoading={isLoading} />
             </ErrorBoundary>
             <ErrorBoundary>
-              <RecentActivity bookings={recentBookings} isLoading={isLoading} />
+          <PendingAlerts
+            pendingQuotes={stats?.pendingQuotes}
+            pendingApplications={stats?.pendingApplications}
+            pendingBookings={stats?.pendingBookings}
+            isLoading={isLoading}
+          />
             </ErrorBoundary>
-          </div>
-
-          <div className="space-y-6">
-            <ErrorBoundary>
-              <BookingPipeline pipeline={pipeline} isLoading={isLoading} />
-            </ErrorBoundary>
-            <ErrorBoundary>
-              <PendingAlerts
-                pendingQuotes={stats?.pendingQuotes}
-                pendingApplications={stats?.pendingApplications}
-                pendingBookings={stats?.pendingBookings}
-                isLoading={isLoading}
-              />
-            </ErrorBoundary>
-            <QuickActions />
-          </div>
+          <QuickActions />
         </div>
       </div>
+    </div>
     </ErrorBoundary>
   );
 }
