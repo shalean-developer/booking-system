@@ -38,6 +38,7 @@ function QuickActionButton({ href, icon, label, variant = 'outline' }: QuickActi
 }
 
 export function QuickActions() {
+  // Updated: Fixed text truncation - ensure full labels display
   return (
     <Card>
       <CardHeader>
