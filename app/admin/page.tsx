@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { useSWRConfig } from 'swr';
 import { PageHeader } from '@/components/admin/shared/page-header';
 import { OverviewStats } from '@/components/admin/dashboard/overview-stats';
 import { BookingPipeline } from '@/components/admin/dashboard/booking-pipeline';
@@ -15,197 +16,51 @@ import { ErrorBoundary } from '@/components/admin/shared/error-boundary';
 import { DateRangeSelector, type DateRangePeriod } from '@/components/admin/shared/date-range-selector';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
-import { getDateRange } from '@/lib/utils/formatting';
-import {
-  validateDashboardStats,
-  validateBookingPipeline,
-  validateServiceBreakdown,
-  validateChartData,
-  validateRecentBookings,
-} from '@/lib/utils/validation';
-import type {
-  DashboardStats,
-  BookingPipeline as BookingPipelineType,
-  ServiceBreakdownItem,
-  ChartDataPoint,
-  RecentBooking,
-} from '@/types/admin-dashboard';
-
-interface DashboardErrors {
-  stats: string | null;
-  pipeline: string | null;
-  serviceBreakdown: string | null;
-  chart: string | null;
-  bookings: string | null;
-}
+import { useDashboardStats } from '@/hooks/use-dashboard-stats';
+import { useBookingPipeline } from '@/hooks/use-booking-pipeline';
+import { useServiceBreakdown } from '@/hooks/use-service-breakdown';
+import { useChartData } from '@/hooks/use-chart-data';
+import { useRecentBookings } from '@/hooks/use-recent-bookings';
 
 export default function AdminDashboardPage() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [pipeline, setPipeline] = useState<BookingPipelineType | null>(null);
-  const [serviceBreakdown, setServiceBreakdown] = useState<ServiceBreakdownItem[]>([]);
-  const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-  const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [errors, setErrors] = useState<DashboardErrors>({
-    stats: null,
-    pipeline: null,
-    serviceBreakdown: null,
-    chart: null,
-    bookings: null,
-  });
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [dateRange, setDateRange] = useState<DateRangePeriod>('month');
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [autoRefreshInterval, setAutoRefreshInterval] = useState<NodeJS.Timeout | null>(null);
-  const [dateRange, setDateRange] = useState<DateRangePeriod>('month');
+  const { mutate: mutateAll } = useSWRConfig();
 
-  const fetchDashboardData = useCallback(async (isManualRefresh = false) => {
-    try {
-      if (isManualRefresh) {
-        setIsRefreshing(true);
-      } else {
-        setIsLoading(true);
-      }
+  // Use SWR hooks for data fetching
+  const { stats, isLoading: statsLoading, isError: statsError, error: statsErrorMsg, mutate: mutateStats } = useDashboardStats();
+  const { pipeline, isLoading: pipelineLoading, isError: pipelineError, error: pipelineErrorMsg, mutate: mutatePipeline } = useBookingPipeline();
+  const { serviceBreakdown, isLoading: breakdownLoading, isError: breakdownError, error: breakdownErrorMsg, mutate: mutateBreakdown } = useServiceBreakdown();
+  const { chartData, isLoading: chartLoading, isError: chartError, error: chartErrorMsg, mutate: mutateChart } = useChartData(dateRange);
+  const { recentBookings, isLoading: bookingsLoading, isError: bookingsError, error: bookingsErrorMsg, mutate: mutateBookings } = useRecentBookings(10);
 
-      // Clear previous errors
-      setErrors({
-        stats: null,
-        pipeline: null,
-        serviceBreakdown: null,
-        chart: null,
-        bookings: null,
-      });
+  // Combined loading state
+  const isLoading = statsLoading || pipelineLoading || breakdownLoading || chartLoading || bookingsLoading;
+  
+  // Combined errors
+  const errors = {
+    stats: statsError ? statsErrorMsg : null,
+    pipeline: pipelineError ? pipelineErrorMsg : null,
+    serviceBreakdown: breakdownError ? breakdownErrorMsg : null,
+    chart: chartError ? chartErrorMsg : null,
+    bookings: bookingsError ? bookingsErrorMsg : null,
+  };
 
-      // Get date range for chart data
-      const { dateFrom, dateTo } = dateRange === 'custom' 
-        ? { dateFrom: '', dateTo: '' } // Custom will be handled separately if needed
-        : getDateRange(dateRange);
-      
-      const chartUrl = dateRange === 'custom' 
-        ? '/api/admin/stats/chart'
-        : `/api/admin/stats/chart?date_from=${dateFrom}&date_to=${dateTo}`;
-
-      const [statsRes, pipelineRes, serviceRes, chartRes, bookingsRes] = await Promise.all([
-        fetch('/api/admin/stats').catch(() => ({ ok: false, json: async () => ({ ok: false, error: 'Network error' }) })),
-        fetch('/api/admin/stats/booking-pipeline').catch(() => ({ ok: false, json: async () => ({ ok: false, error: 'Network error' }) })),
-        fetch('/api/admin/stats/service-breakdown').catch(() => ({ ok: false, json: async () => ({ ok: false, data: [], error: 'Network error' }) })),
-        fetch(chartUrl).catch(() => ({ ok: false, json: async () => ({ ok: false, data: [], error: 'Network error' }) })),
-        fetch('/api/admin/bookings?limit=10').catch(() => ({ ok: false, json: async () => ({ ok: false, bookings: [], error: 'Network error' }) })),
-      ]);
-
-      const results = await Promise.allSettled([
-        statsRes.json().catch(() => ({ ok: false, error: 'Failed to parse response' })),
-        pipelineRes.json().catch(() => ({ ok: false, error: 'Failed to parse response' })),
-        serviceRes.json().catch(() => ({ ok: false, data: [], error: 'Failed to parse response' })),
-        chartRes.json().catch(() => ({ ok: false, data: [], error: 'Failed to parse response' })),
-        bookingsRes.json().catch(() => ({ ok: false, bookings: [], error: 'Failed to parse response' })),
-      ]);
-
-      const [statsResult, pipelineResult, serviceResult, chartResult, bookingsResult] = results;
-
-      // Handle stats with validation
-      if (statsResult.status === 'fulfilled' && statsResult.value.ok && statsResult.value.stats) {
-        if (validateDashboardStats(statsResult.value.stats)) {
-          setStats(statsResult.value.stats);
-          setErrors((prev) => ({ ...prev, stats: null }));
-        } else {
-          setErrors((prev) => ({ ...prev, stats: 'Invalid statistics data format' }));
-        }
-      } else {
-        const errorMsg = statsResult.status === 'rejected' 
-          ? 'Failed to fetch statistics'
-          : statsResult.value.error || 'Failed to fetch statistics';
-        setErrors((prev) => ({ ...prev, stats: errorMsg }));
-      }
-
-      // Handle pipeline with validation
-      if (pipelineResult.status === 'fulfilled' && pipelineResult.value.ok && pipelineResult.value.pipeline) {
-        if (validateBookingPipeline(pipelineResult.value.pipeline)) {
-          setPipeline(pipelineResult.value.pipeline);
-          setErrors((prev) => ({ ...prev, pipeline: null }));
-        } else {
-          setErrors((prev) => ({ ...prev, pipeline: 'Invalid pipeline data format' }));
-        }
-      } else {
-        const errorMsg = pipelineResult.status === 'rejected'
-          ? 'Failed to fetch booking pipeline'
-          : pipelineResult.value.error || 'Failed to fetch booking pipeline';
-        setErrors((prev) => ({ ...prev, pipeline: errorMsg }));
-      }
-
-      // Handle service breakdown with validation
-      if (serviceResult.status === 'fulfilled' && serviceResult.value.ok) {
-        const data = serviceResult.value.data || [];
-        if (validateServiceBreakdown(data)) {
-          setServiceBreakdown(data);
-          setErrors((prev) => ({ ...prev, serviceBreakdown: null }));
-        } else {
-          setErrors((prev) => ({ ...prev, serviceBreakdown: 'Invalid service breakdown data format' }));
-        }
-      } else {
-        const errorMsg = serviceResult.status === 'rejected'
-          ? 'Failed to fetch service breakdown'
-          : serviceResult.value.error || 'Failed to fetch service breakdown';
-        setErrors((prev) => ({ ...prev, serviceBreakdown: errorMsg }));
-      }
-
-      // Handle chart data with validation
-      if (chartResult.status === 'fulfilled' && chartResult.value.ok) {
-        const data = chartResult.value.data || [];
-        if (validateChartData(data)) {
-          setChartData(data);
-          setErrors((prev) => ({ ...prev, chart: null }));
-        } else {
-          setErrors((prev) => ({ ...prev, chart: 'Invalid chart data format' }));
-        }
-      } else {
-        const errorMsg = chartResult.status === 'rejected'
-          ? 'Failed to fetch chart data'
-          : chartResult.value.error || 'Failed to fetch chart data';
-        setErrors((prev) => ({ ...prev, chart: errorMsg }));
-      }
-
-      // Handle recent bookings with validation
-      if (bookingsResult.status === 'fulfilled' && bookingsResult.value.ok) {
-        const bookings = bookingsResult.value.bookings || [];
-        if (validateRecentBookings(bookings)) {
-          setRecentBookings(bookings);
-          setErrors((prev) => ({ ...prev, bookings: null }));
-        } else {
-          setErrors((prev) => ({ ...prev, bookings: 'Invalid bookings data format' }));
-        }
-      } else {
-        const errorMsg = bookingsResult.status === 'rejected'
-          ? 'Failed to fetch recent bookings'
-          : bookingsResult.value.error || 'Failed to fetch recent bookings';
-        setErrors((prev) => ({ ...prev, bookings: errorMsg }));
-      }
-
-      setLastUpdated(new Date());
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-      setErrors({
-        stats: errorMessage,
-        pipeline: errorMessage,
-        serviceBreakdown: errorMessage,
-        chart: errorMessage,
-        bookings: errorMessage,
-      });
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData, dateRange]);
+  // Handle refresh - revalidate all SWR data
+  const handleRefresh = () => {
+    mutateStats();
+    mutatePipeline();
+    mutateBreakdown();
+    mutateChart();
+    mutateBookings();
+  };
 
   // Auto-refresh functionality
   useEffect(() => {
     if (autoRefresh) {
       const interval = setInterval(() => {
-        fetchDashboardData(true);
+        handleRefresh();
       }, 60000); // Refresh every 60 seconds
       setAutoRefreshInterval(interval);
       return () => {
@@ -217,26 +72,17 @@ export default function AdminDashboardPage() {
         setAutoRefreshInterval(null);
       }
     }
-    // fetchDashboardData is stable due to useCallback, so we can safely omit it
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoRefresh]);
-
-  const handleRefresh = () => {
-    fetchDashboardData(true);
-  };
+  }, [autoRefresh, mutateStats, mutatePipeline, mutateBreakdown, mutateChart, mutateBookings]);
 
   const hasAnyError = Object.values(errors).some((error) => error !== null);
+  const isRefreshing = false; // SWR handles loading states internally
 
   return (
     <ErrorBoundary>
       <div className="space-y-6 w-full">
         <PageHeader
           title="Dashboard"
-          description={
-            lastUpdated
-              ? `Overview of your business metrics and recent activity • Last updated: ${lastUpdated.toLocaleTimeString()}`
-              : 'Overview of your business metrics and recent activity'
-          }
+          description="Overview of your business metrics and recent activity"
           breadcrumbs={[
             { label: 'Admin', href: '/admin' },
             { label: 'Dashboard' },
@@ -248,10 +94,10 @@ export default function AdminDashboardPage() {
                 variant="outline"
                 size="sm"
                 onClick={handleRefresh}
-                disabled={isRefreshing || isLoading}
+                disabled={isLoading}
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                {isRefreshing ? 'Refreshing...' : 'Refresh'}
+                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
               </Button>
               <Button
                 variant={autoRefresh ? 'default' : 'outline'}
@@ -270,16 +116,14 @@ export default function AdminDashboardPage() {
               <ErrorAlert
                 title="Failed to load statistics"
                 message={errors.stats}
-                onRetry={() => fetchDashboardData(true)}
-                onDismiss={() => setErrors((prev) => ({ ...prev, stats: null }))}
+                onRetry={mutateStats}
               />
             )}
             {errors.pipeline && (
               <ErrorAlert
                 title="Failed to load booking pipeline"
                 message={errors.pipeline}
-                onRetry={() => fetchDashboardData(true)}
-                onDismiss={() => setErrors((prev) => ({ ...prev, pipeline: null }))}
+                onRetry={mutatePipeline}
                 variant="default"
               />
             )}
@@ -287,8 +131,7 @@ export default function AdminDashboardPage() {
               <ErrorAlert
                 title="Failed to load service breakdown"
                 message={errors.serviceBreakdown}
-                onRetry={() => fetchDashboardData(true)}
-                onDismiss={() => setErrors((prev) => ({ ...prev, serviceBreakdown: null }))}
+                onRetry={mutateBreakdown}
                 variant="default"
               />
             )}
@@ -296,8 +139,7 @@ export default function AdminDashboardPage() {
               <ErrorAlert
                 title="Failed to load chart data"
                 message={errors.chart}
-                onRetry={() => fetchDashboardData(true)}
-                onDismiss={() => setErrors((prev) => ({ ...prev, chart: null }))}
+                onRetry={mutateChart}
                 variant="default"
               />
             )}
@@ -305,8 +147,7 @@ export default function AdminDashboardPage() {
               <ErrorAlert
                 title="Failed to load recent bookings"
                 message={errors.bookings}
-                onRetry={() => fetchDashboardData(true)}
-                onDismiss={() => setErrors((prev) => ({ ...prev, bookings: null }))}
+                onRetry={mutateBookings}
                 variant="default"
               />
             )}
