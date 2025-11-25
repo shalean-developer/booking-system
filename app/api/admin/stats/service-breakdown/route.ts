@@ -54,8 +54,8 @@ export async function GET(request: NextRequest) {
     // Convert to array and sort by value (descending)
     const data = Object.entries(serviceCounts)
       .map(([name, value]) => ({
-        name,
-        value,
+      name,
+      value,
       }))
       .sort((a, b) => b.value - a.value); // Sort by count descending
 

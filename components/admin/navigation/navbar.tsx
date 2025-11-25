@@ -40,7 +40,7 @@ export function AdminNavbar() {
       // Silently fail - don't crash the app
       // Only log if it's not an abort error (timeout) or network error
       if (error.name !== 'AbortError' && error.message !== 'Failed to fetch') {
-        console.error('Failed to fetch unread count:', error);
+      console.error('Failed to fetch unread count:', error);
       }
       // Don't reset to 0 on error - keep previous count
     }
@@ -54,7 +54,7 @@ export function AdminNavbar() {
       if (typeof window !== 'undefined') {
         // Initial fetch after a short delay to let page load
         const initialTimeout = setTimeout(() => {
-          fetchUnreadCount();
+        fetchUnreadCount();
         }, 1000);
 
         // Refresh every 60 seconds (reduced frequency to reduce load)

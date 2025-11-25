@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import dynamic from 'next/dynamic';
+import { formatDateShort } from '@/lib/utils/formatting';
 
 const BookingsChart = dynamic(
   () => import('recharts').then((mod) => {
@@ -32,6 +33,7 @@ const BookingsChart = dynamic(
               angle={-45}
               textAnchor="end"
               height={60}
+              tickFormatter={(value) => (value ? formatDateShort(value) : '')}
             />
             <YAxis 
               tick={{ fontSize: 12 }}

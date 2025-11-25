@@ -48,8 +48,8 @@ const QuickActionButton = memo(function QuickActionButton({
       {/* Label container - centered text, two-line layout */}
       <div className="flex flex-col items-center justify-center gap-0.5 w-full">
         <span className="text-sm font-medium leading-tight text-center block">
-          {label}
-        </span>
+        {label}
+      </span>
         {sublabel && (
           <span className={cn(
             "text-xs leading-tight text-center block",
@@ -108,7 +108,7 @@ export const QuickActions = memo(function QuickActions() {
       <CardContent>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {actions.map((action) => (
-            <QuickActionButton
+          <QuickActionButton
               key={action.href}
               href={action.href}
               icon={action.icon}

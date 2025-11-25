@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
 
     const totalDuration = Date.now() - startTime;
     console.log(`[API] /api/admin/stats - Success (${totalDuration}ms)`);
-    
+
     return NextResponse.json({
       ok: true,
       stats: {
