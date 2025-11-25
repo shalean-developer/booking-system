@@ -199,7 +199,7 @@ const blogPosts = [
 ];
 
 export const metadata: Metadata = createMetadata({
-  title: "Cleaning Services Cape Town | House & Office Cleaning | Shalean",
+  title: "Cape Town Cleaning Services | All Suburbs | Shalean",
   description:
     "Professional cleaning services across all Cape Town suburbs. Book vetted cleaners for regular housekeeping, deep cleaning, move in/out, and Airbnb turnovers. Same-day available. From R250. Serving Sea Point, Claremont, Constantia, Camps Bay & 50+ suburbs.",
   canonical: generateCanonical("/location/cape-town"),
