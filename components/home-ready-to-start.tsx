@@ -36,7 +36,7 @@ export function HomeReadyToStart() {
               Book Your Cleaning Today
             </h3>
             <p className="text-lg text-gray-600 mb-6">
-              Experience the relief of a spotless home in Cape Town. Book trusted cleaners in minutes. Same-day availability for <Link href="/services/standard-cleaning" className="text-primary hover:underline">standard cleaning</Link>, <Link href="/services/deep-cleaning" className="text-primary hover:underline">deep cleaning</Link>, and <Link href="/services/move-in-out-cleaning" className="text-primary hover:underline">move-in/out cleaning</Link>. Join 500+ satisfied customers with a 5-star rating!
+              Experience the relief of a spotless home in Cape Town. Book trusted cleaners in minutes. Same-day availability for <Link href="/services/regular-cleaning" className="text-primary hover:underline">standard cleaning</Link>, <Link href="/services/deep-cleaning" className="text-primary hover:underline">deep cleaning</Link>, and <Link href="/services/move-turnover" className="text-primary hover:underline">move-in/out cleaning</Link>. Join 500+ satisfied customers with a 5-star rating!
             </p>
             <Button
               className="bg-primary hover:bg-primary/90 text-white px-8 py-6 text-lg rounded-lg"
