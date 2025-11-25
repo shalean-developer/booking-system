@@ -3,9 +3,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { BookingPipeline as BookingPipelineType } from '@/types/admin-dashboard';
 
 interface BookingPipelineProps {
-  pipeline: Record<string, number> | null;
+  pipeline: BookingPipelineType | null;
   isLoading?: boolean;
 }
 

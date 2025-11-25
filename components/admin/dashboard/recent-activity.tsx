@@ -7,19 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Calendar, ArrowRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
-interface Booking {
-  id: string;
-  customer_name: string;
-  service_type: string;
-  booking_date: string;
-  booking_time: string;
-  status: string;
-  total_amount: number;
-  created_at: string;
-}
+import type { RecentBooking } from '@/types/admin-dashboard';
 
 interface RecentActivityProps {
-  bookings?: Booking[] | null;
+  bookings?: RecentBooking[] | null;
   isLoading?: boolean;
 }
 
@@ -35,9 +26,9 @@ const statusColors: Record<string, string> = {
 
 export function RecentActivity({ bookings = null, isLoading = false }: RecentActivityProps) {
   // Ensure bookings have required fields and limit to 4
-  const validBookings = bookings
+  const validBookings: RecentBooking[] = bookings
     ? bookings
-        .filter((b) => b.id && b.customer_name && b.service_type)
+        .filter((b): b is RecentBooking => b.id && b.customer_name && b.service_type)
         .slice(0, 4)
     : [];
 

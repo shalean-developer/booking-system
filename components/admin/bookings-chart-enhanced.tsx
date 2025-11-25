@@ -7,7 +7,7 @@ const BookingsChart = dynamic(
   () => import('recharts').then((mod) => {
     const { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend } = mod;
     
-    return function BookingsChartComponent({ data, isLoading }: { data: any[]; isLoading?: boolean }) {
+    return function BookingsChartComponent({ data, isLoading }: { data: ChartDataPoint[]; isLoading?: boolean }) {
       if (isLoading || !data || data.length === 0) {
         return (
           <div className="h-[250px] flex items-center justify-center text-gray-500">
@@ -17,9 +17,9 @@ const BookingsChart = dynamic(
       }
 
       // Transform data for the chart
-      const chartData = data.map((item: any) => ({
-        date: item.date || item.period || item.label || '',
-        bookings: item.bookings || item.count || item.value || 0,
+      const chartData = data.map((item) => ({
+        date: item.date || '',
+        bookings: item.bookings || 0,
       }));
 
       return (
@@ -55,8 +55,10 @@ const BookingsChart = dynamic(
   { ssr: false, loading: () => <div className="h-[250px] animate-pulse bg-gray-100 rounded" /> }
 );
 
+import type { ChartDataPoint } from '@/types/admin-dashboard';
+
 export interface BookingsChartEnhancedProps {
-  data: any[];
+  data: ChartDataPoint[];
   isLoading?: boolean;
 }
 

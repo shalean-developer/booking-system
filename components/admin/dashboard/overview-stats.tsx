@@ -2,9 +2,10 @@
 
 import { StatCard } from '@/components/admin/shared/stat-card';
 import { DollarSign, Calendar, TrendingUp, Users } from 'lucide-react';
+import type { DashboardStats } from '@/types/admin-dashboard';
 
 interface OverviewStatsProps {
-  stats: any;
+  stats: DashboardStats | null;
   isLoading?: boolean;
 }
 

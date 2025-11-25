@@ -3,9 +3,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { ServiceBreakdownItem } from '@/types/admin-dashboard';
 
 interface ServiceBreakdownProps {
-  data: Array<{ name: string; value: number }> | null;
+  data: ServiceBreakdownItem[] | null;
   isLoading?: boolean;
 }
 

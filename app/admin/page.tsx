@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/components/admin/shared/page-header';
 import { OverviewStats } from '@/components/admin/dashboard/overview-stats';
 import { BookingPipeline } from '@/components/admin/dashboard/booking-pipeline';
@@ -10,104 +10,305 @@ import { RecentActivity } from '@/components/admin/dashboard/recent-activity';
 import { PendingAlerts } from '@/components/admin/dashboard/pending-alerts';
 import { RevenueChartEnhanced } from '@/components/admin/revenue-chart-enhanced';
 import { BookingsChartEnhanced } from '@/components/admin/bookings-chart-enhanced';
+import { ErrorAlert } from '@/components/admin/shared/error-alert';
+import { ErrorBoundary } from '@/components/admin/shared/error-boundary';
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
+import type {
+  DashboardStats,
+  BookingPipeline as BookingPipelineType,
+  ServiceBreakdownItem,
+  ChartDataPoint,
+  RecentBooking,
+} from '@/types/admin-dashboard';
+
+interface DashboardErrors {
+  stats: string | null;
+  pipeline: string | null;
+  serviceBreakdown: string | null;
+  chart: string | null;
+  bookings: string | null;
+}
 
 export default function AdminDashboardPage() {
-  const [stats, setStats] = useState<any>(null);
-  const [pipeline, setPipeline] = useState<Record<string, number> | null>(null);
-  const [serviceBreakdown, setServiceBreakdown] = useState<any[] | null>(null);
-  const [chartData, setChartData] = useState<any[]>([]);
-  const [recentBookings, setRecentBookings] = useState<any[] | null>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [pipeline, setPipeline] = useState<BookingPipelineType | null>(null);
+  const [serviceBreakdown, setServiceBreakdown] = useState<ServiceBreakdownItem[]>([]);
+  const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
+  const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [errors, setErrors] = useState<DashboardErrors>({
+    stats: null,
+    pipeline: null,
+    serviceBreakdown: null,
+    chart: null,
+    bookings: null,
+  });
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
+  const fetchDashboardData = useCallback(async (isManualRefresh = false) => {
+    try {
+      if (isManualRefresh) {
+        setIsRefreshing(true);
+      } else {
         setIsLoading(true);
-
-        const [statsRes, pipelineRes, serviceRes, chartRes, bookingsRes] = await Promise.all([
-          fetch('/api/admin/stats').catch(() => ({ ok: false, json: async () => ({ ok: false }) })),
-          fetch('/api/admin/stats/booking-pipeline').catch(() => ({ ok: false, json: async () => ({ ok: false }) })),
-          fetch('/api/admin/stats/service-breakdown').catch(() => ({ ok: false, json: async () => ({ ok: false, data: [] }) })),
-          fetch('/api/admin/stats/chart').catch(() => ({ ok: false, json: async () => ({ ok: false, data: [] }) })),
-          fetch('/api/admin/bookings?limit=10').catch(() => ({ ok: false, json: async () => ({ ok: false, bookings: [] }) })),
-        ]);
-
-        const results = await Promise.allSettled([
-          statsRes.json().catch(() => ({ ok: false })),
-          pipelineRes.json().catch(() => ({ ok: false })),
-          serviceRes.json().catch(() => ({ ok: false, data: [] })),
-          chartRes.json().catch(() => ({ ok: false, data: [] })),
-          bookingsRes.json().catch(() => ({ ok: false, bookings: [] })),
-        ]);
-
-        const [statsResult, pipelineResult, serviceResult, chartResult, bookingsResult] = results;
-
-        if (statsResult.status === 'fulfilled' && statsResult.value.ok) {
-          setStats(statsResult.value.stats);
-        }
-        if (pipelineResult.status === 'fulfilled' && pipelineResult.value.ok) {
-          setPipeline(pipelineResult.value.pipeline);
-        }
-        if (serviceResult.status === 'fulfilled' && serviceResult.value.ok) {
-          setServiceBreakdown(serviceResult.value.data || []);
-        }
-        if (chartResult.status === 'fulfilled' && chartResult.value.ok) {
-          setChartData(chartResult.value.data || []);
-        }
-        if (bookingsResult.status === 'fulfilled' && bookingsResult.value.ok) {
-          setRecentBookings(bookingsResult.value.bookings || []);
-        }
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-        // Set defaults to prevent crashes
-        setStats(null);
-        setPipeline(null);
-        setServiceBreakdown([]);
-        setChartData([]);
-        setRecentBookings([]);
-      } finally {
-        setIsLoading(false);
       }
-    };
 
-    fetchDashboardData();
+      // Clear previous errors
+      setErrors({
+        stats: null,
+        pipeline: null,
+        serviceBreakdown: null,
+        chart: null,
+        bookings: null,
+      });
+
+      const [statsRes, pipelineRes, serviceRes, chartRes, bookingsRes] = await Promise.all([
+        fetch('/api/admin/stats').catch(() => ({ ok: false, json: async () => ({ ok: false, error: 'Network error' }) })),
+        fetch('/api/admin/stats/booking-pipeline').catch(() => ({ ok: false, json: async () => ({ ok: false, error: 'Network error' }) })),
+        fetch('/api/admin/stats/service-breakdown').catch(() => ({ ok: false, json: async () => ({ ok: false, data: [], error: 'Network error' }) })),
+        fetch('/api/admin/stats/chart').catch(() => ({ ok: false, json: async () => ({ ok: false, data: [], error: 'Network error' }) })),
+        fetch('/api/admin/bookings?limit=10').catch(() => ({ ok: false, json: async () => ({ ok: false, bookings: [], error: 'Network error' }) })),
+      ]);
+
+      const results = await Promise.allSettled([
+        statsRes.json().catch(() => ({ ok: false, error: 'Failed to parse response' })),
+        pipelineRes.json().catch(() => ({ ok: false, error: 'Failed to parse response' })),
+        serviceRes.json().catch(() => ({ ok: false, data: [], error: 'Failed to parse response' })),
+        chartRes.json().catch(() => ({ ok: false, data: [], error: 'Failed to parse response' })),
+        bookingsRes.json().catch(() => ({ ok: false, bookings: [], error: 'Failed to parse response' })),
+      ]);
+
+      const [statsResult, pipelineResult, serviceResult, chartResult, bookingsResult] = results;
+
+      // Handle stats
+      if (statsResult.status === 'fulfilled' && statsResult.value.ok && statsResult.value.stats) {
+        setStats(statsResult.value.stats);
+        setErrors((prev) => ({ ...prev, stats: null }));
+      } else {
+        const errorMsg = statsResult.status === 'rejected' 
+          ? 'Failed to fetch statistics'
+          : statsResult.value.error || 'Failed to fetch statistics';
+        setErrors((prev) => ({ ...prev, stats: errorMsg }));
+      }
+
+      // Handle pipeline
+      if (pipelineResult.status === 'fulfilled' && pipelineResult.value.ok && pipelineResult.value.pipeline) {
+        setPipeline(pipelineResult.value.pipeline);
+        setErrors((prev) => ({ ...prev, pipeline: null }));
+      } else {
+        const errorMsg = pipelineResult.status === 'rejected'
+          ? 'Failed to fetch booking pipeline'
+          : pipelineResult.value.error || 'Failed to fetch booking pipeline';
+        setErrors((prev) => ({ ...prev, pipeline: errorMsg }));
+      }
+
+      // Handle service breakdown
+      if (serviceResult.status === 'fulfilled' && serviceResult.value.ok) {
+        setServiceBreakdown(serviceResult.value.data || []);
+        setErrors((prev) => ({ ...prev, serviceBreakdown: null }));
+      } else {
+        const errorMsg = serviceResult.status === 'rejected'
+          ? 'Failed to fetch service breakdown'
+          : serviceResult.value.error || 'Failed to fetch service breakdown';
+        setErrors((prev) => ({ ...prev, serviceBreakdown: errorMsg }));
+      }
+
+      // Handle chart data
+      if (chartResult.status === 'fulfilled' && chartResult.value.ok) {
+        setChartData(chartResult.value.data || []);
+        setErrors((prev) => ({ ...prev, chart: null }));
+      } else {
+        const errorMsg = chartResult.status === 'rejected'
+          ? 'Failed to fetch chart data'
+          : chartResult.value.error || 'Failed to fetch chart data';
+        setErrors((prev) => ({ ...prev, chart: errorMsg }));
+      }
+
+      // Handle recent bookings
+      if (bookingsResult.status === 'fulfilled' && bookingsResult.value.ok) {
+        setRecentBookings(bookingsResult.value.bookings || []);
+        setErrors((prev) => ({ ...prev, bookings: null }));
+      } else {
+        const errorMsg = bookingsResult.status === 'rejected'
+          ? 'Failed to fetch recent bookings'
+          : bookingsResult.value.error || 'Failed to fetch recent bookings';
+        setErrors((prev) => ({ ...prev, bookings: errorMsg }));
+      }
+
+      setLastUpdated(new Date());
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      setErrors({
+        stats: errorMessage,
+        pipeline: errorMessage,
+        serviceBreakdown: errorMessage,
+        chart: errorMessage,
+        bookings: errorMessage,
+      });
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
   }, []);
 
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  // Auto-refresh functionality
+  useEffect(() => {
+    if (autoRefresh) {
+      const interval = setInterval(() => {
+        fetchDashboardData(true);
+      }, 60000); // Refresh every 60 seconds
+      setAutoRefreshInterval(interval);
+      return () => {
+        clearInterval(interval);
+      };
+    } else {
+      if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        setAutoRefreshInterval(null);
+      }
+    }
+    // fetchDashboardData is stable due to useCallback, so we can safely omit it
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRefresh]);
+
+  const handleRefresh = () => {
+    fetchDashboardData(true);
+  };
+
+  const hasAnyError = Object.values(errors).some((error) => error !== null);
+
   return (
-    <div className="space-y-6 w-full">
-      <PageHeader
-        title="Dashboard"
-        description="Overview of your business metrics and recent activity"
-        breadcrumbs={[
-          { label: 'Admin', href: '/admin' },
-          { label: 'Dashboard' },
-        ]}
-      />
+    <ErrorBoundary>
+      <div className="space-y-6 w-full">
+        <PageHeader
+          title="Dashboard"
+          description={
+            lastUpdated
+              ? `Overview of your business metrics and recent activity • Last updated: ${lastUpdated.toLocaleTimeString()}`
+              : 'Overview of your business metrics and recent activity'
+          }
+          breadcrumbs={[
+            { label: 'Admin', href: '/admin' },
+            { label: 'Dashboard' },
+          ]}
+          actions={
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={isRefreshing || isLoading}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                {isRefreshing ? 'Refreshing...' : 'Refresh'}
+              </Button>
+              <Button
+                variant={autoRefresh ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setAutoRefresh(!autoRefresh)}
+              >
+                {autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'}
+              </Button>
+            </div>
+          }
+        />
 
-      <OverviewStats stats={stats} isLoading={isLoading} />
+        {hasAnyError && (
+          <div className="space-y-3">
+            {errors.stats && (
+              <ErrorAlert
+                title="Failed to load statistics"
+                message={errors.stats}
+                onRetry={() => fetchDashboardData(true)}
+                onDismiss={() => setErrors((prev) => ({ ...prev, stats: null }))}
+              />
+            )}
+            {errors.pipeline && (
+              <ErrorAlert
+                title="Failed to load booking pipeline"
+                message={errors.pipeline}
+                onRetry={() => fetchDashboardData(true)}
+                onDismiss={() => setErrors((prev) => ({ ...prev, pipeline: null }))}
+                variant="default"
+              />
+            )}
+            {errors.serviceBreakdown && (
+              <ErrorAlert
+                title="Failed to load service breakdown"
+                message={errors.serviceBreakdown}
+                onRetry={() => fetchDashboardData(true)}
+                onDismiss={() => setErrors((prev) => ({ ...prev, serviceBreakdown: null }))}
+                variant="default"
+              />
+            )}
+            {errors.chart && (
+              <ErrorAlert
+                title="Failed to load chart data"
+                message={errors.chart}
+                onRetry={() => fetchDashboardData(true)}
+                onDismiss={() => setErrors((prev) => ({ ...prev, chart: null }))}
+                variant="default"
+              />
+            )}
+            {errors.bookings && (
+              <ErrorAlert
+                title="Failed to load recent bookings"
+                message={errors.bookings}
+                onRetry={() => fetchDashboardData(true)}
+                onDismiss={() => setErrors((prev) => ({ ...prev, bookings: null }))}
+                variant="default"
+              />
+            )}
+          </div>
+        )}
 
-      <div className="grid gap-6 md:grid-cols-2 w-full">
-        <RevenueChartEnhanced data={chartData} isLoading={isLoading} />
-        <BookingsChartEnhanced data={chartData} isLoading={isLoading} />
-      </div>
+        <ErrorBoundary>
+          <OverviewStats stats={stats} isLoading={isLoading} />
+        </ErrorBoundary>
 
-      <div className="grid gap-6 lg:grid-cols-3 w-full">
-        <div className="lg:col-span-2 space-y-6">
-          <ServiceBreakdown data={serviceBreakdown} isLoading={isLoading} />
-          <RecentActivity bookings={recentBookings} isLoading={isLoading} />
+        <div className="grid gap-6 md:grid-cols-2 w-full">
+          <ErrorBoundary>
+            <RevenueChartEnhanced data={chartData} isLoading={isLoading} />
+          </ErrorBoundary>
+          <ErrorBoundary>
+            <BookingsChartEnhanced data={chartData} isLoading={isLoading} />
+          </ErrorBoundary>
         </div>
 
-        <div className="space-y-6">
-          <BookingPipeline pipeline={pipeline} isLoading={isLoading} />
-          <PendingAlerts
-            pendingQuotes={stats?.pendingQuotes}
-            pendingApplications={stats?.pendingApplications}
-            pendingBookings={stats?.pendingBookings}
-            isLoading={isLoading}
-          />
-          <QuickActions />
+        <div className="grid gap-6 lg:grid-cols-3 w-full">
+          <div className="lg:col-span-2 space-y-6">
+            <ErrorBoundary>
+              <ServiceBreakdown data={serviceBreakdown} isLoading={isLoading} />
+            </ErrorBoundary>
+            <ErrorBoundary>
+              <RecentActivity bookings={recentBookings} isLoading={isLoading} />
+            </ErrorBoundary>
+          </div>
+
+          <div className="space-y-6">
+            <ErrorBoundary>
+              <BookingPipeline pipeline={pipeline} isLoading={isLoading} />
+            </ErrorBoundary>
+            <ErrorBoundary>
+              <PendingAlerts
+                pendingQuotes={stats?.pendingQuotes}
+                pendingApplications={stats?.pendingApplications}
+                pendingBookings={stats?.pendingBookings}
+                isLoading={isLoading}
+              />
+            </ErrorBoundary>
+            <QuickActions />
+          </div>
         </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }

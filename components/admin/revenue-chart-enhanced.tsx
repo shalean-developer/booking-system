@@ -7,7 +7,7 @@ const RevenueChart = dynamic(
   () => import('recharts').then((mod) => {
     const { LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend } = mod;
     
-    return function RevenueChartComponent({ data, isLoading }: { data: any[]; isLoading?: boolean }) {
+    return function RevenueChartComponent({ data, isLoading }: { data: ChartDataPoint[]; isLoading?: boolean }) {
       if (isLoading || !data || data.length === 0) {
         return (
           <div className="h-[250px] flex items-center justify-center text-gray-500">
@@ -17,9 +17,9 @@ const RevenueChart = dynamic(
       }
 
       // Transform data for the chart
-      const chartData = data.map((item: any) => ({
-        date: item.date || item.period || item.label || '',
-        revenue: item.revenue || item.total_amount || item.value || 0,
+      const chartData = data.map((item) => ({
+        date: item.date || '',
+        revenue: item.revenue || 0,
       }));
 
       return (
@@ -58,8 +58,10 @@ const RevenueChart = dynamic(
   { ssr: false, loading: () => <div className="h-[250px] animate-pulse bg-gray-100 rounded" /> }
 );
 
+import type { ChartDataPoint } from '@/types/admin-dashboard';
+
 export interface RevenueChartEnhancedProps {
-  data: any[];
+  data: ChartDataPoint[];
   isLoading?: boolean;
 }
 

@@ -87,15 +87,12 @@ export default function AdminBookingsPage() {
       }
 
       const url = `/api/admin/bookings?${params.toString()}`;
-      console.log('Fetching bookings from:', url);
       const response = await fetch(url, {
         credentials: 'include', // Include cookies for authentication
         headers: {
           'Content-Type': 'application/json',
         },
       });
-      
-      console.log('Response status:', response.status, response.statusText);
       
       if (!response.ok) {
         let errorText = '';
@@ -107,8 +104,6 @@ export default function AdminBookingsPage() {
           // If parsing fails, use the text as-is
         }
         
-        console.error('API error response:', errorText);
-        
         if (response.status === 403) {
           throw new Error(`Access denied: ${errorText || 'You do not have permission to view bookings. Please ensure you are logged in as an admin.'}`);
         }
@@ -118,13 +113,10 @@ export default function AdminBookingsPage() {
 
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('Non-JSON response:', text.substring(0, 200));
         throw new Error('Response is not JSON');
       }
 
       const data = await response.json();
-      console.log('API response:', { ok: data.ok, bookingsCount: data.bookings?.length, total: data.total, error: data.error });
 
       if (data.ok && Array.isArray(data.bookings)) {
         // Validate and filter bookings to ensure they have required fields
@@ -136,14 +128,12 @@ export default function AdminBookingsPage() {
                  booking.service_type;
         });
         
-        console.log('Setting bookings:', validBookings.length, 'valid bookings out of', data.bookings.length, 'total');
         setBookings(validBookings);
         setTotal(data.total || 0);
         setTotalPages(data.totalPages || 1);
         setError(null);
       } else {
         const errorMsg = data.error || 'Failed to fetch bookings';
-        console.error('API error:', errorMsg);
         setError(errorMsg);
         setBookings([]);
         setTotal(0);
@@ -151,7 +141,6 @@ export default function AdminBookingsPage() {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      console.error('Error fetching bookings:', error);
       setError(errorMessage);
       setBookings([]);
       setTotal(0);
@@ -213,9 +202,12 @@ export default function AdminBookingsPage() {
       if (data.ok) {
         setSelectedBookings([]);
         fetchBookings();
+      } else {
+        setError(data.error || 'Failed to update bookings');
       }
     } catch (error) {
-      console.error('Error updating bookings:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update bookings';
+      setError(errorMessage);
     }
   };
 
