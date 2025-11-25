@@ -10,7 +10,7 @@ import { EmptyState } from '@/components/admin/shared/empty-state';
 import { LoadingState } from '@/components/admin/shared/loading-state';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Plus, Eye } from 'lucide-react';
+import { Calendar, Plus, Eye, MoreVertical, Edit, UserPlus, Mail, MessageSquare, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import {
   Dialog,
@@ -19,6 +19,26 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { AssignCleanerDialog } from '@/components/admin/assign-cleaner-dialog';
+import { SendEmailDialog } from '@/components/admin/send-email-dialog';
+import { AddNoteDialog } from '@/components/admin/add-note-dialog';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 
 interface Booking {
@@ -32,6 +52,7 @@ interface Booking {
   status: string;
   total_amount: number;
   cleaner_name?: string | null;
+  address_city?: string;
   created_at: string;
 }
 
@@ -57,6 +78,11 @@ export default function AdminBookingsPage() {
   const [selectedBookings, setSelectedBookings] = useState<Booking[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isAssignCleanerOpen, setIsAssignCleanerOpen] = useState(false);
+  const [isSendEmailOpen, setIsSendEmailOpen] = useState(false);
+  const [isAddNoteOpen, setIsAddNoteOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [bookingToDelete, setBookingToDelete] = useState<Booking | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pageSize = 20;
 
@@ -211,6 +237,28 @@ export default function AdminBookingsPage() {
     }
   };
 
+  const handleDeleteBooking = async () => {
+    if (!bookingToDelete) return;
+
+    try {
+      const response = await fetch(`/api/admin/bookings/${bookingToDelete.id}`, {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+
+      if (data.ok) {
+        setIsDeleteDialogOpen(false);
+        setBookingToDelete(null);
+        fetchBookings();
+      } else {
+        setError(data.error || 'Failed to delete booking');
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete booking';
+      setError(errorMessage);
+    }
+  };
+
   const filterConfigs: FilterConfig[] = [
     {
       key: 'status',
@@ -278,21 +326,69 @@ export default function AdminBookingsPage() {
       id: 'actions',
       header: 'Actions',
       accessor: (row) => (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setSelectedBooking(row);
-              setIsViewModalOpen(true);
-            }}
-          >
-            <Eye className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="sm" asChild>
-            <Link href={`/admin/bookings/${row.id}`}>View</Link>
-          </Button>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem
+              onClick={() => {
+                setSelectedBooking(row);
+                setIsViewModalOpen(true);
+              }}
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              View Details
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={`/admin/bookings/${row.id}/edit`}>
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Booking
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                setSelectedBooking(row);
+                setIsAssignCleanerOpen(true);
+              }}
+            >
+              <UserPlus className="h-4 w-4 mr-2" />
+              Assign Cleaner
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                setSelectedBooking(row);
+                setIsSendEmailOpen(true);
+              }}
+            >
+              <Mail className="h-4 w-4 mr-2" />
+              Send Email
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                setSelectedBooking(row);
+                setIsAddNoteOpen(true);
+              }}
+            >
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Add Note
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                setBookingToDelete(row);
+                setIsDeleteDialogOpen(true);
+              }}
+              className="text-red-600 focus:text-red-600"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       ),
     },
   ];
@@ -473,6 +569,74 @@ export default function AdminBookingsPage() {
               )}
         </DialogContent>
       </Dialog>
+
+      {selectedBooking && (
+        <>
+          <AssignCleanerDialog
+            open={isAssignCleanerOpen}
+            onOpenChange={setIsAssignCleanerOpen}
+            bookingId={selectedBooking.id}
+            bookingDate={selectedBooking.booking_date}
+            bookingTime={selectedBooking.booking_time}
+            bookingCity={selectedBooking.address_city || ''}
+            onSuccess={() => {
+              fetchBookings();
+            }}
+          />
+
+          <SendEmailDialog
+            open={isSendEmailOpen}
+            onOpenChange={setIsSendEmailOpen}
+            bookingId={selectedBooking.id}
+            customerName={selectedBooking.customer_name}
+            customerEmail={selectedBooking.customer_email}
+            bookingDetails={{
+              service_type: selectedBooking.service_type,
+              booking_date: selectedBooking.booking_date,
+              booking_time: selectedBooking.booking_time,
+            }}
+            onSuccess={() => {
+              // Optionally show success message
+            }}
+          />
+
+          <AddNoteDialog
+            open={isAddNoteOpen}
+            onOpenChange={setIsAddNoteOpen}
+            bookingId={selectedBooking.id}
+            onSuccess={() => {
+              fetchBookings();
+            }}
+          />
+        </>
+      )}
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Booking</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this booking? This action cannot be undone.
+              {bookingToDelete && (
+                <div className="mt-2 p-2 bg-muted rounded text-sm">
+                  <p><strong>Customer:</strong> {bookingToDelete.customer_name}</p>
+                  <p><strong>Service:</strong> {bookingToDelete.service_type}</p>
+                  <p><strong>Date:</strong> {formatDate(bookingToDelete.booking_date)}</p>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setBookingToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteBooking}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
