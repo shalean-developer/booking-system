@@ -9,7 +9,10 @@ import { DataTable, Column } from '@/components/admin/shared/data-table';
 import { EmptyState } from '@/components/admin/shared/empty-state';
 import { LoadingState } from '@/components/admin/shared/loading-state';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, Star, DollarSign, Calendar } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { TrendingUp, Star, DollarSign, Calendar, X } from 'lucide-react';
 
 interface CleanerPerformance {
   id: string;
@@ -27,13 +30,15 @@ export default function CleanerPerformancePage() {
   
   const [performance, setPerformance] = useState<CleanerPerformance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<any>(null);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
 
   useEffect(() => {
     fetchPerformance();
     fetchStats();
-  }, [cleanerId, dateRange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cleanerId, dateRange.start, dateRange.end]);
 
   const fetchPerformance = async () => {
     try {
@@ -50,14 +55,25 @@ export default function CleanerPerformancePage() {
       }
 
       const url = `/api/admin/cleaners/performance?${params.toString()}`;
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       const data = await response.json();
 
       if (data.ok) {
         setPerformance(data.performance || []);
+        setError(null);
+      } else {
+        setError(data.error || 'Failed to fetch performance data');
+        setPerformance([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching performance data:', error);
+      setError(error?.message || 'Failed to fetch performance data');
+      setPerformance([]);
     } finally {
       setIsLoading(false);
     }
@@ -65,7 +81,17 @@ export default function CleanerPerformancePage() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch('/api/admin/cleaners/performance/stats');
+      const params = new URLSearchParams();
+      if (cleanerId) {
+        params.append('cleaner', cleanerId);
+      }
+      const url = `/api/admin/cleaners/performance/stats${params.toString() ? `?${params.toString()}` : ''}`;
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       const data = await response.json();
       if (data.ok) {
         setStats(data.stats);
@@ -100,6 +126,29 @@ export default function CleanerPerformancePage() {
       accessor: (row) => (
         <span className="text-sm text-gray-600">{row.completed_bookings}</span>
       ),
+    },
+    {
+      id: 'completionRate',
+      header: 'Completion Rate',
+      accessor: (row) => {
+        const rate = row.total_bookings > 0 
+          ? (row.completed_bookings / row.total_bookings) * 100 
+          : 0;
+        return (
+          <Badge 
+            variant="outline" 
+            className={
+              rate >= 90 
+                ? 'bg-green-50 text-green-700 border-green-200'
+                : rate >= 70
+                ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                : 'bg-red-50 text-red-700 border-red-200'
+            }
+          >
+            {rate.toFixed(1)}%
+          </Badge>
+        );
+      },
     },
     {
       id: 'rating',
@@ -177,35 +226,75 @@ export default function CleanerPerformancePage() {
       )}
 
       <div className="bg-white border rounded-lg p-4">
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Date Range Filter</h3>
+          {(dateRange.start || dateRange.end) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDateRange({ start: '', end: '' })}
+            >
+              <X className="h-4 w-4 mr-2" />
+              Clear
+            </Button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="text-sm font-medium text-gray-700 mb-1 block">Start Date</label>
-            <input
+            <Label htmlFor="startDate">Start Date</Label>
+            <Input
+              id="startDate"
               type="date"
               value={dateRange.start}
               onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-              className="w-full px-3 py-2 border rounded-md"
+              max={dateRange.end || undefined}
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-700 mb-1 block">End Date</label>
-            <input
+            <Label htmlFor="endDate">End Date</Label>
+            <Input
+              id="endDate"
               type="date"
               value={dateRange.end}
               onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-              className="w-full px-3 py-2 border rounded-md"
+              min={dateRange.start || undefined}
             />
           </div>
         </div>
+        {cleanerId && (
+          <div className="mt-4 p-3 bg-blue-50 rounded-md border border-blue-200">
+            <p className="text-sm text-blue-700">
+              Showing performance data for selected cleaner only.
+            </p>
+          </div>
+        )}
       </div>
+
+      {error && (
+        <div className="p-4 text-red-600 bg-red-50 border border-red-200 rounded-md">
+          Error: {error}
+        </div>
+      )}
 
       {isLoading ? (
         <LoadingState rows={5} columns={6} variant="table" />
+      ) : error ? (
+        <EmptyState
+          icon={TrendingUp}
+          title="Error loading performance data"
+          description={error}
+        />
       ) : performance.length === 0 ? (
         <EmptyState
           icon={TrendingUp}
           title="No performance data found"
-          description="Performance metrics will appear here once cleaners complete bookings."
+          description={
+            cleanerId
+              ? "This cleaner has no bookings yet."
+              : dateRange.start || dateRange.end
+              ? "No performance data found for the selected date range."
+              : "Performance metrics will appear here once cleaners complete bookings."
+          }
         />
       ) : (
         <DataTable

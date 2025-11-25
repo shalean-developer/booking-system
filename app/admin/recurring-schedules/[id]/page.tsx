@@ -17,8 +17,16 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingState } from '@/components/admin/shared/loading-state';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { generateTimeSlots } from '@/lib/pricing';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 
 type ServiceType = 'Standard' | 'Deep' | 'Move In/Out' | 'Airbnb';
@@ -38,6 +46,9 @@ export default function EditRecurringSchedulePage({ params }: { params: Promise<
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUpdatingBookings, setIsUpdatingBookings] = useState(false);
+  const [showUpdateDialog, setShowUpdateDialog] = useState(false);
+  const [updateFutureOnly, setUpdateFutureOnly] = useState(true);
 
   // Form state
   const [serviceType, setServiceType] = useState<ServiceType | ''>('');
@@ -206,7 +217,13 @@ export default function EditRecurringSchedulePage({ params }: { params: Promise<
       const data = await response.json();
 
       if (data.ok) {
-        router.push('/admin/recurring-schedules');
+        // If pricing was updated, ask if user wants to update existing bookings
+        if ((totalAmount && !isNaN(parseFloat(totalAmount))) || 
+            (cleanerEarnings && !isNaN(parseFloat(cleanerEarnings)))) {
+          setShowUpdateDialog(true);
+        } else {
+          router.push('/admin/recurring-schedules');
+        }
       } else {
         alert(data.error || 'Failed to update recurring schedule');
       }
@@ -215,6 +232,36 @@ export default function EditRecurringSchedulePage({ params }: { params: Promise<
       alert('Failed to update recurring schedule');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateBookings = async () => {
+    setIsUpdatingBookings(true);
+    try {
+      const response = await fetch(`/api/admin/recurring-schedules/${id}/update-bookings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          updateFutureOnly: updateFutureOnly,
+          updateAll: !updateFutureOnly,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.ok) {
+        alert(`Successfully updated ${data.updatedCount} booking(s)`);
+        setShowUpdateDialog(false);
+        router.push('/admin/recurring-schedules');
+      } else {
+        alert(data.error || 'Failed to update bookings');
+      }
+    } catch (error) {
+      console.error('Error updating bookings:', error);
+      alert('Failed to update bookings');
+    } finally {
+      setIsUpdatingBookings(false);
     }
   };
 
@@ -592,6 +639,13 @@ export default function EditRecurringSchedulePage({ params }: { params: Promise<
                 </div>
               </div>
             )}
+            {totalAmount && cleanerEarnings && (
+              <div className="pt-2 border-t">
+                <p className="text-xs text-gray-600 mb-2">
+                  After saving, you can update existing bookings with the new pricing.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -627,6 +681,80 @@ export default function EditRecurringSchedulePage({ params }: { params: Promise<
           </Button>
         </div>
       </form>
+
+      {/* Update Bookings Dialog */}
+      <Dialog open={showUpdateDialog} onOpenChange={setShowUpdateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Existing Bookings?</DialogTitle>
+            <DialogDescription>
+              You've updated the pricing for this recurring schedule. Would you like to update existing bookings with the new pricing?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex items-center space-x-2">
+              <input
+                type="radio"
+                id="futureOnly"
+                name="updateScope"
+                checked={updateFutureOnly}
+                onChange={() => setUpdateFutureOnly(true)}
+                className="h-4 w-4"
+              />
+              <Label htmlFor="futureOnly" className="cursor-pointer">
+                Update future bookings only (recommended)
+                <p className="text-xs text-gray-500 mt-1">
+                  Only updates pending, accepted, and future bookings. Completed bookings remain unchanged.
+                </p>
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="radio"
+                id="updateAll"
+                name="updateScope"
+                checked={!updateFutureOnly}
+                onChange={() => setUpdateFutureOnly(false)}
+                className="h-4 w-4"
+              />
+              <Label htmlFor="updateAll" className="cursor-pointer">
+                Update all bookings (including completed)
+                <p className="text-xs text-gray-500 mt-1">
+                  Updates all bookings including completed ones. Use with caution.
+                </p>
+              </Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowUpdateDialog(false);
+                router.push('/admin/recurring-schedules');
+              }}
+              disabled={isUpdatingBookings}
+            >
+              Skip
+            </Button>
+            <Button
+              onClick={handleUpdateBookings}
+              disabled={isUpdatingBookings}
+            >
+              {isUpdatingBookings ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Update Bookings
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

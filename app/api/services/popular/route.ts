@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { fetchActivePricing, fetchServicesMetadata } from '@/lib/pricing-db';
 
 // Force dynamic rendering to prevent caching
@@ -11,7 +11,8 @@ const CACHE_HEADERS = {
   'Expires': '0',
 };
 
-export async function GET() {
+// Ensure this route is accessible
+export async function GET(request: NextRequest) {
   try {
     // Check environment variables first
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {

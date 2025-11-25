@@ -75,8 +75,8 @@ export async function fetcher<T>(url: string): Promise<T> {
     } else {
       console.error('[SWR Fetcher] Network error:', {
         url,
-        error: error.message,
-        name: error.name,
+        error: error?.message || 'Unknown error',
+        name: error?.name || 'Error',
         duration: `${duration}ms`,
       });
     }
@@ -85,7 +85,7 @@ export async function fetcher<T>(url: string): Promise<T> {
     if (error instanceof Error) {
       throw error;
     }
-    throw new Error('Unknown error occurred');
+    throw new Error(error?.message || 'Unknown error occurred');
   }
 }
 
