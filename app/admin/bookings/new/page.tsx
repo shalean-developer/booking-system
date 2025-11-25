@@ -514,12 +514,12 @@ export default function NewBookingPage() {
                     )}
                   </div>
                 ) : (
-                  <Select value={cleanerId} onValueChange={setCleanerId}>
+                  <Select value={cleanerId || 'none'} onValueChange={(value) => setCleanerId(value === 'none' ? '' : value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select a cleaner (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No cleaner assigned</SelectItem>
+                      <SelectItem value="none">No cleaner assigned</SelectItem>
                       {availableCleaners.map((cleaner) => (
                         <SelectItem key={cleaner.id} value={cleaner.id}>
                           {cleaner.name}

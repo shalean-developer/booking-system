@@ -12,9 +12,28 @@ export async function GET(request: NextRequest) {
     console.log('Admin check result:', adminCheck);
     
     if (!adminCheck) {
+      // Get more details about why admin check failed
+      const supabase = await createClient();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      console.log('Auth user:', user ? user.email : 'null');
+      console.log('Auth error:', authError?.message);
+      
+      if (user) {
+        // Check if customer record exists
+        const { data: customer, error: customerError } = await supabase
+          .from('customers')
+          .select('id, role, auth_user_id')
+          .eq('auth_user_id', user.id)
+          .maybeSingle();
+        
+        console.log('Customer record:', customer ? { id: customer.id, role: customer.role } : 'not found');
+        console.log('Customer error:', customerError?.message);
+      }
+      
       console.log('Unauthorized access attempt to bookings API');
       return NextResponse.json(
-        { ok: false, error: 'Unauthorized' },
+        { ok: false, error: 'Unauthorized - Admin access required' },
         { status: 403 }
       );
     }
@@ -170,30 +189,49 @@ export async function GET(request: NextRequest) {
     };
 
     const formattedBookings = safeBookings.map((booking: any) => ({
-      id: booking.id,
-      customer_name: booking.customer_name,
-      customer_email: booking.customer_email,
-      customer_phone: booking.customer_phone,
-      service_type: booking.service_type,
-      booking_date: booking.booking_date,
-      booking_time: booking.booking_time,
-      status: booking.status,
+      id: booking.id || '',
+      customer_name: booking.customer_name || 'Unknown',
+      customer_email: booking.customer_email || '',
+      customer_phone: booking.customer_phone || '',
+      service_type: booking.service_type || '',
+      booking_date: booking.booking_date || '',
+      booking_time: booking.booking_time || '',
+      status: booking.status || 'pending',
       total_amount: booking.total_amount || 0,
-      cleaner_id: booking.cleaner_id,
+      cleaner_id: booking.cleaner_id || null,
       cleaner_name: getCleanerName(booking),
-      created_at: booking.created_at,
-      updated_at: booking.updated_at,
+      created_at: booking.created_at || new Date().toISOString(),
+      updated_at: booking.updated_at || booking.created_at || new Date().toISOString(),
     }));
 
     const totalPages = Math.ceil((count || 0) / limit);
 
     console.log(`Returning ${formattedBookings.length} formatted bookings, total: ${count || 0}, pages: ${totalPages}`);
+    
+    // Log sample booking for debugging
+    if (formattedBookings.length > 0) {
+      console.log('Sample booking:', JSON.stringify(formattedBookings[0], null, 2));
+    }
 
-    return NextResponse.json({
+    // Ensure we always return a valid response structure
+    const response = {
       ok: true,
-      bookings: formattedBookings,
-      total: count || 0,
-      totalPages,
+      bookings: Array.isArray(formattedBookings) ? formattedBookings : [],
+      total: typeof count === 'number' ? count : 0,
+      totalPages: typeof totalPages === 'number' ? totalPages : 1,
+    };
+
+    console.log('Final response:', {
+      ok: response.ok,
+      bookingsCount: response.bookings.length,
+      total: response.total,
+      totalPages: response.totalPages,
+    });
+
+    return NextResponse.json(response, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
   } catch (error) {
     console.error('Error in bookings API:', error);

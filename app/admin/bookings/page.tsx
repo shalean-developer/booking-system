@@ -88,13 +88,31 @@ export default function AdminBookingsPage() {
 
       const url = `/api/admin/bookings?${params.toString()}`;
       console.log('Fetching bookings from:', url);
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        credentials: 'include', // Include cookies for authentication
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       
       console.log('Response status:', response.status, response.statusText);
       
       if (!response.ok) {
-        const errorText = await response.text();
+        let errorText = '';
+        try {
+          errorText = await response.text();
+          const errorJson = JSON.parse(errorText);
+          errorText = errorJson.error || errorText;
+        } catch {
+          // If parsing fails, use the text as-is
+        }
+        
         console.error('API error response:', errorText);
+        
+        if (response.status === 403) {
+          throw new Error(`Access denied: ${errorText || 'You do not have permission to view bookings. Please ensure you are logged in as an admin.'}`);
+        }
+        
         throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
       }
 
@@ -108,8 +126,18 @@ export default function AdminBookingsPage() {
       const data = await response.json();
       console.log('API response:', { ok: data.ok, bookingsCount: data.bookings?.length, total: data.total, error: data.error });
 
-      if (data.ok) {
-        setBookings(data.bookings || []);
+      if (data.ok && Array.isArray(data.bookings)) {
+        // Validate and filter bookings to ensure they have required fields
+        const validBookings = data.bookings.filter((booking: any) => {
+          return booking && 
+                 typeof booking.id === 'string' && 
+                 booking.id.length > 0 &&
+                 booking.customer_name &&
+                 booking.service_type;
+        });
+        
+        console.log('Setting bookings:', validBookings.length, 'valid bookings out of', data.bookings.length, 'total');
+        setBookings(validBookings);
         setTotal(data.total || 0);
         setTotalPages(data.totalPages || 1);
         setError(null);
