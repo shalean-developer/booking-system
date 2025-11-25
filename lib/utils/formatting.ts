@@ -5,13 +5,18 @@
 /**
  * Format currency amount (in cents) to South African Rand format
  * @param cents - Amount in cents
- * @returns Formatted currency string (e.g., "R1,234.56")
+ * @param showDecimals - Whether to show decimal places (default: true)
+ * @returns Formatted currency string (e.g., "R1,234.56" or "R1,235")
  */
-export function formatCurrency(cents: number): string {
-  return `R${(cents / 100).toLocaleString('en-ZA', { 
-    minimumFractionDigits: 2, 
-    maximumFractionDigits: 2 
-  })}`;
+export function formatCurrency(cents: number, showDecimals: boolean = true): string {
+  if (showDecimals) {
+    return `R${(cents / 100).toLocaleString('en-ZA', { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    })}`;
+  } else {
+    return `R${Math.round(cents / 100).toLocaleString('en-ZA')}`;
+  }
 }
 
 /**
