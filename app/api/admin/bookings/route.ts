@@ -420,6 +420,7 @@ export async function POST(request: NextRequest) {
       : (body.cleaner_id || null);
 
     // Create booking
+    // Note: bedrooms and bathrooms are stored in price_snapshot, not as separate columns
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .insert({
@@ -435,12 +436,10 @@ export async function POST(request: NextRequest) {
         address_line1: body.address_line1,
         address_suburb: body.address_suburb,
         address_city: body.address_city,
-        bedrooms: body.bedrooms || 1,
-        bathrooms: body.bathrooms || 1,
         notes: body.notes || null,
         total_amount: pricing.total * 100, // Convert to cents
         requires_team: requiresTeam,
-        price_snapshot: priceSnapshot,
+        price_snapshot: priceSnapshot, // Contains bedrooms, bathrooms, extras, etc.
         status: 'pending',
       })
       .select()
