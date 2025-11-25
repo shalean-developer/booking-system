@@ -8,7 +8,11 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    if (!await isAdmin()) {
+    const adminCheck = await isAdmin();
+    console.log('Admin check result:', adminCheck);
+    
+    if (!adminCheck) {
+      console.log('Unauthorized access attempt to bookings API');
       return NextResponse.json(
         { ok: false, error: 'Unauthorized' },
         { status: 403 }
@@ -16,15 +20,17 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await createClient();
+    console.log('Fetching bookings from database...');
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = parseInt(searchParams.get('offset') || '0');
     const status = searchParams.get('status');
     const search = searchParams.get('search') || '';
 
+    // Build base query without join
     let query = supabase
       .from('bookings')
-      .select(`*, cleaners:cleaner_id (id, first_name, last_name, name)`)
+      .select('*')
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -43,14 +49,20 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('Error fetching bookings:', error);
       return NextResponse.json(
-        { ok: false, error: 'Failed to fetch bookings' },
+        { ok: false, error: `Failed to fetch bookings: ${error.message}` },
         { status: 500 }
       );
     }
 
+    console.log(`Fetched ${bookings?.length || 0} bookings from database`);
+
+    // Ensure bookings is an array
+    const safeBookings = Array.isArray(bookings) ? bookings : [];
+
+    // Get count
     let countQuery = supabase
       .from('bookings')
-      .select('*', { count: 'exact', head: true });
+      .select('id', { count: 'exact', head: true });
 
     if (status && status !== 'all') {
       countQuery = countQuery.eq('status', status);
@@ -62,33 +74,120 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { count } = await countQuery;
+    const { count, error: countError } = await countQuery;
+    
+    if (countError) {
+      console.error('Error fetching booking count:', countError);
+    }
 
-    const formattedBookings = (bookings || []).map((booking: any) => {
-      const cleaners = booking.cleaners;
-      const cleaner = Array.isArray(cleaners) ? cleaners[0] : cleaners;
-      const cleanerName = cleaner?.name ||
-                          `${cleaner?.first_name || ''} ${cleaner?.last_name || ''}`.trim() ||
-                          null;
-
-      return {
-        id: booking.id,
-        customer_name: booking.customer_name,
-        customer_email: booking.customer_email,
-        customer_phone: booking.customer_phone,
-        service_type: booking.service_type,
-        booking_date: booking.booking_date,
-        booking_time: booking.booking_time,
-        status: booking.status,
-        total_amount: booking.total_amount,
-        cleaner_id: booking.cleaner_id,
-        cleaner_name: cleanerName,
-        created_at: booking.created_at,
-        updated_at: booking.updated_at,
-      };
+    // Extract all cleaner IDs (including team bookings)
+    const cleanerIds = new Set<string>();
+    const bookingIds = safeBookings.map((b: any) => b.id);
+    
+    safeBookings.forEach((booking: any) => {
+      // Individual cleaner
+      if (booking.cleaner_id && booking.cleaner_id !== 'manual' && booking.cleaner_id !== null) {
+        try {
+          // Check if it's a valid UUID
+          if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(booking.cleaner_id)) {
+            cleanerIds.add(booking.cleaner_id);
+          }
+        } catch {
+          // Skip invalid IDs
+        }
+      }
     });
 
+    // Fetch team bookings
+    const teamBookingsMap = new Map<string, { supervisorId: string; memberIds: string[] }>();
+    if (bookingIds.length > 0) {
+      const { data: teams } = await supabase
+        .from('booking_teams')
+        .select('booking_id, supervisor_id')
+        .in('booking_id', bookingIds);
+
+      if (teams && teams.length > 0) {
+        const teamBookingIds = teams.map((t: any) => t.booking_id);
+        const { data: teamMembers } = await supabase
+          .from('booking_team_members')
+          .select('booking_id, cleaner_id')
+          .in('booking_id', teamBookingIds);
+
+        teams.forEach((team: any) => {
+          const members = (teamMembers || [])
+            .filter((tm: any) => tm.booking_id === team.booking_id)
+            .map((tm: any) => tm.cleaner_id);
+          
+          cleanerIds.add(team.supervisor_id);
+          members.forEach((id: string) => cleanerIds.add(id));
+          
+          teamBookingsMap.set(team.booking_id, {
+            supervisorId: team.supervisor_id,
+            memberIds: members,
+          });
+        });
+      }
+    }
+
+    // Fetch all cleaners in one query
+    let cleanersMap = new Map<string, { name: string }>();
+    if (cleanerIds.size > 0) {
+      const { data: cleaners } = await supabase
+        .from('cleaners')
+        .select('id, name')
+        .in('id', Array.from(cleanerIds));
+
+      if (cleaners) {
+        cleaners.forEach((cleaner) => {
+          cleanersMap.set(cleaner.id, { name: cleaner.name });
+        });
+      }
+    }
+
+    // Helper function to get cleaner name
+    const getCleanerName = (booking: any): string | null => {
+      // Check for team booking
+      const teamInfo = teamBookingsMap.get(booking.id);
+      if (teamInfo) {
+        const supervisor = cleanersMap.get(teamInfo.supervisorId);
+        const members = teamInfo.memberIds
+          .map((id: string) => cleanersMap.get(id)?.name)
+          .filter(Boolean);
+        
+        if (supervisor) {
+          const memberNames = members.length > 0 ? `, ${members.join(', ')}` : '';
+          return `${supervisor.name} (Supervisor)${memberNames}`;
+        }
+        return members.length > 0 ? members.join(', ') : null;
+      }
+      
+      // Individual cleaner
+      if (booking.cleaner_id && booking.cleaner_id !== 'manual' && booking.cleaner_id !== null) {
+        const cleaner = cleanersMap.get(booking.cleaner_id);
+        return cleaner?.name || null;
+      }
+      return null;
+    };
+
+    const formattedBookings = safeBookings.map((booking: any) => ({
+      id: booking.id,
+      customer_name: booking.customer_name,
+      customer_email: booking.customer_email,
+      customer_phone: booking.customer_phone,
+      service_type: booking.service_type,
+      booking_date: booking.booking_date,
+      booking_time: booking.booking_time,
+      status: booking.status,
+      total_amount: booking.total_amount || 0,
+      cleaner_id: booking.cleaner_id,
+      cleaner_name: getCleanerName(booking),
+      created_at: booking.created_at,
+      updated_at: booking.updated_at,
+    }));
+
     const totalPages = Math.ceil((count || 0) / limit);
+
+    console.log(`Returning ${formattedBookings.length} formatted bookings, total: ${count || 0}, pages: ${totalPages}`);
 
     return NextResponse.json({
       ok: true,

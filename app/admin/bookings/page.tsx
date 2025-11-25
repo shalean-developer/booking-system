@@ -57,6 +57,7 @@ export default function AdminBookingsPage() {
   const [selectedBookings, setSelectedBookings] = useState<Booking[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const pageSize = 20;
 
   useEffect(() => {
@@ -70,6 +71,7 @@ export default function AdminBookingsPage() {
   const fetchBookings = async () => {
     try {
       setIsLoading(true);
+      setError(null);
       const offset = (currentPage - 1) * pageSize;
       const params = new URLSearchParams({
         limit: pageSize.toString(),
@@ -85,16 +87,47 @@ export default function AdminBookingsPage() {
       }
 
       const url = `/api/admin/bookings?${params.toString()}`;
+      console.log('Fetching bookings from:', url);
       const response = await fetch(url);
+      
+      console.log('Response status:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API error response:', errorText);
+        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text.substring(0, 200));
+        throw new Error('Response is not JSON');
+      }
+
       const data = await response.json();
+      console.log('API response:', { ok: data.ok, bookingsCount: data.bookings?.length, total: data.total, error: data.error });
 
       if (data.ok) {
         setBookings(data.bookings || []);
         setTotal(data.total || 0);
         setTotalPages(data.totalPages || 1);
+        setError(null);
+      } else {
+        const errorMsg = data.error || 'Failed to fetch bookings';
+        console.error('API error:', errorMsg);
+        setError(errorMsg);
+        setBookings([]);
+        setTotal(0);
+        setTotalPages(1);
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       console.error('Error fetching bookings:', error);
+      setError(errorMessage);
+      setBookings([]);
+      setTotal(0);
+      setTotalPages(1);
     } finally {
       setIsLoading(false);
     }
@@ -284,6 +317,28 @@ export default function AdminBookingsPage() {
           setCurrentPage(1);
         }}
       />
+
+      {error && (
+        <div className="rounded-md bg-red-50 p-4 border border-red-200">
+          <div className="flex">
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Error loading bookings</h3>
+              <div className="mt-2 text-sm text-red-700">
+                <p>{error}</p>
+              </div>
+              <div className="mt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fetchBookings()}
+                >
+                  Retry
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedBookings.length > 0 && (
         <BulkActions
