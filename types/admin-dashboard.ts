@@ -40,6 +40,7 @@ export interface PipelineApiResponse extends ApiResponse<BookingPipeline> {
 export interface ServiceBreakdownItem {
   name: string;
   value: number;
+  [key: string]: any; // Index signature for Recharts compatibility
 }
 
 export interface ServiceBreakdownApiResponse extends ApiResponse<ServiceBreakdownItem[]> {

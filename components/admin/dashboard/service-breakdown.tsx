@@ -51,7 +51,7 @@ export function ServiceBreakdown({ data, isLoading = false }: ServiceBreakdownPr
         <ResponsiveContainer width="100%" height={300}>
           <PieChart>
             <Pie
-              data={data}
+              data={data as Array<{ name: string; value: number; [key: string]: any }>}
               cx="50%"
               cy="50%"
               label={(props: any) => {
