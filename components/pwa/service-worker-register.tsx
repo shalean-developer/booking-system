@@ -4,11 +4,25 @@ import { useEffect } from 'react';
 
 export function ServiceWorkerRegister() {
   useEffect(() => {
+    // Skip Service Worker registration in development
+    if (process.env.NODE_ENV === 'development') {
+      // Unregister any existing service workers in development
+      if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          registrations.forEach((registration) => {
+            registration.unregister();
+            console.log('[Service Worker] Unregistered in development mode');
+          });
+        });
+      }
+      return;
+    }
+
     if (typeof window === 'undefined' || 'serviceWorker' in navigator === false) {
       return;
     }
 
-    // Register service worker
+    // Register service worker (production only)
     const registerSW = async () => {
       try {
         const registration = await navigator.serviceWorker.register('/sw.js', {

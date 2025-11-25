@@ -14,20 +14,14 @@ interface StatsResponse {
 }
 
 export function useDashboardStats() {
+  const key = '/api/admin/stats';
+  
   const { data, error, isLoading, mutate } = useSWR<StatsResponse>(
-    '/api/admin/stats',
+    key,
     fetcher,
     {
       revalidateOnMount: true,
       refreshInterval: 0, // Disable auto-refresh by default
-      onError: (err) => {
-        console.error('[useDashboardStats] Error:', err);
-      },
-      onSuccess: (data) => {
-        if (data && !data.ok) {
-          console.warn('[useDashboardStats] API returned ok:false', data.error);
-        }
-      },
     }
   );
 

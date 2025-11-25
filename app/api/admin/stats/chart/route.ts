@@ -4,6 +4,9 @@ import { createClient } from '@/lib/supabase-server';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  const startTime = Date.now();
+  console.log('[API] /api/admin/stats/chart - Request started');
+  
   try {
     // Check admin authentication
     const supabase = await createClient();
@@ -70,12 +73,20 @@ export async function GET(request: NextRequest) {
       bookings: item.bookings,
     }));
 
+    const totalDuration = Date.now() - startTime;
+    console.log(`[API] /api/admin/stats/chart - Success (${totalDuration}ms), data points: ${chartData.length}`);
+    
     return NextResponse.json({
       ok: true,
       data: chartData,
     });
-  } catch (error) {
-    console.error('Error fetching chart data:', error);
+  } catch (error: any) {
+    const totalDuration = Date.now() - startTime;
+    console.error(`[API] /api/admin/stats/chart - Error after ${totalDuration}ms:`, {
+      error: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
     return NextResponse.json({
       ok: true,
       data: [],

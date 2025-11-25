@@ -77,8 +77,14 @@ self.addEventListener('fetch', (event) => {
   }
 
   // API routes - Network first, cache fallback
-  if (url.pathname.startsWith('/api/')) {
+  // Skip admin API routes - they should never be cached
+  if (url.pathname.startsWith('/api/') && !url.pathname.startsWith('/api/admin/')) {
     event.respondWith(networkFirstStrategy(request));
+    return;
+  }
+  
+  // Skip admin API routes entirely - let them go directly to network
+  if (url.pathname.startsWith('/api/admin/')) {
     return;
   }
 

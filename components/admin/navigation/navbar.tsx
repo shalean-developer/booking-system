@@ -18,7 +18,17 @@ export function AdminNavbar() {
 
   const fetchUnreadCount = async () => {
     try {
-      const response = await fetch('/api/admin/notifications/unread-count');
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      
+      const response = await fetch('/api/admin/notifications/unread-count', {
+        signal: controller.signal,
+        credentials: 'include',
+      });
+      
+      clearTimeout(timeoutId);
+      
       if (response.ok) {
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
@@ -26,10 +36,13 @@ export function AdminNavbar() {
           setUnreadCount(data.count || 0);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       // Silently fail - don't crash the app
-      console.error('Failed to fetch unread count:', error);
-      setUnreadCount(0);
+      // Only log if it's not an abort error (timeout) or network error
+      if (error.name !== 'AbortError' && error.message !== 'Failed to fetch') {
+        console.error('Failed to fetch unread count:', error);
+      }
+      // Don't reset to 0 on error - keep previous count
     }
   };
 
@@ -39,11 +52,18 @@ export function AdminNavbar() {
       
       // Only fetch if we're on the client side
       if (typeof window !== 'undefined') {
-        fetchUnreadCount();
+        // Initial fetch after a short delay to let page load
+        const initialTimeout = setTimeout(() => {
+          fetchUnreadCount();
+        }, 1000);
 
-        // Refresh every 30 seconds
-        const interval = setInterval(fetchUnreadCount, 30000);
-        return () => clearInterval(interval);
+        // Refresh every 60 seconds (reduced frequency to reduce load)
+        const interval = setInterval(fetchUnreadCount, 60000);
+        
+        return () => {
+          clearTimeout(initialTimeout);
+          clearInterval(interval);
+        };
       }
     } catch (error) {
       console.error('Error in AdminNavbar useEffect:', error);

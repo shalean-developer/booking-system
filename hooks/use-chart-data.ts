@@ -2,6 +2,7 @@
  * Custom hook for fetching chart data
  */
 
+import { useMemo } from 'react';
 import useSWR from 'swr';
 import type { ChartDataPoint } from '@/types/admin-dashboard';
 import { validateChartData } from '@/lib/utils/validation';
@@ -16,14 +17,14 @@ interface ChartResponse {
 }
 
 export function useChartData(dateRange: DateRangePeriod = 'month') {
-  // Get date range for API call
-  const { dateFrom, dateTo } = dateRange === 'custom'
-    ? { dateFrom: '', dateTo: '' }
-    : getDateRange(dateRange);
-
-  const url = dateRange === 'custom'
-    ? '/api/admin/stats/chart'
-    : `/api/admin/stats/chart?date_from=${dateFrom}&date_to=${dateTo}`;
+  // Memoize URL to prevent infinite re-renders
+  const url = useMemo(() => {
+    if (dateRange === 'custom') {
+      return '/api/admin/stats/chart';
+    }
+    const { dateFrom, dateTo } = getDateRange(dateRange);
+    return `/api/admin/stats/chart?date_from=${dateFrom}&date_to=${dateTo}`;
+  }, [dateRange]);
 
   const { data, error, isLoading, mutate } = useSWR<ChartResponse>(
     url,

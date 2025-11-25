@@ -5,15 +5,24 @@ import { isAdmin } from '@/lib/supabase-server';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  const startTime = Date.now();
+  console.log('[API] /api/admin/stats - Request started');
+  
   try {
-    if (!await isAdmin()) {
+    const adminCheckStart = Date.now();
+    const isAdminUser = await isAdmin();
+    console.log(`[API] Admin check completed in ${Date.now() - adminCheckStart}ms, result: ${isAdminUser}`);
+    
+    if (!isAdminUser) {
       return NextResponse.json(
         { ok: false, error: 'Unauthorized' },
         { status: 403 }
       );
     }
 
+    const supabaseStart = Date.now();
     const supabase = await createClient();
+    console.log(`[API] Supabase client created in ${Date.now() - supabaseStart}ms`);
     const now = new Date();
     const thirtyDaysAgo = new Date(now);
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -122,6 +131,9 @@ export async function GET(request: NextRequest) {
       .select('*', { count: 'exact', head: true })
       .eq('status', 'pending');
 
+    const totalDuration = Date.now() - startTime;
+    console.log(`[API] /api/admin/stats - Success (${totalDuration}ms)`);
+    
     return NextResponse.json({
       ok: true,
       stats: {
@@ -138,10 +150,15 @@ export async function GET(request: NextRequest) {
         pendingBookings: pendingBookings || 0,
       },
     });
-  } catch (error) {
-    console.error('Error fetching stats:', error);
+  } catch (error: any) {
+    const totalDuration = Date.now() - startTime;
+    console.error(`[API] /api/admin/stats - Error after ${totalDuration}ms:`, {
+      error: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
     return NextResponse.json(
-      { ok: false, error: 'Internal server error' },
+      { ok: false, error: 'Internal server error', details: process.env.NODE_ENV === 'development' ? error.message : undefined },
       { status: 500 }
     );
   }

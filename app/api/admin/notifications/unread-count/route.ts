@@ -6,7 +6,8 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    if (!await isAdmin()) {
+    const adminCheck = await isAdmin();
+    if (!adminCheck) {
       return NextResponse.json(
         { ok: false, error: 'Unauthorized' },
         { status: 403 }
@@ -42,8 +43,12 @@ export async function GET(request: NextRequest) {
       ok: true,
       count,
     });
-  } catch (error) {
-    console.error('Error fetching unread count:', error);
+  } catch (error: any) {
+    // Log error but don't crash - return 0 count
+    console.error('Error fetching unread count:', {
+      error: error.message,
+      name: error.name,
+    });
     return NextResponse.json({
       ok: true,
       count: 0,

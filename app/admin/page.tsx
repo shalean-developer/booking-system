@@ -35,21 +35,19 @@ export default function AdminDashboardPage() {
   const { chartData, isLoading: chartLoading, isError: chartError, error: chartErrorMsg, mutate: mutateChart } = useChartData(dateRange);
   const { recentBookings, isLoading: bookingsLoading, isError: bookingsError, error: bookingsErrorMsg, mutate: mutateBookings } = useRecentBookings(10);
 
+  // Debug: Log data states (temporary)
+  useEffect(() => {
+    console.log('[Dashboard Data Check]', {
+      stats: { hasData: !!stats, loading: statsLoading, error: statsError },
+      chartData: { hasData: chartData?.length > 0, length: chartData?.length, loading: chartLoading, error: chartError },
+      pipeline: { hasData: !!pipeline, loading: pipelineLoading, error: pipelineError },
+      serviceBreakdown: { hasData: serviceBreakdown?.length > 0, length: serviceBreakdown?.length, loading: breakdownLoading, error: breakdownError },
+      recentBookings: { hasData: recentBookings?.length > 0, length: recentBookings?.length, loading: bookingsLoading, error: bookingsError },
+    });
+  }, [stats, chartData, pipeline, serviceBreakdown, recentBookings, statsLoading, chartLoading, pipelineLoading, breakdownLoading, bookingsLoading, statsError, chartError, pipelineError, breakdownError, bookingsError]);
+
   // Combined loading state
   const isLoading = statsLoading || pipelineLoading || breakdownLoading || chartLoading || bookingsLoading;
-  
-  // Debug logging (remove in production)
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Dashboard Debug]', {
-        stats: { data: stats, loading: statsLoading, error: statsError },
-        pipeline: { data: pipeline, loading: pipelineLoading, error: pipelineError },
-        serviceBreakdown: { data: serviceBreakdown, loading: breakdownLoading, error: breakdownError },
-        chartData: { data: chartData, loading: chartLoading, error: chartError },
-        recentBookings: { data: recentBookings, loading: bookingsLoading, error: bookingsError },
-      });
-    }
-  }, [stats, pipeline, serviceBreakdown, chartData, recentBookings, statsLoading, pipelineLoading, breakdownLoading, chartLoading, bookingsLoading, statsError, pipelineError, breakdownError, chartError, bookingsError]);
   
   // Combined errors
   const errors = {
@@ -168,38 +166,38 @@ export default function AdminDashboardPage() {
         )}
 
         <ErrorBoundary>
-      <OverviewStats stats={stats} isLoading={isLoading} />
+      <OverviewStats stats={stats} isLoading={statsLoading} />
         </ErrorBoundary>
 
       <div className="grid gap-6 md:grid-cols-2 w-full">
           <ErrorBoundary>
-        <RevenueChartEnhanced data={chartData} isLoading={isLoading} />
+        <RevenueChartEnhanced data={chartData} isLoading={chartLoading} />
           </ErrorBoundary>
           <ErrorBoundary>
-        <BookingsChartEnhanced data={chartData} isLoading={isLoading} />
+        <BookingsChartEnhanced data={chartData} isLoading={chartLoading} />
           </ErrorBoundary>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3 w-full">
         <div className="lg:col-span-2 space-y-6">
             <ErrorBoundary>
-          <ServiceBreakdown data={serviceBreakdown} isLoading={isLoading} />
+          <ServiceBreakdown data={serviceBreakdown} isLoading={breakdownLoading} />
             </ErrorBoundary>
             <ErrorBoundary>
-          <RecentActivity bookings={recentBookings} isLoading={isLoading} />
+          <RecentActivity bookings={recentBookings} isLoading={bookingsLoading} />
             </ErrorBoundary>
         </div>
 
         <div className="space-y-6">
             <ErrorBoundary>
-          <BookingPipeline pipeline={pipeline} isLoading={isLoading} />
+          <BookingPipeline pipeline={pipeline} isLoading={pipelineLoading} />
             </ErrorBoundary>
             <ErrorBoundary>
           <PendingAlerts
             pendingQuotes={stats?.pendingQuotes}
             pendingApplications={stats?.pendingApplications}
             pendingBookings={stats?.pendingBookings}
-            isLoading={isLoading}
+            isLoading={statsLoading}
           />
             </ErrorBoundary>
           <QuickActions />
