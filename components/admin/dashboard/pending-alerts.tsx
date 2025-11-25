@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { AlertCircle, FileText, Briefcase, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -29,10 +30,19 @@ export function PendingAlerts({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            <div className="h-12 bg-gray-100 animate-pulse rounded" />
-            <div className="h-12 bg-gray-100 animate-pulse rounded" />
-            <div className="h-12 bg-gray-100 animate-pulse rounded" />
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="flex items-center justify-between p-3 rounded-lg border">
+                <div className="flex items-center gap-3 flex-1">
+                  <Skeleton className="h-10 w-10 rounded" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                </div>
+                <Skeleton className="h-6 w-8" />
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
