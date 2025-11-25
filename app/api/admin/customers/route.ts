@@ -6,9 +6,11 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    if (!await isAdmin()) {
+    const adminCheck = await isAdmin();
+    if (!adminCheck) {
+      console.error('[Customers API] Admin check failed - returning 403');
       return NextResponse.json(
-        { ok: false, error: 'Unauthorized' },
+        { ok: false, error: 'Unauthorized - Admin access required' },
         { status: 403 }
       );
     }
@@ -26,7 +28,7 @@ export async function GET(request: NextRequest) {
       .range(offset, offset + limit - 1);
 
     if (search) {
-      query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`);
+      query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`);
     }
 
     const { data: customers, error } = await query;
@@ -45,7 +47,7 @@ export async function GET(request: NextRequest) {
       .select('*', { count: 'exact', head: true });
 
     if (search) {
-      countQuery = countQuery.or(`name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`);
+      countQuery = countQuery.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`);
     }
 
     const { count } = await countQuery;

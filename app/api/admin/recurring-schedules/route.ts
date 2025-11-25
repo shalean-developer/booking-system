@@ -266,3 +266,131 @@ export async function GET(request: NextRequest) {
   }
 }
 
+export async function POST(request: NextRequest) {
+  try {
+    if (!await isAdmin()) {
+      return NextResponse.json(
+        { ok: false, error: 'Unauthorized' },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+    const supabase = await createClient();
+
+    const {
+      customer_id,
+      service_type,
+      bedrooms,
+      bathrooms,
+      extras,
+      frequency,
+      day_of_week,
+      day_of_month,
+      days_of_week,
+      preferred_time,
+      address_line1,
+      address_suburb,
+      address_city,
+      cleaner_id,
+      is_active,
+      start_date,
+      end_date,
+      notes,
+    } = body;
+
+    // Validate required fields
+    if (!customer_id || !service_type || !frequency || !preferred_time || !start_date) {
+      return NextResponse.json(
+        { ok: false, error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // Validate frequency-specific fields
+    if ((frequency === 'weekly' || frequency === 'bi-weekly') && day_of_week === undefined) {
+      return NextResponse.json(
+        { ok: false, error: 'Day of week is required for weekly/bi-weekly schedules' },
+        { status: 400 }
+      );
+    }
+
+    if (frequency === 'monthly' && day_of_month === undefined) {
+      return NextResponse.json(
+        { ok: false, error: 'Day of month is required for monthly schedules' },
+        { status: 400 }
+      );
+    }
+
+    if ((frequency === 'custom-weekly' || frequency === 'custom-bi-weekly') && (!days_of_week || days_of_week.length === 0)) {
+      return NextResponse.json(
+        { ok: false, error: 'At least one day must be selected for custom frequency' },
+        { status: 400 }
+      );
+    }
+
+    // Build insert data
+    const insertData: any = {
+      customer_id,
+      service_type,
+      bedrooms: bedrooms || 1,
+      bathrooms: bathrooms || 1,
+      extras: extras || [],
+      frequency,
+      preferred_time,
+      address_line1,
+      address_suburb,
+      address_city,
+      cleaner_id: cleaner_id === 'unassigned' || cleaner_id === '' ? null : cleaner_id,
+      is_active: is_active !== false,
+      start_date,
+      end_date: end_date || null,
+      notes: notes || null,
+    };
+
+    // Add frequency-specific fields
+    if (frequency === 'weekly' || frequency === 'bi-weekly') {
+      insertData.day_of_week = day_of_week;
+      insertData.day_of_month = null;
+      insertData.days_of_week = null;
+    } else if (frequency === 'monthly') {
+      insertData.day_of_month = day_of_month;
+      insertData.day_of_week = null;
+      insertData.days_of_week = null;
+    } else if (frequency === 'custom-weekly' || frequency === 'custom-bi-weekly') {
+      insertData.days_of_week = days_of_week;
+      insertData.day_of_week = null;
+      insertData.day_of_month = null;
+    }
+
+    const { data, error } = await supabase
+      .from('recurring_schedules')
+      .insert(insertData)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating recurring schedule:', error);
+      return NextResponse.json(
+        { ok: false, error: `Failed to create recurring schedule: ${error.message}` },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      ok: true,
+      schedule: data,
+    });
+  } catch (error: any) {
+    console.error('Error in recurring schedules POST API:', error);
+    return NextResponse.json(
+      { 
+        ok: false, 
+        error: 'Internal server error',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
+      { status: 500 }
+    );
+  }
+}
+

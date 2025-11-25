@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/admin/shared/page-header';
 import { Button } from '@/components/ui/button';
@@ -16,13 +16,20 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { LoadingState } from '@/components/admin/shared/loading-state';
 import { generateTimeSlots } from '@/lib/pricing';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Search } from 'lucide-react';
 import Link from 'next/link';
 
 type ServiceType = 'Standard' | 'Deep' | 'Move In/Out' | 'Airbnb';
 type Frequency = 'weekly' | 'bi-weekly' | 'monthly' | 'custom-weekly' | 'custom-bi-weekly';
+
+interface Customer {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone?: string;
+}
 
 const SERVICE_EXTRAS: Record<ServiceType, string[]> = {
   'Standard': ['Inside Fridge', 'Inside Oven', 'Inside Cabinets', 'Interior Windows', 'Interior Walls', 'Laundry & Ironing'],
@@ -33,13 +40,16 @@ const SERVICE_EXTRAS: Record<ServiceType, string[]> = {
 
 const DAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-export default function EditRecurringSchedulePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function NewRecurringSchedulePage() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form state
+  const [customerId, setCustomerId] = useState<string>('');
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [serviceType, setServiceType] = useState<ServiceType | ''>('');
   const [bedrooms, setBedrooms] = useState(1);
   const [bathrooms, setBathrooms] = useState(1);
@@ -56,59 +66,67 @@ export default function EditRecurringSchedulePage({ params }: { params: Promise<
   const [addressLine1, setAddressLine1] = useState('');
   const [addressSuburb, setAddressSuburb] = useState('');
   const [addressCity, setAddressCity] = useState('');
-  const [cleanerId, setCleanerId] = useState<string>('');
+  const [cleanerId, setCleanerId] = useState<string>('unassigned');
   const [availableCleaners, setAvailableCleaners] = useState<Array<{ id: string; name: string }>>([]);
-  const [customerName, setCustomerName] = useState('');
-  const [customerEmail, setCustomerEmail] = useState('');
 
   useEffect(() => {
-    if (id === 'new') {
-      router.push('/admin/recurring-schedules/new');
+    fetchCleaners();
+  }, []);
+
+  useEffect(() => {
+    if (customerSearch.length >= 2) {
+      const timeoutId = setTimeout(() => {
+        searchCustomers();
+      }, 300);
+      return () => clearTimeout(timeoutId);
+    } else {
+      setCustomers([]);
+      setIsLoadingCustomers(false);
+    }
+  }, [customerSearch]);
+
+  const searchCustomers = async () => {
+    if (!customerSearch || customerSearch.length < 2) {
+      setCustomers([]);
       return;
     }
-    fetchSchedule();
-    fetchCleaners();
-  }, [id, router]);
-
-  const fetchSchedule = async () => {
+    
+    setIsLoadingCustomers(true);
     try {
-      setIsLoading(true);
-      const response = await fetch(`/api/admin/recurring-schedules/${id}`, {
+      const response = await fetch(`/api/admin/customers?search=${encodeURIComponent(customerSearch)}&limit=10`, {
         credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
-      const data = await response.json();
-
-      if (data.ok && data.schedule) {
-        const schedule = data.schedule;
-        setServiceType(schedule.service_type || '');
-        setBedrooms(schedule.bedrooms || 1);
-        setBathrooms(schedule.bathrooms || 1);
-        setSelectedExtras(schedule.extras || []);
-        setFrequency(schedule.frequency || 'weekly');
-        setDayOfWeek(schedule.day_of_week);
-        setDayOfMonth(schedule.day_of_month);
-        setDaysOfWeek(schedule.days_of_week || []);
-        setPreferredTime(schedule.preferred_time || '');
-        setStartDate(schedule.start_date || '');
-        setEndDate(schedule.end_date || '');
-        setIsActive(schedule.is_active !== false);
-        setNotes(schedule.notes || '');
-        setAddressLine1(schedule.address_line1 || '');
-        setAddressSuburb(schedule.address_suburb || '');
-        setAddressCity(schedule.address_city || '');
-        setCleanerId(schedule.cleaner_id || 'unassigned');
-        setCustomerName(schedule.customer_name || '');
-        setCustomerEmail(schedule.customer_email || '');
-      } else {
-        alert(data.error || 'Failed to fetch recurring schedule');
-        router.push('/admin/recurring-schedules');
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          errorMessage = errorText || errorMessage;
+        }
+        console.error('Customer search failed:', errorMessage);
+        setCustomers([]);
+        return;
       }
-    } catch (error) {
-      console.error('Error fetching recurring schedule:', error);
-      alert('Failed to load recurring schedule');
-      router.push('/admin/recurring-schedules');
+      
+      const data = await response.json();
+      
+      if (data.ok && data.customers) {
+        setCustomers(data.customers);
+      } else {
+        console.error('Search failed:', data.error);
+        setCustomers([]);
+      }
+    } catch (error: any) {
+      console.error('Error searching customers:', error);
+      setCustomers([]);
     } finally {
-      setIsLoading(false);
+      setIsLoadingCustomers(false);
     }
   };
 
@@ -146,12 +164,27 @@ export default function EditRecurringSchedulePage({ params }: { params: Promise<
     });
   };
 
+  const handleCustomerSelect = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setCustomerId(customer.id);
+    setCustomerSearch(`${customer.first_name} ${customer.last_name}`.trim());
+    setCustomers([]);
+    setIsLoadingCustomers(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!customerId) {
+      alert('Please select a customer');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       const updateData: any = {
+        customer_id: customerId,
         service_type: serviceType,
         bedrooms,
         bathrooms,
@@ -183,8 +216,8 @@ export default function EditRecurringSchedulePage({ params }: { params: Promise<
         updateData.day_of_month = null;
       }
 
-      const response = await fetch(`/api/admin/recurring-schedules/${id}`, {
-        method: 'PATCH',
+      const response = await fetch('/api/admin/recurring-schedules', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(updateData),
@@ -195,31 +228,15 @@ export default function EditRecurringSchedulePage({ params }: { params: Promise<
       if (data.ok) {
         router.push('/admin/recurring-schedules');
       } else {
-        alert(data.error || 'Failed to update recurring schedule');
+        alert(data.error || 'Failed to create recurring schedule');
       }
     } catch (error) {
-      console.error('Error updating recurring schedule:', error);
-      alert('Failed to update recurring schedule');
+      console.error('Error creating recurring schedule:', error);
+      alert('Failed to create recurring schedule');
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <PageHeader
-          title="Edit Recurring Schedule"
-          breadcrumbs={[
-            { label: 'Admin', href: '/admin' },
-            { label: 'Recurring Schedules', href: '/admin/recurring-schedules' },
-            { label: 'Edit' },
-          ]}
-        />
-        <LoadingState variant="cards" />
-      </div>
-    );
-  }
 
   const availableExtras = serviceType ? SERVICE_EXTRAS[serviceType as ServiceType] || [] : [];
   const timeSlots = generateTimeSlots();
@@ -227,12 +244,12 @@ export default function EditRecurringSchedulePage({ params }: { params: Promise<
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Edit Recurring Schedule"
-        description={`Editing schedule ${id}`}
+        title="Create Recurring Schedule"
+        description="Create a new recurring booking schedule"
         breadcrumbs={[
           { label: 'Admin', href: '/admin' },
           { label: 'Recurring Schedules', href: '/admin/recurring-schedules' },
-          { label: 'Edit' },
+          { label: 'New Schedule' },
         ]}
         actions={
           <Button variant="outline" asChild>
@@ -245,21 +262,60 @@ export default function EditRecurringSchedulePage({ params }: { params: Promise<
       />
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Customer Info (Read-only) */}
+        {/* Customer Selection */}
         <Card>
           <CardHeader>
             <CardTitle>Customer</CardTitle>
+            <CardDescription>Search and select a customer</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Customer Name</Label>
-                <Input value={customerName} readOnly className="bg-gray-100" />
+          <CardContent className="space-y-4">
+            <div className="relative">
+              <Label htmlFor="customerSearch">Search Customer *</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  id="customerSearch"
+                  value={customerSearch}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
+                  placeholder="Type customer name or email..."
+                  className="pl-10"
+                />
               </div>
-              <div>
-                <Label>Email</Label>
-                <Input value={customerEmail} readOnly className="bg-gray-100" />
-              </div>
+              {isLoadingCustomers && (
+                <p className="text-sm text-gray-500 mt-2">Searching...</p>
+              )}
+              {!isLoadingCustomers && customerSearch.length >= 2 && customers.length === 0 && (
+                <p className="text-sm text-gray-500 mt-2">No customers found. Try a different search term.</p>
+              )}
+              {customers.length > 0 && (
+                <div className="mt-2 border rounded-md max-h-60 overflow-y-auto">
+                  {customers.map((customer) => (
+                    <div
+                      key={customer.id}
+                      onClick={() => handleCustomerSelect(customer)}
+                      className={`p-3 cursor-pointer hover:bg-gray-50 border-b last:border-b-0 ${
+                        selectedCustomer?.id === customer.id ? 'bg-blue-50' : ''
+                      }`}
+                    >
+                      <div className="font-medium">
+                        {customer.first_name} {customer.last_name}
+                      </div>
+                      <div className="text-sm text-gray-500">{customer.email}</div>
+                      {customer.phone && (
+                        <div className="text-sm text-gray-500">{customer.phone}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {selectedCustomer && (
+                <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-md">
+                  <div className="font-medium text-green-900">
+                    Selected: {selectedCustomer.first_name} {selectedCustomer.last_name}
+                  </div>
+                  <div className="text-sm text-green-700">{selectedCustomer.email}</div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -550,10 +606,10 @@ export default function EditRecurringSchedulePage({ params }: { params: Promise<
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
+                Creating...
               </>
             ) : (
-              'Save Changes'
+              'Create Schedule'
             )}
           </Button>
         </div>
