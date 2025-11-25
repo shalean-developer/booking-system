@@ -12,8 +12,17 @@ import { RevenueChartEnhanced } from '@/components/admin/revenue-chart-enhanced'
 import { BookingsChartEnhanced } from '@/components/admin/bookings-chart-enhanced';
 import { ErrorAlert } from '@/components/admin/shared/error-alert';
 import { ErrorBoundary } from '@/components/admin/shared/error-boundary';
+import { DateRangeSelector, type DateRangePeriod } from '@/components/admin/shared/date-range-selector';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
+import { getDateRange } from '@/lib/utils/formatting';
+import {
+  validateDashboardStats,
+  validateBookingPipeline,
+  validateServiceBreakdown,
+  validateChartData,
+  validateRecentBookings,
+} from '@/lib/utils/validation';
 import type {
   DashboardStats,
   BookingPipeline as BookingPipelineType,
@@ -48,6 +57,7 @@ export default function AdminDashboardPage() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [autoRefreshInterval, setAutoRefreshInterval] = useState<NodeJS.Timeout | null>(null);
+  const [dateRange, setDateRange] = useState<DateRangePeriod>('month');
 
   const fetchDashboardData = useCallback(async (isManualRefresh = false) => {
     try {
@@ -66,11 +76,20 @@ export default function AdminDashboardPage() {
         bookings: null,
       });
 
+      // Get date range for chart data
+      const { dateFrom, dateTo } = dateRange === 'custom' 
+        ? { dateFrom: '', dateTo: '' } // Custom will be handled separately if needed
+        : getDateRange(dateRange);
+      
+      const chartUrl = dateRange === 'custom' 
+        ? '/api/admin/stats/chart'
+        : `/api/admin/stats/chart?date_from=${dateFrom}&date_to=${dateTo}`;
+
       const [statsRes, pipelineRes, serviceRes, chartRes, bookingsRes] = await Promise.all([
         fetch('/api/admin/stats').catch(() => ({ ok: false, json: async () => ({ ok: false, error: 'Network error' }) })),
         fetch('/api/admin/stats/booking-pipeline').catch(() => ({ ok: false, json: async () => ({ ok: false, error: 'Network error' }) })),
         fetch('/api/admin/stats/service-breakdown').catch(() => ({ ok: false, json: async () => ({ ok: false, data: [], error: 'Network error' }) })),
-        fetch('/api/admin/stats/chart').catch(() => ({ ok: false, json: async () => ({ ok: false, data: [], error: 'Network error' }) })),
+        fetch(chartUrl).catch(() => ({ ok: false, json: async () => ({ ok: false, data: [], error: 'Network error' }) })),
         fetch('/api/admin/bookings?limit=10').catch(() => ({ ok: false, json: async () => ({ ok: false, bookings: [], error: 'Network error' }) })),
       ]);
 
@@ -84,10 +103,14 @@ export default function AdminDashboardPage() {
 
       const [statsResult, pipelineResult, serviceResult, chartResult, bookingsResult] = results;
 
-      // Handle stats
+      // Handle stats with validation
       if (statsResult.status === 'fulfilled' && statsResult.value.ok && statsResult.value.stats) {
-        setStats(statsResult.value.stats);
-        setErrors((prev) => ({ ...prev, stats: null }));
+        if (validateDashboardStats(statsResult.value.stats)) {
+          setStats(statsResult.value.stats);
+          setErrors((prev) => ({ ...prev, stats: null }));
+        } else {
+          setErrors((prev) => ({ ...prev, stats: 'Invalid statistics data format' }));
+        }
       } else {
         const errorMsg = statsResult.status === 'rejected' 
           ? 'Failed to fetch statistics'
@@ -95,10 +118,14 @@ export default function AdminDashboardPage() {
         setErrors((prev) => ({ ...prev, stats: errorMsg }));
       }
 
-      // Handle pipeline
+      // Handle pipeline with validation
       if (pipelineResult.status === 'fulfilled' && pipelineResult.value.ok && pipelineResult.value.pipeline) {
-        setPipeline(pipelineResult.value.pipeline);
-        setErrors((prev) => ({ ...prev, pipeline: null }));
+        if (validateBookingPipeline(pipelineResult.value.pipeline)) {
+          setPipeline(pipelineResult.value.pipeline);
+          setErrors((prev) => ({ ...prev, pipeline: null }));
+        } else {
+          setErrors((prev) => ({ ...prev, pipeline: 'Invalid pipeline data format' }));
+        }
       } else {
         const errorMsg = pipelineResult.status === 'rejected'
           ? 'Failed to fetch booking pipeline'
@@ -106,10 +133,15 @@ export default function AdminDashboardPage() {
         setErrors((prev) => ({ ...prev, pipeline: errorMsg }));
       }
 
-      // Handle service breakdown
+      // Handle service breakdown with validation
       if (serviceResult.status === 'fulfilled' && serviceResult.value.ok) {
-        setServiceBreakdown(serviceResult.value.data || []);
-        setErrors((prev) => ({ ...prev, serviceBreakdown: null }));
+        const data = serviceResult.value.data || [];
+        if (validateServiceBreakdown(data)) {
+          setServiceBreakdown(data);
+          setErrors((prev) => ({ ...prev, serviceBreakdown: null }));
+        } else {
+          setErrors((prev) => ({ ...prev, serviceBreakdown: 'Invalid service breakdown data format' }));
+        }
       } else {
         const errorMsg = serviceResult.status === 'rejected'
           ? 'Failed to fetch service breakdown'
@@ -117,10 +149,15 @@ export default function AdminDashboardPage() {
         setErrors((prev) => ({ ...prev, serviceBreakdown: errorMsg }));
       }
 
-      // Handle chart data
+      // Handle chart data with validation
       if (chartResult.status === 'fulfilled' && chartResult.value.ok) {
-        setChartData(chartResult.value.data || []);
-        setErrors((prev) => ({ ...prev, chart: null }));
+        const data = chartResult.value.data || [];
+        if (validateChartData(data)) {
+          setChartData(data);
+          setErrors((prev) => ({ ...prev, chart: null }));
+        } else {
+          setErrors((prev) => ({ ...prev, chart: 'Invalid chart data format' }));
+        }
       } else {
         const errorMsg = chartResult.status === 'rejected'
           ? 'Failed to fetch chart data'
@@ -128,10 +165,15 @@ export default function AdminDashboardPage() {
         setErrors((prev) => ({ ...prev, chart: errorMsg }));
       }
 
-      // Handle recent bookings
+      // Handle recent bookings with validation
       if (bookingsResult.status === 'fulfilled' && bookingsResult.value.ok) {
-        setRecentBookings(bookingsResult.value.bookings || []);
-        setErrors((prev) => ({ ...prev, bookings: null }));
+        const bookings = bookingsResult.value.bookings || [];
+        if (validateRecentBookings(bookings)) {
+          setRecentBookings(bookings);
+          setErrors((prev) => ({ ...prev, bookings: null }));
+        } else {
+          setErrors((prev) => ({ ...prev, bookings: 'Invalid bookings data format' }));
+        }
       } else {
         const errorMsg = bookingsResult.status === 'rejected'
           ? 'Failed to fetch recent bookings'
@@ -157,7 +199,7 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [fetchDashboardData]);
+  }, [fetchDashboardData, dateRange]);
 
   // Auto-refresh functionality
   useEffect(() => {
@@ -200,7 +242,8 @@ export default function AdminDashboardPage() {
             { label: 'Dashboard' },
           ]}
           actions={
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <DateRangeSelector value={dateRange} onChange={setDateRange} />
               <Button
                 variant="outline"
                 size="sm"

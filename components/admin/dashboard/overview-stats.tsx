@@ -2,6 +2,7 @@
 
 import { StatCard } from '@/components/admin/shared/stat-card';
 import { DollarSign, Calendar, TrendingUp, Users } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils/formatting';
 import type { DashboardStats } from '@/types/admin-dashboard';
 
 interface OverviewStatsProps {
@@ -10,9 +11,6 @@ interface OverviewStatsProps {
 }
 
 export function OverviewStats({ stats, isLoading = false }: OverviewStatsProps) {
-  const formatCurrency = (cents: number) => {
-    return `R${(cents / 100).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, ArrowRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-
+import { formatCurrency, formatDateShort } from '@/lib/utils/formatting';
 import type { RecentBooking } from '@/types/admin-dashboard';
 
 interface RecentActivityProps {
@@ -31,17 +31,6 @@ export function RecentActivity({ bookings = null, isLoading = false }: RecentAct
         .filter((b): b is RecentBooking => Boolean(b.id && b.customer_name && b.service_type))
         .slice(0, 4)
     : [];
-
-  const formatCurrency = (cents: number) => {
-    return `R${(cents / 100).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-ZA', {
-      month: 'short',
-      day: 'numeric',
-    });
-  };
 
   return (
     <Card>
@@ -95,7 +84,7 @@ export function RecentActivity({ bookings = null, isLoading = false }: RecentAct
                   <div className="flex items-center gap-2 text-xs text-gray-500">
                     <span>{booking.service_type}</span>
                     <span>•</span>
-                    <span>{formatDate(booking.booking_date)}</span>
+                    <span>{formatDateShort(booking.booking_date)}</span>
                     <span>•</span>
                     <span>{booking.booking_time}</span>
                     {booking.total_amount > 0 && (

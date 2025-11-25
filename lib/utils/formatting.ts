@@ -1,81 +1,93 @@
 /**
- * Number and Currency Formatting Utilities
- * Provides consistent formatting for numbers, currency, and percentages
+ * Shared formatting utilities for admin dashboard
  */
 
 /**
- * Format a number with thousand separators
- * @param value - Number to format
- * @param decimals - Number of decimal places (default: 2)
- * @returns Formatted string (e.g., "79,470.04")
+ * Format currency amount (in cents) to South African Rand format
+ * @param cents - Amount in cents
+ * @returns Formatted currency string (e.g., "R1,234.56")
  */
-export function formatNumber(value: number, decimals: number = 2): string {
-  if (isNaN(value) || !isFinite(value)) return '0.00';
-  
-  return new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  }).format(value);
+export function formatCurrency(cents: number): string {
+  return `R${(cents / 100).toLocaleString('en-ZA', { 
+    minimumFractionDigits: 2, 
+    maximumFractionDigits: 2 
+  })}`;
 }
 
 /**
- * Format a currency value (South African Rand)
- * @param value - Amount in rands
- * @param showDecimals - Whether to show decimal places (default: true)
- * @returns Formatted currency string (e.g., "R79,470.04" or "R79,470")
+ * Format date to short format (e.g., "Jan 15")
+ * @param dateString - ISO date string
+ * @returns Formatted date string
  */
-export function formatCurrency(value: number, showDecimals: boolean = true): string {
-  if (isNaN(value) || !isFinite(value)) return showDecimals ? 'R0.00' : 'R0';
-  
-  const decimals = showDecimals ? 2 : 0;
-  return `R${formatNumber(value, decimals)}`;
+export function formatDateShort(dateString: string): string {
+  return new Date(dateString).toLocaleDateString('en-ZA', {
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
 /**
- * Format large numbers with K/M notation
- * @param value - Number to format
- * @param decimals - Decimal places for abbreviated numbers
- * @returns Formatted string (e.g., "1.5K", "2.3M")
+ * Format date to standard format (e.g., "Jan 15, 2024")
+ * @param dateString - ISO date string
+ * @returns Formatted date string
  */
-export function formatCompactNumber(value: number, decimals: number = 1): string {
-  if (isNaN(value) || !isFinite(value)) return '0';
-  if (value === 0) return '0';
-  
-  const absValue = Math.abs(value);
-  const sign = value < 0 ? '-' : '';
-  
-  if (absValue >= 1_000_000) {
-    return `${sign}${(absValue / 1_000_000).toFixed(decimals)}M`;
+export function formatDate(dateString: string): string {
+  return new Date(dateString).toLocaleDateString('en-ZA', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+/**
+ * Format date and time (e.g., "Jan 15, 2024, 10:30 AM")
+ * @param dateString - ISO date string
+ * @returns Formatted date and time string
+ */
+export function formatDateTime(dateString: string): string {
+  return new Date(dateString).toLocaleDateString('en-ZA', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/**
+ * Get date range for a given period
+ * @param period - Period type ('today', 'week', 'month', 'year')
+ * @returns Object with dateFrom and dateTo ISO strings
+ */
+export function getDateRange(period: 'today' | 'week' | 'month' | 'year'): { dateFrom: string; dateTo: string } {
+  const now = new Date();
+  const dateTo = now.toISOString();
+  let dateFrom: Date;
+
+  switch (period) {
+    case 'today':
+      dateFrom = new Date(now);
+      dateFrom.setHours(0, 0, 0, 0);
+      break;
+    case 'week':
+      dateFrom = new Date(now);
+      dateFrom.setDate(dateFrom.getDate() - 7);
+      break;
+    case 'month':
+      dateFrom = new Date(now);
+      dateFrom.setDate(dateFrom.getDate() - 30);
+      break;
+    case 'year':
+      dateFrom = new Date(now);
+      dateFrom.setFullYear(dateFrom.getFullYear() - 1);
+      break;
+    default:
+      dateFrom = new Date(now);
+      dateFrom.setDate(dateFrom.getDate() - 30);
   }
-  if (absValue >= 1_000) {
-    return `${sign}${(absValue / 1_000).toFixed(decimals)}K`;
-  }
-  
-  return formatNumber(value, 0);
-}
 
-/**
- * Format percentage with consistent decimal places
- * @param value - Percentage value (0-100)
- * @param decimals - Number of decimal places (default: 1)
- * @returns Formatted percentage string (e.g., "46.5%")
- */
-export function formatPercentage(value: number, decimals: number = 1): string {
-  if (isNaN(value) || !isFinite(value)) return '0%';
-  
-  return `${value.toFixed(decimals)}%`;
+  return {
+    dateFrom: dateFrom.toISOString(),
+    dateTo,
+  };
 }
-
-/**
- * Format percentage change (with +/- sign and color indication)
- * @param value - Percentage change value
- * @param decimals - Number of decimal places (default: 1)
- * @returns Formatted string with sign (e.g., "+5.2%", "-3.1%")
- */
-export function formatPercentageChange(value: number, decimals: number = 1): string {
-  if (isNaN(value) || !isFinite(value)) return '0%';
-  
-  const sign = value >= 0 ? '+' : '';
-  return `${sign}${value.toFixed(decimals)}%`;
-}
-
