@@ -89,13 +89,12 @@ const nextConfig = {
         destination: '/booking/service/select',
         permanent: true,
       },
-      // DISABLED: This redirect was interfering with new guest booking flow
-      // Old booking IDs should now go to confirmation page, not dashboard
-      // {
-      //   source: '/booking/:id([0-9A-Za-z-]+)',
-      //   destination: '/dashboard/bookings',
-      //   permanent: true,
-      // },
+      // Old booking IDs redirect to confirmation page (format: numbersxnumbers)
+      {
+        source: '/booking/:id([0-9]+x[0-9]+)',
+        destination: '/booking/confirmation',
+        permanent: true,
+      },
       // Legacy content URLs
       {
         source: '/articles/:path*',
@@ -189,6 +188,42 @@ const nextConfig = {
         destination: '/location/cape-town/false-bay',
         permanent: true,
       },
+      // Specific location mappings from CSV
+      {
+        source: '/locations/kalk-bay',
+        destination: '/location/cape-town/kalk-bay',
+        permanent: true,
+      },
+      {
+        source: '/locations/observatory',
+        destination: '/location/cape-town/observatory',
+        permanent: true,
+      },
+      {
+        source: '/locations/paarl',
+        destination: '/location/cape-town/paarl',
+        permanent: true,
+      },
+      {
+        source: '/locations/george',
+        destination: '/location/cape-town/george',
+        permanent: true,
+      },
+      {
+        source: '/locations/rosebank',
+        destination: '/location/johannesburg/rosebank',
+        permanent: true,
+      },
+      {
+        source: '/locations/faure',
+        destination: '/location/cape-town',
+        permanent: true,
+      },
+      {
+        source: '/locations/sunnyside',
+        destination: '/location/pretoria/sunnyside',
+        permanent: true,
+      },
       {
         source: '/locations/:slug',
         destination: '/location/cape-town/:slug',
@@ -274,6 +309,21 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: '/about_us',
+        destination: '/about',
+        permanent: true,
+      },
+      {
+        source: '/legal/terms',
+        destination: '/terms',
+        permanent: true,
+      },
+      {
+        source: '/legal/privacy',
+        destination: '/privacy',
+        permanent: true,
+      },
+      {
         source: '/user/m',
         destination: '/login',
         permanent: true,
@@ -322,6 +372,17 @@ const nextConfig = {
       {
         source: '/location/cape-town/v%26a-waterfront',
         destination: '/location/cape-town/waterfront',
+        permanent: true,
+      },
+      // Handle malformed URLs and encoded strings
+      {
+        source: '/locations/:id([0-9]+x[0-9]+)',
+        destination: '/location',
+        permanent: true,
+      },
+      {
+        source: '/locations/<p><a',
+        destination: '/location',
         permanent: true,
       },
     ];
