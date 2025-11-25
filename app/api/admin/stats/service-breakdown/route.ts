@@ -28,19 +28,36 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Group by service type
+    // Normalize service type names to merge duplicates
+    const normalizeServiceType = (serviceType: string | null): string => {
+      if (!serviceType) return 'Unknown';
+      const normalized = serviceType.trim();
+      // Merge variations of Standard
+      if (normalized.toLowerCase().includes('standard') && normalized.toLowerCase().includes('home')) {
+        return 'Standard';
+      }
+      if (normalized.toLowerCase() === 'standard home cleaning') {
+        return 'Standard';
+      }
+      // Keep other types as-is
+      return normalized;
+    };
+
+    // Group by normalized service type
     const serviceCounts: Record<string, number> = {};
     
     (bookings || []).forEach((booking) => {
-      const serviceType = booking.service_type || 'Unknown';
-      serviceCounts[serviceType] = (serviceCounts[serviceType] || 0) + 1;
+      const normalizedType = normalizeServiceType(booking.service_type);
+      serviceCounts[normalizedType] = (serviceCounts[normalizedType] || 0) + 1;
     });
 
-    // Convert to array format expected by component
-    const data = Object.entries(serviceCounts).map(([name, value]) => ({
-      name,
-      value,
-    }));
+    // Convert to array and sort by value (descending)
+    const data = Object.entries(serviceCounts)
+      .map(([name, value]) => ({
+        name,
+        value,
+      }))
+      .sort((a, b) => b.value - a.value); // Sort by count descending
 
     return NextResponse.json({
       ok: true,
