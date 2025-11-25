@@ -41,6 +41,31 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Get recurring schedule counts for customers
+    const customerIds = (customers || []).map((c: any) => c.id);
+    const recurringScheduleCounts = new Map<string, number>();
+
+    if (customerIds.length > 0) {
+      const { data: recurringSchedules } = await supabase
+        .from('recurring_schedules')
+        .select('customer_id')
+        .in('customer_id', customerIds)
+        .eq('is_active', true);
+
+      // Count recurring schedules per customer
+      recurringSchedules?.forEach((schedule: any) => {
+        const customerId = schedule.customer_id;
+        recurringScheduleCounts.set(customerId, (recurringScheduleCounts.get(customerId) || 0) + 1);
+      });
+    }
+
+    // Add recurring schedule count to each customer
+    const customersWithRecurring = (customers || []).map((customer: any) => ({
+      ...customer,
+      recurring_schedules_count: recurringScheduleCounts.get(customer.id) || 0,
+      has_recurring: (recurringScheduleCounts.get(customer.id) || 0) > 0,
+    }));
+
     // Get total count
     let countQuery = supabase
       .from('customers')
@@ -54,7 +79,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      customers: customers || [],
+      customers: customersWithRecurring,
       total: count || 0,
       page: Math.floor(offset / limit) + 1,
       pageSize: limit,

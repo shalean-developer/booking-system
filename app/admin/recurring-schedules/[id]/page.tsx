@@ -60,6 +60,8 @@ export default function EditRecurringSchedulePage({ params }: { params: Promise<
   const [availableCleaners, setAvailableCleaners] = useState<Array<{ id: string; name: string }>>([]);
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
+  const [totalAmount, setTotalAmount] = useState<string>('');
+  const [cleanerEarnings, setCleanerEarnings] = useState<string>('');
 
   useEffect(() => {
     if (id === 'new') {
@@ -99,6 +101,9 @@ export default function EditRecurringSchedulePage({ params }: { params: Promise<
         setCleanerId(schedule.cleaner_id || 'unassigned');
         setCustomerName(schedule.customer_name || '');
         setCustomerEmail(schedule.customer_email || '');
+        // Set price fields (convert from cents to rands for display)
+        setTotalAmount(schedule.total_amount ? (schedule.total_amount / 100).toFixed(2) : '');
+        setCleanerEarnings(schedule.cleaner_earnings ? (schedule.cleaner_earnings / 100).toFixed(2) : '');
       } else {
         alert(data.error || 'Failed to fetch recurring schedule');
         router.push('/admin/recurring-schedules');
@@ -167,6 +172,14 @@ export default function EditRecurringSchedulePage({ params }: { params: Promise<
         address_city: addressCity,
         cleaner_id: cleanerId === 'unassigned' ? null : cleanerId || null,
       };
+
+      // Add price fields if provided (convert from rands to cents)
+      if (totalAmount && !isNaN(parseFloat(totalAmount))) {
+        updateData.total_amount = Math.round(parseFloat(totalAmount) * 100);
+      }
+      if (cleanerEarnings && !isNaN(parseFloat(cleanerEarnings))) {
+        updateData.cleaner_earnings = Math.round(parseFloat(cleanerEarnings) * 100);
+      }
 
       // Add frequency-specific fields
       if (frequency === 'weekly' || frequency === 'bi-weekly') {
@@ -523,6 +536,62 @@ export default function EditRecurringSchedulePage({ params }: { params: Promise<
                 </SelectContent>
               </Select>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Pricing */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Pricing</CardTitle>
+            <CardDescription>
+              Set default pricing for bookings generated from this schedule. Leave empty to use automatic pricing.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="totalAmount">Total Amount (R)</Label>
+                <Input
+                  id="totalAmount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={totalAmount}
+                  onChange={(e) => setTotalAmount(e.target.value)}
+                  placeholder="Leave empty for auto pricing"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Total price per booking in Rands
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="cleanerEarnings">Cleaner Earnings (R)</Label>
+                <Input
+                  id="cleanerEarnings"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={cleanerEarnings}
+                  onChange={(e) => setCleanerEarnings(e.target.value)}
+                  placeholder="Leave empty for auto calculation"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Amount cleaner earns per booking in Rands
+                </p>
+              </div>
+            </div>
+            {totalAmount && cleanerEarnings && (
+              <div className="p-3 bg-blue-50 rounded-md border border-blue-200">
+                <div className="text-sm font-medium text-blue-900 mb-1">Pricing Summary</div>
+                <div className="text-xs text-blue-700 space-y-1">
+                  <div>Total Amount: R{parseFloat(totalAmount || '0').toFixed(2)}</div>
+                  <div>Cleaner Earnings: R{parseFloat(cleanerEarnings || '0').toFixed(2)}</div>
+                  <div className="font-semibold">
+                    Company Earnings: R{(parseFloat(totalAmount || '0') - parseFloat(cleanerEarnings || '0')).toFixed(2)}
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

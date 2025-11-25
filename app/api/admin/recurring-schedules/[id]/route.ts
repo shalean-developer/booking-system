@@ -151,6 +151,8 @@ export async function PATCH(
     if (body.start_date) updateData.start_date = body.start_date;
     if (body.end_date !== undefined) updateData.end_date = body.end_date || null;
     if (body.notes !== undefined) updateData.notes = body.notes;
+    if (body.total_amount !== undefined) updateData.total_amount = body.total_amount;
+    if (body.cleaner_earnings !== undefined) updateData.cleaner_earnings = body.cleaner_earnings;
 
     const { data, error } = await supabase
       .from('recurring_schedules')

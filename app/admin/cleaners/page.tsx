@@ -9,7 +9,13 @@ import { LoadingState } from '@/components/admin/shared/loading-state';
 import { StatCard } from '@/components/admin/shared/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Users, Eye, TrendingUp } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Users, Eye, TrendingUp, MoreVertical } from 'lucide-react';
 import Link from 'next/link';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 
@@ -31,6 +37,7 @@ export default function AdminCleanersPage() {
   const [cleaners, setCleaners] = useState<Cleaner[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const debouncedSearch = useDebouncedValue(searchQuery, 500);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -40,12 +47,12 @@ export default function AdminCleanersPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearch]);
+  }, [debouncedSearch, statusFilter]);
 
   useEffect(() => {
     fetchCleaners();
     fetchStats();
-  }, [currentPage, debouncedSearch]);
+  }, [currentPage, debouncedSearch, statusFilter]);
 
   const fetchCleaners = async () => {
     try {
@@ -60,8 +67,19 @@ export default function AdminCleanersPage() {
         params.append('search', debouncedSearch);
       }
 
+      if (statusFilter === 'active') {
+        params.append('active', 'true');
+      } else if (statusFilter === 'inactive') {
+        params.append('active', 'false');
+      }
+
       const url = `/api/admin/cleaners?${params.toString()}`;
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       const data = await response.json();
 
       if (data.ok) {
@@ -78,7 +96,12 @@ export default function AdminCleanersPage() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch('/api/admin/cleaners/stats');
+      const response = await fetch('/api/admin/cleaners/stats', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       const data = await response.json();
       if (data.ok) {
         setStats(data.stats);
@@ -114,16 +137,16 @@ export default function AdminCleanersPage() {
       id: 'status',
       header: 'Status',
       accessor: (row) => (
-                            <Badge
-                              variant="outline"
+        <Badge
+          variant="outline"
           className={
             row.is_active
               ? 'bg-green-50 text-green-700 border-green-200'
               : 'bg-gray-50 text-gray-700 border-gray-200'
           }
-                            >
+        >
           {row.is_active ? 'Active' : 'Inactive'}
-                            </Badge>
+        </Badge>
       ),
     },
     {
@@ -167,16 +190,28 @@ export default function AdminCleanersPage() {
       id: 'actions',
       header: 'Actions',
       accessor: (row) => (
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" asChild>
-            <Link href={`/admin/cleaners/${row.id}`}>View</Link>
-          </Button>
-          <Button variant="ghost" size="sm" asChild>
-            <Link href={`/admin/cleaners/performance?cleaner=${row.id}`}>
-              Performance
-                    </Link>
-                    </Button>
-                  </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm">
+              <span className="sr-only">Open menu</span>
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <Link href={`/admin/cleaners/${row.id}`}>
+                <Eye className="mr-2 h-4 w-4" />
+                View Details
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={`/admin/cleaners/performance?cleaner=${row.id}`}>
+                <TrendingUp className="mr-2 h-4 w-4" />
+                View Performance
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       ),
     },
   ];
@@ -232,8 +267,28 @@ export default function AdminCleanersPage() {
         searchPlaceholder="Search by name or email..."
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
+        filters={[
+          {
+            key: 'status',
+            label: 'Status',
+            type: 'select',
+            options: [
+              { label: 'All Cleaners', value: 'all' },
+              { label: 'Active', value: 'active' },
+              { label: 'Inactive', value: 'inactive' },
+            ],
+          },
+        ]}
+        filterValues={{ status: statusFilter === 'all' ? '' : statusFilter }}
+        onFilterChange={(key, value) => {
+          if (key === 'status') {
+            setStatusFilter(value === '' ? 'all' : (value as 'active' | 'inactive'));
+            setCurrentPage(1);
+          }
+        }}
         onClear={() => {
           setSearchQuery('');
+          setStatusFilter('all');
           setCurrentPage(1);
         }}
       />

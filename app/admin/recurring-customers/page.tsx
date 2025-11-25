@@ -8,7 +8,13 @@ import { EmptyState } from '@/components/admin/shared/empty-state';
 import { LoadingState } from '@/components/admin/shared/loading-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Repeat, Mail, Phone } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Repeat, Mail, Phone, MoreVertical, Calendar, Eye } from 'lucide-react';
 import Link from 'next/link';
 
 interface RecurringCustomer {
@@ -25,6 +31,7 @@ interface RecurringCustomer {
 export default function RecurringCustomersPage() {
   const [customers, setCustomers] = useState<RecurringCustomer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -38,18 +45,39 @@ export default function RecurringCustomersPage() {
   const fetchCustomers = async () => {
     try {
       setIsLoading(true);
+      setError(null);
       const offset = (currentPage - 1) * pageSize;
       const url = `/api/admin/recurring-customers?limit=${pageSize}&offset=${offset}&search=${encodeURIComponent(searchQuery)}`;
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        let errorText = 'Failed to fetch recurring customers.';
+        try {
+          const errorData = await response.json();
+          errorText = errorData.error || errorText;
+        } catch {
+          errorText = response.statusText || errorText;
+        }
+        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+      }
+
       const data = await response.json();
 
       if (data.ok) {
         setCustomers(data.customers || []);
         setTotal(data.total || 0);
         setTotalPages(data.totalPages || 1);
+      } else {
+        setError(data.error || 'Failed to fetch recurring customers.');
       }
-    } catch (error) {
-      console.error('Error fetching recurring customers:', error);
+    } catch (err: any) {
+      console.error('Error fetching recurring customers:', err);
+      setError(err.message || 'Failed to fetch recurring customers. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -129,14 +157,28 @@ export default function RecurringCustomersPage() {
       id: 'actions',
       header: 'Actions',
       accessor: (row) => (
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" asChild>
-            <Link href={`/admin/customers/${row.id}`}>View Customer</Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link href={`/admin/recurring-schedules?customer=${row.id}`}>View Schedules</Link>
-          </Button>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm">
+              <span className="sr-only">Open menu</span>
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <Link href={`/admin/bookings?customer=${row.id}`}>
+                <Calendar className="mr-2 h-4 w-4" />
+                View Bookings
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={`/admin/recurring-schedules?customer=${row.id}`}>
+                <Repeat className="mr-2 h-4 w-4" />
+                View Recurring Schedules
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       ),
     },
   ];
@@ -161,6 +203,12 @@ export default function RecurringCustomersPage() {
           setCurrentPage(1);
         }}
       />
+
+      {error && (
+        <div className="p-4 text-red-600 bg-red-50 border border-red-200 rounded-md">
+          Error: {error}
+        </div>
+      )}
 
       {isLoading ? (
         <LoadingState rows={5} columns={6} variant="table" />

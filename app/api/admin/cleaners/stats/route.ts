@@ -42,6 +42,11 @@ export async function GET(request: NextRequest) {
       ? cleaners.reduce((sum, c) => sum + (parseFloat(c.rating?.toString() || '0') || 0), 0) / cleaners.length
       : 0;
 
+    // Get total bookings count
+    const { count: totalBookings } = await supabase
+      .from('bookings')
+      .select('*', { count: 'exact', head: true });
+
     return NextResponse.json({
       ok: true,
       stats: {
@@ -49,6 +54,7 @@ export async function GET(request: NextRequest) {
         active: activeCleaners || 0,
         inactive: inactiveCleaners || 0,
         averageRating: Math.round(avgRating * 10) / 10,
+        totalBookings: totalBookings || 0,
       },
     });
   } catch (error) {

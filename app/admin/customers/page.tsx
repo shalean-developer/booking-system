@@ -15,7 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Users, Eye, Mail, Phone, MoreVertical, Calendar } from 'lucide-react';
+import { Users, Eye, Mail, Phone, MoreVertical, Calendar, Repeat } from 'lucide-react';
 import Link from 'next/link';
 import {
   Dialog,
@@ -36,12 +36,15 @@ interface Customer {
   created_at: string;
   total_bookings?: number;
   total_spent?: number;
+  recurring_schedules_count?: number;
+  has_recurring?: boolean;
 }
 
 export default function AdminCustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [recurringFilter, setRecurringFilter] = useState<'all' | 'recurring' | 'non-recurring'>('all');
   const debouncedSearch = useDebouncedValue(searchQuery, 500);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -52,11 +55,11 @@ export default function AdminCustomersPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearch]);
+  }, [debouncedSearch, recurringFilter]);
 
   useEffect(() => {
     fetchCustomers();
-  }, [currentPage, debouncedSearch]);
+  }, [currentPage, debouncedSearch, recurringFilter]);
 
   const fetchCustomers = async () => {
     try {
@@ -81,9 +84,27 @@ export default function AdminCustomersPage() {
       const data = await response.json();
 
       if (data.ok) {
-        setCustomers(data.customers || []);
-        setTotal(data.total || 0);
-        setTotalPages(data.totalPages || 1);
+        let filteredCustomers = data.customers || [];
+        
+        // Apply recurring filter
+        if (recurringFilter === 'recurring') {
+          filteredCustomers = filteredCustomers.filter((c: Customer) => c.has_recurring);
+        } else if (recurringFilter === 'non-recurring') {
+          filteredCustomers = filteredCustomers.filter((c: Customer) => !c.has_recurring);
+        }
+        
+        // Sort: recurring customers first, then by name
+        filteredCustomers.sort((a: Customer, b: Customer) => {
+          if (a.has_recurring && !b.has_recurring) return -1;
+          if (!a.has_recurring && b.has_recurring) return 1;
+          const nameA = getCustomerName(a).toLowerCase();
+          const nameB = getCustomerName(b).toLowerCase();
+          return nameA.localeCompare(nameB);
+        });
+        
+        setCustomers(filteredCustomers);
+        setTotal(filteredCustomers.length);
+        setTotalPages(Math.ceil(filteredCustomers.length / pageSize));
       }
     } catch (error) {
       console.error('Error fetching customers:', error);
@@ -140,7 +161,15 @@ export default function AdminCustomersPage() {
       header: 'Customer',
       accessor: (row) => (
         <div>
-          <div className="font-medium text-gray-900">{getCustomerName(row)}</div>
+          <div className="font-medium text-gray-900 flex items-center gap-2">
+            {getCustomerName(row)}
+            {row.has_recurring && (
+              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-xs">
+                <Repeat className="h-3 w-3 mr-1" />
+                {row.recurring_schedules_count || 0} recurring
+              </Badge>
+            )}
+          </div>
           <div className="text-sm text-gray-500 flex items-center gap-3 mt-1">
             <span className="flex items-center gap-1">
               <Mail className="h-3 w-3" />
@@ -228,8 +257,28 @@ export default function AdminCustomersPage() {
         searchPlaceholder="Search by name, email, or phone..."
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
+        filters={[
+          {
+            key: 'recurring',
+            label: 'Recurring',
+            type: 'select',
+            options: [
+              { label: 'All Customers', value: 'all' },
+              { label: 'With Recurring', value: 'recurring' },
+              { label: 'Without Recurring', value: 'non-recurring' },
+            ],
+          },
+        ]}
+        filterValues={{ recurring: recurringFilter === 'all' ? '' : recurringFilter }}
+        onFilterChange={(key, value) => {
+          if (key === 'recurring') {
+            setRecurringFilter(value === '' ? 'all' : (value as 'recurring' | 'non-recurring'));
+            setCurrentPage(1);
+          }
+        }}
         onClear={() => {
           setSearchQuery('');
+          setRecurringFilter('all');
           setCurrentPage(1);
         }}
       />
@@ -285,6 +334,24 @@ export default function AdminCustomersPage() {
                   <label className="text-sm font-medium text-gray-500">Total Spent</label>
                   <p className="text-sm text-gray-900 font-semibold">
                     {selectedCustomer.total_spent ? formatCurrency(selectedCustomer.total_spent) : 'R0.00'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Recurring Schedules</label>
+                  <p className="text-sm text-gray-900 font-semibold flex items-center gap-2">
+                    {selectedCustomer.has_recurring ? (
+                      <>
+                        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                          <Repeat className="h-3 w-3 mr-1" />
+                          {selectedCustomer.recurring_schedules_count || 0} active
+                        </Badge>
+                        <Link href={`/admin/recurring-schedules?customer=${selectedCustomer.id}`} className="text-xs text-primary hover:underline">
+                          View schedules
+                        </Link>
+                      </>
+                    ) : (
+                      <span className="text-gray-400">None</span>
+                    )}
                   </p>
                 </div>
                 <div>
