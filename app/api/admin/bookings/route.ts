@@ -45,13 +45,26 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
     const status = searchParams.get('status');
     const search = searchParams.get('search') || '';
+    const start = searchParams.get('start');
+    const end = searchParams.get('end');
+    const excludeRecurring = searchParams.get('exclude_recurring') === 'true';
 
     // Build base query without join
     let query = supabase
       .from('bookings')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .select('*');
+
+    // Date range filtering (for schedule view) - MUST come before pagination
+    if (start) {
+      // Handle both ISO format and YYYY-MM-DD format
+      const startDate = start.includes('T') ? start.split('T')[0] : start;
+      query = query.gte('booking_date', startDate);
+    }
+    if (end) {
+      // Handle both ISO format and YYYY-MM-DD format
+      const endDate = end.includes('T') ? end.split('T')[0] : end;
+      query = query.lte('booking_date', endDate);
+    }
 
     if (status && status !== 'all') {
       query = query.eq('status', status);
@@ -61,6 +74,24 @@ export async function GET(request: NextRequest) {
       query = query.or(
         `customer_name.ilike.%${search}%,customer_email.ilike.%${search}%,customer_phone.ilike.%${search}%,service_type.ilike.%${search}%`
       );
+    }
+
+    // Ordering - apply after filters but before pagination
+    if (start && end) {
+      // Schedule view: order by booking date and time
+      query = query.order('booking_date', { ascending: true })
+                   .order('booking_time', { ascending: true });
+    } else {
+      // List view: order by creation date
+      query = query.order('created_at', { ascending: false });
+    }
+    
+    // Pagination - apply last, after all filters
+    query = query.range(offset, offset + limit - 1);
+
+    // Exclude recurring bookings if requested
+    if (excludeRecurring) {
+      query = query.is('recurring_schedule_id', null);
     }
 
     const { data: bookings, error } = await query;
@@ -78,10 +109,20 @@ export async function GET(request: NextRequest) {
     // Ensure bookings is an array
     const safeBookings = Array.isArray(bookings) ? bookings : [];
 
-    // Get count
+    // Get count - apply same filters as main query
     let countQuery = supabase
       .from('bookings')
       .select('id', { count: 'exact', head: true });
+
+    // Date range filtering (for schedule view) - MUST come first
+    if (start) {
+      const startDate = start.includes('T') ? start.split('T')[0] : start;
+      countQuery = countQuery.gte('booking_date', startDate);
+    }
+    if (end) {
+      const endDate = end.includes('T') ? end.split('T')[0] : end;
+      countQuery = countQuery.lte('booking_date', endDate);
+    }
 
     if (status && status !== 'all') {
       countQuery = countQuery.eq('status', status);
@@ -91,6 +132,10 @@ export async function GET(request: NextRequest) {
       countQuery = countQuery.or(
         `customer_name.ilike.%${search}%,customer_email.ilike.%${search}%,customer_phone.ilike.%${search}%,service_type.ilike.%${search}%`
       );
+    }
+
+    if (excludeRecurring) {
+      countQuery = countQuery.is('recurring_schedule_id', null);
     }
 
     const { count, error: countError } = await countQuery;

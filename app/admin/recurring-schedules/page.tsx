@@ -54,7 +54,7 @@ export default function RecurringSchedulesPage() {
   
   const [schedules, setSchedules] = useState<RecurringSchedule[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<string>(customerFilter ? '' : 'active');
+  const [statusFilter, setStatusFilter] = useState<string>(customerFilter ? '' : 'all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -77,18 +77,40 @@ export default function RecurringSchedulesPage() {
         params.append('customer', customerFilter);
       }
       
-      if (statusFilter) {
+      // Only append status filter if it's not 'all'
+      if (statusFilter && statusFilter !== 'all') {
         params.append('status', statusFilter);
       }
 
       const url = `/api/admin/recurring-schedules?${params.toString()}`;
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
 
       if (data.ok) {
+        // Debug: log cleaner names in response
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[Recurring Schedules Page] Received schedules:', data.schedules?.map((s: any) => ({
+            id: s.id,
+            customer_name: s.customer_name,
+            cleaner_id: s.cleaner_id,
+            cleaner_name: s.cleaner_name,
+          })));
+        }
         setSchedules(data.schedules || []);
         setTotal(data.total || 0);
         setTotalPages(data.totalPages || 1);
+      } else {
+        console.error('API error:', data.error);
       }
     } catch (error) {
       console.error('Error fetching recurring schedules:', error);
@@ -172,7 +194,15 @@ export default function RecurringSchedulesPage() {
     {
       id: 'cleaner',
       header: 'Cleaner',
-      accessor: (row) => row.cleaner_name || <span className="text-gray-400">Unassigned</span>,
+      accessor: (row) => (
+        <div>
+          {row.cleaner_name ? (
+            <span className="font-medium text-gray-900">{row.cleaner_name}</span>
+          ) : (
+            <span className="text-gray-400 italic">Unassigned</span>
+          )}
+        </div>
+      ),
     },
     {
       id: 'status',
@@ -241,7 +271,7 @@ export default function RecurringSchedulesPage() {
           }
         }}
         onClear={() => {
-          setStatusFilter('active');
+          setStatusFilter('all');
           setCurrentPage(1);
         }}
       />
