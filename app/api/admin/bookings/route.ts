@@ -406,6 +406,7 @@ export async function POST(request: NextRequest) {
       bathrooms: body.bathrooms || 1,
       extras: body.extras || [],
       extrasQuantities: body.extrasQuantities || {},
+      notes: body.notes || null, // Store notes in price_snapshot since notes column doesn't exist
       subtotal: pricing.subtotal,
       serviceFee: pricing.serviceFee,
       frequencyDiscount: pricing.frequencyDiscount,
@@ -436,7 +437,7 @@ export async function POST(request: NextRequest) {
         address_line1: body.address_line1,
         address_suburb: body.address_suburb,
         address_city: body.address_city,
-        notes: body.notes || null,
+        // Notes are stored in price_snapshot, not as a separate column
         total_amount: pricing.total * 100, // Convert to cents
         requires_team: requiresTeam,
         price_snapshot: priceSnapshot, // Contains bedrooms, bathrooms, extras, etc.
