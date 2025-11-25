@@ -28,7 +28,7 @@ export function RecentActivity({ bookings = null, isLoading = false }: RecentAct
   // Ensure bookings have required fields and limit to 4
   const validBookings: RecentBooking[] = bookings
     ? bookings
-        .filter((b): b is RecentBooking => b.id && b.customer_name && b.service_type)
+        .filter((b): b is RecentBooking => Boolean(b.id && b.customer_name && b.service_type))
         .slice(0, 4)
     : [];
 
