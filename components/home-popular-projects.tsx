@@ -142,7 +142,7 @@ export function HomePopularServices() {
                 <div className="relative h-48 bg-gray-200">
                   <Image
                     src={service.image || '/images/service-standard-cleaning.jpg'}
-                    alt={`${service.category} services in Cape Town - Shalean Cleaning`}
+                    alt={`Professional ${service.category} services in Cape Town - Shalean Cleaning Services`}
                     fill
                     className="object-cover"
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"

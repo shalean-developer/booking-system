@@ -5,7 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/header";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { InternalLinking } from "@/components/internal-linking";
+import { GBPWidget } from "@/components/gbp-widget";
 import { stringifyStructuredData } from "@/lib/structured-data-validator";
+import { generateServiceLocalBusinessSchema } from "@/lib/gbp-schema";
 import { 
   CheckCircle,
   ArrowRight,
@@ -33,6 +35,8 @@ interface ServicePageProps {
   iconColor: string;
   faqs?: Array<{ question: string; answer: string }>;
   relatedServices?: Array<{ title: string; href: string; description?: string }>;
+  gbpUrl?: string;
+  reviewLink?: string;
 }
 
 export function ServicePageTemplate({
@@ -49,6 +53,8 @@ export function ServicePageTemplate({
   iconColor,
   faqs = [],
   relatedServices = [],
+  gbpUrl = "https://www.google.com/maps/place/Shalean+Cleaning+Services",
+  reviewLink,
 }: ServicePageProps) {
   // Enhanced Service schema with better areaServed
   const serviceSchema = {
@@ -130,6 +136,16 @@ export function ServicePageTemplate({
     }))
   } : null;
 
+  // LocalBusiness schema with GBP integration
+  const localBusinessSchema = generateServiceLocalBusinessSchema({
+    serviceName: title,
+    serviceType: serviceType,
+    pageUrl: `https://shalean.co.za/services/${slug}`,
+    gbpUrl: gbpUrl,
+    description: description,
+    pricing: pricing,
+  });
+
   // Breadcrumb items
   const breadcrumbItems = [
     { name: "Home", href: "/" },
@@ -152,6 +168,12 @@ export function ServicePageTemplate({
           dangerouslySetInnerHTML={{ __html: stringifyStructuredData(faqSchema, "FAQPage") }}
         />
       )}
+      
+      {/* LocalBusiness Schema with GBP */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: stringifyStructuredData(localBusinessSchema, "LocalBusiness") }}
+      />
       
       <Header />
       
@@ -560,6 +582,14 @@ export function ServicePageTemplate({
           </div>
         </div>
       </section>
+
+      {/* Google Business Profile Widget */}
+      <GBPWidget
+        gbpUrl={gbpUrl}
+        reviewLink={reviewLink}
+        rating={5.0}
+        reviewCount={500}
+      />
 
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-br from-primary/5 to-primary/10">

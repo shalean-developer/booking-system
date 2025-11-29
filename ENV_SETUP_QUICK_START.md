@@ -55,6 +55,30 @@ Use these test cards:
 - Card: `5060666666666666666`
 - CVV: `123`
 
+## 4. Add Google Business Profile (GBP) Variables
+
+For SEO and GBP integration:
+
+```env
+# Google Business Profile URL
+NEXT_PUBLIC_GBP_URL=https://www.google.com/maps/place/Shalean+Cleaning+Services/@-33.9249,18.4241,15z
+
+# Google Maps Place ID (for embed)
+NEXT_PUBLIC_GOOGLE_PLACE_ID=ChIJ...
+
+# Google Places API Key (optional, for Maps embed)
+NEXT_PUBLIC_GOOGLE_PLACES_API_KEY=your_api_key_here
+
+# Review Link (optional)
+NEXT_PUBLIC_GBP_REVIEW_LINK=https://g.page/r/...
+```
+
+### Where to get these:
+- **GBP URL**: See `HOW_TO_GET_GBP_URL_AND_PLACE_ID.md` for detailed instructions
+- **Place ID**: Use Google's Place ID Finder: https://developers.google.com/maps/documentation/places/web-service/place-id
+- **API Key**: See `GOOGLE_PLACES_SETUP.md` for API key setup
+- **Review Link**: Get from GBP dashboard → Reviews → "Get more reviews"
+
 ## Complete `.env.local` Example
 
 ```env
@@ -70,6 +94,12 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 RESEND_API_KEY=re_123456789
 SENDER_EMAIL=onboarding@resend.dev
 ADMIN_EMAIL=admin@shalean.co.za
+
+# Google Business Profile (for SEO and GBP integration)
+NEXT_PUBLIC_GBP_URL=https://www.google.com/maps/place/Your-Actual-GBP-URL
+NEXT_PUBLIC_GOOGLE_PLACE_ID=ChIJYourPlaceIDHere
+NEXT_PUBLIC_GOOGLE_PLACES_API_KEY=your_api_key_if_you_have_one
+NEXT_PUBLIC_GBP_REVIEW_LINK=https://g.page/r/your-review-link
 ```
 
 ## Troubleshooting

@@ -27,7 +27,7 @@ export function HomeReviewsApp() {
                 >
                   <Image
                     src={avatar}
-                    alt={`Trusted client ${index + 1}`}
+                    alt={`Happy customer ${index + 1} - Shalean Cleaning Services Cape Town`}
                     fill
                     className="object-cover"
                     sizes="40px"

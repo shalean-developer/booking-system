@@ -13,6 +13,47 @@ export const metadata: Metadata = createMetadata({
   }
 });
 
+const faqs = [
+  {
+    question: "What's included in apartment cleaning services in Cape Town?",
+    answer: "Our apartment cleaning includes compact space optimization, strata-compliant cleaning, balcony and outdoor area cleaning, built-in storage cleaning, compact kitchen deep cleaning, small bathroom sanitization, floor maintenance, and window and door cleaning. We specialize in efficiently cleaning compact spaces."
+  },
+  {
+    question: "Do you handle building access and strata requirements?",
+    answer: "Yes, we coordinate building access and ensure all cleaning practices comply with strata requirements. Our Cape Town cleaners are experienced with apartment building protocols and can work with building management as needed."
+  },
+  {
+    question: "How long does apartment cleaning take?",
+    answer: "Apartment cleaning typically takes 2-4 hours depending on apartment size and cleaning type. A studio or 1-bedroom may take 2-3 hours, while larger 2-3 bedroom apartments can take 3-4 hours. We'll provide an estimated time when you book."
+  },
+  {
+    question: "Can you clean balconies and outdoor areas?",
+    answer: "Yes, we include balcony and outdoor area cleaning as part of our apartment cleaning service. This includes sweeping, wiping down surfaces, and ensuring outdoor spaces are clean and presentable."
+  },
+  {
+    question: "Do you offer recurring apartment cleaning?",
+    answer: "Absolutely! We offer weekly, bi-weekly, or monthly recurring cleaning for apartments across Cape Town. Recurring customers get consistent cleaners whenever possible, priority scheduling, and discounts on regular visits."
+  }
+];
+
+const relatedServices = [
+  {
+    title: "Regular Cleaning",
+    href: "/services/regular-cleaning",
+    description: "Maintain your apartment with weekly or bi-weekly regular cleaning services"
+  },
+  {
+    title: "Deep Cleaning",
+    href: "/services/deep-cleaning",
+    description: "Comprehensive deep cleaning for thorough apartment reset"
+  },
+  {
+    title: "Move-In/Out Cleaning",
+    href: "/services/move-turnover",
+    description: "Professional cleaning for moving in or out of your apartment"
+  }
+];
+
 export default function ApartmentCleaningPage() {
   return (
     <ServicePageTemplate
@@ -42,6 +83,8 @@ export default function ApartmentCleaningPage() {
       slug="apartment-cleaning"
       color="bg-purple-50"
       iconColor="text-purple-600"
+      faqs={faqs}
+      relatedServices={relatedServices}
     />
   );
 }

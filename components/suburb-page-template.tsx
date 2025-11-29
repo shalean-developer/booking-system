@@ -201,23 +201,231 @@ export function SuburbPageTemplate({
       </Fragment>
     ));
 
+  // Get approximate geo coordinates for suburb (Cape Town city center as fallback)
+  const getSuburbCoordinates = (suburbName: string, cityName: string): { latitude: number; longitude: number } => {
+    // Approximate coordinates for major Cape Town suburbs
+    const suburbCoords: Record<string, { latitude: number; longitude: number }> = {
+      "Sea Point": { latitude: -33.9174, longitude: 18.3956 },
+      "Camps Bay": { latitude: -33.9581, longitude: 18.3772 },
+      "Claremont": { latitude: -33.9824, longitude: 18.4653 },
+      "Constantia": { latitude: -34.0236, longitude: 18.4244 },
+      "Green Point": { latitude: -33.9075, longitude: 18.4044 },
+      "City Centre": { latitude: -33.9249, longitude: 18.4241 },
+      "Gardens": { latitude: -33.9375, longitude: 18.4103 },
+      "Clifton": { latitude: -33.9408, longitude: 18.3772 },
+      "Bantry Bay": { latitude: -33.9308, longitude: 18.3772 },
+      "Fresnaye": { latitude: -33.9208, longitude: 18.3772 },
+      "Mouille Point": { latitude: -33.9075, longitude: 18.4044 },
+      "V&A Waterfront": { latitude: -33.9046, longitude: 18.4207 },
+      "Woodstock": { latitude: -33.9249, longitude: 18.4441 },
+      "Observatory": { latitude: -33.9375, longitude: 18.4653 },
+      "Newlands": { latitude: -33.9824, longitude: 18.4653 },
+      "Rondebosch": { latitude: -33.9624, longitude: 18.4653 },
+      "Wynberg": { latitude: -34.0024, longitude: 18.4653 },
+      "Kenilworth": { latitude: -33.9824, longitude: 18.4853 },
+      "Plumstead": { latitude: -34.0224, longitude: 18.4653 },
+      "Bishopscourt": { latitude: -34.0236, longitude: 18.4244 },
+      "Tokai": { latitude: -34.0436, longitude: 18.4244 },
+      "Bergvliet": { latitude: -34.0436, longitude: 18.4444 },
+      "Table View": { latitude: -33.8249, longitude: 18.4841 },
+      "Bloubergstrand": { latitude: -33.8049, longitude: 18.4841 },
+      "Milnerton": { latitude: -33.8849, longitude: 18.5041 },
+      "Bellville": { latitude: -33.9049, longitude: 18.6241 },
+      "Durbanville": { latitude: -33.8249, longitude: 18.6441 },
+      "Brackenfell": { latitude: -33.8849, longitude: 18.6841 },
+      "Hout Bay": { latitude: -34.0436, longitude: 18.3444 },
+      "Muizenberg": { latitude: -34.1036, longitude: 18.4644 },
+      "Fish Hoek": { latitude: -34.1236, longitude: 18.4444 },
+      "Kalk Bay": { latitude: -34.1236, longitude: 18.4444 },
+      "Simon's Town": { latitude: -34.1936, longitude: 18.4244 },
+      "Lakeside": { latitude: -34.0836, longitude: 18.4644 },
+      "Noordhoek": { latitude: -34.1036, longitude: 18.3444 },
+      "Kommetjie": { latitude: -34.1236, longitude: 18.3244 },
+      "Scarborough": { latitude: -34.1436, longitude: 18.3044 }
+    };
+
+    // Return suburb-specific coordinates or city center fallback
+    const coords = suburbCoords[suburbName];
+    if (coords) return coords;
+
+    // City center fallbacks
+    const cityCenters: Record<string, { latitude: number; longitude: number }> = {
+      "Cape Town": { latitude: -33.9249, longitude: 18.4241 },
+      "Johannesburg": { latitude: -26.2041, longitude: 28.0473 },
+      "Pretoria": { latitude: -25.7479, longitude: 28.2293 },
+      "Durban": { latitude: -29.8587, longitude: 31.0218 }
+    };
+
+    return cityCenters[cityName] || { latitude: -33.9249, longitude: 18.4241 }; // Default to Cape Town
+  };
+
+  const geoCoordinates = getSuburbCoordinates(suburb, city);
+
+  // Service-specific price ranges
+  const servicePriceRanges = {
+    "Regular Cleaning": "R250-R800",
+    "Home Cleaning": "R250-R800",
+    "Apartment Cleaning": "R200-R600",
+    "Deep Cleaning": "R450-R1500",
+    "Move-in/Move-out Cleaning": "R980-R2500",
+    "Move In/Out & Turnover Cleaning": "R980-R2500",
+    "Office Cleaning": "R180-R1200",
+    "Commercial Office Cleaning": "R180-R1200",
+    "Airbnb Cleaning": "R230-R800",
+    "Airbnb Turnover Cleaning": "R230-R800",
+    "Window Cleaning": "R150-R500",
+    "Home Maintenance Cleaning": "R250-R800",
+    "Carpet Cleaning": "R300-R1000",
+    "Post-Construction Cleaning": "R1200-R3500"
+  };
+
+  // Generate service offers with price ranges
+  const serviceOffers = [
+    {
+      "@type": "Offer",
+      "itemOffered": {
+        "@type": "Service",
+        "name": "Regular Cleaning",
+        "serviceType": "Home Cleaning",
+        "description": "Weekly and bi-weekly housekeeping services"
+      },
+      "priceRange": servicePriceRanges["Regular Cleaning"],
+      "priceCurrency": "ZAR",
+      "availability": "https://schema.org/InStock",
+      "url": "https://shalean.co.za/services/regular-cleaning"
+    },
+    {
+      "@type": "Offer",
+      "itemOffered": {
+        "@type": "Service",
+        "name": "Deep Cleaning",
+        "serviceType": "Deep Cleaning",
+        "description": "Comprehensive deep cleaning for thorough home reset"
+      },
+      "priceRange": servicePriceRanges["Deep Cleaning"],
+      "priceCurrency": "ZAR",
+      "availability": "https://schema.org/InStock",
+      "url": "https://shalean.co.za/services/deep-cleaning"
+    },
+    {
+      "@type": "Offer",
+      "itemOffered": {
+        "@type": "Service",
+        "name": "Apartment Cleaning",
+        "serviceType": "Apartment Cleaning",
+        "description": "Specialized cleaning services for apartments and condos"
+      },
+      "priceRange": servicePriceRanges["Apartment Cleaning"],
+      "priceCurrency": "ZAR",
+      "availability": "https://schema.org/InStock",
+      "url": "https://shalean.co.za/services/apartment-cleaning"
+    },
+    {
+      "@type": "Offer",
+      "itemOffered": {
+        "@type": "Service",
+        "name": "Move In/Out Cleaning",
+        "serviceType": "Move In/Out & Turnover Cleaning",
+        "description": "Professional move-in/out and end of lease cleaning"
+      },
+      "priceRange": servicePriceRanges["Move In/Out & Turnover Cleaning"],
+      "priceCurrency": "ZAR",
+      "availability": "https://schema.org/InStock",
+      "url": "https://shalean.co.za/services/move-turnover"
+    },
+    {
+      "@type": "Offer",
+      "itemOffered": {
+        "@type": "Service",
+        "name": "Office Cleaning",
+        "serviceType": "Commercial Office Cleaning",
+        "description": "Professional commercial cleaning services for offices"
+      },
+      "priceRange": servicePriceRanges["Office Cleaning"],
+      "priceCurrency": "ZAR",
+      "availability": "https://schema.org/InStock",
+      "url": "https://shalean.co.za/services/office-cleaning"
+    },
+    {
+      "@type": "Offer",
+      "itemOffered": {
+        "@type": "Service",
+        "name": "Airbnb Cleaning",
+        "serviceType": "Airbnb Turnover Cleaning",
+        "description": "Fast turnover cleaning for short-term rentals"
+      },
+      "priceRange": servicePriceRanges["Airbnb Cleaning"],
+      "priceCurrency": "ZAR",
+      "availability": "https://schema.org/InStock",
+      "url": "https://shalean.co.za/services/airbnb-cleaning"
+    },
+    {
+      "@type": "Offer",
+      "itemOffered": {
+        "@type": "Service",
+        "name": "Window Cleaning",
+        "serviceType": "Window Cleaning",
+        "description": "Professional window cleaning for crystal clear results"
+      },
+      "priceRange": servicePriceRanges["Window Cleaning"],
+      "priceCurrency": "ZAR",
+      "availability": "https://schema.org/InStock",
+      "url": "https://shalean.co.za/services/window-cleaning"
+    },
+    {
+      "@type": "Offer",
+      "itemOffered": {
+        "@type": "Service",
+        "name": "Home Maintenance",
+        "serviceType": "Home Maintenance Cleaning",
+        "description": "Regular home maintenance cleaning for ongoing upkeep"
+      },
+      "priceRange": servicePriceRanges["Home Maintenance Cleaning"],
+      "priceCurrency": "ZAR",
+      "availability": "https://schema.org/InStock",
+      "url": "https://shalean.co.za/services/home-maintenance"
+    }
+  ];
+
+  // Get GBP URL from environment or use default
+  const gbpUrl = process.env.NEXT_PUBLIC_GBP_URL || "https://www.google.com/maps/place/Shalean+Cleaning+Services";
+
   // Generate structured data for LocalBusiness
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
+    "@id": "https://shalean.co.za/#organization",
     "name": `${businessNameValue} - ${suburb}`,
+    "alternateName": "Shalean",
     "image": `https://shalean.co.za/assets/og/location-${suburbSlug}-1200x630.jpg`,
+    "logo": "https://shalean.co.za/icon-512.png",
     "address": {
       "@type": "PostalAddress",
       "streetAddress": addressValue,
       "addressLocality": suburb,
-      "addressRegion": "Western Cape",
-      "addressCountry": "ZA"
+      "addressRegion": city === "Cape Town" ? "Western Cape" : city === "Johannesburg" || city === "Pretoria" ? "Gauteng" : "KwaZulu-Natal",
+      "addressCountry": "ZA",
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": geoCoordinates.latitude,
+        "longitude": geoCoordinates.longitude
+      }
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": geoCoordinates.latitude,
+      "longitude": geoCoordinates.longitude
     },
     "telephone": phoneNumber,
     "email": emailAddress,
     "url": `https://shalean.co.za/location/${citySlug}/${suburbSlug}`,
-    "priceRange": "R200-R1500",
+    "sameAs": [gbpUrl], // Connect to Google Business Profile
+    "priceRange": "R200-R1500", // Overall price range
+    "hasOfferCatalog": {
+      "@type": "OfferCatalog",
+      "name": "Cleaning Services",
+      "itemListElement": serviceOffers
+    },
     "areaServed": [
       {
         "@type": "City",
@@ -233,7 +441,10 @@ export function SuburbPageTemplate({
       "Apartment Cleaning",
       "Deep Cleaning",
       "Move-in/Move-out Cleaning",
-      "Office Cleaning"
+      "Office Cleaning",
+      "Airbnb Cleaning",
+      "Window Cleaning",
+      "Home Maintenance Cleaning"
     ],
     "knowsAbout": [
       `${suburb} house cleaning`,

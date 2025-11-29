@@ -84,7 +84,7 @@ export function HomeHero() {
             {/* Headline */}
             <h1 className="text-lg sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 sm:mb-4 text-center leading-tight">
               <span className="block">Professional Cleaning Services</span>
-              <span className="block">in Cape Town</span>
+              <span className="block">in Cape Town for Homes & Offices</span>
             </h1>
 
             {/* Descriptive Paragraph */}

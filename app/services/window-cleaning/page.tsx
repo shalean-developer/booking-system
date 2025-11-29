@@ -13,6 +13,47 @@ export const metadata: Metadata = createMetadata({
   }
 });
 
+const faqs = [
+  {
+    question: "What's included in window cleaning services in Cape Town?",
+    answer: "Our window cleaning includes interior and exterior window cleaning, window frame and sill cleaning, screen cleaning and maintenance, streak-free results guaranteed, safety equipment for high windows, eco-friendly cleaning solutions, regular maintenance programs, and emergency window cleaning services."
+  },
+  {
+    question: "Do you clean both interior and exterior windows?",
+    answer: "Yes, we clean both interior and exterior windows. Our Cape Town window cleaners use professional equipment and techniques to ensure streak-free, crystal-clear results on both sides of your windows."
+  },
+  {
+    question: "Can you clean high or hard-to-reach windows?",
+    answer: "Yes, we have safety equipment and training to clean high windows safely. Our team uses appropriate ladders, safety harnesses, and professional tools to reach windows on upper floors while maintaining safety standards."
+  },
+  {
+    question: "How often should I schedule window cleaning?",
+    answer: "Most Cape Town properties benefit from monthly or quarterly window cleaning. However, frequency depends on your location, weather conditions, and preferences. We offer regular maintenance programs to keep your windows consistently clean."
+  },
+  {
+    question: "Do you offer emergency window cleaning?",
+    answer: "Yes, we offer emergency window cleaning services for urgent situations like pre-event cleaning, property viewings, or special occasions. Contact us as soon as possible for the best chance of same-day service."
+  }
+];
+
+const relatedServices = [
+  {
+    title: "Regular Cleaning",
+    href: "/services/regular-cleaning",
+    description: "Complete home cleaning including window maintenance"
+  },
+  {
+    title: "Deep Cleaning",
+    href: "/services/deep-cleaning",
+    description: "Comprehensive deep cleaning with detailed window care"
+  },
+  {
+    title: "Home Maintenance",
+    href: "/services/home-maintenance",
+    description: "Ongoing maintenance including regular window cleaning"
+  }
+];
+
 export default function WindowCleaningPage() {
   return (
     <ServicePageTemplate
@@ -42,6 +83,8 @@ export default function WindowCleaningPage() {
       slug="window-cleaning"
       color="bg-cyan-50"
       iconColor="text-cyan-600"
+      faqs={faqs}
+      relatedServices={relatedServices}
     />
   );
 }

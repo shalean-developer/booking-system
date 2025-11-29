@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/accordion";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 import { getCityAreas } from "@/lib/location-data";
+import { stringifyStructuredData } from "@/lib/structured-data-validator";
 
 const stats = [
   { label: "Cape Town homes served", value: "500+", icon: Home },
@@ -222,8 +223,27 @@ export const metadata: Metadata = createMetadata({
 export default function CapeTownPage() {
   const areas = getCityAreas("Cape Town");
 
+  // FAQ schema for location hub page
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": faqs.map((faq) => ({
+      "@type": "Question",
+      "name": faq.question,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": faq.answer
+      }
+    }))
+  };
+
   return (
     <div className="min-h-screen bg-white text-gray-900">
+      {/* FAQ Schema */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: stringifyStructuredData(faqSchema, "FAQPage") }}
+      />
       <Header />
 
       <main>

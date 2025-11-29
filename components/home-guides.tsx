@@ -99,7 +99,7 @@ export function HomeGuides() {
       slug: 'how-to-prepare-for-a-deep-clean',
       excerpt: 'Essential tips to get your home ready for professional deep cleaning services',
       featured_image: '/images/deep-specialty.jpg', // Use your local image
-      featured_image_alt: 'How to Prepare for a Deep Clean - Shalean Cleaning Blog',
+      featured_image_alt: 'Professional deep cleaning service in Cape Town - Shalean Cleaning Blog',
     },
     {
       id: '2',
@@ -107,7 +107,7 @@ export function HomeGuides() {
       slug: 'eco-friendly-cleaning-tips',
       excerpt: 'Sustainable cleaning practices for a healthier home and environment',
       featured_image: '/images/service-standard-cleaning.jpg', // Use your local image
-      featured_image_alt: 'Eco Cleaning Tips - Shalean Cleaning Blog',
+      featured_image_alt: 'Eco-friendly cleaning tips for homes in Cape Town - Shalean Cleaning Blog',
     },
     {
       id: '3',
@@ -115,7 +115,7 @@ export function HomeGuides() {
       slug: 'airbnb-cleaning-checklist',
       excerpt: 'Complete guide to preparing your Airbnb for guests with professional cleaning',
       featured_image: '/images/service-airbnb-cleaning.jpg', // Use your local image
-      featured_image_alt: 'Airbnb Cleaning Checklist - Shalean Cleaning Blog',
+      featured_image_alt: 'Airbnb cleaning checklist for Cape Town properties - Shalean Cleaning Blog',
     },
   ];
 
