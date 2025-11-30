@@ -27,6 +27,8 @@ export interface RecurringSchedule {
   start_date: string; // YYYY-MM-DD format
   end_date?: string; // YYYY-MM-DD format
   last_generated_month?: string; // YYYY-MM format
+  total_amount?: number; // Total amount in cents (optional, for manual pricing override)
+  cleaner_earnings?: number; // Cleaner earnings in cents (optional, for manual pricing override)
   created_at: string;
   updated_at: string;
 }

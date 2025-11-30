@@ -184,33 +184,74 @@ export async function GET(req: NextRequest) {
           continue;
         }
 
-        // Calculate pricing
-        const pricingFrequency = mapFrequencyToPricingFrequency(schedule.frequency);
-        const pricing = await calcTotalAsync(
-          {
-            service: schedule.service_type as any,
+        // Use stored pricing if available, otherwise calculate
+        let totalAmountCents: number;
+        let cleanerEarningsCents: number | null = null;
+        let priceSnapshot: any;
+
+        if (schedule.total_amount && schedule.total_amount > 0) {
+          // Use stored pricing from schedule
+          totalAmountCents = schedule.total_amount;
+          cleanerEarningsCents = schedule.cleaner_earnings || null;
+          
+          // Calculate price snapshot from stored values
+          const totalAmountRands = totalAmountCents / 100;
+          const serviceFee = 50; // Default service fee
+          const subtotal = totalAmountRands - serviceFee;
+          
+          priceSnapshot = {
+            service_type: schedule.service_type,
             bedrooms: schedule.bedrooms,
             bathrooms: schedule.bathrooms,
             extras: schedule.extras || [],
             extrasQuantities: schedule.extras_quantities || schedule.extrasQuantities || {},
-          },
-          pricingFrequency
-        );
+            notes: schedule.notes || null,
+            subtotal: Math.round(subtotal),
+            serviceFee: serviceFee,
+            frequencyDiscount: 0, // Manual pricing doesn't show discount breakdown
+            total: totalAmountRands,
+            snapshot_date: new Date().toISOString(),
+            manual_pricing: true, // Flag to indicate this is from stored pricing
+          };
+          
+          console.log(`[Cron] Schedule ${schedule.id}: Using stored pricing - R${totalAmountRands.toFixed(2)}`);
+        } else {
+          // Calculate pricing dynamically
+          const pricingFrequency = mapFrequencyToPricingFrequency(schedule.frequency);
+          const pricing = await calcTotalAsync(
+            {
+              service: schedule.service_type as any,
+              bedrooms: schedule.bedrooms,
+              bathrooms: schedule.bathrooms,
+              extras: schedule.extras || [],
+              extrasQuantities: schedule.extras_quantities || schedule.extrasQuantities || {},
+            },
+            pricingFrequency
+          );
 
-        // Build price snapshot
-        const priceSnapshot = {
-          service_type: schedule.service_type,
-          bedrooms: schedule.bedrooms,
-          bathrooms: schedule.bathrooms,
-          extras: schedule.extras || [],
-          extrasQuantities: schedule.extras_quantities || schedule.extrasQuantities || {},
-          notes: schedule.notes || null,
-          subtotal: pricing.subtotal,
-          serviceFee: pricing.serviceFee,
-          frequencyDiscount: pricing.frequencyDiscount,
-          total: pricing.total,
-          snapshot_date: new Date().toISOString(),
-        };
+          totalAmountCents = pricing.total * 100; // Convert to cents
+          
+          // Calculate cleaner earnings (60% of subtotal after service fee)
+          const subtotalAfterFee = pricing.total - pricing.serviceFee;
+          cleanerEarningsCents = Math.round(subtotalAfterFee * 0.60 * 100);
+
+          // Build price snapshot
+          priceSnapshot = {
+            service_type: schedule.service_type,
+            bedrooms: schedule.bedrooms,
+            bathrooms: schedule.bathrooms,
+            extras: schedule.extras || [],
+            extrasQuantities: schedule.extras_quantities || schedule.extrasQuantities || {},
+            notes: schedule.notes || null,
+            subtotal: pricing.subtotal,
+            serviceFee: pricing.serviceFee,
+            frequencyDiscount: pricing.frequencyDiscount,
+            total: pricing.total,
+            snapshot_date: new Date().toISOString(),
+          };
+          
+          console.log(`[Cron] Schedule ${schedule.id}: Calculated pricing - R${pricing.total.toFixed(2)}`);
+        }
 
         // Check for existing bookings to avoid duplicates
         const dateStrings = validDates.map((d) => d.toISOString().split('T')[0]);
@@ -241,7 +282,7 @@ export async function GET(req: NextRequest) {
               ? null
               : schedule.cleaner_id;
 
-            return {
+            const bookingData: any = {
               id: bookingId,
               customer_id: schedule.customer_id,
               cleaner_id: cleanerIdForInsert,
@@ -254,12 +295,19 @@ export async function GET(req: NextRequest) {
               address_line1: schedule.address_line1,
               address_suburb: schedule.address_suburb,
               address_city: schedule.address_city,
-              total_amount: pricing.total * 100, // Convert to cents
+              total_amount: totalAmountCents,
               requires_team: requiresTeam,
               price_snapshot: priceSnapshot,
               status: 'pending',
               recurring_schedule_id: schedule.id,
             };
+
+            // Add cleaner_earnings if calculated
+            if (cleanerEarningsCents !== null) {
+              bookingData.cleaner_earnings = cleanerEarningsCents;
+            }
+
+            return bookingData;
           });
 
         if (bookingsToCreate.length === 0) {
