@@ -53,11 +53,15 @@ export async function GET(req: NextRequest) {
   try {
     const svc = createServiceClient();
 
-    // Check if today is the last day of the month
-    if (!isLastDayOfMonth()) {
+    // Allow manual triggering with ?force=true query parameter (for testing)
+    const { searchParams } = new URL(req.url);
+    const force = searchParams.get('force') === 'true';
+
+    // Check if today is the last day of the month (unless forced)
+    if (!force && !isLastDayOfMonth()) {
       return NextResponse.json({
         ok: true,
-        message: 'Not the last day of the month. Skipping generation.',
+        message: 'Not the last day of the month. Skipping generation. Use ?force=true to override.',
         processed: 0,
         generated: 0,
         errors: [],
