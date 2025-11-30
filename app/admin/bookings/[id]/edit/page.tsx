@@ -39,6 +39,7 @@ export default function EditBookingPage({ params }: { params: Promise<{ id: stri
     subtotal: number;
     serviceFee: number;
     frequencyDiscount: number;
+    frequencyDiscountPercent: number;
     total: number;
   } | null>(null);
 
