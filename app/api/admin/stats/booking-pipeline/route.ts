@@ -15,16 +15,29 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Count bookings by status
+    // Get date range from query params
+    const { searchParams } = new URL(request.url);
+    const dateFrom = searchParams.get('date_from');
+    const dateTo = searchParams.get('date_to');
+    
+    // Count bookings by status with optional date filtering
     const statuses = ['pending', 'confirmed', 'accepted', 'in-progress', 'completed'];
     const pipeline: Record<string, number> = {};
 
     for (const status of statuses) {
-      const { count } = await supabase
+      let query = supabase
         .from('bookings')
         .select('*', { count: 'exact', head: true })
         .eq('status', status);
-
+      
+      // Apply date filters if provided
+      if (dateFrom && dateTo) {
+        query = query
+          .gte('created_at', dateFrom)
+          .lte('created_at', dateTo);
+      }
+      
+      const { count } = await query;
       pipeline[status] = count || 0;
     }
 
@@ -40,6 +53,8 @@ export async function GET(request: NextRequest) {
     });
   }
 }
+
+
 
 
 

@@ -13,7 +13,7 @@ import { RevenueChartEnhanced } from '@/components/admin/revenue-chart-enhanced'
 import { BookingsChartEnhanced } from '@/components/admin/bookings-chart-enhanced';
 import { ErrorAlert } from '@/components/admin/shared/error-alert';
 import { ErrorBoundary } from '@/components/admin/shared/error-boundary';
-import { DateRangeSelector, type DateRangePeriod } from '@/components/admin/shared/date-range-selector';
+import { DateRangeSelector, type DateRangePeriod, type CustomDateRange } from '@/components/admin/shared/date-range-selector';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { useDashboardStats } from '@/hooks/use-dashboard-stats';
@@ -23,16 +23,17 @@ import { useChartData } from '@/hooks/use-chart-data';
 import { useRecentBookings } from '@/hooks/use-recent-bookings';
 
 export default function AdminDashboardPage() {
-  const [dateRange, setDateRange] = useState<DateRangePeriod>('month');
+  const [dateRange, setDateRange] = useState<DateRangePeriod>('today');
+  const [customRange, setCustomRange] = useState<CustomDateRange | undefined>(undefined);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [autoRefreshInterval, setAutoRefreshInterval] = useState<NodeJS.Timeout | null>(null);
   const { mutate: mutateAll } = useSWRConfig();
 
-  // Use SWR hooks for data fetching
-  const { stats, isLoading: statsLoading, isError: statsError, error: statsErrorMsg, mutate: mutateStats } = useDashboardStats();
-  const { pipeline, isLoading: pipelineLoading, isError: pipelineError, error: pipelineErrorMsg, mutate: mutatePipeline } = useBookingPipeline();
-  const { serviceBreakdown, isLoading: breakdownLoading, isError: breakdownError, error: breakdownErrorMsg, mutate: mutateBreakdown } = useServiceBreakdown();
-  const { chartData, isLoading: chartLoading, isError: chartError, error: chartErrorMsg, mutate: mutateChart } = useChartData(dateRange);
+  // Use SWR hooks for data fetching with date range
+  const { stats, isLoading: statsLoading, isError: statsError, error: statsErrorMsg, mutate: mutateStats } = useDashboardStats(dateRange, customRange);
+  const { pipeline, isLoading: pipelineLoading, isError: pipelineError, error: pipelineErrorMsg, mutate: mutatePipeline } = useBookingPipeline(dateRange, customRange);
+  const { serviceBreakdown, isLoading: breakdownLoading, isError: breakdownError, error: breakdownErrorMsg, mutate: mutateBreakdown } = useServiceBreakdown(dateRange, customRange);
+  const { chartData, isLoading: chartLoading, isError: chartError, error: chartErrorMsg, mutate: mutateChart } = useChartData(dateRange, customRange);
   const { recentBookings, isLoading: bookingsLoading, isError: bookingsError, error: bookingsErrorMsg, mutate: mutateBookings } = useRecentBookings(10);
 
   // Debug: Log data states (temporary)
@@ -100,7 +101,18 @@ export default function AdminDashboardPage() {
         ]}
           actions={
             <div className="flex items-center gap-2 flex-wrap">
-              <DateRangeSelector value={dateRange} onChange={setDateRange} />
+              <DateRangeSelector 
+                value={dateRange} 
+                onChange={(period, customRange) => {
+                  setDateRange(period);
+                  if (period === 'custom') {
+                    setCustomRange(customRange);
+                  } else {
+                    setCustomRange(undefined);
+                  }
+                }}
+                customRange={customRange}
+              />
               <Button
                 variant="outline"
                 size="sm"

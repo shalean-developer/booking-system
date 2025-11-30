@@ -20,7 +20,6 @@ import { LoadingState } from '@/components/admin/shared/loading-state';
 import { calcTotalAsync } from '@/lib/pricing';
 import { generateTimeSlots } from '@/lib/pricing';
 import { ArrowLeft, Loader2 } from 'lucide-react';
-import Link from 'next/link';
 
 type ServiceType = 'Standard' | 'Deep' | 'Move In/Out' | 'Airbnb';
 
@@ -60,6 +59,8 @@ export default function EditBookingPage({ params }: { params: Promise<{ id: stri
   const [addressLine1, setAddressLine1] = useState('');
   const [addressSuburb, setAddressSuburb] = useState('');
   const [addressCity, setAddressCity] = useState('');
+  const [storedTotalAmount, setStoredTotalAmount] = useState<number | null>(null);
+  const [tipAmount, setTipAmount] = useState<number>(0);
 
   useEffect(() => {
     fetchBooking();
@@ -97,6 +98,24 @@ export default function EditBookingPage({ params }: { params: Promise<{ id: stri
         setAddressLine1(booking.address_line1 || '');
         setAddressSuburb(booking.address_suburb || '');
         setAddressCity(booking.address_city || '');
+        
+        // Store the original total amount and tip from database
+        if (booking.total_amount) {
+          setStoredTotalAmount(booking.total_amount / 100); // Convert from cents to rands
+          console.log('📊 Stored booking total:', `R${(booking.total_amount / 100).toFixed(2)}`);
+        }
+        // Get tip amount (could be in price_snapshot or as separate field)
+        const tip = booking.tip_amount ? (booking.tip_amount / 100) : 0;
+        setTipAmount(tip);
+        console.log('📊 Booking details:', {
+          service_type: booking.service_type,
+          bedrooms: booking.bedrooms,
+          bathrooms: booking.bathrooms,
+          extras: booking.extras,
+          extrasQuantities: booking.extrasQuantities,
+          tip_amount: tip,
+          stored_total: booking.total_amount ? (booking.total_amount / 100) : 0,
+        });
       }
     } catch (error) {
       console.error('Error fetching booking:', error);
@@ -119,6 +138,16 @@ export default function EditBookingPage({ params }: { params: Promise<{ id: stri
         },
         'one-time'
       );
+      
+      console.log('💰 Calculated pricing:', {
+        subtotal: result.subtotal,
+        serviceFee: result.serviceFee,
+        frequencyDiscount: result.frequencyDiscount,
+        total: result.total,
+        extras: selectedExtras,
+        extrasQuantities,
+      });
+      
       setPricing(result);
     } catch (error) {
       console.error('Error calculating pricing:', error);
@@ -149,31 +178,55 @@ export default function EditBookingPage({ params }: { params: Promise<{ id: stri
     setIsSubmitting(true);
 
     try {
+      const payload = {
+        service_type: serviceType,
+        bedrooms,
+        bathrooms,
+        extras: selectedExtras,
+        extrasQuantities,
+        notes,
+        booking_date: bookingDate,
+        booking_time: bookingTime,
+        status,
+        customer_first_name: customerFirstName,
+        customer_last_name: customerLastName,
+        customer_email: customerEmail,
+        customer_phone: customerPhone,
+        address_line1: addressLine1,
+        address_suburb: addressSuburb,
+        address_city: addressCity,
+        total_amount: pricing ? pricing.total * 100 : undefined,
+      };
+
+      console.log('Submitting booking update:', payload);
+
       const response = await fetch(`/api/admin/bookings/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          service_type: serviceType,
-          bedrooms,
-          bathrooms,
-          extras: selectedExtras,
-          extrasQuantities,
-          notes,
-          booking_date: bookingDate,
-          booking_time: bookingTime,
-          status,
-          customer_first_name: customerFirstName,
-          customer_last_name: customerLastName,
-          customer_email: customerEmail,
-          customer_phone: customerPhone,
-          address_line1: addressLine1,
-          address_suburb: addressSuburb,
-          address_city: addressCity,
-          total_amount: pricing ? pricing.total * 100 : undefined,
-        }),
+        credentials: 'include',
+        body: JSON.stringify(payload),
       });
 
-      const data = await response.json();
+      const responseText = await response.text();
+      console.log('Response status:', response.status);
+      console.log('Response text:', responseText);
+
+      if (!response.ok) {
+        let errorData;
+        try {
+          errorData = JSON.parse(responseText);
+        } catch {
+          throw new Error(responseText || `HTTP error! status: ${response.status}`);
+        }
+        throw new Error(errorData.error || `Failed to update booking (${response.status})`);
+      }
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        throw new Error('Invalid JSON response from server');
+      }
 
       if (data.ok) {
         router.push(`/admin/bookings/${id}`);
@@ -182,10 +235,15 @@ export default function EditBookingPage({ params }: { params: Promise<{ id: stri
       }
     } catch (error) {
       console.error('Error updating booking:', error);
-      alert('Failed to update booking');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update booking';
+      alert(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleCancel = () => {
+    router.push(`/admin/bookings/${id}`);
   };
 
   if (isLoading) {
@@ -220,11 +278,9 @@ export default function EditBookingPage({ params }: { params: Promise<{ id: stri
           { label: 'Edit' },
         ]}
         actions={
-          <Button variant="outline" asChild>
-            <Link href={`/admin/bookings/${id}`}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Cancel
-            </Link>
+          <Button variant="outline" onClick={handleCancel} disabled={isSubmitting}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Cancel
           </Button>
         }
       />
@@ -477,10 +533,42 @@ export default function EditBookingPage({ params }: { params: Promise<{ id: stri
                   <span>Service Fee:</span>
                   <span>R{pricing.serviceFee.toFixed(2)}</span>
                 </div>
+                {pricing.frequencyDiscount > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Frequency Discount ({pricing.frequencyDiscountPercent}%):</span>
+                    <span>-R{pricing.frequencyDiscount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between font-bold text-lg pt-2 border-t">
-                  <span>Total:</span>
-                  <span>R{pricing.total.toFixed(2)}</span>
+                  <span>Subtotal + Service Fee:</span>
+                  <span>R{(pricing.subtotal + pricing.serviceFee - (pricing.frequencyDiscount || 0)).toFixed(2)}</span>
                 </div>
+                {tipAmount > 0 && (
+                  <div className="flex justify-between text-blue-600">
+                    <span>Tip:</span>
+                    <span>R{tipAmount.toFixed(2)}</span>
+                  </div>
+                )}
+                {storedTotalAmount !== null && (
+                  <div className="flex justify-between font-bold text-lg pt-2 border-t text-amber-600">
+                    <span>Stored Total (from database):</span>
+                    <span>R{storedTotalAmount.toFixed(2)}</span>
+                  </div>
+                )}
+                {storedTotalAmount !== null && (
+                  <div className="text-xs text-gray-500 pt-1">
+                    {Math.abs(storedTotalAmount - (pricing.subtotal + pricing.serviceFee - (pricing.frequencyDiscount || 0) + tipAmount)) > 0.01 
+                      ? `⚠️ Breakdown: R${(pricing.subtotal + pricing.serviceFee - (pricing.frequencyDiscount || 0)).toFixed(2)} (service) + R${tipAmount.toFixed(2)} (tip) = R${(pricing.subtotal + pricing.serviceFee - (pricing.frequencyDiscount || 0) + tipAmount).toFixed(2)}. Difference: R${Math.abs(storedTotalAmount - (pricing.subtotal + pricing.serviceFee - (pricing.frequencyDiscount || 0) + tipAmount)).toFixed(2)}`
+                      : '✓ Calculated total matches stored total (including tip).'}
+                  </div>
+                )}
+                {storedTotalAmount !== null && (
+                  <div className="text-xs text-gray-500 pt-1">
+                    {Math.abs(storedTotalAmount - (pricing.subtotal + pricing.serviceFee - (pricing.frequencyDiscount || 0))) > 0.01 
+                      ? '⚠️ Calculated total differs from stored total. Update will recalculate based on current selections.'
+                      : '✓ Calculated total matches stored total.'}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -488,8 +576,8 @@ export default function EditBookingPage({ params }: { params: Promise<{ id: stri
 
         {/* Submit */}
         <div className="flex justify-end gap-4">
-          <Button type="button" variant="outline" asChild>
-            <Link href={`/admin/bookings/${id}`}>Cancel</Link>
+          <Button type="button" variant="outline" onClick={handleCancel} disabled={isSubmitting}>
+            Cancel
           </Button>
           <Button type="submit" disabled={isSubmitting || !serviceType || !bookingDate || !bookingTime}>
             {isSubmitting ? (

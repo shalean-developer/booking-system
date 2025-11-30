@@ -8,7 +8,7 @@ import type { ChartDataPoint } from '@/types/admin-dashboard';
 import { validateChartData } from '@/lib/utils/validation';
 import { fetcher } from '@/lib/swr-config';
 import { getDateRange } from '@/lib/utils/formatting';
-import type { DateRangePeriod } from '@/components/admin/shared/date-range-selector';
+import type { DateRangePeriod, CustomDateRange } from '@/components/admin/shared/date-range-selector';
 
 interface ChartResponse {
   ok: boolean;
@@ -16,15 +16,18 @@ interface ChartResponse {
   error?: string;
 }
 
-export function useChartData(dateRange: DateRangePeriod = 'month') {
+export function useChartData(dateRange: DateRangePeriod = 'month', customRange?: CustomDateRange) {
   // Memoize URL to prevent infinite re-renders
   const url = useMemo(() => {
+    if (dateRange === 'custom' && customRange) {
+      return `/api/admin/stats/chart?date_from=${customRange.from}&date_to=${customRange.to}`;
+    }
     if (dateRange === 'custom') {
       return '/api/admin/stats/chart';
     }
     const { dateFrom, dateTo } = getDateRange(dateRange);
     return `/api/admin/stats/chart?date_from=${dateFrom}&date_to=${dateTo}`;
-  }, [dateRange]);
+  }, [dateRange, customRange]);
 
   const { data, error, isLoading, mutate } = useSWR<ChartResponse>(
     url,

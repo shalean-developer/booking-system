@@ -23,24 +23,55 @@ export async function GET(request: NextRequest) {
     const supabaseStart = Date.now();
     const supabase = await createClient();
     console.log(`[API] Supabase client created in ${Date.now() - supabaseStart}ms`);
+    
+    // Get date range from query params, default to last 30 days
+    const { searchParams } = new URL(request.url);
+    const dateFrom = searchParams.get('date_from');
+    const dateTo = searchParams.get('date_to');
+    
     const now = new Date();
-    const thirtyDaysAgo = new Date(now);
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const sixtyDaysAgo = new Date(now);
-    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+    let currentPeriodStart: Date;
+    let currentPeriodEnd: Date;
+    let previousPeriodStart: Date;
+    let previousPeriodEnd: Date;
+    
+    if (dateFrom && dateTo) {
+      // Use provided date range
+      currentPeriodStart = new Date(dateFrom);
+      currentPeriodEnd = new Date(dateTo);
+      
+      // Calculate previous period (same duration before the current period)
+      const periodDuration = currentPeriodEnd.getTime() - currentPeriodStart.getTime();
+      previousPeriodEnd = new Date(currentPeriodStart);
+      previousPeriodEnd.setTime(previousPeriodEnd.getTime() - 1); // One millisecond before current period starts
+      previousPeriodStart = new Date(previousPeriodEnd);
+      previousPeriodStart.setTime(previousPeriodStart.getTime() - periodDuration);
+    } else {
+      // Default to last 30 days
+      currentPeriodEnd = now;
+      currentPeriodStart = new Date(now);
+      currentPeriodStart.setDate(currentPeriodStart.getDate() - 30);
+      
+      // Previous period (30-60 days ago)
+      previousPeriodEnd = new Date(currentPeriodStart);
+      previousPeriodEnd.setTime(previousPeriodEnd.getTime() - 1);
+      previousPeriodStart = new Date(previousPeriodEnd);
+      previousPeriodStart.setDate(previousPeriodStart.getDate() - 30);
+    }
 
-    // Current period (last 30 days)
+    // Current period bookings
     const { data: currentBookings, error: bookingsError } = await supabase
       .from('bookings')
       .select('id, total_amount, created_at, status')
-      .gte('created_at', thirtyDaysAgo.toISOString());
+      .gte('created_at', currentPeriodStart.toISOString())
+      .lte('created_at', currentPeriodEnd.toISOString());
 
-    // Previous period (30-60 days ago)
+    // Previous period bookings
     const { data: previousBookings, error: prevBookingsError } = await supabase
       .from('bookings')
       .select('id, total_amount, created_at')
-      .gte('created_at', sixtyDaysAgo.toISOString())
-      .lt('created_at', thirtyDaysAgo.toISOString());
+      .gte('created_at', previousPeriodStart.toISOString())
+      .lte('created_at', previousPeriodEnd.toISOString());
 
     if (bookingsError || prevBookingsError) {
       console.error('Error fetching bookings:', bookingsError || prevBookingsError);
@@ -81,11 +112,12 @@ export async function GET(request: NextRequest) {
       ? ((avgBookingValue - prevAvgBookingValue) / prevAvgBookingValue) * 100
       : 0;
 
-    // Count active customers (customers with bookings in last 30 days)
+    // Count active customers (customers with bookings in current period)
     const { data: activeCustomersData } = await supabase
       .from('bookings')
       .select('customer_id')
-      .gte('created_at', thirtyDaysAgo.toISOString())
+      .gte('created_at', currentPeriodStart.toISOString())
+      .lte('created_at', currentPeriodEnd.toISOString())
       .not('customer_id', 'is', null);
     
     const uniqueCustomers = new Set(
@@ -99,8 +131,8 @@ export async function GET(request: NextRequest) {
     const { data: prevActiveCustomersData } = await supabase
       .from('bookings')
       .select('customer_id')
-      .gte('created_at', sixtyDaysAgo.toISOString())
-      .lt('created_at', thirtyDaysAgo.toISOString())
+      .gte('created_at', previousPeriodStart.toISOString())
+      .lte('created_at', previousPeriodEnd.toISOString())
       .not('customer_id', 'is', null);
     
     const prevUniqueCustomers = new Set(

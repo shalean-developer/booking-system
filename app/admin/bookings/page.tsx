@@ -53,6 +53,8 @@ interface Booking {
   status: string;
   total_amount: number;
   cleaner_name?: string | null;
+  requires_team?: boolean;
+  team_name?: string | null;
   address_city?: string;
   created_at: string;
 }
@@ -223,24 +225,65 @@ export default function AdminBookingsPage() {
 
   const handleBulkStatusUpdate = async (newStatus: string) => {
     try {
+      setError(null);
       const response = await fetch('/api/admin/bookings/bulk-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           bookingIds: selectedBookings.map((b) => b.id),
           status: newStatus,
         }),
       });
-      const data = await response.json();
+
+      // Check if response is OK
+      if (!response.ok) {
+        let errorText = '';
+        try {
+          errorText = await response.text();
+          if (errorText) {
+            const errorJson = JSON.parse(errorText);
+            errorText = errorJson.error || errorText;
+          } else {
+            errorText = `HTTP error! status: ${response.status}`;
+          }
+        } catch {
+          errorText = `HTTP error! status: ${response.status}`;
+        }
+        throw new Error(errorText);
+      }
+
+      // Check content type
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Response is not JSON');
+      }
+
+      // Get response text first to check if it's empty
+      const text = await response.text();
+      if (!text || text.trim() === '') {
+        throw new Error('Empty response from server');
+      }
+
+      // Parse JSON
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        throw new Error('Failed to parse response as JSON');
+      }
+
       if (data.ok) {
         setSelectedBookings([]);
         fetchBookings();
+        setError(null);
       } else {
         setError(data.error || 'Failed to update bookings');
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update bookings';
       setError(errorMessage);
+      console.error('Error updating bookings:', error);
     }
   };
 
@@ -327,7 +370,23 @@ export default function AdminBookingsPage() {
     {
       id: 'cleaner',
       header: 'Cleaner',
-      accessor: (row) => row.cleaner_name || <span className="text-gray-400">Unassigned</span>,
+      accessor: (row) => {
+        if (row.requires_team && row.team_name) {
+          return (
+            <div>
+              <div className="font-medium text-gray-900">{row.team_name}</div>
+              {row.cleaner_name && (
+                <div className="text-sm text-gray-500">{row.cleaner_name}</div>
+              )}
+            </div>
+          );
+        }
+        return row.cleaner_name ? (
+          <span className="text-gray-900">{row.cleaner_name}</span>
+        ) : (
+          <span className="text-gray-400">Unassigned</span>
+        );
+      },
     },
     {
       id: 'actions',
@@ -472,9 +531,9 @@ export default function AdminBookingsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                onClick={() => handleBulkStatusUpdate('confirmed')}
+                onClick={() => handleBulkStatusUpdate('accepted')}
                     >
-                Mark as Confirmed
+                Mark as Accepted
                     </Button>
                     <Button
                       variant="outline"
@@ -586,6 +645,7 @@ export default function AdminBookingsPage() {
             bookingDate={selectedBooking.booking_date}
             bookingTime={selectedBooking.booking_time}
             bookingCity={selectedBooking.address_city || ''}
+            serviceType={selectedBooking.service_type}
             onSuccess={() => {
               fetchBookings();
             }}

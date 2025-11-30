@@ -174,29 +174,38 @@ export async function GET(request: NextRequest) {
     });
 
     // Fetch team bookings
-    const teamBookingsMap = new Map<string, { supervisorId: string; memberIds: string[] }>();
+    const teamBookingsMap = new Map<string, { teamName: string; supervisorId: string; memberIds: string[] }>();
     if (bookingIds.length > 0) {
       const { data: teams } = await supabase
         .from('booking_teams')
-        .select('booking_id, supervisor_id')
+        .select('booking_id, team_name, supervisor_id')
         .in('booking_id', bookingIds);
 
       if (teams && teams.length > 0) {
-        const teamBookingIds = teams.map((t: any) => t.booking_id);
+        // Create a map of team.id to booking_id for lookup
+        const teamIdToBookingId = new Map<string, string>();
+        teams.forEach((team: any) => {
+          teamIdToBookingId.set(team.id, team.booking_id);
+        });
+        
+        const teamIds = teams.map((t: any) => t.id);
         const { data: teamMembers } = await supabase
           .from('booking_team_members')
-          .select('booking_id, cleaner_id')
-          .in('booking_id', teamBookingIds);
+          .select('booking_team_id, cleaner_id')
+          .in('booking_team_id', teamIds);
 
         teams.forEach((team: any) => {
           const members = (teamMembers || [])
-            .filter((tm: any) => tm.booking_id === team.booking_id)
+            .filter((tm: any) => tm.booking_team_id === team.id)
             .map((tm: any) => tm.cleaner_id);
           
-          cleanerIds.add(team.supervisor_id);
+          if (team.supervisor_id) {
+            cleanerIds.add(team.supervisor_id);
+          }
           members.forEach((id: string) => cleanerIds.add(id));
           
           teamBookingsMap.set(team.booking_id, {
+            teamName: team.team_name || 'Team',
             supervisorId: team.supervisor_id,
             memberIds: members,
           });
@@ -244,21 +253,26 @@ export async function GET(request: NextRequest) {
       return null;
     };
 
-    const formattedBookings = safeBookings.map((booking: any) => ({
-      id: booking.id || '',
-      customer_name: booking.customer_name || 'Unknown',
-      customer_email: booking.customer_email || '',
-      customer_phone: booking.customer_phone || '',
-      service_type: booking.service_type || '',
-      booking_date: booking.booking_date || '',
-      booking_time: booking.booking_time || '',
-      status: booking.status || 'pending',
-      total_amount: booking.total_amount || 0,
-      cleaner_id: booking.cleaner_id || null,
-      cleaner_name: getCleanerName(booking),
-      created_at: booking.created_at || new Date().toISOString(),
-      updated_at: booking.updated_at || booking.created_at || new Date().toISOString(),
-    }));
+    const formattedBookings = safeBookings.map((booking: any) => {
+      const teamInfo = teamBookingsMap.get(booking.id);
+      return {
+        id: booking.id || '',
+        customer_name: booking.customer_name || 'Unknown',
+        customer_email: booking.customer_email || '',
+        customer_phone: booking.customer_phone || '',
+        service_type: booking.service_type || '',
+        booking_date: booking.booking_date || '',
+        booking_time: booking.booking_time || '',
+        status: booking.status || 'pending',
+        total_amount: booking.total_amount || 0,
+        cleaner_id: booking.cleaner_id || null,
+        cleaner_name: getCleanerName(booking),
+        requires_team: booking.requires_team || false,
+        team_name: teamInfo?.teamName || null,
+        created_at: booking.created_at || new Date().toISOString(),
+        updated_at: booking.updated_at || booking.created_at || new Date().toISOString(),
+      };
+    });
 
     const totalPages = Math.ceil((count || 0) / limit);
 

@@ -48,12 +48,14 @@ export async function GET(
     const priceSnapshot = booking.price_snapshot as any;
     const extras = priceSnapshot?.extras || booking.extras || [];
     const extrasQuantities = priceSnapshot?.extrasQuantities || priceSnapshot?.extras_quantities || {};
+    const tipAmount = priceSnapshot?.tip_amount || booking.tip_amount || 0;
 
     const formattedBooking = {
       ...booking,
       cleaner_name: cleanerName,
       extras,
       extrasQuantities,
+      tip_amount: tipAmount, // Include tip amount for display
     };
 
     return NextResponse.json({
@@ -86,11 +88,19 @@ export async function PATCH(
     const supabase = await createClient();
 
     // Fetch existing booking to preserve price_snapshot structure
-    const { data: existingBooking } = await supabase
+    const { data: existingBooking, error: fetchError } = await supabase
       .from('bookings')
       .select('price_snapshot, bedrooms, bathrooms, service_type')
       .eq('id', id)
       .single();
+
+    if (fetchError || !existingBooking) {
+      console.error('Error fetching existing booking:', fetchError);
+      return NextResponse.json(
+        { ok: false, error: `Booking not found: ${fetchError?.message || 'Unknown error'}` },
+        { status: 404 }
+      );
+    }
 
     const existingPriceSnapshot = (existingBooking?.price_snapshot as any) || {};
 
@@ -111,6 +121,7 @@ export async function PATCH(
         totalAmount = pricing.total * 100; // Convert to cents
       } catch (error) {
         console.error('Error calculating pricing:', error);
+        // Continue with existing total_amount if calculation fails
       }
     }
 
@@ -145,6 +156,8 @@ export async function PATCH(
     if (body.address_city) updateData.address_city = body.address_city;
     if (totalAmount !== undefined) updateData.total_amount = totalAmount;
 
+    console.log('Updating booking with data:', JSON.stringify(updateData, null, 2));
+
     const { data, error } = await supabase
       .from('bookings')
       .update(updateData)
@@ -155,7 +168,14 @@ export async function PATCH(
     if (error) {
       console.error('Error updating booking:', error);
       return NextResponse.json(
-        { ok: false, error: 'Failed to update booking' },
+        { ok: false, error: `Failed to update booking: ${error.message || error.details || 'Unknown error'}` },
+        { status: 500 }
+      );
+    }
+
+    if (!data) {
+      return NextResponse.json(
+        { ok: false, error: 'Booking was not updated (no data returned)' },
         { status: 500 }
       );
     }
@@ -164,10 +184,10 @@ export async function PATCH(
       ok: true,
       booking: data,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating booking:', error);
     return NextResponse.json(
-      { ok: false, error: 'Internal server error' },
+      { ok: false, error: `Internal server error: ${error?.message || 'Unknown error'}` },
       { status: 500 }
     );
   }

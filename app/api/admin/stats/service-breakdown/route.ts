@@ -15,10 +15,24 @@ export async function GET(request: NextRequest) {
 
     const supabase = await createClient();
 
-    // Fetch all bookings with service types
-    const { data: bookings, error } = await supabase
+    // Get date range from query params
+    const { searchParams } = new URL(request.url);
+    const dateFrom = searchParams.get('date_from');
+    const dateTo = searchParams.get('date_to');
+    
+    // Fetch bookings with service types, with optional date filtering
+    let query = supabase
       .from('bookings')
       .select('service_type');
+    
+    // Apply date filters if provided
+    if (dateFrom && dateTo) {
+      query = query
+        .gte('created_at', dateFrom)
+        .lte('created_at', dateTo);
+    }
+    
+    const { data: bookings, error } = await query;
 
     if (error) {
       console.error('Error fetching bookings for service breakdown:', error);
