@@ -69,23 +69,50 @@ export async function fetcher<T>(url: string): Promise<T> {
   } catch (error: any) {
     const duration = Date.now() - startTime;
     
-    // Log network errors
+    // Extract error information
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorName = error?.name || 'Error';
+    const errorStack = error?.stack;
+    
+    // Log network errors with more detail
     if (error.name === 'AbortError') {
-      console.error('[SWR Fetcher] Request timeout:', { url, duration: `${duration}ms` });
+      console.error('[SWR Fetcher] Request timeout:', { 
+        url, 
+        duration: `${duration}ms`,
+        error: errorMessage,
+      });
+    } else if (error instanceof TypeError && error.message.includes('fetch')) {
+      // Network connectivity issues
+      console.error('[SWR Fetcher] Network connectivity error:', {
+        url,
+        error: errorMessage,
+        name: errorName,
+        duration: `${duration}ms`,
+        hint: 'Check if the server is running and accessible',
+      });
     } else {
       console.error('[SWR Fetcher] Network error:', {
         url,
-        error: error?.message || 'Unknown error',
-        name: error?.name || 'Error',
+        error: errorMessage,
+        name: errorName,
         duration: `${duration}ms`,
+        stack: errorStack,
       });
     }
     
-    // Re-throw SWR-compatible errors
+    // Re-throw SWR-compatible errors with better messages
     if (error instanceof Error) {
+      // Preserve the original error but ensure it has a message
+      if (!error.message || error.message === '') {
+        error.message = `Network error: ${errorName}`;
+      }
       throw error;
     }
-    throw new Error(error?.message || 'Unknown error occurred');
+    
+    // Create a new error with the extracted information
+    const networkError = new Error(errorMessage || `Network error: ${errorName}`);
+    (networkError as any).name = errorName;
+    throw networkError;
   }
 }
 

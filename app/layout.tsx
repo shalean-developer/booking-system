@@ -221,6 +221,13 @@ export default function RootLayout({
             `,
           }}
         />
+        
+        {/* Ahrefs Analytics */}
+        <Script
+          src="https://analytics.ahrefs.com/analytics.js"
+          data-key="03pYd6IC2yPD0CqqG1dMTg"
+          strategy="afterInteractive"
+        />
       </head>
       <body className={cn(inter.variable, playfairDisplay.variable, inter.className, "min-h-screen bg-slate-50")}>
         {gtmId && (
