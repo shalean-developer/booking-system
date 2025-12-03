@@ -19,8 +19,16 @@ export async function POST(request: NextRequest) {
     }
 
     const svc = createServiceClient();
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (e) {
+      // If no body provided, default to dryRun: true
+      body = { dryRun: true };
+    }
     const dryRun = body.dryRun !== false; // Default to true for safety
+
+    console.log(`[Fix December Pricing] Starting with dryRun=${dryRun}`);
 
     // First get schedule IDs that have December bookings
     const { data: decemberBookings, error: decError } = await svc
@@ -47,8 +55,17 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Get unique schedule IDs
-    const scheduleIds = [...new Set(decemberBookings.map((b: any) => b.recurring_schedule_id))];
+    // Get unique schedule IDs (filter out null/undefined)
+    const scheduleIds = [...new Set(decemberBookings.map((b: any) => b.recurring_schedule_id).filter(Boolean))];
+
+    if (scheduleIds.length === 0) {
+      return NextResponse.json({
+        ok: false,
+        error: 'No valid schedule IDs found in December bookings',
+      }, { status: 400 });
+    }
+
+    console.log(`[Fix December Pricing] Found ${scheduleIds.length} unique schedule IDs:`, scheduleIds);
 
     // Get all schedules with December bookings
     const { data: schedules, error: schedulesError } = await svc
@@ -66,21 +83,32 @@ export async function POST(request: NextRequest) {
       `)
       .in('id', scheduleIds);
 
+    console.log(`[Fix December Pricing] Fetched ${schedules?.length || 0} schedules`);
+
     if (schedulesError) {
-      console.error('Error fetching schedules:', schedulesError);
+      console.error('[Fix December Pricing] Error fetching schedules:', schedulesError);
+      console.error('[Fix December Pricing] Schedule IDs queried:', scheduleIds);
       return NextResponse.json(
-        { ok: false, error: `Failed to fetch schedules: ${schedulesError.message}` },
+        { 
+          ok: false, 
+          error: `Failed to fetch schedules: ${schedulesError.message}`,
+          details: `Tried to fetch ${scheduleIds.length} schedules`,
+          scheduleIds: scheduleIds.slice(0, 5), // Show first 5 for debugging
+        },
         { status: 500 }
       );
     }
 
     if (!schedules || schedules.length === 0) {
+      console.warn('[Fix December Pricing] No schedules found for IDs:', scheduleIds);
       return NextResponse.json({
-        ok: true,
-        message: 'No schedules found with December bookings',
+        ok: false,
+        error: 'No schedules found with December bookings',
+        message: `Found ${decemberBookings.length} December bookings but could not fetch their schedules`,
+        scheduleIdsQueried: scheduleIds,
         fixed: 0,
         dryRun,
-      });
+      }, { status: 404 });
     }
 
 

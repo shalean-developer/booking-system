@@ -62,6 +62,9 @@ export default function EditBookingPage({ params }: { params: Promise<{ id: stri
   const [addressCity, setAddressCity] = useState('');
   const [storedTotalAmount, setStoredTotalAmount] = useState<number | null>(null);
   const [tipAmount, setTipAmount] = useState<number>(0);
+  const [manualTotalAmount, setManualTotalAmount] = useState<number | null>(null);
+  const [useManualPrice, setUseManualPrice] = useState(false);
+  const [cleanerEarnings, setCleanerEarnings] = useState<number | null>(null);
 
   useEffect(() => {
     fetchBooking();
@@ -102,12 +105,18 @@ export default function EditBookingPage({ params }: { params: Promise<{ id: stri
         
         // Store the original total amount and tip from database
         if (booking.total_amount) {
-          setStoredTotalAmount(booking.total_amount / 100); // Convert from cents to rands
-          console.log('📊 Stored booking total:', `R${(booking.total_amount / 100).toFixed(2)}`);
+          const totalInRands = booking.total_amount / 100; // Convert from cents to rands
+          setStoredTotalAmount(totalInRands);
+          setManualTotalAmount(totalInRands);
+          console.log('📊 Stored booking total:', `R${totalInRands.toFixed(2)}`);
         }
         // Get tip amount (could be in price_snapshot or as separate field)
         const tip = booking.tip_amount ? (booking.tip_amount / 100) : 0;
         setTipAmount(tip);
+        // Get cleaner earnings
+        if (booking.cleaner_earnings) {
+          setCleanerEarnings(booking.cleaner_earnings / 100); // Convert from cents to rands
+        }
         console.log('📊 Booking details:', {
           service_type: booking.service_type,
           bedrooms: booking.bedrooms,
@@ -196,7 +205,12 @@ export default function EditBookingPage({ params }: { params: Promise<{ id: stri
         address_line1: addressLine1,
         address_suburb: addressSuburb,
         address_city: addressCity,
-        total_amount: pricing ? pricing.total * 100 : undefined,
+        // Use manual price if override is enabled, otherwise always use calculated price
+        // This ensures that when admin makes edits, the price is updated to match the new calculation
+        total_amount: useManualPrice && manualTotalAmount !== null 
+          ? Math.round(manualTotalAmount * 100) 
+          : (pricing ? pricing.total * 100 : undefined),
+        cleaner_earnings: cleanerEarnings !== null ? Math.round(cleanerEarnings * 100) : undefined,
       };
 
       console.log('Submitting booking update:', payload);
@@ -230,6 +244,11 @@ export default function EditBookingPage({ params }: { params: Promise<{ id: stri
       }
 
       if (data.ok) {
+        // Refresh the booking data to show updated values
+        await fetchBooking();
+        // Show success message
+        alert('Booking updated successfully!');
+        // Navigate to booking detail page
         router.push(`/admin/bookings/${id}`);
       } else {
         alert(data.error || 'Failed to update booking');
@@ -518,11 +537,91 @@ export default function EditBookingPage({ params }: { params: Promise<{ id: stri
           </CardContent>
         </Card>
 
+        {/* Pricing & Earnings */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Pricing & Earnings</CardTitle>
+            <CardDescription>
+              Set manual pricing or let the system calculate based on service details
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <div className="flex items-center space-x-2 mb-2">
+                  <Checkbox
+                    id="useManualPrice"
+                    checked={useManualPrice}
+                    onCheckedChange={(checked) => setUseManualPrice(checked === true)}
+                  />
+                  <Label htmlFor="useManualPrice" className="cursor-pointer">
+                    Override calculated price
+                  </Label>
+                </div>
+                <Label htmlFor="manualTotalAmount">Total Amount (R) *</Label>
+                <Input
+                  id="manualTotalAmount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={manualTotalAmount !== null ? manualTotalAmount.toFixed(2) : ''}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value);
+                    setManualTotalAmount(isNaN(value) ? null : value);
+                  }}
+                  disabled={!useManualPrice}
+                  required={useManualPrice}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {useManualPrice 
+                    ? 'Manual price will override calculated price'
+                    : `Calculated: R${pricing ? (pricing.subtotal + pricing.serviceFee - (pricing.frequencyDiscount || 0)).toFixed(2) : '0.00'}`}
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="cleanerEarnings">Cleaner Earnings (R) *</Label>
+                <Input
+                  id="cleanerEarnings"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={cleanerEarnings !== null ? cleanerEarnings.toFixed(2) : ''}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value);
+                    setCleanerEarnings(isNaN(value) ? null : value);
+                  }}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Amount the cleaner earns from this booking
+                </p>
+              </div>
+            </div>
+            {manualTotalAmount !== null && cleanerEarnings !== null && (
+              <div className="p-3 bg-gray-50 rounded-md">
+                <div className="flex justify-between text-sm">
+                  <span>Company Earnings:</span>
+                  <span className="font-semibold">
+                    R{(manualTotalAmount - cleanerEarnings).toFixed(2)}
+                  </span>
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {cleanerEarnings > 0 && manualTotalAmount > 0 
+                    ? `${((cleanerEarnings / manualTotalAmount) * 100).toFixed(1)}% to cleaner, ${(((manualTotalAmount - cleanerEarnings) / manualTotalAmount) * 100).toFixed(1)}% to company`
+                    : ''}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Pricing Summary */}
         {pricing && (
           <Card>
             <CardHeader>
-              <CardTitle>Pricing Summary</CardTitle>
+              <CardTitle>Calculated Pricing Summary</CardTitle>
+              <CardDescription>
+                This is the automatically calculated price based on service details. When you save, the stored price will be updated to match this calculated price (unless you use manual override above).
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
@@ -566,7 +665,7 @@ export default function EditBookingPage({ params }: { params: Promise<{ id: stri
                 {storedTotalAmount !== null && (
                   <div className="text-xs text-gray-500 pt-1">
                     {Math.abs(storedTotalAmount - (pricing.subtotal + pricing.serviceFee - (pricing.frequencyDiscount || 0))) > 0.01 
-                      ? '⚠️ Calculated total differs from stored total. Update will recalculate based on current selections.'
+                      ? '⚠️ Calculated total differs from stored total. The stored price will be updated to match the calculated price when you save.'
                       : '✓ Calculated total matches stored total.'}
                   </div>
                 )}
@@ -580,7 +679,7 @@ export default function EditBookingPage({ params }: { params: Promise<{ id: stri
           <Button type="button" variant="outline" onClick={handleCancel} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button type="submit" disabled={isSubmitting || !serviceType || !bookingDate || !bookingTime}>
+          <Button type="submit" disabled={isSubmitting || !serviceType || !bookingDate || !bookingTime || (useManualPrice && manualTotalAmount === null) || cleanerEarnings === null}>
             {isSubmitting ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />

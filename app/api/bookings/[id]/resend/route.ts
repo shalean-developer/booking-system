@@ -44,11 +44,16 @@ export async function POST(
         booking.extras_quantities ??
         {}
       ) as Record<string, number>;
+      
+      // Extract bedrooms and bathrooms from price_snapshot (they're not stored as separate columns)
+      const priceSnapshot = booking.price_snapshot as any;
+      const bedrooms = priceSnapshot?.bedrooms || priceSnapshot?.service?.bedroom || 0;
+      const bathrooms = priceSnapshot?.bathrooms || priceSnapshot?.service?.bathroom || 0;
 
       const emailData = generateBookingConfirmationEmail({
         service: booking.service_type as any,
-        bedrooms: booking.bedrooms || 0,
-        bathrooms: booking.bathrooms || 0,
+        bedrooms,
+        bathrooms,
         extras: (booking.extras as string[]) || [],
         extrasQuantities,
         date: booking.booking_date,

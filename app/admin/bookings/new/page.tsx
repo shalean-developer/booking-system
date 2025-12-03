@@ -18,7 +18,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { calcTotalAsync } from '@/lib/pricing';
 import { generateTimeSlots } from '@/lib/pricing';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Search } from 'lucide-react';
 import Link from 'next/link';
 
 type ServiceType = 'Standard' | 'Deep' | 'Move In/Out' | 'Airbnb';
@@ -28,6 +28,17 @@ interface Cleaner {
   name: string;
   email?: string;
   phone?: string;
+}
+
+interface Customer {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone?: string;
+  address_line1?: string;
+  address_suburb?: string;
+  address_city?: string;
 }
 
 const PRICING = {
@@ -85,6 +96,12 @@ export default function NewBookingPage() {
   const [cleanerId, setCleanerId] = useState<string>('');
   const [selectedCleanerIds, setSelectedCleanerIds] = useState<string[]>([]);
   const [supervisorId, setSupervisorId] = useState<string>('');
+  
+  // Customer search state
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
   const requiresTeam = serviceType === 'Deep' || serviceType === 'Move In/Out';
 
@@ -97,6 +114,18 @@ export default function NewBookingPage() {
       calculatePricing();
     }
   }, [serviceType, bedrooms, bathrooms, selectedExtras, extrasQuantities]);
+
+  useEffect(() => {
+    if (customerSearch.length >= 2) {
+      const timeoutId = setTimeout(() => {
+        searchCustomers();
+      }, 300);
+      return () => clearTimeout(timeoutId);
+    } else {
+      setCustomers([]);
+      setIsLoadingCustomers(false);
+    }
+  }, [customerSearch]);
 
   const fetchCleaners = async () => {
     setIsLoadingCleaners(true);
@@ -111,6 +140,67 @@ export default function NewBookingPage() {
     } finally {
       setIsLoadingCleaners(false);
     }
+  };
+
+  const searchCustomers = async () => {
+    if (!customerSearch || customerSearch.length < 2) {
+      setCustomers([]);
+      return;
+    }
+    
+    setIsLoadingCustomers(true);
+    try {
+      const response = await fetch(`/api/admin/customers?search=${encodeURIComponent(customerSearch)}&limit=10`, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          errorMessage = errorText || errorMessage;
+        }
+        console.error('Customer search failed:', errorMessage);
+        setCustomers([]);
+        return;
+      }
+      
+      const data = await response.json();
+      
+      if (data.ok && data.customers) {
+        setCustomers(data.customers);
+      } else {
+        console.error('Search failed:', data.error);
+        setCustomers([]);
+      }
+    } catch (error: any) {
+      console.error('Error searching customers:', error);
+      setCustomers([]);
+    } finally {
+      setIsLoadingCustomers(false);
+    }
+  };
+
+  const handleCustomerSelect = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setCustomerSearch(`${customer.first_name} ${customer.last_name}`.trim());
+    setCustomers([]);
+    setIsLoadingCustomers(false);
+    
+    // Auto-fill customer information
+    setCustomerFirstName(customer.first_name || '');
+    setCustomerLastName(customer.last_name || '');
+    setCustomerEmail(customer.email || '');
+    setCustomerPhone(customer.phone || '');
+    setAddressLine1(customer.address_line1 || '');
+    setAddressSuburb(customer.address_suburb || '');
+    setAddressCity(customer.address_city || '');
   };
 
   const calculatePricing = async () => {
@@ -406,8 +496,69 @@ export default function NewBookingPage() {
         <Card>
           <CardHeader>
             <CardTitle>Customer Information</CardTitle>
+            <CardDescription>
+              Search for an existing customer or enter new customer details
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="relative">
+              <Label htmlFor="customerSearch">Search Customer (Optional)</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  id="customerSearch"
+                  value={customerSearch}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
+                  placeholder="Type customer name or email to search..."
+                  className="pl-10"
+                />
+              </div>
+              {isLoadingCustomers && (
+                <p className="text-sm text-gray-500 mt-2">Searching...</p>
+              )}
+              {!isLoadingCustomers && customerSearch.length >= 2 && customers.length === 0 && (
+                <p className="text-sm text-gray-500 mt-2">No customers found. You can still enter customer details manually below.</p>
+              )}
+              {customers.length > 0 && (
+                <div className="mt-2 border rounded-md max-h-60 overflow-y-auto">
+                  {customers.map((customer) => (
+                    <div
+                      key={customer.id}
+                      onClick={() => handleCustomerSelect(customer)}
+                      className={`p-3 cursor-pointer hover:bg-gray-50 border-b last:border-b-0 ${
+                        selectedCustomer?.id === customer.id ? 'bg-blue-50' : ''
+                      }`}
+                    >
+                      <div className="font-medium">
+                        {customer.first_name} {customer.last_name}
+                      </div>
+                      <div className="text-sm text-gray-500">{customer.email}</div>
+                      {customer.phone && (
+                        <div className="text-sm text-gray-500">{customer.phone}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {selectedCustomer && (
+                <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-md">
+                  <div className="font-medium text-green-900">
+                    Selected: {selectedCustomer.first_name} {selectedCustomer.last_name}
+                  </div>
+                  <div className="text-sm text-green-700">{selectedCustomer.email}</div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCustomer(null);
+                      setCustomerSearch('');
+                    }}
+                    className="text-xs text-green-600 hover:text-green-800 mt-1 underline"
+                  >
+                    Clear selection
+                  </button>
+                </div>
+              )}
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="firstName">First Name *</Label>
