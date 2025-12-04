@@ -181,24 +181,28 @@ export function createMetadata(metadata: PageMetadata | Metadata): Metadata {
       title: pageMeta.title,
       description: finalDescription,
       url: canonical,
-      ...(pageMeta.ogImage && {
-        images: [
-          {
-            url: pageMeta.ogImage.url,
-            alt: pageMeta.ogImage.alt,
-            width: OG_IMAGE_WIDTH,
-            height: OG_IMAGE_HEIGHT,
-          },
-        ],
-      }),
+      // Always include images - use provided ogImage or default
+      images: pageMeta.ogImage ? [
+        {
+          url: pageMeta.ogImage.url,
+          alt: pageMeta.ogImage.alt,
+          width: OG_IMAGE_WIDTH,
+          height: OG_IMAGE_HEIGHT,
+        },
+      ] : [
+        {
+          url: `${SITE_URL}/assets/og/home-1200x630.jpg`,
+          alt: "Shalean Cleaning Services",
+          width: OG_IMAGE_WIDTH,
+          height: OG_IMAGE_HEIGHT,
+        },
+      ],
     },
     twitter: {
       card: pageMeta.twitterCard || DEFAULT_SITE_METADATA.twitterCard,
       title: pageMeta.title,
       description: finalDescription,
-      ...(pageMeta.ogImage && {
-        images: [pageMeta.ogImage.url],
-      }),
+      images: pageMeta.ogImage ? [pageMeta.ogImage.url] : [`${SITE_URL}/assets/og/home-1200x630.jpg`],
     },
   };
 }
@@ -246,16 +250,22 @@ export function createBlogPostMetadata(metadata: BlogPostMetadata): Metadata {
       title: metadata.title, // Keep original title for OG tags
       description: finalDescription,
       url: canonical,
-      ...(metadata.ogImage && {
-        images: [
-          {
-            url: metadata.ogImage.url,
-            alt: metadata.ogImage.alt,
-            width: OG_IMAGE_WIDTH,
-            height: OG_IMAGE_HEIGHT,
-          },
-        ],
-      }),
+      // Always include images - use provided ogImage or default
+      images: metadata.ogImage ? [
+        {
+          url: metadata.ogImage.url,
+          alt: metadata.ogImage.alt,
+          width: OG_IMAGE_WIDTH,
+          height: OG_IMAGE_HEIGHT,
+        },
+      ] : [
+        {
+          url: `${SITE_URL}/assets/og/home-1200x630.jpg`,
+          alt: "Shalean Cleaning Services Blog",
+          width: OG_IMAGE_WIDTH,
+          height: OG_IMAGE_HEIGHT,
+        },
+      ],
       ...(metadata.publishedTime && {
         publishedTime: metadata.publishedTime,
       }),
@@ -267,9 +277,7 @@ export function createBlogPostMetadata(metadata: BlogPostMetadata): Metadata {
       card: metadata.twitterCard || DEFAULT_SITE_METADATA.twitterCard,
       title: metadata.title, // Keep original title for Twitter tags
       description: finalDescription,
-      ...(metadata.ogImage && {
-        images: [metadata.ogImage.url],
-      }),
+      images: metadata.ogImage ? [metadata.ogImage.url] : [`${SITE_URL}/assets/og/home-1200x630.jpg`],
     },
   };
 }
