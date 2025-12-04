@@ -26,7 +26,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     'parow', 'brackenfell', 'wynberg', 'kenilworth', 'plumstead', 'bishopscourt',
     'tokai', 'bergvliet', 'fish-hoek', 'kalk-bay', 'simons-town', 'lakeside',
     'noordhoek', 'kommetjie', 'scarborough', 'somerset-west', 'strand', 'stellenbosch',
-    'mouille-point', 'waterfront'
+    'mouille-point', 'waterfront', 'george', 'paarl'
   ];
 
   // Generate Cape Town suburb entries
@@ -41,7 +41,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const servicePages = [
     'regular-cleaning', 'airbnb-cleaning', 'office-cleaning', 
     'apartment-cleaning', 'window-cleaning', 'home-maintenance', 
-    'deep-specialty', 'deep-cleaning', 'move-turnover'
+    'deep-specialty', 'deep-cleaning', 'move-turnover',
+    'carpet-cleaning', 'house-cleaning', 'one-time-cleaning',
+    'post-construction-cleaning'
   ];
 
   const serviceEntries: MetadataRoute.Sitemap = servicePages.map((service) => ({
@@ -105,6 +107,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     'irene', 'silver-lakes', 'woodhill', 'mooikloof'
   ];
 
+  // Pretoria area hub pages
+  const pretoriaAreas = [
+    'central', 'eastern-suburbs', 'golf-estates', 'northern-suburbs',
+    'southern-suburbs', 'western-suburbs'
+  ];
+
+  // Other city pages
+  const otherCities = [
+    'east-london', 'grahamstown', 'jeffreys-bay', 'port-elizabeth'
+  ];
+
   const pretoriaSuburbEntries: MetadataRoute.Sitemap = pretoriaSuburbs.map((suburb) => ({
     url: `${baseUrl}/location/pretoria/${suburb}`,
     lastModified: new Date(),
@@ -118,11 +131,39 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     'morningside', 'berea', 'musgrave', 'greyville', 'windermere', 
     'westville', 'hillcrest', 'kloof', 'pinetown', 'queensburgh', 
     'bluff', 'wentworth', 'montclair', 'chatsworth', 'amanzimtoti', 
-    'umkomaas', 'warner-beach', 'glenwood', 'sherwood', 'durban-cbd'
+    'umkomaas', 'warner-beach', 'glenwood', 'sherwood', 'durban-cbd',
+    'pietermaritzburg'
+  ];
+
+  // Durban area hub pages
+  const durbanAreas = [
+    'central', 'coastal-north', 'south-coast', 'southern-suburbs',
+    'upper-areas', 'western-suburbs'
   ];
 
   const durbanSuburbEntries: MetadataRoute.Sitemap = durbanSuburbs.map((suburb) => ({
     url: `${baseUrl}/location/durban/${suburb}`,
+    lastModified: new Date(),
+    changeFrequency: 'monthly',
+    priority: 0.6,
+  }));
+
+  const durbanAreaEntries: MetadataRoute.Sitemap = durbanAreas.map((area) => ({
+    url: `${baseUrl}/location/durban/${area}`,
+    lastModified: new Date(),
+    changeFrequency: 'monthly',
+    priority: 0.7,
+  }));
+
+  const pretoriaAreaEntries: MetadataRoute.Sitemap = pretoriaAreas.map((area) => ({
+    url: `${baseUrl}/location/pretoria/${area}`,
+    lastModified: new Date(),
+    changeFrequency: 'monthly',
+    priority: 0.7,
+  }));
+
+  const otherCityEntries: MetadataRoute.Sitemap = otherCities.map((city) => ({
+    url: `${baseUrl}/location/${city}`,
     lastModified: new Date(),
     changeFrequency: 'monthly',
     priority: 0.6,
@@ -202,6 +243,36 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     },
     {
+      url: `${baseUrl}/careers`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/terms`,
+      lastModified: new Date(),
+      changeFrequency: 'yearly',
+      priority: 0.5,
+    },
+    {
+      url: `${baseUrl}/cancellation`,
+      lastModified: new Date(),
+      changeFrequency: 'yearly',
+      priority: 0.5,
+    },
+    {
+      url: `${baseUrl}/how-it-works`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/team`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.6,
+    },
+    {
       url: `${baseUrl}/sitemap-html`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
@@ -253,6 +324,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...pretoriaSuburbEntries,
     // Add all Durban suburb pages
     ...durbanSuburbEntries,
+    // Add all Durban area hub pages
+    ...durbanAreaEntries,
+    // Add all Pretoria area hub pages
+    ...pretoriaAreaEntries,
+    // Add other city pages
+    ...otherCityEntries,
   ]
 }
 
