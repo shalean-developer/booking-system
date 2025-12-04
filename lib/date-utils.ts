@@ -3,6 +3,50 @@
  */
 
 /**
+ * Safe locale formatting with fallback support
+ * Tries the preferred locale, falls back to browser default, then to 'en-US'
+ */
+function safeLocaleFormat(
+  date: Date,
+  locales: string | string[],
+  options: Intl.DateTimeFormatOptions,
+  formatFn: 'toLocaleDateString' | 'toLocaleTimeString' | 'toLocaleString'
+): string {
+  try {
+    // Try preferred locale first
+    const result = date[formatFn](locales, options);
+    // Check if result is valid (some browsers return empty string for unsupported locales)
+    if (result && result.trim().length > 0) {
+      return result;
+    }
+  } catch (e) {
+    // Locale not supported, will try fallback
+  }
+
+  try {
+    // Fallback to browser default locale
+    const result = date[formatFn](undefined, options);
+    if (result && result.trim().length > 0) {
+      return result;
+    }
+  } catch (e) {
+    // Will try final fallback
+  }
+
+  try {
+    // Final fallback to 'en-US' (widely supported)
+    return date[formatFn]('en-US', options);
+  } catch (e) {
+    // Last resort: manual formatting
+    const month = date.toLocaleDateString(undefined, { month: 'short' }) || 
+                  ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][date.getMonth()];
+    const day = date.getDate();
+    const year = date.getFullYear();
+    return `${month} ${day}, ${year}`;
+  }
+}
+
+/**
  * Format date in user's local timezone
  * Handles edge cases like invalid dates, timezone offsets
  */
@@ -20,14 +64,14 @@ export function formatDateSafe(
       return 'Invalid date';
     }
 
-    // Use user's local timezone
-    return date.toLocaleDateString('en-ZA', {
+    // Use safe locale formatting with fallback
+    return safeLocaleFormat(date, 'en-ZA', {
       weekday: 'short',
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       ...options,
-    });
+    }, 'toLocaleDateString');
   } catch (error) {
     console.error('Error formatting date:', error);
     return 'Invalid date';
@@ -87,13 +131,13 @@ export function formatDateTimeSafe(
       return 'Invalid date';
     }
 
-    return date.toLocaleString('en-ZA', {
+    return safeLocaleFormat(date, 'en-ZA', {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
       timeZoneName: 'short',
-    });
+    }, 'toLocaleString');
   } catch (error) {
     console.error('Error formatting datetime:', error);
     return 'Invalid date';

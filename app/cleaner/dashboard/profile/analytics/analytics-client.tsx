@@ -95,8 +95,27 @@ export function AnalyticsClient({ cleaner }: AnalyticsClientProps) {
   };
 
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' });
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return 'Invalid date';
+      
+      // Safe locale formatting with fallback
+      try {
+        const result = date.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' });
+        if (result && result.trim().length > 0) return result;
+      } catch {}
+      
+      try {
+        const result = date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+        if (result && result.trim().length > 0) return result;
+      } catch {}
+      
+      // Final fallback
+      return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) ||
+             `${date.getDate()} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][date.getMonth()]}`;
+    } catch {
+      return 'Invalid date';
+    }
   };
 
   if (isLoading) {

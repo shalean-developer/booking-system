@@ -183,7 +183,16 @@ export function BookingCard({
       .join(', ');
     
     const encodedAddress = encodeURIComponent(address);
-    window.open(`https://www.google.com/maps/search/?api=1&query=${encodedAddress}`, '_blank');
+    
+    // Check if window.open is available
+    if (typeof window !== 'undefined' && window.open) {
+      window.open(`https://www.google.com/maps/search/?api=1&query=${encodedAddress}`, '_blank');
+    } else {
+      // Fallback: try to navigate directly
+      if (typeof window !== 'undefined' && window.location) {
+        window.location.href = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+      }
+    }
   };
 
   const callCustomer = () => {

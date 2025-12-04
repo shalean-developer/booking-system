@@ -317,10 +317,28 @@ export function AvailabilityClient({ cleaner }: CleanerSessionProps) {
                       variant="outline"
                       className="bg-red-50 text-red-800 border-red-200 flex items-center gap-1"
                     >
-                      {new Date(date).toLocaleDateString('en-ZA', {
-                        month: 'short',
-                        day: 'numeric',
-                      })}
+                      {(() => {
+                        try {
+                          const d = new Date(date);
+                          if (isNaN(d.getTime())) return date;
+                          
+                          // Safe locale formatting with fallback
+                          try {
+                            const result = d.toLocaleDateString('en-ZA', { month: 'short', day: 'numeric' });
+                            if (result && result.trim().length > 0) return result;
+                          } catch {}
+                          
+                          try {
+                            const result = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                            if (result && result.trim().length > 0) return result;
+                          } catch {}
+                          
+                          return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) ||
+                                 `${d.getDate()} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()]}`;
+                        } catch {
+                          return date;
+                        }
+                      })()}
                       <button
                         type="button"
                         onClick={() => removeBlockedDate(date)}

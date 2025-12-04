@@ -119,12 +119,38 @@ export function PaymentsClient({ cleaner }: PaymentsClientProps) {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-ZA', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Invalid date';
+      
+      // Safe locale formatting with fallback
+      try {
+        const result = date.toLocaleDateString('en-ZA', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        });
+        if (result && result.trim().length > 0) return result;
+      } catch {}
+      
+      try {
+        const result = date.toLocaleDateString(undefined, {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        });
+        if (result && result.trim().length > 0) return result;
+      } catch {}
+      
+      // Final fallback
+      return date.toLocaleDateString('en-US', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }) || `${date.getDate()} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][date.getMonth()]} ${date.getFullYear()}`;
+    } catch {
+      return 'Invalid date';
+    }
   };
 
   const formatTime = (time: string) => {
@@ -196,6 +222,15 @@ export function PaymentsClient({ cleaner }: PaymentsClientProps) {
       const csv = [headers.join(','), ...rows].join('\n');
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
+      
+      // Check if document APIs are available
+      if (typeof document === 'undefined' || !document.createElement || !document.body) {
+        console.error('Document APIs not available for download');
+        URL.revokeObjectURL(url);
+        setErrorMessage('Download not supported in this browser');
+        return;
+      }
+      
       const a = document.createElement('a');
       const month = new Date().toISOString().slice(0, 7); // YYYY-MM
       a.href = url;

@@ -9,13 +9,44 @@
  * @returns Formatted currency string (e.g., "R1,234.56" or "R1,235")
  */
 export function formatCurrency(cents: number, showDecimals: boolean = true): string {
-  if (showDecimals) {
-    return `R${(cents / 100).toLocaleString('en-ZA', { 
-      minimumFractionDigits: 2, 
-      maximumFractionDigits: 2 
-    })}`;
-  } else {
-    return `R${Math.round(cents / 100).toLocaleString('en-ZA')}`;
+  const amount = cents / 100;
+  const rounded = Math.round(amount);
+  
+  try {
+    if (showDecimals) {
+      const formatted = amount.toLocaleString('en-ZA', { 
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 2 
+      });
+      if (formatted && formatted.trim().length > 0) {
+        return `R${formatted}`;
+      }
+    } else {
+      const formatted = rounded.toLocaleString('en-ZA');
+      if (formatted && formatted.trim().length > 0) {
+        return `R${formatted}`;
+      }
+    }
+  } catch {}
+  
+  // Fallback formatting
+  try {
+    if (showDecimals) {
+      const formatted = amount.toLocaleString(undefined, { 
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 2 
+      });
+      return `R${formatted}`;
+    } else {
+      return `R${rounded.toLocaleString(undefined)}`;
+    }
+  } catch {
+    // Last resort: manual formatting
+    if (showDecimals) {
+      return `R${amount.toFixed(2)}`;
+    } else {
+      return `R${rounded}`;
+    }
   }
 }
 
@@ -25,10 +56,25 @@ export function formatCurrency(cents: number, showDecimals: boolean = true): str
  * @returns Formatted date string
  */
 export function formatDateShort(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-ZA', {
-    month: 'short',
-    day: 'numeric',
-  });
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Invalid date';
+    
+    try {
+      const result = date.toLocaleDateString('en-ZA', { month: 'short', day: 'numeric' });
+      if (result && result.trim().length > 0) return result;
+    } catch {}
+    
+    try {
+      const result = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      if (result && result.trim().length > 0) return result;
+    } catch {}
+    
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) ||
+           `${date.getDate()} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][date.getMonth()]}`;
+  } catch {
+    return 'Invalid date';
+  }
 }
 
 /**
@@ -37,11 +83,36 @@ export function formatDateShort(dateString: string): string {
  * @returns Formatted date string
  */
 export function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-ZA', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Invalid date';
+    
+    try {
+      const result = date.toLocaleDateString('en-ZA', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+      if (result && result.trim().length > 0) return result;
+    } catch {}
+    
+    try {
+      const result = date.toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+      if (result && result.trim().length > 0) return result;
+    } catch {}
+    
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    }) || `${date.getDate()} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][date.getMonth()]}, ${date.getFullYear()}`;
+  } catch {
+    return 'Invalid date';
+  }
 }
 
 /**
@@ -50,13 +121,42 @@ export function formatDate(dateString: string): string {
  * @returns Formatted date and time string
  */
 export function formatDateTime(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-ZA', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Invalid date';
+    
+    try {
+      const result = date.toLocaleString('en-ZA', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      if (result && result.trim().length > 0) return result;
+    } catch {}
+    
+    try {
+      const result = date.toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      if (result && result.trim().length > 0) return result;
+    } catch {}
+    
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }) || `${date.getDate()} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][date.getMonth()]}, ${date.getFullYear()}, ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+  } catch {
+    return 'Invalid date';
+  }
 }
 
 /**

@@ -3,11 +3,13 @@
 import { useState, useEffect } from 'react';
 import { CleanerMobileBottomNav } from '@/components/cleaner/cleaner-mobile-bottom-nav';
 import { PWAInstallPrompt } from '@/components/pwa/pwa-install-prompt';
+import { OfflineIndicator } from '@/components/cleaner/offline-indicator';
 import { Card, CardContent } from '@/components/ui/card';
 import { Clock, MapPin, User, Phone, Home, Navigation, PlayCircle, CheckCircle, Loader2, X } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { createClient as createSupabaseBrowserClient } from '@/lib/supabase-browser';
+import { isOnline } from '@/lib/fetch-utils';
 import {
   Dialog,
   DialogContent,
@@ -71,6 +73,7 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
   const [reschedTime, setReschedTime] = useState('');
   const [reschedNotes, setReschedNotes] = useState('');
   const [reschedBookingId, setReschedBookingId] = useState<string | null>(null);
+  const [isOnlineStatus, setIsOnlineStatus] = useState(true);
 
   const formatTime = (time: string) => {
     if (!time) return '';
@@ -90,8 +93,13 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
     return `R${(cents / 100).toFixed(2)}`;
   };
 
-  // Basic retry helper for fetch calls
+  // Basic retry helper for fetch calls with browser compatibility
   const requestWithRetry = async (url: string, init: RequestInit, retries = 2): Promise<Response> => {
+    // Check if fetch is available
+    if (typeof fetch === 'undefined') {
+      throw new Error('Fetch API is not supported in this browser');
+    }
+
     let lastError: any = null;
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
@@ -101,21 +109,58 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
           throw new Error(`${res.status} ${res.statusText} ${text}`.trim());
         }
         return res;
-      } catch (err) {
+      } catch (err: any) {
         lastError = err;
-        // brief backoff
-        await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+        
+        // Don't retry on certain errors (4xx client errors, except 408, 429)
+        if (err?.message?.includes('40') && !err?.message?.includes('408') && !err?.message?.includes('429')) {
+          throw err;
+        }
+        
+        // Don't retry on network errors in last attempt
+        if (attempt < retries) {
+          // brief backoff with exponential delay
+          await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+        }
       }
     }
-    throw lastError || new Error('Request failed');
+    throw lastError || new Error('Request failed after retries');
   };
 
   const formatShortDateTime = (iso?: string | null) => {
     if (!iso) return null;
     try {
       const d = new Date(iso);
-      const date = d.toLocaleDateString('en-ZA', { month: 'short', day: 'numeric' });
-      const time = d.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
+      if (isNaN(d.getTime())) return null;
+      
+      // Safe locale formatting with fallback
+      let date: string;
+      let time: string;
+      
+      try {
+        date = d.toLocaleDateString('en-ZA', { month: 'short', day: 'numeric' });
+        if (!date || date.trim().length === 0) {
+          date = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) || 
+                 d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+      } catch {
+        date = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) || 
+               d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) ||
+               `${d.getDate()} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()]}`;
+      }
+      
+      try {
+        time = d.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
+        if (!time || time.trim().length === 0) {
+          time = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) || 
+                 d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        }
+      } catch {
+        time = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) || 
+               d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) ||
+               `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+      }
+      
       return `${date} ${time}`;
     } catch {
       return null;
@@ -136,16 +181,52 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
 
   const fetchTodayBookings = async () => {
       try {
+        // Check if fetch is available
+        if (typeof fetch === 'undefined') {
+          console.error('Fetch API is not supported in this browser');
+          setIsLoading(false);
+          setTodayBookings([]);
+          return;
+        }
+
+        // Check network status (especially important for mobile)
+        if (!isOnline()) {
+          console.warn('Device appears to be offline');
+          setIsOnlineStatus(false);
+          // Don't clear bookings, keep cached data visible
+          setIsLoading(false);
+          return;
+        }
+        setIsOnlineStatus(true);
+
         const today = new Date().toISOString().split('T')[0];
-      const response = await fetch(`/api/cleaner/bookings?startDate=${today}&endDate=${today}`);
+        const response = await fetch(`/api/cleaner/bookings?startDate=${today}&endDate=${today}`, {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          // Add timeout for mobile networks (30 seconds)
+          signal: typeof AbortController !== 'undefined' ? (() => {
+            const controller = new AbortController();
+            setTimeout(() => controller.abort(), 30000);
+            return controller.signal;
+          })() : undefined,
+        });
       
       if (!response.ok) {
         console.error('API response not OK:', response.status, response.statusText);
         setIsLoading(false);
+        // Keep existing bookings if available
+        if (todayBookings.length === 0) {
+          setTodayBookings([]);
+        }
         return;
       }
       
-      const data = await response.json();
+      const data = await response.json().catch((err) => {
+        console.error('Error parsing JSON response:', err);
+        return { ok: false, bookings: [] };
+      });
 
       if (data.ok && data.bookings) {
         // Filter to show only today's active bookings (pending, accepted, on_my_way, in-progress)
@@ -156,11 +237,24 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
         setTodayBookings(activeBookings);
       } else {
         console.warn('API returned data but not ok or no bookings:', data);
+        // Keep existing bookings if available
+        if (todayBookings.length === 0) {
+          setTodayBookings([]);
+        }
+      }
+    } catch (error: any) {
+      console.error('Error fetching today bookings:', error);
+      // Provide user-friendly error message
+      if (error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError') || error?.name === 'AbortError') {
+        console.error('Network error - check internet connection');
+        setIsOnlineStatus(false);
+        // Keep existing bookings visible on mobile network errors
+        if (todayBookings.length === 0) {
+          setTodayBookings([]);
+        }
+      } else {
         setTodayBookings([]);
       }
-    } catch (error) {
-      console.error('Error fetching today bookings:', error);
-      setTodayBookings([]);
     } finally {
       setIsLoading(false);
     }
@@ -171,9 +265,30 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
     fetchTodayBookings();
     // Refresh every 5 minutes
     const interval = setInterval(fetchTodayBookings, 5 * 60 * 1000);
-    // Refetch on tab focus
-    const onFocus = () => fetchTodayBookings();
-    document.addEventListener('visibilitychange', onFocus);
+        // Refetch on tab focus (with feature detection)
+    const onFocus = () => {
+      // Only refetch if online (important for mobile)
+      if (isOnline()) {
+        fetchTodayBookings();
+      }
+    };
+    if (typeof document !== 'undefined' && 'addEventListener' in document) {
+      document.addEventListener('visibilitychange', onFocus);
+    }
+
+    // Listen for online/offline events (especially important for mobile)
+    const handleOnline = () => {
+      setIsOnlineStatus(true);
+      fetchTodayBookings();
+    };
+    const handleOffline = () => {
+      setIsOnlineStatus(false);
+    };
+    
+    if (typeof window !== 'undefined' && 'addEventListener' in window) {
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+    }
 
     // Realtime subscription to bookings changes
     let channel: any;
@@ -201,7 +316,13 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
 
     return () => {
       clearInterval(interval);
-      document.removeEventListener('visibilitychange', onFocus);
+      if (typeof document !== 'undefined' && 'removeEventListener' in document) {
+        document.removeEventListener('visibilitychange', onFocus);
+      }
+      if (typeof window !== 'undefined' && 'removeEventListener' in window) {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      }
       try {
         if (channel) {
           const supabase = createSupabaseBrowserClient();
@@ -215,6 +336,13 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
   const handleAccept = async (bookingId: string) => {
     setActingBookingId(bookingId);
     try {
+      // Check online status before making request (important for mobile)
+      if (!isOnline()) {
+        alert('You are currently offline. Please check your connection and try again.');
+        setActingBookingId(null);
+        return;
+      }
+
       const response = await requestWithRetry(`/api/cleaner/bookings/${bookingId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -370,6 +498,9 @@ export function CleanerDashboardClient({ cleaner }: CleanerDashboardClientProps)
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Offline Indicator */}
+      <OfflineIndicator />
+      
       {/* Blue Header */}
       <header className="bg-[#3b82f6] text-white py-4 px-4">
         <div className="flex items-center justify-between max-w-md mx-auto">

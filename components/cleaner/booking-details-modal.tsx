@@ -414,13 +414,41 @@ export function BookingDetailsModal({
     }
   };
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-ZA', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return 'Invalid date';
+      
+      // Safe locale formatting with fallback
+      try {
+        const result = date.toLocaleDateString('en-ZA', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        });
+        if (result && result.trim().length > 0) return result;
+      } catch {}
+      
+      try {
+        const result = date.toLocaleDateString(undefined, {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        });
+        if (result && result.trim().length > 0) return result;
+      } catch {}
+      
+      // Final fallback
+      return date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }) || `${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][date.getDay()]}, ${['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+    } catch {
+      return 'Invalid date';
+    }
   };
 
   const formatTime = (timeStr: string) => {
@@ -429,13 +457,41 @@ export function BookingDetailsModal({
 
   const formatDateTime = (dateTimeStr: string | null) => {
     if (!dateTimeStr) return 'N/A';
-    const date = new Date(dateTimeStr);
-    return date.toLocaleString('en-ZA', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    try {
+      const date = new Date(dateTimeStr);
+      if (isNaN(date.getTime())) return 'Invalid date';
+      
+      // Safe locale formatting with fallback
+      try {
+        const result = date.toLocaleString('en-ZA', {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+        if (result && result.trim().length > 0) return result;
+      } catch {}
+      
+      try {
+        const result = date.toLocaleString(undefined, {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+        if (result && result.trim().length > 0) return result;
+      } catch {}
+      
+      // Final fallback
+      return date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }) || `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][date.getMonth()]} ${date.getDate()}, ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+    } catch {
+      return 'Invalid date';
+    }
   };
 
   const formatAmount = (earnings: number | null) => {
@@ -453,7 +509,16 @@ export function BookingDetailsModal({
   const openMaps = () => {
     const address = getFullAddress();
     const encodedAddress = encodeURIComponent(address);
-    window.open(`https://www.google.com/maps/search/?api=1&query=${encodedAddress}`, '_blank');
+    
+    // Check if window.open is available
+    if (typeof window !== 'undefined' && window.open) {
+      window.open(`https://www.google.com/maps/search/?api=1&query=${encodedAddress}`, '_blank');
+    } else {
+      // Fallback: try to navigate directly
+      if (typeof window !== 'undefined' && window.location) {
+        window.location.href = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+      }
+    }
   };
 
   const getStatusBadge = () => {

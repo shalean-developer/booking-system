@@ -11,22 +11,38 @@ export async function fetcher<T>(url: string): Promise<T> {
   console.log('[SWR Fetcher] Fetching:', url);
   
   try {
-    // Add timeout to prevent hanging requests
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      controller.abort();
-      console.error('[SWR Fetcher] Request timeout after 30s:', url);
-    }, 30000); // 30 second timeout
+    // Add timeout to prevent hanging requests (with feature detection)
+    let controller: AbortController | null = null;
+    let timeoutId: NodeJS.Timeout | null = null;
+    
+    // Check if AbortController is supported
+    if (typeof AbortController !== 'undefined') {
+      controller = new AbortController();
+      timeoutId = setTimeout(() => {
+        if (controller) {
+          controller.abort();
+          console.error('[SWR Fetcher] Request timeout after 30s:', url);
+        }
+      }, 30000); // 30 second timeout
+    }
 
-    const response = await fetch(url, {
+    const fetchOptions: RequestInit = {
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
-      signal: controller.signal,
-    });
+    };
+    
+    // Only add signal if AbortController is supported
+    if (controller) {
+      fetchOptions.signal = controller.signal;
+    }
 
-    clearTimeout(timeoutId);
+    const response = await fetch(url, fetchOptions);
+
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
     const duration = Date.now() - startTime;
     
     const contentType = response.headers.get('content-type');
