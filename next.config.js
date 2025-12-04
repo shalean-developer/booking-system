@@ -78,6 +78,37 @@ const nextConfig = {
         destination: '/blog',
         permanent: true,
       },
+      {
+        source: '/blog/selecting-best-cleaning-service',
+        destination: '/blog',
+        permanent: true,
+      },
+      {
+        source: '/blog/complete-airbnb-turnover-cleaning-checklist',
+        destination: '/blog/airbnb-cleaning-checklist',
+        permanent: true,
+      },
+      // Old service URLs
+      {
+        source: '/services/move-in-cleaning',
+        destination: '/services/move-turnover',
+        permanent: true,
+      },
+      {
+        source: '/services/construction-dust-removal',
+        destination: '/services/post-construction-cleaning',
+        permanent: true,
+      },
+      {
+        source: '/services/after-party-cleaning',
+        destination: '/services/one-time-cleaning',
+        permanent: true,
+      },
+      {
+        source: '/services/deep-specialty',
+        destination: '/services/deep-cleaning',
+        permanent: true,
+      },
       // Old booking URLs
       {
         source: '/booking',

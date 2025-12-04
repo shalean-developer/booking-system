@@ -193,7 +193,7 @@ const blogPosts = [
   },
   {
     title: "Complete Airbnb Turnover Cleaning Checklist",
-    href: "/blog/complete-airbnb-turnover-cleaning-checklist",
+    href: "/blog/airbnb-cleaning-checklist",
     image: "/images/move-turnover.jpg",
     excerpt: "Master the art of Airbnb turnover cleaning with our comprehensive checklist for 5-star reviews.",
   },

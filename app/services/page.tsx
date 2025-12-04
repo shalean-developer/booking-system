@@ -334,14 +334,14 @@ export default function ServicesPage() {
               <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow h-full">
                 <CardContent className="p-6">
                   <h3 className="text-xl font-bold text-gray-900 mb-3">
-                    <Link href="/blog/complete-airbnb-turnover-cleaning-checklist" className="hover:text-primary transition-colors">
+                    <Link href="/blog/airbnb-cleaning-checklist" className="hover:text-primary transition-colors">
                       Complete Airbnb Cleaning Checklist
                     </Link>
                   </h3>
                   <p className="text-gray-600 mb-4">
                     Master the art of Airbnb turnover cleaning with our comprehensive checklist for 5-star reviews.
                   </p>
-                  <Link href="/blog/complete-airbnb-turnover-cleaning-checklist">
+                  <Link href="/blog/airbnb-cleaning-checklist">
                     <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
                       Read Checklist <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
                     </Button>

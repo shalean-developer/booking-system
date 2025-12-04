@@ -105,7 +105,7 @@ export function HomeFooter() {
                     </Link>
                   </li>
                   <li>
-                    <Link href="/services/deep-specialty" className="text-sm text-gray-400 hover:text-white transition-colors">
+                    <Link href="/services/deep-cleaning" className="text-sm text-gray-400 hover:text-white transition-colors">
                       Deep Cleaning
                     </Link>
                   </li>

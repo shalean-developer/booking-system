@@ -18,11 +18,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.75,
     }))
   
-  // Service pages
+  // Service pages (removed deep-specialty as it's a duplicate of deep-cleaning)
   const servicePages = [
     'regular-cleaning', 'airbnb-cleaning', 'office-cleaning', 
     'apartment-cleaning', 'window-cleaning', 'home-maintenance', 
-    'deep-specialty', 'deep-cleaning', 'move-turnover',
+    'deep-cleaning', 'move-turnover',
     'carpet-cleaning', 'house-cleaning', 'one-time-cleaning',
     'post-construction-cleaning'
   ];

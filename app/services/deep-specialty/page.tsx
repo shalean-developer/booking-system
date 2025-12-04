@@ -4,11 +4,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building, ArrowLeft, CheckCircle } from "lucide-react";
 import type { Metadata } from "next";
-import { createMetadata } from "@/lib/metadata";
-import { getSeoConfig } from "@/lib/seo-config";
+import { createMetadata, generateCanonical } from "@/lib/metadata";
 
-// Deep specialty page metadata
-export const metadata: Metadata = createMetadata(getSeoConfig("deep-specialty"));
+// Deep specialty page metadata - canonical points to deep-cleaning as they're duplicates
+export const metadata: Metadata = createMetadata({
+  title: "Deep Cleaning Services in Cape Town | Shalean",
+  description: "Book professional deep cleaning in Cape Town. Thorough cleaning of kitchens, bathrooms, carpets, and upholstery. Satisfaction guaranteed.",
+  canonical: generateCanonical("/services/deep-cleaning"), // Canonical to deep-cleaning
+});
 
 export default function DeepSpecialtyPage() {
   return (
