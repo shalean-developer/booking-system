@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { CheckCircle2, Home, Mail, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -25,7 +25,7 @@ export default function QuoteConfirmationPage() {
             <div className="mx-auto mb-3 sm:mb-4 flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-green-100">
               <CheckCircle2 className="h-8 w-8 sm:h-10 sm:w-10 text-green-600" />
             </div>
-            <CardTitle className="text-xl sm:text-2xl lg:text-3xl px-2">Quote Request Confirmed!</CardTitle>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold px-2">Quote Request Confirmed!</h1>
           </CardHeader>
           <CardContent className="space-y-4 sm:space-y-6 text-center px-4 sm:px-6 pb-6 sm:pb-8">
             <p className="text-sm sm:text-base text-slate-600">

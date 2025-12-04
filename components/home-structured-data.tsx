@@ -72,8 +72,16 @@ export function HomeStructuredData() {
     "name": "Shalean Cleaning Services",
     "description": "Leading cleaning companies in Cape Town offering expert house cleaning services, deep cleaning services, and home cleaning services. Professional cleaning services near you for standard cleaning, deep cleaning, move-in/out, and Airbnb turnover.",
     "url": "https://shalean.co.za",
-    "logo": "https://shalean.co.za/icon-512.png",
-    "image": "https://shalean.co.za/images/cleaning-team-hero.jpg",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://shalean.co.za/icon-512.png"
+    },
+    "image": {
+      "@type": "ImageObject",
+      "url": "https://shalean.co.za/assets/og/home-1200x630.jpg",
+      "width": 1200,
+      "height": 630
+    },
     "priceRange": "$$",
     "telephone": "+27 87 153 5250",
     "address": {
@@ -111,31 +119,27 @@ export function HomeStructuredData() {
       },
       {
         "@type": "City",
-        "name": "Sea Point"
+        "name": "Johannesburg",
+        "containedInPlace": {
+          "@type": "State",
+          "name": "Gauteng"
+        }
       },
       {
         "@type": "City",
-        "name": "Camps Bay"
+        "name": "Pretoria",
+        "containedInPlace": {
+          "@type": "State",
+          "name": "Gauteng"
+        }
       },
       {
         "@type": "City",
-        "name": "Claremont"
-      },
-      {
-        "@type": "City",
-        "name": "Green Point"
-      },
-      {
-        "@type": "City",
-        "name": "City Bowl"
-      },
-      {
-        "@type": "City",
-        "name": "Gardens"
-      },
-      {
-        "@type": "City",
-        "name": "Waterfront"
+        "name": "Durban",
+        "containedInPlace": {
+          "@type": "State",
+          "name": "KwaZulu-Natal"
+        }
       }
     ],
     "aggregateRating": {

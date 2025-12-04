@@ -2,6 +2,7 @@
 
 import { Header } from '@/components/header';
 
+// Metadata is handled in parent layout or page-level metadata
 export default function BookingV2Layout({
   children,
 }: {

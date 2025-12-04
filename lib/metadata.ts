@@ -9,7 +9,7 @@ export const OG_IMAGE_HEIGHT = 630;
 
 // Validation limits
 export const TITLE_MAX_LENGTH = 70; // SEO best practice: 15-70 characters
-export const DESCRIPTION_MAX_LENGTH = 170; // SEO best practice: 120-170 characters
+export const DESCRIPTION_MAX_LENGTH = 155; // SEO best practice: 120-155 characters (Google displays ~155)
 
 // Default site metadata
 export const DEFAULT_SITE_METADATA = {
@@ -349,23 +349,23 @@ export function createLocationMetadata(
 
   const optimizedDescription = `Book vetted cleaners for ${propertySummary} in ${suburb}, ${city}. We provide ${serviceSummary} with flexible scheduling, eco-friendly products, and a 100% satisfaction guarantee across ${area}.`;
   
-  // Use the provided description if it's valid length (120-170 chars), otherwise use optimized
+  // Use the provided description if it's valid length (120-155 chars), otherwise use optimized
   let finalDescription = description;
-  if (description.length < 120 || description.length > 170) {
+  if (description.length < 120 || description.length > DESCRIPTION_MAX_LENGTH) {
     // If custom description is not optimal length, use the generated one
     finalDescription = optimizedDescription;
   }
   
-  // Ensure description is within optimal range (120-170 chars)
-  if (finalDescription.length > 170) {
-    finalDescription = truncateText(finalDescription, 170);
+  // Ensure description is within optimal range (120-155 chars)
+  if (finalDescription.length > DESCRIPTION_MAX_LENGTH) {
+    finalDescription = truncateText(finalDescription, DESCRIPTION_MAX_LENGTH);
   } else if (finalDescription.length < 120) {
     // If still too short, expand it
     finalDescription = `Professional cleaning for ${propertySummary || "homes and offices"} in ${suburb}, ${city}. Expert cleaners handle ${serviceSummary || "regular, deep, and move-in cleaning"}. Book same-day service throughout ${area} with competitive pricing and satisfaction guarantee.`;
     
     // Trim if over limit
-    if (finalDescription.length > 170) {
-      finalDescription = truncateText(finalDescription, 170);
+    if (finalDescription.length > DESCRIPTION_MAX_LENGTH) {
+      finalDescription = truncateText(finalDescription, DESCRIPTION_MAX_LENGTH);
     }
   }
 

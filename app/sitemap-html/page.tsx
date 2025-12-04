@@ -75,15 +75,18 @@ export default function SitemapPage() {
     { name: "Blog", href: "/blog" },
     { name: "Testimonials", href: "/testimonials" },
     { name: "FAQ", href: "/faq" },
+    { name: "Pricing", href: "/pricing" },
     { name: "Privacy Policy", href: "/privacy" },
-    { name: "Terms of Service", href: "/terms" }
+    { name: "Terms of Service", href: "/terms" },
+    { name: "Cancellation Policy", href: "/cancellation" },
+    { name: "POPIA", href: "/popia" },
+    { name: "Cookies", href: "/cookies" }
   ];
 
   const bookingPages = [
     { name: "Book Now", href: "/booking/service/select" },
     { name: "Get Quote", href: "/booking/quote" },
-    { name: "Booking Calculator", href: "/booking/calculator" },
-    { name: "Cancellation Policy", href: "/cancellation" }
+    { name: "Booking Calculator", href: "/booking/calculator" }
   ];
 
   return (

@@ -124,6 +124,16 @@ export function HomeFooter() {
                       Book Now →
                     </Link>
                   </li>
+                  <li>
+                    <Link href="/booking/quote" className="text-sm text-gray-400 hover:text-white transition-colors">
+                      Get Quote
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/pricing" className="text-sm text-gray-400 hover:text-white transition-colors">
+                      Pricing
+                    </Link>
+                  </li>
                 </ul>
               </div>
 

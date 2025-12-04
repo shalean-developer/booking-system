@@ -106,7 +106,7 @@ export function BlogPostSchema({ post }: BlogPostSchemaProps) {
       "name": "Shalean Cleaning Services",
       "logo": {
         "@type": "ImageObject",
-        "url": "https://shalean.co.za/logo.png"
+        "url": "https://shalean.co.za/icon-512.png"
       }
     },
     "mainEntityOfPage": {
@@ -165,7 +165,8 @@ export function BlogPostSchema({ post }: BlogPostSchemaProps) {
 
   // Use validator to clean and validate schema
   const validatedSchema = stringifyStructuredData(schema, "BlogPosting");
-  const validatedHowToSchema = howToSchema ? stringifyStructuredData(howToSchema, "FAQPage") : null;
+  // HowTo schema doesn't need type-specific validation, just clean it
+  const validatedHowToSchema = howToSchema ? stringifyStructuredData(howToSchema) : null;
 
   return (
     <>

@@ -152,10 +152,12 @@ export function validateBlogPostingSchema(schema: any): { isValid: boolean; erro
       if (!schema.image.startsWith("http")) {
         errors.push("Image URL must be absolute (start with http:// or https://)");
       }
-    } else if (typeof schema.image === "object") {
+    } else if (typeof schema.image === "object" && schema.image !== null) {
       // ImageObject must have url
       if (!schema.image.url || typeof schema.image.url !== "string") {
         errors.push("ImageObject must have 'url' field");
+      } else if (!schema.image.url.startsWith("http")) {
+        errors.push("ImageObject URL must be absolute (start with http:// or https://)");
       }
     }
   }
