@@ -15,7 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Users, Eye, Mail, Phone, MoreVertical, Calendar, Repeat } from 'lucide-react';
+import { Users, Eye, Mail, Phone, MoreVertical, Calendar, Repeat, Edit } from 'lucide-react';
 import Link from 'next/link';
 import {
   Dialog,
@@ -23,7 +23,10 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 
 interface Customer {
@@ -51,6 +54,20 @@ export default function AdminCustomersPage() {
   const [total, setTotal] = useState(0);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    address_line1: '',
+    address_suburb: '',
+    address_city: '',
+  });
   const pageSize = 20;
 
   useEffect(() => {
@@ -64,6 +81,7 @@ export default function AdminCustomersPage() {
   const fetchCustomers = async () => {
     try {
       setIsLoading(true);
+      setFetchError(null);
       const offset = (currentPage - 1) * pageSize;
       const params = new URLSearchParams({
         limit: pageSize.toString(),
@@ -74,6 +92,11 @@ export default function AdminCustomersPage() {
         params.append('search', debouncedSearch);
       }
 
+      // Add recurring filter to API request
+      if (recurringFilter && recurringFilter !== 'all') {
+        params.append('recurring', recurringFilter);
+      }
+
       const url = `/api/admin/customers?${params.toString()}`;
       const response = await fetch(url, {
         credentials: 'include',
@@ -81,20 +104,19 @@ export default function AdminCustomersPage() {
           'Content-Type': 'application/json',
         },
       });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Request failed (${response.status}): ${text || 'Unknown error'}`);
+      }
+
       const data = await response.json();
 
       if (data.ok) {
-        let filteredCustomers = data.customers || [];
+        let customers = data.customers || [];
         
-        // Apply recurring filter
-        if (recurringFilter === 'recurring') {
-          filteredCustomers = filteredCustomers.filter((c: Customer) => c.has_recurring);
-        } else if (recurringFilter === 'non-recurring') {
-          filteredCustomers = filteredCustomers.filter((c: Customer) => !c.has_recurring);
-        }
-        
-        // Sort: recurring customers first, then by name
-        filteredCustomers.sort((a: Customer, b: Customer) => {
+        // Sort: recurring customers first, then by name (for display purposes)
+        customers.sort((a: Customer, b: Customer) => {
           if (a.has_recurring && !b.has_recurring) return -1;
           if (!a.has_recurring && b.has_recurring) return 1;
           const nameA = getCustomerName(a).toLowerCase();
@@ -102,12 +124,17 @@ export default function AdminCustomersPage() {
           return nameA.localeCompare(nameB);
         });
         
-        setCustomers(filteredCustomers);
-        setTotal(filteredCustomers.length);
-        setTotalPages(Math.ceil(filteredCustomers.length / pageSize));
+        setCustomers(customers);
+        // Use the total from API, not the filtered length
+        setTotal(data.total || 0);
+        setTotalPages(data.totalPages || 1);
+      } else {
+        throw new Error(data.error || 'Failed to fetch customers');
       }
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch customers';
       console.error('Error fetching customers:', error);
+      setFetchError(message);
     } finally {
       setIsLoading(false);
     }
@@ -153,6 +180,74 @@ export default function AdminCustomersPage() {
     a.href = url;
     a.download = `customers-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
+  };
+
+  const handleEditClick = (customer: Customer) => {
+    setEditingCustomer(customer);
+    setEditFormData({
+      first_name: customer.first_name || '',
+      last_name: customer.last_name || '',
+      email: customer.email || '',
+      phone: customer.phone || '',
+      address_line1: (customer as any).address_line1 || '',
+      address_suburb: (customer as any).address_suburb || '',
+      address_city: (customer as any).address_city || '',
+    });
+    setEditError(null);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingCustomer) return;
+
+    setIsSaving(true);
+    setEditError(null);
+
+    try {
+      // Validate required fields
+      if (!editFormData.first_name.trim()) {
+        setEditError('First name is required');
+        setIsSaving(false);
+        return;
+      }
+
+      if (!editFormData.last_name.trim()) {
+        setEditError('Last name is required');
+        setIsSaving(false);
+        return;
+      }
+
+      if (!editFormData.email.trim() || !editFormData.email.includes('@')) {
+        setEditError('Valid email is required');
+        setIsSaving(false);
+        return;
+      }
+
+      const response = await fetch(`/api/admin/customers/${editingCustomer.id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editFormData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || 'Failed to update customer');
+      }
+
+      // Close dialog and refresh list
+      setIsEditDialogOpen(false);
+      setEditingCustomer(null);
+      fetchCustomers();
+    } catch (error: any) {
+      console.error('Error updating customer:', error);
+      setEditError(error.message || 'Failed to update customer. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const columns: Column<Customer>[] = [
@@ -229,6 +324,12 @@ export default function AdminCustomersPage() {
               <Eye className="mr-2 h-4 w-4" />
               View Details
             </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => handleEditClick(row)}
+            >
+              <Edit className="mr-2 h-4 w-4" />
+              Edit Customer
+            </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link href={`/admin/bookings?customer=${row.id}`}>
                 <Calendar className="mr-2 h-4 w-4" />
@@ -303,6 +404,12 @@ export default function AdminCustomersPage() {
         />
       )}
 
+      {fetchError && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-800">
+          {fetchError}
+        </div>
+      )}
+
       <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -371,6 +478,129 @@ export default function AdminCustomersPage() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Customer Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Customer</DialogTitle>
+            <DialogDescription>
+              Update customer information. All required fields must be filled.
+            </DialogDescription>
+          </DialogHeader>
+
+          {editError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-800">
+              {editError}
+            </div>
+          )}
+
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-first_name">
+                  First Name <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="edit-first_name"
+                  value={editFormData.first_name}
+                  onChange={(e) => setEditFormData({ ...editFormData, first_name: e.target.value })}
+                  placeholder="John"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-last_name">
+                  Last Name <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="edit-last_name"
+                  value={editFormData.last_name}
+                  onChange={(e) => setEditFormData({ ...editFormData, last_name: e.target.value })}
+                  placeholder="Doe"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-email">
+                  Email <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={editFormData.email}
+                  onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                  placeholder="customer@example.com"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-phone">Phone</Label>
+                <Input
+                  id="edit-phone"
+                  value={editFormData.phone}
+                  onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                  placeholder="+27123456789"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-address_line1">Address Line 1</Label>
+              <Input
+                id="edit-address_line1"
+                value={editFormData.address_line1}
+                onChange={(e) => setEditFormData({ ...editFormData, address_line1: e.target.value })}
+                placeholder="123 Main Street"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-address_suburb">Suburb</Label>
+                <Input
+                  id="edit-address_suburb"
+                  value={editFormData.address_suburb}
+                  onChange={(e) => setEditFormData({ ...editFormData, address_suburb: e.target.value })}
+                  placeholder="Sea Point"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-address_city">City</Label>
+                <Input
+                  id="edit-address_city"
+                  value={editFormData.address_city}
+                  onChange={(e) => setEditFormData({ ...editFormData, address_city: e.target.value })}
+                  placeholder="Cape Town"
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsEditDialogOpen(false);
+                setEditingCustomer(null);
+                setEditError(null);
+              }}
+              disabled={isSaving}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={isSaving}>
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

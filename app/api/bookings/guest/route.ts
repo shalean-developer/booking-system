@@ -235,6 +235,7 @@ export async function POST(req: Request) {
           selected_team: body.selected_team || undefined,
           requires_team: body.requires_team || false,
           bookingId,
+          totalAmount: body.totalAmount, // Pass actual total amount paid (in rands)
         });
         
         const adminEmailData = generateAdminBookingNotificationEmail({
@@ -257,6 +258,7 @@ export async function POST(req: Request) {
           selected_team: body.selected_team || undefined,
           requires_team: body.requires_team || false,
           bookingId,
+          totalAmount: body.totalAmount, // Pass actual total amount paid (in rands)
         });
 
         await Promise.all([

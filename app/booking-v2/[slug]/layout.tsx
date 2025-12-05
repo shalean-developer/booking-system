@@ -1,19 +1,4 @@
-import type { Metadata } from 'next';
-import { generateCanonical } from '@/lib/metadata';
-
-export const metadata: Metadata = {
-  alternates: {
-    canonical: generateCanonical('/booking/service/select'),
-  },
-  robots: {
-    index: false,
-    follow: false,
-    googleBot: {
-      index: false,
-      follow: false,
-    },
-  },
-};
+'use client';
 
 export default function BookingV2SlugLayout({
   children,

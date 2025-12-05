@@ -28,6 +28,15 @@ export function StepReview() {
   const [showCustomTip, setShowCustomTip] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentReference, setPaymentReference] = useState<string | null>(null);
+  const [discountCode, setDiscountCode] = useState('');
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [discountError, setDiscountError] = useState<string | null>(null);
+  const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
+  const [appliedDiscount, setAppliedDiscount] = useState<{
+    code: string;
+    amount: number;
+    description?: string;
+  } | null>(null);
 
   const editButtonClass = 'h-auto px-3 py-1 text-sm font-semibold text-primary hover:text-primary/80 hover:bg-primary/5';
 
@@ -106,8 +115,9 @@ export function StepReview() {
   }, [extrasDisplay]);
 
   const tipAmount = state.tipAmount || 0;
+  const discount = discountAmount || 0;
 
-  const total = pricingDetails.total + tipAmount;
+  const total = pricingDetails.total + tipAmount - discount;
 
   // Paystack payment configuration
   const paystackPublicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '';
@@ -241,10 +251,12 @@ export function StepReview() {
       const bookingPayload = {
         ...state,
         paymentReference: reference,
-        totalAmount: total, // Includes tip
+        totalAmount: total, // Includes tip, excludes discount
         serviceFee: pricingDetails.serviceFee,
         frequencyDiscount: pricingDetails.frequencyDiscount,
         tipAmount: tipAmount,
+        discountCode: appliedDiscount?.code || null,
+        discountAmount: discount || 0,
       };
 
       const bookingResponse = await fetch('/api/bookings', {
@@ -278,7 +290,122 @@ export function StepReview() {
       setPaymentError('An error occurred while processing your booking. Please contact support if you were charged.');
       setIsProcessingPayment(false);
     }
-  }, [state, pricingDetails, total, tipAmount, getConfirmationPath]);
+  }, [state, pricingDetails, total, tipAmount, discount, appliedDiscount, getConfirmationPath]);
+
+  // Handle discount code validation
+  const handleApplyDiscount = useCallback(async () => {
+    if (!discountCode.trim()) return;
+
+    setIsValidatingDiscount(true);
+    setDiscountError(null);
+
+    try {
+      let response: Response;
+      try {
+        response = await fetch('/api/discount-codes/validate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: discountCode.trim(),
+            service_type: state.service,
+            subtotal: pricingDetails.total,
+          }),
+        });
+      } catch (fetchError: any) {
+        // Network error (connection failed, CORS, etc.)
+        console.error('Network error validating discount code:', fetchError);
+        setDiscountError('Network error. Please check your connection and try again.');
+        setDiscountAmount(0);
+        setAppliedDiscount(null);
+        setIsValidatingDiscount(false);
+        return;
+      }
+
+      // Check content type first to avoid JSON parsing errors
+      const contentType = response.headers.get('content-type');
+      const isJson = contentType && contentType.includes('application/json');
+
+      // Check if response is OK
+      if (!response.ok) {
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          if (isJson) {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } else {
+            const text = await response.text();
+            if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+              errorMessage = 'API endpoint not found. Please restart the dev server or contact support.';
+            } else {
+              errorMessage = text || errorMessage;
+            }
+          }
+        } catch (parseError) {
+          errorMessage = response.statusText || errorMessage;
+        }
+        setDiscountError(errorMessage);
+        setDiscountAmount(0);
+        setAppliedDiscount(null);
+        setIsValidatingDiscount(false);
+        return;
+      }
+
+      // Verify it's JSON before parsing
+      if (!isJson) {
+        const text = await response.text();
+        if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+          setDiscountError('API endpoint not found. Please restart the dev server.');
+        } else {
+          setDiscountError('Invalid response from server. Please try again.');
+        }
+        setDiscountAmount(0);
+        setAppliedDiscount(null);
+        setIsValidatingDiscount(false);
+        return;
+      }
+
+      // Parse JSON response
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        console.error('JSON parsing error:', jsonError);
+        setDiscountError('Invalid response from server. Please try again.');
+        setDiscountAmount(0);
+        setAppliedDiscount(null);
+        setIsValidatingDiscount(false);
+        return;
+      }
+
+      if (data.ok && data.discount) {
+        setDiscountAmount(data.discount.discount_amount);
+        setAppliedDiscount({
+          code: data.discount.code,
+          amount: data.discount.discount_amount,
+          description: data.discount.description,
+        });
+        setDiscountError(null);
+      } else {
+        setDiscountError(data.error || 'Invalid discount code');
+        setDiscountAmount(0);
+        setAppliedDiscount(null);
+      }
+    } catch (error: any) {
+      console.error('Error validating discount code:', error);
+      setDiscountError(error.message || 'Failed to validate discount code. Please try again.');
+      setDiscountAmount(0);
+      setAppliedDiscount(null);
+    } finally {
+      setIsValidatingDiscount(false);
+    }
+  }, [discountCode, state.service, pricingDetails.total]);
+
+  const handleRemoveDiscount = useCallback(() => {
+    setDiscountCode('');
+    setDiscountAmount(0);
+    setAppliedDiscount(null);
+    setDiscountError(null);
+  }, []);
 
   // Handle payment close (user closed popup)
   const handlePaymentClose = useCallback(() => {
@@ -758,6 +885,14 @@ export function StepReview() {
                 <span>-R{displayAmount(pricingDetails.frequencyDiscount)}</span>
               </div>
             )}
+            {discount > 0 && (
+              <div className="flex items-center justify-between text-green-600 font-semibold">
+                <span>
+                  Discount {appliedDiscount?.code && `(${appliedDiscount.code})`}
+                </span>
+                <span>-R{displayAmount(discount)}</span>
+              </div>
+            )}
             {tipAmount > 0 && (
               <div className="flex items-center justify-between text-purple-600 font-semibold">
                 <span>Tip for cleaner</span>
@@ -765,7 +900,65 @@ export function StepReview() {
               </div>
             )}
           </div>
-          <div className="flex items-center justify-between text-base font-bold text-slate-900">
+
+          {/* Discount Code Input */}
+          <div className="mt-4 pt-4 border-t border-primary/20">
+            <div className="space-y-2">
+              <Label htmlFor="discount-code" className="text-sm font-medium text-slate-700">
+                Have a discount code?
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  id="discount-code"
+                  type="text"
+                  placeholder="Enter discount code"
+                  value={discountCode}
+                  onChange={(e) => {
+                    setDiscountCode(e.target.value.toUpperCase());
+                    setDiscountError(null);
+                    if (appliedDiscount) {
+                      setAppliedDiscount(null);
+                      setDiscountAmount(0);
+                    }
+                  }}
+                  className="flex-1"
+                  disabled={isValidatingDiscount || isProcessingPayment}
+                />
+                <Button
+                  onClick={handleApplyDiscount}
+                  disabled={!discountCode || isValidatingDiscount || isProcessingPayment || !!appliedDiscount}
+                  variant="outline"
+                  size="sm"
+                >
+                  {isValidatingDiscount ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    'Apply'
+                  )}
+                </Button>
+                {appliedDiscount && (
+                  <Button
+                    onClick={handleRemoveDiscount}
+                    variant="ghost"
+                    size="sm"
+                    disabled={isProcessingPayment}
+                  >
+                    Remove
+                  </Button>
+                )}
+              </div>
+              {discountError && (
+                <p className="text-red-600 text-xs mt-1">{discountError}</p>
+              )}
+              {appliedDiscount && (
+                <p className="text-green-600 text-xs mt-1">
+                  ✓ Discount applied: {appliedDiscount.description || appliedDiscount.code}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between text-base font-bold text-slate-900 mt-4 pt-4 border-t border-primary/20">
             <span>Amount due today</span>
             <span>R{displayAmount(total)}</span>
           </div>

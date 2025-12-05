@@ -59,16 +59,47 @@ export default function AdminReviewsPage() {
       }
 
       const url = `/api/admin/reviews?${params.toString()}`;
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      // Check content type first
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response from reviews API:', {
+          status: response.status,
+          contentType,
+          preview: text.substring(0, 200),
+        });
+        throw new Error(`API returned ${response.status} but response was not JSON`);
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `API returned ${response.status}`);
+      }
+
       const data = await response.json();
 
       if (data.ok) {
         setReviews(data.reviews || []);
         setTotal(data.total || 0);
         setTotalPages(data.totalPages || 1);
+      } else {
+        console.error('API returned error:', data.error);
+        setReviews([]);
+        setTotal(0);
+        setTotalPages(1);
       }
     } catch (error) {
       console.error('Error fetching reviews:', error);
+      setReviews([]);
+      setTotal(0);
+      setTotalPages(1);
     } finally {
       setIsLoading(false);
     }
@@ -86,13 +117,30 @@ export default function AdminReviewsPage() {
     try {
       const response = await fetch(`/api/admin/reviews/${reviewId}/approve`, {
         method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+        },
       });
+
+      if (!response.ok) {
+        throw new Error(`API returned ${response.status}`);
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Invalid response format');
+      }
+
       const data = await response.json();
       if (data.ok) {
         fetchReviews();
+      } else {
+        alert(data.error || 'Failed to approve review');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error approving review:', error);
+      alert(`Error approving review: ${error.message}`);
     }
   };
 
@@ -100,13 +148,30 @@ export default function AdminReviewsPage() {
     try {
       const response = await fetch(`/api/admin/reviews/${reviewId}/reject`, {
         method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+        },
       });
+
+      if (!response.ok) {
+        throw new Error(`API returned ${response.status}`);
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Invalid response format');
+      }
+
       const data = await response.json();
       if (data.ok) {
         fetchReviews();
+      } else {
+        alert(data.error || 'Failed to reject review');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error rejecting review:', error);
+      alert(`Error rejecting review: ${error.message}`);
     }
   };
 

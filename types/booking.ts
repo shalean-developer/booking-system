@@ -30,6 +30,8 @@ export interface BookingState {
   totalAmount?: number; // Total amount paid (in kobo for Paystack)
   serviceFee?: number; // NEW: Service fee amount
   frequencyDiscount?: number; // NEW: Discount amount based on frequency
+  discountCode?: string; // Discount code applied
+  discountAmount?: number; // Discount amount from discount code
   tipAmount?: number; // Tip amount (goes 100% to cleaner)
 }
 

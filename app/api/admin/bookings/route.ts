@@ -84,12 +84,15 @@ export async function GET(request: NextRequest) {
 
     // Ordering - apply after filters but before pagination
     if (start && end) {
-      // Schedule view: order by booking date and time
+      // Schedule view: order by booking date and time (ascending for chronological display)
       query = query.order('booking_date', { ascending: true })
                    .order('booking_time', { ascending: true });
     } else {
-      // List view: order by creation date
-      query = query.order('created_at', { ascending: false });
+      // List view: order by booking date (descending) so upcoming bookings appear first
+      // Then by booking time, then by creation date as tiebreaker
+      query = query.order('booking_date', { ascending: false })
+                   .order('booking_time', { ascending: false })
+                   .order('created_at', { ascending: false });
     }
     
     // Pagination - apply last, after all filters

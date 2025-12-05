@@ -21,15 +21,26 @@ export async function GET(request: NextRequest) {
     const dateTo = searchParams.get('date_to');
     
     // Fetch bookings with service types, with optional date filtering
+    // Use booking_date (when service is scheduled) instead of created_at
     let query = supabase
       .from('bookings')
       .select('service_type');
     
-    // Apply date filters if provided
+    // Helper function to get local date string (YYYY-MM-DD) to avoid timezone issues
+    const getLocalDateString = (date: Date): string => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    // Apply date filters if provided - convert to date strings for booking_date
     if (dateFrom && dateTo) {
+      const dateFromStr = getLocalDateString(new Date(dateFrom));
+      const dateToStr = getLocalDateString(new Date(dateTo));
       query = query
-        .gte('created_at', dateFrom)
-        .lte('created_at', dateTo);
+        .gte('booking_date', dateFromStr)
+        .lte('booking_date', dateToStr);
     }
     
     const { data: bookings, error } = await query;

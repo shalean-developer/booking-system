@@ -50,6 +50,9 @@ export async function POST(
       const bedrooms = priceSnapshot?.bedrooms || priceSnapshot?.service?.bedroom || 0;
       const bathrooms = priceSnapshot?.bathrooms || priceSnapshot?.service?.bathroom || 0;
 
+      // Convert total_amount from cents to rands for email
+      const totalAmountRands = booking.total_amount ? booking.total_amount / 100 : undefined;
+      
       const emailData = generateBookingConfirmationEmail({
         service: booking.service_type as any,
         bedrooms,
@@ -72,6 +75,7 @@ export async function POST(
         step: 6,
         frequency: (booking.frequency as any) || 'one-time',
         bookingId: booking.id,
+        totalAmount: totalAmountRands, // Pass actual total amount from database (converted from cents to rands)
       });
 
       await sendEmail(emailData);

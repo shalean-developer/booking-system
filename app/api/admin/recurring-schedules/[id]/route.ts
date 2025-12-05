@@ -186,3 +186,81 @@ export async function PATCH(
   }
 }
 
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    if (!await isAdmin()) {
+      return NextResponse.json(
+        { ok: false, error: 'Unauthorized' },
+        { status: 403 }
+      );
+    }
+
+    const { id } = await params;
+    const supabase = await createClient();
+
+    // Check if schedule exists
+    const { data: schedule, error: fetchError } = await supabase
+      .from('recurring_schedules')
+      .select('id, customer_id')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !schedule) {
+      return NextResponse.json(
+        { ok: false, error: 'Recurring schedule not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if there are any bookings associated with this schedule
+    const { data: bookings, error: bookingsError } = await supabase
+      .from('bookings')
+      .select('id')
+      .eq('recurring_schedule_id', id)
+      .limit(1);
+
+    if (bookingsError) {
+      console.error('Error checking bookings:', bookingsError);
+      return NextResponse.json(
+        { ok: false, error: 'Failed to check associated bookings' },
+        { status: 500 }
+      );
+    }
+
+    const hasBookings = bookings && bookings.length > 0;
+
+    // Delete the recurring schedule
+    const { error: deleteError } = await supabase
+      .from('recurring_schedules')
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) {
+      console.error('Error deleting recurring schedule:', deleteError);
+      return NextResponse.json(
+        { ok: false, error: 'Failed to delete recurring schedule' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      ok: true,
+      message: 'Recurring schedule deleted successfully',
+      hadBookings: hasBookings,
+    });
+  } catch (error: any) {
+    console.error('Error deleting recurring schedule:', error);
+    return NextResponse.json(
+      { 
+        ok: false, 
+        error: 'Internal server error',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
+      { status: 500 }
+    );
+  }
+}
+

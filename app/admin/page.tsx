@@ -178,7 +178,7 @@ export default function AdminDashboardPage() {
         )}
 
         <ErrorBoundary>
-      <OverviewStats stats={stats} isLoading={statsLoading} />
+      <OverviewStats stats={stats} isLoading={statsLoading} dateRange={dateRange} />
         </ErrorBoundary>
 
       <div className="grid gap-6 md:grid-cols-2 w-full">

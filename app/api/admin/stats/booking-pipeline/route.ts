@@ -30,11 +30,21 @@ export async function GET(request: NextRequest) {
         .select('*', { count: 'exact', head: true })
         .eq('status', status);
       
-      // Apply date filters if provided
+      // Helper function to get local date string (YYYY-MM-DD) to avoid timezone issues
+      const getLocalDateString = (date: Date): string => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+
+      // Apply date filters if provided - use booking_date (when service is scheduled)
       if (dateFrom && dateTo) {
+        const dateFromStr = getLocalDateString(new Date(dateFrom));
+        const dateToStr = getLocalDateString(new Date(dateTo));
         query = query
-          .gte('created_at', dateFrom)
-          .lte('created_at', dateTo);
+          .gte('booking_date', dateFromStr)
+          .lte('booking_date', dateToStr);
       }
       
       const { count } = await query;

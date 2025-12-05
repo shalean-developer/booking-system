@@ -37,8 +37,33 @@ export async function GET(request: NextRequest) {
     
     if (dateFrom && dateTo) {
       // Use provided date range
+      // Parse dates and ensure we use local timezone for date calculations
       currentPeriodStart = new Date(dateFrom);
       currentPeriodEnd = new Date(dateTo);
+      
+      // For "today" period, ensure we're using the actual local date, not UTC
+      // If the date string represents "today", use current local date
+      const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const dateFromLocal = new Date(currentPeriodStart.getFullYear(), currentPeriodStart.getMonth(), currentPeriodStart.getDate());
+      const dateToLocal = new Date(currentPeriodEnd.getFullYear(), currentPeriodEnd.getMonth(), currentPeriodEnd.getDate());
+      
+      // If the parsed date matches today's local date, use today's date object
+      if (dateFromLocal.getTime() === todayLocal.getTime()) {
+        currentPeriodStart = new Date(todayLocal);
+        currentPeriodStart.setHours(0, 0, 0, 0);
+      } else {
+        currentPeriodStart.setHours(0, 0, 0, 0);
+      }
+      
+      if (dateToLocal.getTime() === todayLocal.getTime()) {
+        currentPeriodEnd = new Date(todayLocal);
+        currentPeriodEnd.setHours(23, 59, 59, 999);
+      } else {
+        // Ensure end date includes the full day (23:59:59.999) if it's a date-only string
+        if (dateTo.split('T').length === 1 || dateTo.endsWith('T00:00:00.000Z')) {
+          currentPeriodEnd.setHours(23, 59, 59, 999);
+        }
+      }
       
       // Calculate previous period (same duration before the current period)
       const periodDuration = currentPeriodEnd.getTime() - currentPeriodStart.getTime();
@@ -48,30 +73,53 @@ export async function GET(request: NextRequest) {
       previousPeriodStart.setTime(previousPeriodStart.getTime() - periodDuration);
     } else {
       // Default to last 30 days
-      currentPeriodEnd = now;
+      currentPeriodEnd = new Date(now);
+      currentPeriodEnd.setHours(23, 59, 59, 999); // Include all of today
       currentPeriodStart = new Date(now);
       currentPeriodStart.setDate(currentPeriodStart.getDate() - 30);
+      currentPeriodStart.setHours(0, 0, 0, 0); // Start of day 30 days ago
       
       // Previous period (30-60 days ago)
       previousPeriodEnd = new Date(currentPeriodStart);
       previousPeriodEnd.setTime(previousPeriodEnd.getTime() - 1);
       previousPeriodStart = new Date(previousPeriodEnd);
       previousPeriodStart.setDate(previousPeriodStart.getDate() - 30);
+      previousPeriodStart.setHours(0, 0, 0, 0); // Start of day
     }
 
-    // Current period bookings
+    // Helper function to get local date string (YYYY-MM-DD) to avoid timezone issues
+    // booking_date is a DATE field, so we need local date, not UTC
+    const getLocalDateString = (date: Date): string => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    // Convert dates to date strings (YYYY-MM-DD) for booking_date field
+    // Use local date to avoid timezone issues (e.g., if it's Dec 5 in SA, we want "2025-12-05", not UTC date)
+    const currentPeriodStartDate = getLocalDateString(currentPeriodStart);
+    const currentPeriodEndDate = getLocalDateString(currentPeriodEnd);
+    const previousPeriodStartDate = getLocalDateString(previousPeriodStart);
+    const previousPeriodEndDate = getLocalDateString(previousPeriodEnd);
+
+    // Current period bookings - use booking_date (when service is scheduled)
+    // Only include bookings with valid booking_date (not null)
     const { data: currentBookings, error: bookingsError } = await supabase
       .from('bookings')
-      .select('id, total_amount, created_at, status')
-      .gte('created_at', currentPeriodStart.toISOString())
-      .lte('created_at', currentPeriodEnd.toISOString());
+      .select('id, total_amount, booking_date, status')
+      .not('booking_date', 'is', null)
+      .gte('booking_date', currentPeriodStartDate)
+      .lte('booking_date', currentPeriodEndDate);
 
-    // Previous period bookings
+    // Previous period bookings - use booking_date (when service is scheduled)
+    // Only include bookings with valid booking_date (not null)
     const { data: previousBookings, error: prevBookingsError } = await supabase
       .from('bookings')
-      .select('id, total_amount, created_at')
-      .gte('created_at', previousPeriodStart.toISOString())
-      .lte('created_at', previousPeriodEnd.toISOString());
+      .select('id, total_amount, booking_date')
+      .not('booking_date', 'is', null)
+      .gte('booking_date', previousPeriodStartDate)
+      .lte('booking_date', previousPeriodEndDate);
 
     if (bookingsError || prevBookingsError) {
       console.error('Error fetching bookings:', bookingsError || prevBookingsError);
@@ -86,16 +134,24 @@ export async function GET(request: NextRequest) {
       .filter((b) => b.total_amount && b.total_amount > 0)
       .reduce((sum, b) => sum + (b.total_amount || 0), 0);
     
-    const revenueGrowth = previousRevenue > 0
-      ? ((currentRevenue - previousRevenue) / previousRevenue) * 100
-      : 0;
+    // Helper function to calculate percentage growth with caps and handling for edge cases
+    const calculateGrowth = (current: number, previous: number): number => {
+      if (previous <= 0) {
+        // If previous period had no data, return 0 instead of infinite/undefined
+        return 0;
+      }
+      const growth = ((current - previous) / previous) * 100;
+      // Cap extreme values at 9999% to avoid astronomical percentages
+      // This handles cases where previous period had very few bookings
+      return Math.min(Math.max(growth, -9999), 9999);
+    };
+
+    const revenueGrowth = calculateGrowth(currentRevenue, previousRevenue);
 
     // Calculate bookings count
     const currentBookingsCount = (currentBookings || []).length;
     const previousBookingsCount = (previousBookings || []).length;
-    const bookingsGrowth = previousBookingsCount > 0
-      ? ((currentBookingsCount - previousBookingsCount) / previousBookingsCount) * 100
-      : 0;
+    const bookingsGrowth = calculateGrowth(currentBookingsCount, previousBookingsCount);
 
     // Calculate average booking value
     const bookingsWithAmount = (currentBookings || []).filter((b) => b.total_amount && b.total_amount > 0);
@@ -108,16 +164,15 @@ export async function GET(request: NextRequest) {
       ? previousRevenue / prevBookingsWithAmount.length
       : 0;
     
-    const avgValueGrowth = prevAvgBookingValue > 0
-      ? ((avgBookingValue - prevAvgBookingValue) / prevAvgBookingValue) * 100
-      : 0;
+    const avgValueGrowth = calculateGrowth(avgBookingValue, prevAvgBookingValue);
 
-    // Count active customers (customers with bookings in current period)
+    // Count active customers (customers with bookings scheduled in current period)
     const { data: activeCustomersData } = await supabase
       .from('bookings')
       .select('customer_id')
-      .gte('created_at', currentPeriodStart.toISOString())
-      .lte('created_at', currentPeriodEnd.toISOString())
+      .not('booking_date', 'is', null)
+      .gte('booking_date', currentPeriodStartDate)
+      .lte('booking_date', currentPeriodEndDate)
       .not('customer_id', 'is', null);
     
     const uniqueCustomers = new Set(
@@ -131,8 +186,9 @@ export async function GET(request: NextRequest) {
     const { data: prevActiveCustomersData } = await supabase
       .from('bookings')
       .select('customer_id')
-      .gte('created_at', previousPeriodStart.toISOString())
-      .lte('created_at', previousPeriodEnd.toISOString())
+      .not('booking_date', 'is', null)
+      .gte('booking_date', previousPeriodStartDate)
+      .lte('booking_date', previousPeriodEndDate)
       .not('customer_id', 'is', null);
     
     const prevUniqueCustomers = new Set(
@@ -141,9 +197,7 @@ export async function GET(request: NextRequest) {
         .filter((id) => id !== null)
     );
     const prevActiveCustomers = prevUniqueCustomers.size;
-    const customersGrowth = prevActiveCustomers > 0
-      ? ((activeCustomers - prevActiveCustomers) / prevActiveCustomers) * 100
-      : 0;
+    const customersGrowth = calculateGrowth(activeCustomers, prevActiveCustomers);
 
     // Count pending quotes
     const { count: pendingQuotes } = await supabase

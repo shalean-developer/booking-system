@@ -65,16 +65,81 @@ export default function AdminBlogPage() {
       }
 
       const url = `/api/admin/blog?${params.toString()}`;
-      const response = await fetch(url);
-      const data = await response.json();
+      console.log('[Blog Page] Fetching posts from:', url);
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      // Check content type first
+      const contentType = response.headers.get('content-type') || '';
+      
+      // Handle non-JSON responses
+      if (!contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response received:', {
+          status: response.status,
+          statusText: response.statusText,
+          contentType,
+          preview: text.substring(0, 200),
+        });
+        
+        // If it's HTML (likely a 404 or error page), provide helpful message
+        if (contentType.includes('text/html') || text.trim().startsWith('<!DOCTYPE')) {
+          if (response.status === 403) {
+            throw new Error('Access denied. Please ensure you are logged in as an admin user and have the correct permissions.');
+          }
+          throw new Error(`API endpoint returned HTML instead of JSON. Status: ${response.status}. This may indicate a routing or authentication issue.`);
+        }
+        
+        throw new Error(`Invalid response format. Expected JSON but got ${contentType}. Status: ${response.status}`);
+      }
+
+      // Parse JSON response
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError: any) {
+        console.error('Failed to parse JSON response:', parseError);
+        throw new Error(`Failed to parse API response as JSON. Status: ${response.status}`);
+      }
+
+      // Handle error responses
+      if (!response.ok) {
+        const errorMessage = data.error || `API returned ${response.status}`;
+        
+        // Special handling for 403 - admin access required
+        if (response.status === 403) {
+          throw new Error(`Access denied: ${errorMessage}. Please ensure you are logged in as an admin user.`);
+        }
+        
+        throw new Error(errorMessage);
+      }
 
       if (data.ok) {
         setPosts(data.posts || []);
         setTotal(data.total || 0);
         setTotalPages(data.totalPages || 1);
+      } else {
+        console.error('API returned error:', data.error);
+        setPosts([]);
+        setTotal(0);
+        setTotalPages(1);
+        
+        // Show user-friendly error message for common issues
+        if (data.code === 'TABLE_NOT_FOUND') {
+          alert('Blog posts table not found. Please run the database migration:\n\n1. Go to Supabase Dashboard → SQL Editor\n2. Copy contents of supabase/blog-schema.sql\n3. Run the SQL script');
+        } else if (data.code === 'RLS_PERMISSION_DENIED') {
+          alert('Permission denied. Please run the RLS fix script:\n\n1. Go to Supabase Dashboard → SQL Editor\n2. Copy contents of supabase/fix-blog-admin-access.sql\n3. Run the SQL script');
+        }
       }
     } catch (error) {
       console.error('Error fetching blog posts:', error);
+      setPosts([]);
+      setTotal(0);
+      setTotalPages(1);
     } finally {
       setIsLoading(false);
     }

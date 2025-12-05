@@ -79,14 +79,14 @@ export default function AdminCMSPage() {
       <div className="grid gap-6 md:grid-cols-2">
         <div className="p-6 bg-white border rounded-lg">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-          <div className="space-y-2">
-            <Button asChild className="w-full justify-start">
+          <div className="space-y-3">
+            <Button asChild className="w-full justify-start bg-primary text-primary-foreground hover:bg-primary/90">
               <Link href="/admin/blog/new">
                 <Plus className="h-4 w-4 mr-2" />
                 Create New Post
               </Link>
             </Button>
-            <Button variant="outline" asChild className="w-full justify-start">
+            <Button variant="outline" asChild className="w-full justify-start border border-input bg-background hover:bg-accent hover:text-accent-foreground">
               <Link href="/admin/blog">
                 <BookOpen className="h-4 w-4 mr-2" />
                 View All Posts

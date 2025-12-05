@@ -25,27 +25,48 @@ export async function GET(request: NextRequest) {
     const dateTo = searchParams.get('date_to');
 
     // Build date filter - default to last 30 days if no dates provided
+    // Use booking_date (when service is scheduled) instead of created_at
     let bookingsQuery = supabase
       .from('bookings')
-      .select('id, total_amount, created_at, status');
+      .select('id, total_amount, booking_date, status');
+
+    // Helper function to get local date string (YYYY-MM-DD) to avoid timezone issues
+    const getLocalDateString = (date: Date): string => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    // Convert date range to date strings for booking_date (DATE field)
+    // Use local date to avoid timezone issues
+    let dateFromStr: string;
+    let dateToStr: string;
 
     if (dateFrom) {
-      bookingsQuery = bookingsQuery.gte('created_at', dateFrom);
+      const dateFromDate = new Date(dateFrom);
+      dateFromStr = getLocalDateString(dateFromDate);
+      bookingsQuery = bookingsQuery.gte('booking_date', dateFromStr);
     } else {
-      // Default to last 30 days
+      // Default to last 30 days, starting from beginning of day
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      bookingsQuery = bookingsQuery.gte('created_at', thirtyDaysAgo.toISOString());
+      dateFromStr = getLocalDateString(thirtyDaysAgo);
+      bookingsQuery = bookingsQuery.gte('booking_date', dateFromStr);
     }
 
     if (dateTo) {
-      const dateToEnd = new Date(dateTo);
-      dateToEnd.setHours(23, 59, 59, 999);
-      bookingsQuery = bookingsQuery.lte('created_at', dateToEnd.toISOString());
+      const dateToDate = new Date(dateTo);
+      dateToStr = getLocalDateString(dateToDate);
+      bookingsQuery = bookingsQuery.lte('booking_date', dateToStr);
+    } else {
+      // Default to today (local date)
+      dateToStr = getLocalDateString(new Date());
+      bookingsQuery = bookingsQuery.lte('booking_date', dateToStr);
     }
 
     const { data: bookings, error: bookingsError } = await bookingsQuery
-      .order('created_at', { ascending: true });
+      .order('booking_date', { ascending: true });
 
     if (bookingsError) {
       console.error('Error fetching bookings for chart:', bookingsError);
@@ -55,11 +76,14 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Group by date
+    // Group by booking_date (when service is scheduled)
     const chartDataMap = new Map<string, { date: string; revenue: number; bookings: number }>();
 
     bookings?.forEach((booking) => {
-      const date = new Date(booking.created_at).toISOString().split('T')[0];
+      // booking_date is already a date string (YYYY-MM-DD)
+      const date = booking.booking_date || '';
+      if (!date) return; // Skip bookings without a booking_date
+      
       const existing = chartDataMap.get(date) || { date, revenue: 0, bookings: 0 };
       existing.revenue += booking.total_amount || 0;
       existing.bookings += 1;

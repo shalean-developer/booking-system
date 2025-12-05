@@ -260,11 +260,13 @@ export async function POST(req: Request) {
           const [customerEmailResult, adminEmailResult] = await Promise.all([
             sendEmail(generateBookingConfirmationEmail({
               ...body,
-              bookingId
+              bookingId,
+              totalAmount: body.totalAmount // Pass actual total amount paid (in rands)
             })),
             sendEmail(generateAdminBookingNotificationEmail({
               ...body,
-              bookingId
+              bookingId,
+              totalAmount: body.totalAmount // Pass actual total amount paid (in rands)
             })),
           ]);
 

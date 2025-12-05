@@ -29,15 +29,65 @@ export function HomePopularServices() {
         
         // Fetch services from API (which fetches from database)
         const response = await fetch('/api/services/popular', {
+          method: 'GET',
           cache: 'no-store',
           headers: {
             'Cache-Control': 'no-cache',
+            'Content-Type': 'application/json',
           },
         });
         
+        // Check content type first
+        const contentType = response.headers.get('content-type');
+        const isJson = contentType && contentType.includes('application/json');
+        
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || `API returned ${response.status}`);
+          // Handle 404 specifically
+          if (response.status === 404) {
+            console.error('❌ API endpoint not found: /api/services/popular');
+            throw new Error('Services API endpoint not found. Please check if the route exists.');
+          }
+          
+          // Try to parse error response, but handle non-JSON responses (like HTML 404 pages)
+          let errorData: any = {};
+          
+          try {
+            if (isJson) {
+              try {
+                errorData = await response.json();
+              } catch {
+                // If JSON parsing fails, try text
+                const text = await response.text();
+                if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+                  errorData = { message: `API endpoint returned HTML (likely 404): /api/services/popular` };
+                } else {
+                  errorData = { message: text || `API returned ${response.status}` };
+                }
+              }
+            } else {
+              // Not JSON - likely HTML
+              const text = await response.text();
+              if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+                errorData = { message: `API endpoint returned HTML (likely 404): /api/services/popular` };
+              } else {
+                errorData = { message: text || `API returned ${response.status}` };
+              }
+            }
+          } catch (parseError) {
+            // If all parsing fails, use status text
+            errorData = { message: `API returned ${response.status} ${response.statusText}` };
+          }
+          
+          throw new Error(errorData.message || errorData.error || `API returned ${response.status}`);
+        }
+        
+        // Verify content type before parsing JSON
+        if (!isJson) {
+          const text = await response.text();
+          if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+            throw new Error('API endpoint returned HTML instead of JSON. The endpoint may not exist.');
+          }
+          throw new Error(`API endpoint returned non-JSON response: ${contentType || 'unknown'}`);
         }
         
         const data = await response.json();

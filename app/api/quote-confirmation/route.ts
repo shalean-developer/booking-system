@@ -59,7 +59,8 @@ export async function POST(req: Request) {
       extras: body.extras || [],
       extrasQuantities: undefined // Quotes don't have quantities
     }, 'one-time');
-    const estimatedPrice = pricingDetails.total;
+    // Convert Rands to cents for database storage
+    const estimatedPrice = Math.round(pricingDetails.total * 100);
     
     // Save quote to database
     let quoteSaved = false;

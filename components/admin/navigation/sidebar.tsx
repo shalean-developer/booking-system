@@ -22,6 +22,7 @@ import {
   Clock,
   BookOpen,
   Server,
+  Ticket,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -67,6 +68,7 @@ const navigationSections: NavSection[] = [
     items: [
   { name: 'Payments', href: '/admin/payments', icon: DollarSign },
       { name: 'Pricing', href: '/admin/pricing', icon: Tag },
+      { name: 'Discount Codes', href: '/admin/discount-codes', icon: Ticket },
     ],
   },
   {

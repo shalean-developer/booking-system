@@ -57,15 +57,23 @@ export interface QuoteRequest {
   quoteId?: string; // Optional since it's generated on the server
 }
 
-export function generateBookingConfirmationEmail(booking: BookingState & { bookingId: string }): EmailData {
-  const pricingDetails = calcTotalSync({
-    service: booking.service,
-    bedrooms: booking.bedrooms || 0,
-    bathrooms: booking.bathrooms || 0,
-    extras: booking.extras || [],
-    extrasQuantities: booking.extrasQuantities
-  }, booking.frequency || 'one-time');
-  const totalPrice = pricingDetails.total;
+export function generateBookingConfirmationEmail(booking: BookingState & { bookingId: string; totalAmount?: number }): EmailData {
+  // Use the actual totalAmount if provided (from database), otherwise recalculate
+  // totalAmount is in rands (not cents)
+  let totalPrice: number;
+  if (booking.totalAmount !== undefined && booking.totalAmount > 0) {
+    totalPrice = booking.totalAmount;
+  } else {
+    // Fallback to recalculating if totalAmount not provided
+    const pricingDetails = calcTotalSync({
+      service: booking.service,
+      bedrooms: booking.bedrooms || 0,
+      bathrooms: booking.bathrooms || 0,
+      extras: booking.extras || [],
+      extrasQuantities: booking.extrasQuantities
+    }, booking.frequency || 'one-time');
+    totalPrice = pricingDetails.total;
+  }
   
   const html = `
     <!DOCTYPE html>
@@ -137,8 +145,8 @@ export function generateBookingConfirmationEmail(booking: BookingState & { booki
         
         <div class="order-summary">
           <h3>Order Summary</h3>
-          <p><strong>Total Price: R${totalPrice}</strong></p>
-          <div class="total">Amount Due: R${totalPrice}</div>
+          <p><strong>Total Price: R${totalPrice.toFixed(2)}</strong></p>
+          <div class="total">Amount Due: R${totalPrice.toFixed(2)}</div>
         </div>
         
         <p>${booking.cleaner_id === 'manual' ? 'Our team will contact you within 24 hours to confirm your cleaner assignment and appointment details.' : 'Our team will contact you soon to confirm the appointment.'}</p>
@@ -165,15 +173,23 @@ export function generateBookingConfirmationEmail(booking: BookingState & { booki
   };
 }
 
-export function generateAdminBookingNotificationEmail(booking: BookingState & { bookingId: string }): EmailData {
-  const pricingDetails = calcTotalSync({
-    service: booking.service,
-    bedrooms: booking.bedrooms || 0,
-    bathrooms: booking.bathrooms || 0,
-    extras: booking.extras || [],
-    extrasQuantities: booking.extrasQuantities
-  }, booking.frequency || 'one-time');
-  const totalPrice = pricingDetails.total;
+export function generateAdminBookingNotificationEmail(booking: BookingState & { bookingId: string; totalAmount?: number }): EmailData {
+  // Use the actual totalAmount if provided (from database), otherwise recalculate
+  // totalAmount is in rands (not cents)
+  let totalPrice: number;
+  if (booking.totalAmount !== undefined && booking.totalAmount > 0) {
+    totalPrice = booking.totalAmount;
+  } else {
+    // Fallback to recalculating if totalAmount not provided
+    const pricingDetails = calcTotalSync({
+      service: booking.service,
+      bedrooms: booking.bedrooms || 0,
+      bathrooms: booking.bathrooms || 0,
+      extras: booking.extras || [],
+      extrasQuantities: booking.extrasQuantities
+    }, booking.frequency || 'one-time');
+    totalPrice = pricingDetails.total;
+  }
   
   const html = `
     <!DOCTYPE html>
@@ -256,8 +272,8 @@ export function generateAdminBookingNotificationEmail(booking: BookingState & { 
         
         <div class="order-summary">
           <h3>Pricing Summary</h3>
-          <p><strong>Total Amount: R${totalPrice}</strong></p>
-          <div class="total">Customer will pay: R${totalPrice}</div>
+          <p><strong>Total Amount: R${totalPrice.toFixed(2)}</strong></p>
+          <div class="total">Customer will pay: R${totalPrice.toFixed(2)}</div>
         </div>
         
         <div class="urgent">

@@ -9,7 +9,17 @@ import { EmptyState } from '@/components/admin/shared/empty-state';
 import { LoadingState } from '@/components/admin/shared/loading-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Repeat, Plus, Edit } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Repeat, Plus, Edit, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
 interface RecurringSchedule {
@@ -58,6 +68,9 @@ export default function RecurringSchedulesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [scheduleToDelete, setScheduleToDelete] = useState<RecurringSchedule | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const pageSize = 20;
 
   useEffect(() => {
@@ -141,6 +154,37 @@ export default function RecurringSchedulesPage() {
       return `Day ${schedule.day_of_month} of each month`;
     }
     return frequencyLabels[schedule.frequency] || schedule.frequency;
+  };
+
+  const handleDeleteSchedule = async () => {
+    if (!scheduleToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/admin/recurring-schedules/${scheduleToDelete.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || 'Failed to delete recurring schedule');
+      }
+
+      // Close dialog and refresh list
+      setIsDeleteDialogOpen(false);
+      setScheduleToDelete(null);
+      fetchSchedules();
+    } catch (error: any) {
+      console.error('Error deleting recurring schedule:', error);
+      alert(error.message || 'Failed to delete recurring schedule. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const filterConfigs: FilterConfig[] = [
@@ -237,6 +281,17 @@ export default function RecurringSchedulesPage() {
               <Edit className="h-4 w-4" />
             </Link>
           </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setScheduleToDelete(row);
+              setIsDeleteDialogOpen(true);
+            }}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
         </div>
       ),
     },
@@ -299,6 +354,40 @@ export default function RecurringSchedulesPage() {
           emptyMessage="No recurring schedules match your filters."
         />
       )}
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Recurring Schedule</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this recurring schedule? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {scheduleToDelete && (
+            <div className="mt-4 p-3 bg-muted rounded text-sm space-y-1">
+              <p><strong>Customer:</strong> {scheduleToDelete.customer_name}</p>
+              <p><strong>Service:</strong> {scheduleToDelete.service_type}</p>
+              <p><strong>Frequency:</strong> {getScheduleDescription(scheduleToDelete)}</p>
+              <p><strong>Address:</strong> {scheduleToDelete.address_line1}, {scheduleToDelete.address_suburb}</p>
+            </div>
+          )}
+          <p className="mt-3 text-sm font-medium text-amber-600">
+            Note: This will not delete any bookings that were already generated from this schedule.
+          </p>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setScheduleToDelete(null)} disabled={isDeleting}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteSchedule}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

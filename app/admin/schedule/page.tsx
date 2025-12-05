@@ -17,6 +17,25 @@ interface Booking {
   recurring_schedule_id?: string | null;
 }
 
+const statusColors: Record<
+  string,
+  { bg: string; border: string; text: string; subText: string; label: string }
+> = {
+  pending:      { bg: 'bg-amber-200',   border: 'border-amber-400',   text: 'text-amber-950',   subText: 'text-amber-900',   label: 'Pending' },
+  confirmed:    { bg: 'bg-sky-200',     border: 'border-sky-400',     text: 'text-sky-950',     subText: 'text-sky-900',     label: 'Confirmed' },
+  accepted:     { bg: 'bg-blue-200',    border: 'border-blue-400',    text: 'text-blue-950',    subText: 'text-blue-900',    label: 'Accepted' },
+  'in-progress':{ bg: 'bg-indigo-200',  border: 'border-indigo-400',  text: 'text-indigo-950',  subText: 'text-indigo-900',  label: 'In Progress' },
+  completed:    { bg: 'bg-emerald-200', border: 'border-emerald-400', text: 'text-emerald-950', subText: 'text-emerald-900', label: 'Completed' },
+  cancelled:    { bg: 'bg-rose-200',    border: 'border-rose-400',    text: 'text-rose-950',    subText: 'text-rose-900',    label: 'Cancelled' },
+  declined:     { bg: 'bg-red-200',     border: 'border-red-400',     text: 'text-red-950',     subText: 'text-red-900',     label: 'Declined' },
+};
+
+const defaultColors = { bg: 'bg-slate-200', border: 'border-slate-400', text: 'text-slate-950', subText: 'text-slate-900', label: 'Other' };
+
+function getBookingColors(status: string) {
+  return statusColors[status] || defaultColors;
+}
+
 export default function AdminSchedulePage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<'week' | 'month'>('week');
@@ -150,6 +169,20 @@ export default function AdminSchedulePage() {
           </Button>
         </div>
 
+        {/* Legend */}
+        <div className="flex flex-wrap items-center gap-3 mb-4 text-xs text-gray-700">
+          {Object.entries(statusColors).map(([key, val]) => (
+            <div key={key} className="flex items-center gap-1">
+              <span className={`h-3 w-3 rounded ${val.bg} ${val.border}`} />
+              <span>{val.label}</span>
+            </div>
+          ))}
+          <div className="flex items-center gap-1">
+            <span className={`h-3 w-3 rounded ${defaultColors.bg} ${defaultColors.border}`} />
+            <span>{defaultColors.label}</span>
+          </div>
+        </div>
+
         {view === 'week' && (
           <div className="grid grid-cols-7 gap-2">
             {weekDays.map((day, index) => {
@@ -169,24 +202,19 @@ export default function AdminSchedulePage() {
                   <div className="space-y-1">
                     {dayBookings.map((booking) => {
                       const isRecurring = !!booking.recurring_schedule_id;
+                      const colors = getBookingColors(booking.status);
                       return (
                         <div
                           key={booking.id}
-                          className={`text-xs p-1 rounded border cursor-pointer hover:opacity-80 ${
-                            isRecurring
-                              ? 'bg-purple-100 border-purple-200'
-                              : 'bg-blue-100 border-blue-200'
-                          }`}
+                          className={`text-xs p-1 rounded border cursor-pointer hover:opacity-80 ${colors.bg} ${colors.border}`}
                           title={`${booking.customer_name} - ${booking.service_type} at ${formatTime(booking.booking_time)}${isRecurring ? ' (Recurring)' : ''}`}
                         >
-                          <div className={`font-medium flex items-center gap-1 ${
-                            isRecurring ? 'text-purple-900' : 'text-blue-900'
-                          }`}>
+                          <div className={`font-medium flex items-center gap-1 ${colors.text}`}>
                             {formatTime(booking.booking_time)}
                             {isRecurring && <Repeat className="h-2.5 w-2.5" />}
                           </div>
-                          <div className={isRecurring ? 'text-purple-700' : 'text-blue-700'}>{booking.customer_name}</div>
-                          <div className={`text-xs truncate ${isRecurring ? 'text-purple-600' : 'text-blue-600'}`}>
+                          <div className={colors.subText}>{booking.customer_name}</div>
+                          <div className={`text-xs truncate ${colors.subText}`}>
                             {booking.service_type}
                           </div>
                         </div>
@@ -272,25 +300,18 @@ export default function AdminSchedulePage() {
                       <div className="space-y-0.5 overflow-y-auto max-h-[calc(100%-20px)]">
                         {dayBookings.slice(0, 3).map((booking) => {
                           const isRecurring = !!booking.recurring_schedule_id;
+                          const colors = getBookingColors(booking.status);
                           return (
                             <div
                               key={booking.id}
-                              className={`text-[10px] p-0.5 rounded border cursor-pointer hover:opacity-80 ${
-                                isRecurring
-                                  ? 'bg-purple-100 border-purple-200'
-                                  : 'bg-blue-100 border-blue-200'
-                              }`}
+                              className={`text-[10px] p-0.5 rounded border cursor-pointer hover:opacity-80 ${colors.bg} ${colors.border}`}
                               title={`${booking.customer_name} - ${booking.service_type} at ${formatTime(booking.booking_time)}${isRecurring ? ' (Recurring)' : ''}`}
                             >
-                              <div className={`font-medium flex items-center gap-0.5 truncate ${
-                                isRecurring ? 'text-purple-900' : 'text-blue-900'
-                              }`}>
+                              <div className={`font-medium flex items-center gap-0.5 truncate ${colors.text}`}>
                                 <span className="truncate">{formatTime(booking.booking_time)}</span>
                                 {isRecurring && <Repeat className="h-2 w-2 flex-shrink-0" />}
                               </div>
-                              <div className={`truncate text-[9px] ${
-                                isRecurring ? 'text-purple-700' : 'text-blue-700'
-                              }`}>
+                              <div className={`truncate text-[9px] ${colors.subText}`}>
                                 {booking.customer_name}
                               </div>
                             </div>

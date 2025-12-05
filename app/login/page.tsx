@@ -132,7 +132,16 @@ function LoginForm() {
 
     } catch (err) {
       console.error('❌ Login exception:', err);
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      
+      // Check for CORS or network errors
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+      
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('CORS') || errorMessage.includes('network')) {
+        setError('Network error: Unable to connect to authentication server. Please check your internet connection and ensure CORS is configured in Supabase Dashboard.');
+      } else {
+        setError(errorMessage);
+      }
+      
       setIsLoading(false);
     }
   };

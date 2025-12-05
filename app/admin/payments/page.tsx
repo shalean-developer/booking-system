@@ -70,27 +70,34 @@ export default function AdminPaymentsPage() {
       }
 
       const url = `/api/admin/payments?${params.toString()}`;
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
       
       if (!response.ok) {
-        // Try to parse error as JSON, fallback to status text
+        // Try to parse error as JSON; if HTML or text, fall back to raw text
         let errorMessage = `HTTP error! status: ${response.status}`;
+        const respText = await response.text();
         try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
+          const maybeJson = JSON.parse(respText);
+          errorMessage = maybeJson.error || errorMessage;
         } catch {
-          // If response is not JSON (e.g., HTML error page), use status text
-          errorMessage = `HTTP error! status: ${response.status}`;
+          // not JSON, keep text if available
+          if (respText) {
+            errorMessage = respText;
+          }
         }
         throw new Error(errorMessage);
       }
       
       const contentType = response.headers.get('content-type');
+      const respText = await response.text();
       if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Invalid response format');
+        throw new Error(`Invalid response format: ${contentType || 'unknown'}`);
       }
       
-      const data = await response.json();
+      const data = JSON.parse(respText);
 
       if (data.ok) {
         setPayments(data.payments || []);
@@ -114,10 +121,18 @@ export default function AdminPaymentsPage() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch('/api/admin/payments/stats');
-      const data = await response.json();
-      if (data.ok) {
-        setStats(data.stats);
+      const response = await fetch('/api/admin/payments/stats', {
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const text = await response.text();
+      try {
+        const data = JSON.parse(text);
+        if (data.ok) {
+          setStats(data.stats);
+        }
+      } catch (err) {
+        console.error('Error parsing payment stats response:', err, text);
       }
     } catch (error) {
       console.error('Error fetching payment stats:', error);

@@ -270,6 +270,7 @@ export async function POST(req: Request) {
       // Normalize frequency for consistency
       const frequencyForSnapshot = body.frequency === 'one-time' ? null : body.frequency;
       
+      const discountAmount = (body.discountAmount || 0) * 100; // Convert to cents
       const priceSnapshot = {
         service: {
           type: body.service,
@@ -280,9 +281,11 @@ export async function POST(req: Request) {
         frequency: frequencyForSnapshot, // One-time bookings stored as NULL
         service_fee: (body.serviceFee || 0) * 100, // Convert to cents
         frequency_discount: (body.frequencyDiscount || 0) * 100, // Convert to cents
+        discount_code: body.discountCode || null,
+        discount_amount: discountAmount,
         tip_amount: tipAmountInCents, // Store tip separately
         subtotal: serviceTotal ? (serviceTotal - (body.serviceFee || 0) + (body.frequencyDiscount || 0)) * 100 : 0,
-        total: (body.totalAmount || 0) * 100, // Total includes tip
+        total: (body.totalAmount || 0) * 100, // Total includes tip, excludes discount
         snapshot_date: new Date().toISOString(),
       };
 
@@ -377,6 +380,76 @@ export async function POST(req: Request) {
       console.log('Customer ID:', customerId);
       console.log('Cleaner ID:', body.cleaner_id);
       console.log('Status: pending'); // All bookings start as pending
+
+      // Record discount code usage if a discount code was applied
+      if (body.discountCode && discountAmount > 0) {
+        try {
+          // Get discount code ID
+          const { data: discountCodeData } = await supabase
+            .from('discount_codes')
+            .select('id')
+            .eq('code', body.discountCode.toUpperCase().trim())
+            .single();
+
+          if (discountCodeData) {
+            // Record usage
+            await supabase
+              .from('discount_code_usage')
+              .insert({
+                discount_code_id: discountCodeData.id,
+                booking_id: bookingId,
+                discount_amount: discountAmount,
+                original_amount: (serviceTotal + (body.serviceFee || 0) - (body.frequencyDiscount || 0)) * 100,
+                final_amount: (body.totalAmount || 0) * 100,
+                customer_email: body.email,
+              });
+
+            // Increment usage count
+            try {
+              const { error: rpcError } = await supabase.rpc('increment', {
+                table_name: 'discount_codes',
+                column_name: 'usage_count',
+                row_id: discountCodeData.id,
+              });
+              
+              if (rpcError) {
+                // Fallback if RPC doesn't exist
+                const { data: currentCode } = await supabase
+                  .from('discount_codes')
+                  .select('usage_count')
+                  .eq('id', discountCodeData.id)
+                  .single();
+                
+                if (currentCode) {
+                  await supabase
+                    .from('discount_codes')
+                    .update({ usage_count: (currentCode.usage_count || 0) + 1 })
+                    .eq('id', discountCodeData.id);
+                }
+              }
+            } catch (err) {
+              // Fallback if RPC doesn't exist
+              const { data: currentCode } = await supabase
+                .from('discount_codes')
+                .select('usage_count')
+                .eq('id', discountCodeData.id)
+                .single();
+              
+              if (currentCode) {
+                await supabase
+                  .from('discount_codes')
+                  .update({ usage_count: (currentCode.usage_count || 0) + 1 })
+                  .eq('id', discountCodeData.id);
+              }
+            }
+
+            console.log('✅ Discount code usage recorded');
+          }
+        } catch (error) {
+          console.error('⚠️ Failed to record discount code usage:', error);
+          // Don't fail the booking if discount code tracking fails
+        }
+      }
 
       // Log tip activity if tip was given and cleaner is assigned
       if (tipAmountInCents > 0 && cleanerIdForInsert) {
@@ -489,11 +562,13 @@ export async function POST(req: Request) {
         console.log('📧 Generating emails...');
         const customerEmailData = generateBookingConfirmationEmail({
           ...body,
-          bookingId
+          bookingId,
+          totalAmount: body.totalAmount // Pass actual total amount paid (in rands)
         });
         const adminEmailData = generateAdminBookingNotificationEmail({
           ...body,
-          bookingId
+          bookingId,
+          totalAmount: body.totalAmount // Pass actual total amount paid (in rands)
         });
         console.log('✅ Emails generated');
         

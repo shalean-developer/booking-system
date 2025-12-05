@@ -18,7 +18,7 @@ interface Quote {
   customer_email: string;
   service_type: string;
   status: string;
-  amount: number;
+  amount: number | null;
   created_at: string;
 }
 
@@ -81,7 +81,10 @@ export default function AdminQuotesPage() {
     }
   };
 
-  const formatCurrency = (cents: number) => {
+  const formatCurrency = (cents: number | null | undefined) => {
+    if (cents == null || isNaN(cents) || cents === 0) {
+      return 'R0.00';
+    }
     return `R${(cents / 100).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 

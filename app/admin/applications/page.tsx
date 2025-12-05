@@ -66,13 +66,41 @@ export default function AdminApplicationsPage() {
       }
 
       const url = `/api/admin/applications?${params.toString()}`;
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      // Check content type first
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response from applications API:', {
+          status: response.status,
+          contentType,
+          preview: text.substring(0, 200),
+        });
+        throw new Error(`API returned ${response.status} but response was not JSON`);
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `API returned ${response.status}`);
+      }
+
       const data = await response.json();
 
       if (data.ok) {
         setApplications(data.applications || []);
         setTotal(data.total || 0);
         setTotalPages(data.totalPages || 1);
+      } else {
+        console.error('API returned error:', data.error);
+        setApplications([]);
+        setTotal(0);
+        setTotalPages(1);
       }
     } catch (error) {
       console.error('Error fetching applications:', error);
