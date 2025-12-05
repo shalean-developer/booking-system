@@ -49,6 +49,10 @@ export default function EditRecurringSchedulePage({ params }: { params: Promise<
   const [isUpdatingBookings, setIsUpdatingBookings] = useState(false);
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
   const [updateFutureOnly, setUpdateFutureOnly] = useState(true);
+  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateMonth, setGenerateMonth] = useState('');
+  const [generateYear, setGenerateYear] = useState('');
 
   // Form state
   const [serviceType, setServiceType] = useState<ServiceType | ''>('');
@@ -81,6 +85,13 @@ export default function EditRecurringSchedulePage({ params }: { params: Promise<
     }
     fetchSchedule();
     fetchCleaners();
+    
+    // Set default month/year to next month
+    const today = new Date();
+    const nextMonth = today.getMonth() === 11 ? 1 : today.getMonth() + 2;
+    const nextYear = today.getMonth() === 11 ? today.getFullYear() + 1 : today.getFullYear();
+    setGenerateMonth(String(nextMonth).padStart(2, '0'));
+    setGenerateYear(String(nextYear));
   }, [id, router]);
 
   const fetchSchedule = async () => {
@@ -248,6 +259,12 @@ export default function EditRecurringSchedulePage({ params }: { params: Promise<
         }),
       });
 
+      // Check if response is ok before parsing JSON
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to update bookings' }));
+        throw new Error(errorData.error || `Server error: ${response.status}`);
+      }
+
       const data = await response.json();
 
       if (data.ok) {
@@ -255,13 +272,80 @@ export default function EditRecurringSchedulePage({ params }: { params: Promise<
         setShowUpdateDialog(false);
         router.push('/admin/recurring-schedules');
       } else {
-        alert(data.error || 'Failed to update bookings');
+        // Show more detailed error message
+        const errorMsg = data.error || 'Failed to update bookings';
+        const details = data.details ? `\n\nDetails: ${data.details}` : '';
+        const failedCount = data.failedCount ? `\n\n${data.failedCount} booking(s) failed to update.` : '';
+        alert(errorMsg + details + failedCount);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating bookings:', error);
-      alert('Failed to update bookings');
+      const errorMessage = error.message || 'Failed to update bookings. Please check the console for details.';
+      alert(errorMessage);
     } finally {
       setIsUpdatingBookings(false);
+    }
+  };
+
+  const handleGenerateBookings = async () => {
+    if (!generateMonth || !generateYear) {
+      alert('Please select a month and year');
+      return;
+    }
+
+    const yearNum = parseInt(generateYear);
+    const monthNum = parseInt(generateMonth);
+
+    if (isNaN(yearNum) || isNaN(monthNum)) {
+      alert('Please enter valid year and month values');
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const response = await fetch(`/api/admin/recurring-schedules/${id}/generate-bookings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          year: yearNum,
+          month: monthNum,
+        }),
+      }).catch((fetchError) => {
+        // Handle network errors
+        console.error('Network error:', fetchError);
+        throw new Error(`Network error: ${fetchError.message || 'Failed to connect to server. Please check your connection and try again.'}`);
+      });
+
+      if (!response.ok) {
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch {
+          errorData = { error: `Server error: ${response.status} ${response.statusText}` };
+        }
+        throw new Error(errorData.error || `Server error: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.ok) {
+        const message = data.generatedCount > 0
+          ? `Successfully generated ${data.generatedCount} booking(s) for ${data.monthYear}${data.skippedCount > 0 ? ` (${data.skippedCount} already existed)` : ''}`
+          : data.message || `No bookings generated for ${data.monthYear}`;
+        alert(message);
+        setShowGenerateDialog(false);
+        // Refresh the page to show new bookings
+        router.refresh();
+      } else {
+        alert(data.error || 'Failed to generate bookings');
+      }
+    } catch (error: any) {
+      console.error('Error generating bookings:', error);
+      const errorMessage = error.message || 'Failed to generate bookings. Please check the console for details.';
+      alert(errorMessage);
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -664,21 +748,32 @@ export default function EditRecurringSchedulePage({ params }: { params: Promise<
           </CardContent>
         </Card>
 
-        {/* Submit */}
-        <div className="flex justify-end gap-4">
-          <Button type="button" variant="outline" asChild>
-            <Link href="/admin/recurring-schedules">Cancel</Link>
+        {/* Actions */}
+        <div className="flex justify-between items-center gap-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowGenerateDialog(true)}
+            disabled={isSubmitting || !isActive}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Generate Bookings
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              'Save Changes'
-            )}
-          </Button>
+          <div className="flex gap-4">
+            <Button type="button" variant="outline" asChild>
+              <Link href="/admin/recurring-schedules">Cancel</Link>
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
+            </Button>
+          </div>
         </div>
       </form>
 
@@ -749,6 +844,86 @@ export default function EditRecurringSchedulePage({ params }: { params: Promise<
                 <>
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Update Bookings
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Generate Bookings Dialog */}
+      <Dialog open={showGenerateDialog} onOpenChange={setShowGenerateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Generate Bookings</DialogTitle>
+            <DialogDescription>
+              Generate bookings for this recurring schedule for a specific month. Existing bookings for the same dates will be skipped.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="generateYear">Year</Label>
+                <Input
+                  id="generateYear"
+                  type="number"
+                  min="2024"
+                  max="2100"
+                  value={generateYear}
+                  onChange={(e) => setGenerateYear(e.target.value)}
+                  placeholder="2024"
+                />
+              </div>
+              <div>
+                <Label htmlFor="generateMonth">Month</Label>
+                <Select value={generateMonth} onValueChange={setGenerateMonth}>
+                  <SelectTrigger id="generateMonth">
+                    <SelectValue placeholder="Select month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="01">January</SelectItem>
+                    <SelectItem value="02">February</SelectItem>
+                    <SelectItem value="03">March</SelectItem>
+                    <SelectItem value="04">April</SelectItem>
+                    <SelectItem value="05">May</SelectItem>
+                    <SelectItem value="06">June</SelectItem>
+                    <SelectItem value="07">July</SelectItem>
+                    <SelectItem value="08">August</SelectItem>
+                    <SelectItem value="09">September</SelectItem>
+                    <SelectItem value="10">October</SelectItem>
+                    <SelectItem value="11">November</SelectItem>
+                    <SelectItem value="12">December</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="p-3 bg-blue-50 rounded-md border border-blue-200">
+              <p className="text-sm text-blue-900">
+                This will create bookings based on the schedule's frequency and settings. Only dates within the schedule's start and end dates will be used.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowGenerateDialog(false)}
+              disabled={isGenerating}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleGenerateBookings}
+              disabled={isGenerating || !generateMonth || !generateYear}
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Generate Bookings
                 </>
               )}
             </Button>

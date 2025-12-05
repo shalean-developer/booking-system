@@ -34,10 +34,10 @@ export async function POST(
       );
     }
 
-    // Check if pricing is set
-    if (!schedule.total_amount || !schedule.cleaner_earnings) {
+    // Check if pricing is set (only total_amount is required, cleaner_earnings is optional)
+    if (!schedule.total_amount || schedule.total_amount <= 0) {
       return NextResponse.json(
-        { ok: false, error: 'Schedule must have total_amount and cleaner_earnings set to update bookings' },
+        { ok: false, error: 'Schedule must have total_amount set to update bookings' },
         { status: 400 }
       );
     }
@@ -82,14 +82,20 @@ export async function POST(
     const updatePromises = bookings.map(async (booking) => {
       const updateData: any = {
         total_amount: schedule.total_amount,
-        cleaner_earnings: schedule.cleaner_earnings,
       };
+
+      // Only include cleaner_earnings if it's set
+      if (schedule.cleaner_earnings != null && schedule.cleaner_earnings > 0) {
+        updateData.cleaner_earnings = schedule.cleaner_earnings;
+      }
 
       // Update price_snapshot if it exists
       if (booking.price_snapshot && typeof booking.price_snapshot === 'object') {
+        // Convert total_amount from cents to rands for price_snapshot
+        const totalRands = schedule.total_amount / 100;
         updateData.price_snapshot = {
           ...booking.price_snapshot,
-          total: schedule.total_amount,
+          total: totalRands,
           snapshot_date: new Date().toISOString(),
           manual_pricing: true,
         };

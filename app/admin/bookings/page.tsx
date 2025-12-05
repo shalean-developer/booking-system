@@ -11,7 +11,7 @@ import { EmptyState } from '@/components/admin/shared/empty-state';
 import { LoadingState } from '@/components/admin/shared/loading-state';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Plus, Eye, MoreVertical, Edit, UserPlus, Mail, MessageSquare, Trash2 } from 'lucide-react';
+import { Calendar, Plus, Eye, MoreVertical, Edit, UserPlus, Mail, MessageSquare, Trash2, Users } from 'lucide-react';
 import Link from 'next/link';
 import {
   Dialog,
@@ -470,6 +470,12 @@ export default function AdminBookingsPage() {
         ]}
         actions={
           <>
+            <Button asChild variant="outline">
+              <Link href="/admin/bookings/assignments">
+                <Users className="h-4 w-4 mr-2" />
+                View Assignments
+              </Link>
+            </Button>
             <ExportButton onExport={handleExport} />
             <Button asChild>
               <Link href="/admin/bookings/new">
@@ -684,14 +690,14 @@ export default function AdminBookingsPage() {
             <AlertDialogTitle>Delete Booking</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete this booking? This action cannot be undone.
-              {bookingToDelete && (
-                <div className="mt-2 p-2 bg-muted rounded text-sm">
-                  <p><strong>Customer:</strong> {bookingToDelete.customer_name}</p>
-                  <p><strong>Service:</strong> {bookingToDelete.service_type}</p>
-                  <p><strong>Date:</strong> {formatDate(bookingToDelete.booking_date)}</p>
-                </div>
-              )}
             </AlertDialogDescription>
+            {bookingToDelete && (
+              <div className="mt-2 p-2 bg-muted rounded text-sm">
+                <p><strong>Customer:</strong> {bookingToDelete.customer_name}</p>
+                <p><strong>Service:</strong> {bookingToDelete.service_type}</p>
+                <p><strong>Date:</strong> {formatDate(bookingToDelete.booking_date)}</p>
+              </div>
+            )}
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setBookingToDelete(null)}>Cancel</AlertDialogCancel>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/admin/shared/page-header';
 import { FilterBar } from '@/components/admin/shared/filter-bar';
 import { DataTable, Column } from '@/components/admin/shared/data-table';
@@ -15,7 +16,25 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Users, Eye, TrendingUp, MoreVertical } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Users, Eye, TrendingUp, MoreVertical, Plus, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 
@@ -34,6 +53,7 @@ interface Cleaner {
 }
 
 export default function AdminCleanersPage() {
+  const router = useRouter();
   const [cleaners, setCleaners] = useState<Cleaner[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,6 +63,23 @@ export default function AdminCleanersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [stats, setStats] = useState<any>(null);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    areas: [] as string[],
+    bio: '',
+    years_experience: '',
+    specialties: [] as string[],
+    password: '',
+    auth_provider: 'both' as 'password' | 'otp' | 'both',
+    is_active: true,
+    is_available: true,
+    photo_url: '',
+  });
   const pageSize = 20;
 
   useEffect(() => {
@@ -109,6 +146,102 @@ export default function AdminCleanersPage() {
     } catch (error) {
       console.error('Error fetching cleaner stats:', error);
     }
+  };
+
+  const handleAddCleaner = async () => {
+    setIsSubmitting(true);
+    setFormError(null);
+
+    try {
+      // Validate required fields
+      if (!formData.name.trim()) {
+        setFormError('Name is required');
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (!formData.phone.trim()) {
+        setFormError('Phone number is required');
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (formData.areas.length === 0) {
+        setFormError('At least one service area is required');
+        setIsSubmitting(false);
+        return;
+      }
+
+      if ((formData.auth_provider === 'password' || formData.auth_provider === 'both') && !formData.password) {
+        setFormError('Password is required when password authentication is enabled');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const response = await fetch('/api/admin/cleaners', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          phone: formData.phone.trim(),
+          email: formData.email.trim() || undefined,
+          areas: formData.areas,
+          bio: formData.bio.trim() || undefined,
+          years_experience: formData.years_experience ? parseInt(formData.years_experience) : undefined,
+          specialties: formData.specialties.length > 0 ? formData.specialties : undefined,
+          password: formData.password || undefined,
+          auth_provider: formData.auth_provider,
+          is_active: formData.is_active,
+          is_available: formData.is_available,
+          photo_url: formData.photo_url.trim() || undefined,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || 'Failed to create cleaner');
+      }
+
+      // Reset form and close dialog
+      setFormData({
+        name: '',
+        phone: '',
+        email: '',
+        areas: [],
+        bio: '',
+        years_experience: '',
+        specialties: [],
+        password: '',
+        auth_provider: 'both',
+        is_active: true,
+        is_available: true,
+        photo_url: '',
+      });
+      setIsAddDialogOpen(false);
+      setFormError(null);
+
+      // Refresh the cleaners list
+      fetchCleaners();
+      fetchStats();
+    } catch (error: any) {
+      console.error('Error creating cleaner:', error);
+      setFormError(error.message || 'Failed to create cleaner. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const toggleArea = (area: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      areas: prev.areas.includes(area)
+        ? prev.areas.filter((a) => a !== area)
+        : [...prev.areas, area],
+    }));
   };
 
   const formatCurrency = (cents: number) => {
@@ -226,12 +359,18 @@ export default function AdminCleanersPage() {
           { label: 'Cleaners' },
         ]}
         actions={
-          <Button asChild>
-            <Link href="/admin/cleaners/performance">
-              <TrendingUp className="h-4 w-4 mr-2" />
-              Performance Dashboard
-            </Link>
-          </Button>
+          <>
+            <Button onClick={() => setIsAddDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add New Cleaner
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/admin/cleaners/performance">
+                <TrendingUp className="h-4 w-4 mr-2" />
+                Performance Dashboard
+              </Link>
+            </Button>
+          </>
         }
       />
 
@@ -312,6 +451,233 @@ export default function AdminCleanersPage() {
           emptyMessage="No cleaners match your search criteria."
         />
       )}
+
+      {/* Add New Cleaner Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add New Cleaner</DialogTitle>
+            <DialogDescription>
+              Create a new cleaner account. All required fields must be filled.
+            </DialogDescription>
+          </DialogHeader>
+
+          {formError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-800">
+              {formError}
+            </div>
+          )}
+
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">
+                  Name <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="John Doe"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="phone">
+                  Phone <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  placeholder="+27123456789 or 0123456789"
+                  required
+                />
+                <p className="text-xs text-gray-500">Will be normalized to +27 format</p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="cleaner@example.com"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="areas">
+                Service Areas <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="areas"
+                value={formData.areas.join(', ')}
+                onChange={(e) => {
+                  const areas = e.target.value
+                    .split(',')
+                    .map((a) => a.trim())
+                    .filter((a) => a.length > 0);
+                  setFormData({ ...formData, areas });
+                }}
+                placeholder="Cape Town, Sea Point, Green Point"
+                required
+              />
+              <p className="text-xs text-gray-500">
+                Enter areas separated by commas. At least one area is required.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="password">
+                  Password <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  placeholder="Minimum 6 characters"
+                  required={formData.auth_provider === 'password' || formData.auth_provider === 'both'}
+                />
+                <p className="text-xs text-gray-500">
+                  Required if password authentication is enabled
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="auth_provider">Authentication Method</Label>
+                <Select
+                  value={formData.auth_provider}
+                  onValueChange={(value: 'password' | 'otp' | 'both') =>
+                    setFormData({ ...formData, auth_provider: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="password">Password Only</SelectItem>
+                    <SelectItem value="otp">OTP Only</SelectItem>
+                    <SelectItem value="both">Both Methods</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="bio">Bio</Label>
+              <Textarea
+                id="bio"
+                value={formData.bio}
+                onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                placeholder="Brief description of the cleaner..."
+                rows={3}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="years_experience">Years of Experience</Label>
+                <Input
+                  id="years_experience"
+                  type="number"
+                  min="0"
+                  value={formData.years_experience}
+                  onChange={(e) => setFormData({ ...formData, years_experience: e.target.value })}
+                  placeholder="5"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="photo_url">Photo URL</Label>
+                <Input
+                  id="photo_url"
+                  type="url"
+                  value={formData.photo_url}
+                  onChange={(e) => setFormData({ ...formData, photo_url: e.target.value })}
+                  placeholder="https://example.com/photo.jpg"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="specialties">Specialties</Label>
+              <Input
+                id="specialties"
+                value={formData.specialties.join(', ')}
+                onChange={(e) => {
+                  const specialties = e.target.value
+                    .split(',')
+                    .map((s) => s.trim())
+                    .filter((s) => s.length > 0);
+                  setFormData({ ...formData, specialties });
+                }}
+                placeholder="Deep Cleaning, Move In/Out, Office Cleaning"
+              />
+              <p className="text-xs text-gray-500">Separate multiple specialties with commas</p>
+            </div>
+
+            <div className="flex items-center space-x-6">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="is_active"
+                  checked={formData.is_active}
+                  onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                  className="rounded border-gray-300"
+                />
+                <Label htmlFor="is_active" className="font-normal cursor-pointer">
+                  Active
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="is_available"
+                  checked={formData.is_available}
+                  onChange={(e) => setFormData({ ...formData, is_available: e.target.checked })}
+                  className="rounded border-gray-300"
+                />
+                <Label htmlFor="is_available" className="font-normal cursor-pointer">
+                  Available
+                </Label>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsAddDialogOpen(false);
+                setFormError(null);
+              }}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleAddCleaner} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Cleaner
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
