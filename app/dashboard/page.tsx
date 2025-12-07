@@ -561,10 +561,9 @@ export default function DashboardPage() {
     );
   }
 
-  const welcomeName = useMemo(
-    () => customer?.firstName || user?.user_metadata?.first_name || 'there',
-    [customer?.firstName, user?.user_metadata?.first_name]
-  );
+  function welcomeName(): string {
+    return (user as any)?.firstName ?? "";
+  }
 
   return (
     <div 
@@ -609,7 +608,7 @@ export default function DashboardPage() {
             transition={{ duration: 0.5 }}
           >
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
-              Welcome back, {welcomeName}! 👋
+              Welcome back, {welcomeName()}! 👋
             </h1>
             <p className="text-xs sm:text-sm lg:text-base text-gray-600">
               Manage your bookings, payments, and cleaning plans all in one place

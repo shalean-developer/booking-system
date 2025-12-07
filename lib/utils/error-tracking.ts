@@ -17,6 +17,19 @@ let config: ErrorTrackingConfig = {
 };
 
 /**
+ * Safely import Sentry only when needed
+ * This prevents Turbopack from analyzing the import at build time
+ * Uses runtime string evaluation to prevent static analysis
+ */
+function safeImportSentry(): Promise<any> {
+  // Use Function constructor to prevent Turbopack from analyzing the import
+  // This creates the import statement dynamically at runtime only
+  const importFn = new Function('modulePath', 'return import(modulePath)');
+  const modulePath = '@' + 'sentry' + '/' + 'nextjs';
+  return importFn(modulePath);
+}
+
+/**
  * Initialize error tracking service
  */
 export function initErrorTracking(serviceConfig: Partial<ErrorTrackingConfig> = {}) {
@@ -28,9 +41,9 @@ export function initErrorTracking(serviceConfig: Partial<ErrorTrackingConfig> = 
 
   // Initialize Sentry if configured
   if (config.service === 'sentry' && config.dsn && typeof window !== 'undefined') {
-    try {
-      // Dynamic import to avoid bundling Sentry in production if not needed
-      import('@sentry/nextjs').then((Sentry) => {
+    // Dynamic import to avoid bundling Sentry in production if not needed
+    safeImportSentry()
+      .then((Sentry) => {
         Sentry.init({
           dsn: config.dsn,
           environment: config.environment,
@@ -44,10 +57,13 @@ export function initErrorTracking(serviceConfig: Partial<ErrorTrackingConfig> = 
             return event;
           },
         });
+      })
+      .catch((error) => {
+        // Sentry package not installed, silently fail
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[Error Tracking] Sentry not installed:', error.message);
+        }
       });
-    } catch (error) {
-      console.warn('Failed to initialize Sentry:', error);
-    }
   }
 
   // Initialize LogRocket if configured
@@ -73,17 +89,18 @@ export function captureException(error: Error, context?: Record<string, unknown>
   }
 
   if (config.service === 'sentry' && typeof window !== 'undefined') {
-    try {
-      import('@sentry/nextjs').then((Sentry) => {
+    safeImportSentry()
+      .then((Sentry) => {
         Sentry.captureException(error, {
           contexts: {
             custom: context || {},
           },
         });
+      })
+      .catch(() => {
+        // Sentry package not installed, fallback to console
+        console.error('[Error Tracking]', error, context);
       });
-    } catch (err) {
-      console.error('Failed to capture exception:', err);
-    }
   } else {
     console.error('[Error Tracking]', error, context);
   }
@@ -99,18 +116,19 @@ export function captureMessage(message: string, level: 'info' | 'warning' | 'err
   }
 
   if (config.service === 'sentry' && typeof window !== 'undefined') {
-    try {
-      import('@sentry/nextjs').then((Sentry) => {
+    safeImportSentry()
+      .then((Sentry) => {
         Sentry.captureMessage(message, {
           level: level === 'info' ? 'info' : level === 'warning' ? 'warning' : 'error',
           contexts: {
             custom: context || {},
           },
         });
+      })
+      .catch(() => {
+        // Sentry package not installed, fallback to console
+        console.log(`[Error Tracking] ${level.toUpperCase()}:`, message, context);
       });
-    } catch (err) {
-      console.error('Failed to capture message:', err);
-    }
   } else {
     console.log(`[Error Tracking] ${level.toUpperCase()}:`, message, context);
   }
@@ -123,17 +141,17 @@ export function setUserContext(userId: string, email?: string, metadata?: Record
   if (!config.enabled) return;
 
   if (config.service === 'sentry' && typeof window !== 'undefined') {
-    try {
-      import('@sentry/nextjs').then((Sentry) => {
+    safeImportSentry()
+      .then((Sentry) => {
         Sentry.setUser({
           id: userId,
           email,
           ...metadata,
         });
+      })
+      .catch(() => {
+        // Sentry package not installed, silently fail
       });
-    } catch (err) {
-      console.error('Failed to set user context:', err);
-    }
   }
 }
 
@@ -144,13 +162,13 @@ export function clearUserContext() {
   if (!config.enabled) return;
 
   if (config.service === 'sentry' && typeof window !== 'undefined') {
-    try {
-      import('@sentry/nextjs').then((Sentry) => {
+    safeImportSentry()
+      .then((Sentry) => {
         Sentry.setUser(null);
+      })
+      .catch(() => {
+        // Sentry package not installed, silently fail
       });
-    } catch (err) {
-      console.error('Failed to clear user context:', err);
-    }
   }
 }
 

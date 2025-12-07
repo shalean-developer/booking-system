@@ -135,10 +135,45 @@ export async function fetcher<T>(url: string): Promise<T> {
       }
     }
 
-    // Safe to parse as JSON now
-    const data = await response.json();
+    // Even if content-type says JSON, verify the body is actually JSON
+    // (HTML error pages sometimes have wrong content-type headers)
+    let data: T;
+    try {
+      const clonedResponse = response.clone();
+      const text = await clonedResponse.text();
+      const trimmedText = text.trim();
+      
+      // Check if response is actually HTML despite content-type
+      if (trimmedText.startsWith('<!DOCTYPE') || trimmedText.startsWith('<html') || trimmedText.startsWith('<!')) {
+        console.error('[SWR Fetcher] Response body is HTML despite JSON content-type:', {
+          url,
+          contentType,
+          preview: trimmedText.substring(0, 200),
+          status: response.status,
+        });
+        throw new Error(`API endpoint returned HTML instead of JSON: ${url}`);
+      }
+      
+      // Safe to parse as JSON now
+      data = JSON.parse(text);
+    } catch (parseError: any) {
+      // If JSON parsing fails, provide better error message
+      if (parseError instanceof SyntaxError || (parseError?.message && parseError.message.includes('JSON'))) {
+        const clonedResponse = response.clone();
+        const text = await clonedResponse.text();
+        console.error('[SWR Fetcher] JSON parsing failed:', {
+          url,
+          contentType,
+          preview: text.substring(0, 200),
+          error: parseError.message,
+        });
+        throw new Error(`Invalid JSON response from ${url}: ${parseError.message}`);
+      }
+      throw parseError;
+    }
+
     console.log(`[SWR Fetcher] Success (${duration}ms):`, url);
-    return data as T;
+    return data;
   } catch (error: any) {
     const duration = Date.now() - startTime;
     
@@ -173,6 +208,14 @@ export async function fetcher<T>(url: string): Promise<T> {
       console.warn('[SWR Fetcher] Error extracting error details:', extractError);
     }
     
+    // Ensure we always have meaningful values (final fallback)
+    if (!errorMessage || errorMessage.trim() === '') {
+      errorMessage = error instanceof Error ? error.message || error.toString() : 'Network error occurred';
+    }
+    if (!errorName || errorName.trim() === '') {
+      errorName = error instanceof Error ? error.name || 'Error' : 'Error';
+    }
+    
     // Log network errors with more detail
     if (errorName === 'AbortError' || (error instanceof Error && error.name === 'AbortError')) {
       console.error('[SWR Fetcher] Request timeout:', { 
@@ -182,13 +225,19 @@ export async function fetcher<T>(url: string): Promise<T> {
       });
     } else if (error instanceof TypeError && (error.message?.includes('fetch') || error.message?.includes('network'))) {
       // Network connectivity issues
-      console.error('[SWR Fetcher] Network connectivity error:', {
-        url,
-        error: errorMessage,
-        name: errorName,
+      const networkErrorDetails = {
+        url: url || 'unknown',
+        error: errorMessage || error?.message || String(error) || 'Network connectivity error',
+        name: errorName || 'TypeError',
         duration: `${duration}ms`,
         hint: 'Check if the server is running and accessible',
-      });
+        originalError: error instanceof Error ? {
+          name: error.name,
+          message: error.message,
+          stack: error.stack?.substring(0, 200),
+        } : String(error),
+      };
+      console.error('[SWR Fetcher] Network connectivity error:', networkErrorDetails);
     } else {
       // Log with safe error information - build object carefully
       const logData: Record<string, any> = {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -47,6 +47,7 @@ export function NewHeader({
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [skipLinkFocused, setSkipLinkFocused] = useState(false);
   const [logoSrc, setLogoSrc] = useState('/logo.svg');
+  const hasAttemptedFallback = useRef(false);
 
   // Fetch notification count
   useEffect(() => {
@@ -132,6 +133,7 @@ export function NewHeader({
           >
             <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-xl overflow-hidden flex-shrink-0" aria-hidden="true">
               <Image
+                key={logoSrc}
                 src={logoSrc}
                 alt="Shalean Logo"
                 width={40}
@@ -140,10 +142,12 @@ export function NewHeader({
                 className="h-full w-full object-contain"
                 onError={() => {
                   // Fallback to PNG if SVG fails
-                  // Only attempt fallback once to prevent infinite error loops
-                  if (logoSrc === '/logo.svg') {
+                  // Use ref to track fallback attempt to prevent infinite error loops
+                  if (!hasAttemptedFallback.current && logoSrc === '/logo.svg') {
+                    hasAttemptedFallback.current = true;
                     setLogoSrc('/logo.png');
                   }
+                  // If PNG also fails, the Image component will handle it gracefully
                 }}
               />
             </div>

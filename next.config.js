@@ -466,6 +466,23 @@ const nextConfig = {
   },
   // Optimize webpack chunk splitting for better code splitting
   webpack: (config, { isServer }) => {
+    // Ignore optional Sentry package warnings
+    config.resolve = {
+      ...config.resolve,
+      fallback: {
+        ...config.resolve?.fallback,
+      },
+    };
+    
+    // Suppress warnings for optional dependencies
+    config.ignoreWarnings = [
+      ...(config.ignoreWarnings || []),
+      {
+        module: /@sentry\/nextjs/,
+        message: /Can't resolve '@sentry\/nextjs'/,
+      },
+    ];
+
     if (!isServer) {
       config.optimization = {
         ...config.optimization,

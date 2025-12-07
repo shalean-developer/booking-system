@@ -74,14 +74,27 @@ export async function cachedFetch(
 
       // Cache successful GET responses
       if ((fetchOptions.method === 'GET' || !fetchOptions.method) && cacheTime > 0) {
-        const data = await response.clone().json().catch(() => null);
-        if (data) {
-          const cacheKey = `${url}:${JSON.stringify(fetchOptions)}`;
-          cache.set(cacheKey, {
-            data,
-            timestamp: Date.now(),
-            expiresAt: Date.now() + cacheTime,
-          });
+        try {
+          const clonedResponse = response.clone();
+          const text = await clonedResponse.text();
+          const trimmedText = text.trim();
+          
+          // Check if response is HTML (don't cache HTML responses)
+          if (!trimmedText.startsWith('<!DOCTYPE') && !trimmedText.startsWith('<html') && !trimmedText.startsWith('<!')) {
+            try {
+              const data = JSON.parse(text);
+              const cacheKey = `${url}:${JSON.stringify(fetchOptions)}`;
+              cache.set(cacheKey, {
+                data,
+                timestamp: Date.now(),
+                expiresAt: Date.now() + cacheTime,
+              });
+            } catch {
+              // Not JSON, don't cache
+            }
+          }
+        } catch {
+          // Can't read response, don't cache
         }
       }
 

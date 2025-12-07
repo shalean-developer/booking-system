@@ -260,7 +260,7 @@ export default function BookingsPage() {
                 >
                   <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
                   <span className="hidden sm:inline">Back to Dashboard</span>
-                </Button>
+              </Button>
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 truncate">My Bookings</h1>
               </div>
               <Button variant="outline" size="sm" asChild className="gap-2 flex-shrink-0">
@@ -285,33 +285,33 @@ export default function BookingsPage() {
                 />
               </div>
               <div className="flex gap-3 sm:gap-4">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-full sm:w-[180px] h-10 sm:h-11 text-sm sm:text-base">
                     <Filter className="h-4 w-4 mr-2 flex-shrink-0" />
-                    <SelectValue placeholder="Filter by status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Bookings</SelectItem>
-                    <SelectItem value="upcoming">Upcoming</SelectItem>
-                    <SelectItem value="past">Past</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="confirmed">Confirmed</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
-                {filteredBookings.length > 0 && (
-                  <Button
-                    variant="outline"
-                    onClick={handleExportCSV}
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Bookings</SelectItem>
+                  <SelectItem value="upcoming">Upcoming</SelectItem>
+                  <SelectItem value="past">Past</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="confirmed">Confirmed</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+              {filteredBookings.length > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={handleExportCSV}
                     className="gap-2 h-10 sm:h-11 text-sm sm:text-base flex-shrink-0"
                     aria-label="Export bookings to CSV"
-                  >
+                >
                     <Download className="h-4 w-4 sm:h-5 sm:w-5" />
                     <span className="hidden sm:inline">Export CSV</span>
                     <span className="sm:hidden">Export</span>
-                  </Button>
-                )}
+                </Button>
+              )}
               </div>
             </div>
           </div>
@@ -320,7 +320,7 @@ export default function BookingsPage() {
           {filteredBookings.length > 0 && (
             <div className="mb-4 text-xs sm:text-sm lg:text-base text-gray-600 font-medium">
               Showing {paginatedBookings.length} of {filteredBookings.length} bookings
-            </div>
+              </div>
           )}
 
           {/* Upcoming Bookings */}
@@ -394,7 +394,7 @@ export default function BookingsPage() {
 
           {/* Past Bookings */}
           {pastBookings.length > 0 && (
-            <div>
+                    <div>
               <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900 mb-4 sm:mb-6">Past Bookings</h2>
               <div className="space-y-3 sm:space-y-4">
                 {pastBookings.map((booking, index) => (
@@ -431,7 +431,7 @@ export default function BookingsPage() {
                             <div className="text-sm sm:text-base lg:text-lg font-semibold text-gray-900">
                               R{(booking.total_amount / 100).toFixed(2)}
                             </div>
-                          </div>
+                    </div>
                           <div className="flex flex-row sm:flex-col lg:flex-row gap-2 flex-shrink-0">
                             <Button 
                               variant="outline" 
@@ -439,12 +439,12 @@ export default function BookingsPage() {
                               asChild
                               className="flex-1 sm:flex-none text-xs sm:text-sm h-9 sm:h-10 touch-manipulation"
                             >
-                              <Link href={`/dashboard/bookings/${booking.id}`}>View</Link>
-                            </Button>
+                            <Link href={`/dashboard/bookings/${booking.id}`}>View</Link>
+                      </Button>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                    </div>
+                  </CardContent>
+                </Card>
                   </motion.div>
                 ))}
               </div>
@@ -477,7 +477,7 @@ export default function BookingsPage() {
               >
                 Next
               </Button>
-            </div>
+          </div>
           )}
 
           {/* Empty State */}
@@ -504,9 +504,9 @@ export default function BookingsPage() {
                 <Button 
                   variant="outline" 
                   onClick={() => {
-                    setSearchQuery('');
-                    setStatusFilter('all');
-                    toast.info('Filters cleared');
+                  setSearchQuery('');
+                  setStatusFilter('all');
+                  toast.info('Filters cleared');
                   }}
                   className="text-sm sm:text-base h-10 sm:h-11"
                 >
