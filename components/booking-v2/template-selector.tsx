@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { useBookingV2 } from '@/lib/useBookingV2';
 import { useRouter } from 'next/navigation';
 import { useBookingPath } from '@/lib/useBookingPath';
-import type { ServiceType } from '@/types/booking';
+import type { ServiceType, TeamName } from '@/types/booking';
 
 interface BookingTemplate {
   id: string;
@@ -93,7 +93,7 @@ export function TemplateSelector() {
         city: template.address_city || '',
       });
       updateField('cleaner_id', template.cleaner_id);
-      updateField('selected_team', template.selected_team);
+      updateField('selected_team', template.selected_team as TeamName | null);
       updateField('requires_team', template.requires_team || false);
       updateField('tipAmount', template.tip_amount ? template.tip_amount / 100 : 0);
 
