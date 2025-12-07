@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase-client';
 import { toast } from 'sonner';
+import { devLog } from '@/lib/dev-logger';
 import { Loader2 } from 'lucide-react';
 
 const profileSchema = z.object({
@@ -116,9 +117,10 @@ export function ProfileQuickSetup({ open, onOpenChange, customer, onUpdated }: P
       toast.success('Profile updated');
       onUpdated(payload.customer);
       onOpenChange(false);
-    } catch (error: any) {
-      console.error('Profile update failed', error);
-      toast.error(error?.message || 'Unable to update profile right now.');
+    } catch (error: unknown) {
+      devLog.error('Profile update failed', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unable to update profile right now.';
+      toast.error(errorMessage);
     }
   };
 

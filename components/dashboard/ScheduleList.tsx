@@ -111,7 +111,7 @@ export const ScheduleList = memo(function ScheduleList({
           </div>
           {capacity !== undefined && (
             <div className="text-right">
-              <div className={`text-2xl font-bold ${capacityPercentage && capacityPercentage > 80 ? 'text-red-600' : capacityPercentage && capacityPercentage > 60 ? 'text-yellow-600' : 'text-green-600'}`}>
+              <div className={`text-2xl font-bold ${capacityPercentage && capacityPercentage > 80 ? 'text-red-600' : capacityPercentage && capacityPercentage > 60 ? 'text-yellow-600' : 'text-blue-600'}`}>
                 {capacityPercentage?.toFixed(0) || 0}%
               </div>
               <div className="text-xs text-muted-foreground">{capacityLabel}</div>

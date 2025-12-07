@@ -1,24 +1,27 @@
 'use client';
 
 import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useBookingV2 } from '@/lib/useBookingV2';
 import { useBookingPath } from '@/lib/useBookingPath';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Check, Loader2, UserX, AlertCircle, Sparkles, CheckCircle, User, MapPin } from 'lucide-react';
+import { Check, Loader2, UserX, AlertCircle, Sparkles, CheckCircle, User, MapPin, Heart } from 'lucide-react';
 import { AddressAutocomplete } from '@/components/address-autocomplete';
 import { getCurrentPricing } from '@/lib/pricing';
 import { FrequencySelector } from '@/components/frequency-selector';
 import type { Cleaner, AvailableCleanersResponse, TeamName } from '@/types/booking';
 import { requiresTeam } from '@/lib/booking-utils';
 import Image from 'next/image';
+import { supabase } from '@/lib/supabase-client';
 
 
 export function StepScheduleCleaner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const rescheduleId = searchParams.get('rescheduleId');
   const { state, updateField } = useBookingV2();
   const { getDetailsPath, getContactPath } = useBookingPath();
   
@@ -36,6 +39,8 @@ export function StepScheduleCleaner() {
   const [cleaners, setCleaners] = useState<Cleaner[]>([]);
   const [isLoadingCleaners, setIsLoadingCleaners] = useState(true);
   const [selectedCleanerId, setSelectedCleanerId] = useState<string | null>(state.cleaner_id);
+  const [favoriteCleanerIds, setFavoriteCleanerIds] = useState<Set<string>>(new Set());
+  const [togglingFavoriteId, setTogglingFavoriteId] = useState<string | null>(null);
   const initialTeam = useMemo<TeamName | null>(() => {
     const teamValue = state.selected_team;
     const validTeams: TeamName[] = ['Team A', 'Team B', 'Team C'];
@@ -46,6 +51,46 @@ export function StepScheduleCleaner() {
   const [sortOption, setSortOption] = useState<'recommended' | 'rating' | 'experience'>('recommended');
 
   const needsTeam = requiresTeam(state.service);
+
+  // Load booking data when rescheduling
+  useEffect(() => {
+    const loadBookingForReschedule = async () => {
+      if (!rescheduleId) return;
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        const resp = await fetch(`/api/dashboard/booking?id=${encodeURIComponent(rescheduleId)}`, {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+        });
+        const json = await resp.json();
+
+        if (resp.ok && json.ok && json.booking) {
+          const b = json.booking as any;
+          // Address
+          updateField('address', {
+            line1: b.address_line1 || '',
+            suburb: b.address_suburb || '',
+            city: b.address_city || ''
+          });
+          // Date and time
+          if (b.booking_date) {
+            updateField('date', b.booking_date);
+          }
+          if (b.booking_time) {
+            updateField('time', b.booking_time);
+          }
+        }
+      } catch {
+        // ignore errors - user can still reschedule manually
+      }
+    };
+
+    loadBookingForReschedule();
+  }, [rescheduleId, updateField]);
 
   // Fetch cleaners when date and suburb are available
   useEffect(() => {
@@ -127,24 +172,89 @@ export function StepScheduleCleaner() {
   const sortedCleaners = useMemo(() => {
     let list = [...cleaners];
 
-    switch (sortOption) {
-      case 'rating':
-        list.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
-        break;
-      case 'experience':
-        list.sort((a, b) => (b.years_experience ?? 0) - (a.years_experience ?? 0));
-        break;
-      default:
-        list.sort((a, b) => {
-          const ratingDiff = (b.rating ?? 0) - (a.rating ?? 0);
-          if (ratingDiff !== 0) return ratingDiff;
-          return (b.years_experience ?? 0) - (a.years_experience ?? 0);
-        });
-        break;
-    }
+    // Separate favorites and non-favorites
+    const favorites: Cleaner[] = [];
+    const nonFavorites: Cleaner[] = [];
 
-    return list;
-  }, [cleaners, sortOption]);
+    list.forEach(cleaner => {
+      if (favoriteCleanerIds.has(cleaner.id)) {
+        favorites.push(cleaner);
+      } else {
+        nonFavorites.push(cleaner);
+      }
+    });
+
+    // Sort each group
+    const sortGroup = (group: Cleaner[]) => {
+      switch (sortOption) {
+        case 'rating':
+          return group.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+        case 'experience':
+          return group.sort((a, b) => (b.years_experience ?? 0) - (a.years_experience ?? 0));
+        default:
+          return group.sort((a, b) => {
+            const ratingDiff = (b.rating ?? 0) - (a.rating ?? 0);
+            if (ratingDiff !== 0) return ratingDiff;
+            return (b.years_experience ?? 0) - (a.years_experience ?? 0);
+          });
+      }
+    };
+
+    return [...sortGroup(favorites), ...sortGroup(nonFavorites)];
+  }, [cleaners, sortOption, favoriteCleanerIds]);
+
+  const handleToggleFavorite = useCallback(async (cleanerId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent selecting cleaner when clicking heart
+    
+    try {
+      setTogglingFavoriteId(cleanerId);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        // User not logged in - could show a toast or redirect
+        return;
+      }
+
+      const isFavorite = favoriteCleanerIds.has(cleanerId);
+      
+      if (isFavorite) {
+        // Remove from favorites
+        const response = await fetch(`/api/dashboard/favorites?cleaner_id=${encodeURIComponent(cleanerId)}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+        });
+
+        const data = await response.json();
+        if (response.ok && data.ok) {
+          setFavoriteCleanerIds(prev => {
+            const next = new Set(prev);
+            next.delete(cleanerId);
+            return next;
+          });
+        }
+      } else {
+        // Add to favorites
+        const response = await fetch('/api/dashboard/favorites', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ cleaner_id: cleanerId }),
+        });
+
+        const data = await response.json();
+        if (response.ok && data.ok) {
+          setFavoriteCleanerIds(prev => new Set(prev).add(cleanerId));
+        }
+      }
+    } catch (err) {
+      // Silently fail
+    } finally {
+      setTogglingFavoriteId(null);
+    }
+  }, [favoriteCleanerIds]);
 
   const handleBack = useCallback(() => {
     if (state.service) {
@@ -152,10 +262,34 @@ export function StepScheduleCleaner() {
     }
   }, [state.service, router, getDetailsPath]);
 
-  const handleNext = useCallback(() => {
+  const handleNext = useCallback(async () => {
     if (!state.service) return;
+    
+    // If rescheduling, update existing booking and go back to dashboard bookings
+    if (rescheduleId && state.date && state.time) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/login');
+        return;
+      }
+      const resp = await fetch('/api/dashboard/reschedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        body: JSON.stringify({ bookingId: rescheduleId, date: state.date, time: state.time })
+      });
+      // On success navigate back to bookings, otherwise stay here
+      if (resp.ok) {
+        const json = await resp.json();
+        if (json.ok) {
+          router.push('/dashboard/bookings');
+          return;
+        }
+      }
+      return; // Do not proceed to contact during reschedule flow
+    }
+    
     router.push(getContactPath(state.service));
-  }, [state.service, router, getContactPath]);
+  }, [state.service, state.date, state.time, rescheduleId, router, getContactPath]);
 
   return (
     <motion.div
@@ -311,6 +445,8 @@ export function StepScheduleCleaner() {
                     {/* Cleaner cards */}
                     {sortedCleaners.map((cleaner) => {
                       const isSelected = selectedCleanerId === cleaner.id;
+                      const isFavorite = favoriteCleanerIds.has(cleaner.id);
+                      const isToggling = togglingFavoriteId === cleaner.id;
                       return (
                         <motion.div
                           key={cleaner.id}
@@ -325,10 +461,31 @@ export function StepScheduleCleaner() {
                               'focus:outline-none focus:ring-2 focus:ring-primary/30',
                               isSelected
                                 ? 'border-primary bg-primary/5 shadow-lg'
+                                : isFavorite
+                                ? 'border-teal-200 bg-teal-50/50 hover:border-primary/40 hover:shadow-md'
                                 : 'border-gray-200 bg-white hover:border-primary/40 hover:shadow-md'
                             )}
                           >
                             <div className="flex flex-col items-center gap-2">
+                              {/* Favorite button */}
+                              <button
+                                onClick={(e) => handleToggleFavorite(cleaner.id, e)}
+                                disabled={isToggling}
+                                className={cn(
+                                  'absolute top-2 left-2 z-10 p-1 rounded-full transition-colors',
+                                  'hover:bg-white/80 focus:outline-none focus:ring-2 focus:ring-primary/30',
+                                  isFavorite ? 'text-red-500' : 'text-gray-400 hover:text-red-500',
+                                  isToggling && 'opacity-50 cursor-wait'
+                                )}
+                                aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                              >
+                                {isToggling ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Heart className={cn('h-3.5 w-3.5', isFavorite && 'fill-current')} />
+                                )}
+                              </button>
+
                               {cleaner.photo_url ? (
                                 <Image
                                   src={cleaner.photo_url}
@@ -348,6 +505,11 @@ export function StepScheduleCleaner() {
                               </div>
                               {isSelected && (
                                 <CheckCircle className="h-4 w-4 text-primary absolute top-2 right-2" />
+                              )}
+                              {isFavorite && !isSelected && (
+                                <div className="absolute top-2 right-2">
+                                  <Heart className="h-3 w-3 text-red-500 fill-current" />
+                                </div>
                               )}
                             </div>
                           </button>

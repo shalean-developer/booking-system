@@ -5,15 +5,17 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { devLog } from '@/lib/dev-logger';
 import { 
   Star, 
-  Loader2, 
   Calendar, 
   User, 
   MapPin,
   MessageSquare,
   Image as ImageIcon
 } from 'lucide-react';
+import { LoadingSpinner } from './loading-spinner';
+import { devLog } from '@/lib/dev-logger';
 
 interface Review {
   id: string;
@@ -81,11 +83,11 @@ export function CustomerReviews() {
 
       setReviews(reviewsData);
     } catch (err) {
-      console.error('🟥 [CustomerReviews] Error fetching reviews:', err);
+      devLog.error('🟥 [CustomerReviews] Error fetching reviews:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch reviews');
     } finally {
       setIsLoading(false);
-      console.log('🟦 [CustomerReviews] fetchReviews completed');
+      devLog.debug('🟦 [CustomerReviews] fetchReviews completed');
     }
   };
 
@@ -111,19 +113,10 @@ export function CustomerReviews() {
     ? (reviews.reduce((sum, r) => sum + r.overall_rating, 0) / reviews.length).toFixed(1)
     : '0.0';
 
-  console.log('🟦 [CustomerReviews] Render state:', {
-    isLoading,
-    error,
-    reviewsCount: reviews.length,
-    averageRating: averageOverallRating,
-    reviews: reviews
-  });
-
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        <span className="ml-2 text-gray-600">Loading your reviews...</span>
+      <div className="py-8">
+        <LoadingSpinner size="md" text="Loading your reviews..." />
       </div>
     );
   }

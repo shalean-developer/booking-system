@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { StepServiceDetails } from '@/components/booking-v2/step-service-details';
 import { BookingSummaryV2 } from '@/components/booking-v2/booking-summary';
+import { TemplateSelector } from '@/components/booking-v2/template-selector';
 import { useBookingV2 } from '@/lib/useBookingV2';
 import { slugToServiceType } from '@/lib/booking-utils';
 import { Stepper } from '@/components/stepper';
@@ -27,6 +28,7 @@ export default function DetailsPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="md:col-span-2">
             <Stepper currentStep={state.currentStep} />
+            <TemplateSelector />
             <StepServiceDetails />
           </div>
           <div className="md:col-span-1">

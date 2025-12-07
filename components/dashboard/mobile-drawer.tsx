@@ -18,7 +18,12 @@ import {
   Home,
   Mail,
   Calendar,
-  Star
+  Star,
+  TrendingUp,
+  CreditCard,
+  RefreshCw,
+  FileText,
+  ChevronRight
 } from 'lucide-react';
 
 interface MobileDrawerProps {
@@ -105,7 +110,63 @@ export function MobileDrawer({ isOpen, onClose, user, customer, onEditProfile }:
                   </div>
                 </div>
 
-                {/* Settings Section */}
+                {/* Navigation Section */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Navigation</h3>
+                  <div className="space-y-2">
+                    <Button variant="outline" className="w-full justify-start" asChild>
+                      <Link href="/dashboard" onClick={onClose}>
+                        <Home className="mr-2 h-4 w-4" />
+                        Overview
+                        <ChevronRight className="ml-auto h-4 w-4" />
+                      </Link>
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start" asChild>
+                      <Link href="/dashboard/bookings" onClick={onClose}>
+                        <Calendar className="mr-2 h-4 w-4" />
+                        Bookings
+                        <ChevronRight className="ml-auto h-4 w-4" />
+                      </Link>
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start" asChild>
+                      <Link href="/dashboard/payments" onClick={onClose}>
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        Payments
+                        <ChevronRight className="ml-auto h-4 w-4" />
+                      </Link>
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start" asChild>
+                      <Link href="/dashboard/plans" onClick={onClose}>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Cleaning Plans
+                        <ChevronRight className="ml-auto h-4 w-4" />
+                      </Link>
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start" asChild>
+                      <Link href="/dashboard/reviews" onClick={onClose}>
+                        <Star className="mr-2 h-4 w-4" />
+                        Reviews
+                        <ChevronRight className="ml-auto h-4 w-4" />
+                      </Link>
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start" asChild>
+                      <Link href="/dashboard/tickets" onClick={onClose}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Support Tickets
+                        <ChevronRight className="ml-auto h-4 w-4" />
+                      </Link>
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start" asChild>
+                      <Link href="/dashboard/analytics" onClick={onClose}>
+                        <TrendingUp className="mr-2 h-4 w-4" />
+                        Analytics & Insights
+                        <ChevronRight className="ml-auto h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Account Section */}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-3">Account</h3>
                   <div className="space-y-2">
@@ -119,6 +180,20 @@ export function MobileDrawer({ isOpen, onClose, user, customer, onEditProfile }:
                     >
                       <Settings className="mr-2 h-4 w-4" />
                       Update profile
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start" asChild>
+                      <Link href="/dashboard/settings" onClick={onClose}>
+                        <Settings className="mr-2 h-4 w-4" />
+                        Settings
+                        <ChevronRight className="ml-auto h-4 w-4" />
+                      </Link>
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start" asChild>
+                      <Link href="/dashboard/profile" onClick={onClose}>
+                        <User className="mr-2 h-4 w-4" />
+                        Profile
+                        <ChevronRight className="ml-auto h-4 w-4" />
+                      </Link>
                     </Button>
                   </div>
                 </div>

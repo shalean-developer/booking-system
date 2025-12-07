@@ -118,26 +118,59 @@ export function useBookingV2() {
   // Load from sessionStorage on mount (only once globally)
   useEffect(() => {
     if (!isInitialized) {
+      // Check for template in sessionStorage first
+      const templateRaw = sessionStorage.getItem('booking_template');
+      if (templateRaw) {
+        try {
+          const template = JSON.parse(templateRaw);
+          // Apply template to booking state
+          globalState = {
+            ...initial,
+            service: template.service_type || null,
+            bedrooms: template.bedrooms || 2,
+            bathrooms: template.bathrooms || 1,
+            extras: template.extras || [],
+            extrasQuantities: template.extras_quantities || {},
+            notes: template.notes || '',
+            frequency: template.frequency || 'one-time',
+            address: {
+              line1: template.address_line1 || '',
+              line2: '',
+              suburb: template.address_suburb || '',
+              city: template.address_city || '',
+            },
+            cleaner_id: template.cleaner_id || null,
+            selected_team: template.selected_team || null,
+            requires_team: template.requires_team || false,
+            tipAmount: template.tip_amount ? template.tip_amount / 100 : 0, // Convert cents to rands
+            currentStep: 1,
+          };
+          // Clear template from sessionStorage after loading
+          sessionStorage.removeItem('booking_template');
+        } catch (e) {
+          console.error('Failed to parse booking template:', e);
+        }
+      }
+      
+      // Then load regular booking state
       const raw = sessionStorage.getItem(KEY);
       if (raw) {
         try {
           const loadedState = JSON.parse(raw);
           globalState = {
-            ...initial,
+            ...globalState,
             ...loadedState,
             extrasQuantities: loadedState.extrasQuantities || {},
-            address: loadedState.address || initial.address,
+            address: loadedState.address || globalState.address,
           };
-          setStateInternal(globalState);
-          isInitialized = true;
-          notifyListeners();
         } catch (e) {
           console.error('Failed to parse booking state:', e);
-          isInitialized = true;
         }
-      } else {
-        isInitialized = true;
       }
+      
+      setStateInternal(globalState);
+      isInitialized = true;
+      notifyListeners();
     }
     setIsLoaded(true);
   }, []);

@@ -17,8 +17,14 @@ export function MobileBottomNav({ activeTab, onTabChange, onMoreClick }: MobileB
   // Determine active tab based on current path
   const getActiveTab = () => {
     if (pathname === '/dashboard') return 'overview';
-    if (pathname === '/dashboard/bookings') return 'bookings';
-    if (pathname === '/dashboard/reviews') return 'reviews';
+    if (pathname?.startsWith('/dashboard/bookings')) return 'bookings';
+    if (pathname?.startsWith('/dashboard/reviews')) return 'reviews';
+    if (pathname?.startsWith('/dashboard/payments')) return 'more';
+    if (pathname?.startsWith('/dashboard/plans')) return 'more';
+    if (pathname?.startsWith('/dashboard/tickets')) return 'more';
+    if (pathname?.startsWith('/dashboard/profile')) return 'more';
+    if (pathname?.startsWith('/dashboard/settings')) return 'more';
+    if (pathname?.startsWith('/dashboard/analytics')) return 'more';
     return 'overview';
   };
 
@@ -52,7 +58,7 @@ export function MobileBottomNav({ activeTab, onTabChange, onMoreClick }: MobileB
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 lg:hidden" role="navigation" aria-label="Customer dashboard bottom navigation">
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 lg:hidden shadow-lg" role="navigation" aria-label="Customer dashboard bottom navigation">
       <div className="flex items-center justify-around py-2 px-2">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -64,10 +70,10 @@ export function MobileBottomNav({ activeTab, onTabChange, onMoreClick }: MobileB
                 key={tab.id}
                 href={tab.href}
                 className={cn(
-                  'flex flex-col items-center justify-center py-2 px-3 min-w-[64px] flex-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md',
+                  'flex flex-col items-center justify-center py-2 px-3 min-w-[64px] flex-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-600/40 rounded-md min-h-[56px]',
                   isActive
-                    ? 'text-primary'
-                    : 'text-gray-600'
+                    ? 'text-teal-600 bg-teal-50'
+                    : 'text-gray-600 hover:text-teal-600'
                 )}
                 aria-label={tab.label}
                 aria-current={isActive ? 'page' : undefined}
@@ -76,14 +82,14 @@ export function MobileBottomNav({ activeTab, onTabChange, onMoreClick }: MobileB
                 <Icon
                   className={cn(
                     'h-5 w-5 mb-0.5',
-                    isActive && 'text-primary'
+                    isActive && 'text-teal-600'
                   )}
                   aria-hidden="true"
                 />
                 <span
                   className={cn(
-                    'text-[11px] leading-4 font-medium truncate',
-                    isActive ? 'text-primary' : 'text-gray-600'
+                    'text-xs sm:text-sm leading-4 font-semibold truncate',
+                    isActive ? 'text-teal-600' : 'text-gray-600'
                   )}
                 >
                   {tab.label}
@@ -96,13 +102,13 @@ export function MobileBottomNav({ activeTab, onTabChange, onMoreClick }: MobileB
                 key={tab.id}
                 onClick={onMoreClick}
                 className={cn(
-                  'flex flex-col items-center justify-center py-2 px-3 min-w-[64px] flex-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md',
-                  'text-gray-600'
+                  'flex flex-col items-center justify-center py-2 px-3 min-w-[64px] flex-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-600/40 rounded-md min-h-[56px]',
+                  'text-gray-600 hover:text-teal-600'
                 )}
                 aria-label={tab.label}
               >
                 <Icon className="h-5 w-5 mb-0.5" aria-hidden="true" />
-                <span className="text-[11px] leading-4 font-medium truncate">
+                <span className="text-xs sm:text-sm leading-4 font-semibold truncate">
                   {tab.label}
                 </span>
               </button>

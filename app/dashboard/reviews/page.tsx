@@ -2,70 +2,58 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/lib/supabase-client';
 import { safeGetSession } from '@/lib/logout-utils';
-import {
-  Loader2,
-  AlertCircle,
-  ArrowLeft,
-  Star,
-  MessageSquare,
-  Image as ImageIcon,
-} from 'lucide-react';
-import { CustomerHeader } from '@/components/dashboard/customer-header';
+import { NewHeader } from '@/components/dashboard/new-header';
 import { MobileBottomNav } from '@/components/dashboard/mobile-bottom-nav';
-import { MobileDrawer } from '@/components/dashboard/mobile-drawer';
-import { ReviewsTab } from '@/components/dashboard/reviews-tab';
-import { DashboardTabs } from '@/components/dashboard/dashboard-tabs';
-import { DashboardSidebar } from '@/components/dashboard/dashboard-sidebar';
-import { QuickStartTasks } from '@/components/dashboard/quick-start-tasks';
-import { ProfileQuickSetup } from '@/components/dashboard/profile-quick-setup';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Loader2, Star, ArrowLeft, Calendar } from 'lucide-react';
+import Link from 'next/link';
+import { format } from 'date-fns';
+import { motion } from 'framer-motion';
+import { devLog } from '@/lib/dev-logger';
 
-interface CustomerData {
+interface Review {
   id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  phone?: string | null;
-  addressLine1?: string | null;
-  addressSuburb?: string | null;
-  addressCity?: string | null;
-  totalBookings: number;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+  booking_id: string;
+  booking?: {
+    service_type: string;
+    booking_date: string;
+    booking_time: string;
+  };
 }
 
 export default function ReviewsPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [user, setUser] = useState<any>(null);
-  const [customer, setCustomer] = useState<CustomerData | null>(null);
+  const [customer, setCustomer] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [hasBookings, setHasBookings] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [profileSheetOpen, setProfileSheetOpen] = useState(false);
 
   useEffect(() => {
-    const checkAuthAndFetchData = async () => {
+    const fetchReviews = async () => {
       try {
         const session = await safeGetSession(supabase);
-        
         if (!session || !session.user) {
-          console.log('Not authenticated - redirecting to login');
-          router.push('/login');
+          router.push('/login?redirect=/dashboard/reviews');
           return;
         }
-        
-        const authUser = session.user;
-        setUser(authUser);
+
+        setUser(session.user);
 
         const { data: { session: apiSession } } = await supabase.auth.getSession();
         if (!apiSession) {
-          throw new Error('No active session');
+          setError('Session expired');
+          setIsLoading(false);
+          return;
         }
 
-        const response = await fetch('/api/dashboard/bookings', {
+        const response = await fetch('/api/dashboard/reviews', {
           headers: {
             'Authorization': `Bearer ${apiSession.access_token}`,
           },
@@ -73,201 +61,143 @@ export default function ReviewsPage() {
 
         const data = await response.json();
 
-        if (!response.ok || !data.ok) {
-          throw new Error(data.error || 'Failed to fetch customer data');
+        if (response.ok && data.ok) {
+          setReviews(data.reviews || []);
+        } else {
+          setError(data.error || 'Failed to load reviews');
         }
 
-        setCustomer(data.customer);
-        setHasBookings((data.bookings || []).length > 0);
-        setIsLoading(false);
-
+        // Fetch customer data
+        const customerResponse = await fetch('/api/dashboard/bookings?limit=1', {
+          headers: {
+            'Authorization': `Bearer ${apiSession.access_token}`,
+          },
+        });
+        const customerData = await customerResponse.json();
+        if (customerResponse.ok && customerData.ok && customerData.customer) {
+          setCustomer(customerData.customer);
+        }
       } catch (err) {
-        console.error('Reviews page error:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load reviews');
+        devLog.error('Error fetching reviews:', err);
+        setError('Failed to load reviews');
+      } finally {
         setIsLoading(false);
       }
     };
 
-    checkAuthAndFetchData();
+    fetchReviews();
   }, [router]);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-primary/5 to-white pb-20 lg:pb-0">
-        <CustomerHeader activeTab="reviews" user={user} customer={customer} onOpenMobileDrawer={() => setDrawerOpen(true)} />
+      <div className="min-h-screen bg-gradient-to-b from-teal-50/30 via-white to-white">
+        <NewHeader user={user} customer={customer} />
         <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-            <p className="text-gray-600">Loading your reviews...</p>
-          </div>
+          <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
         </div>
-        <MobileBottomNav activeTab="reviews" onTabChange={() => {}} onMoreClick={() => setDrawerOpen(true)} />
+        <MobileBottomNav activeTab="reviews" onTabChange={() => {}} />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-primary/5 to-white pb-20 lg:pb-0">
-        <CustomerHeader activeTab="reviews" user={user} customer={customer} onOpenMobileDrawer={() => setDrawerOpen(true)} />
+      <div className="min-h-screen bg-gradient-to-b from-teal-50/30 via-white to-white">
+        <NewHeader user={user} customer={customer} />
         <div className="flex items-center justify-center min-h-[60vh]">
           <Card className="max-w-md mx-4">
             <CardContent className="p-8 text-center">
-              <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Error Loading Reviews</h2>
-              <p className="text-gray-600 mb-6">{error}</p>
+              <p className="text-red-600 mb-4">{error}</p>
               <Button onClick={() => router.push('/dashboard')}>Go to Dashboard</Button>
             </CardContent>
           </Card>
         </div>
-        <MobileBottomNav activeTab="reviews" onTabChange={() => {}} onMoreClick={() => setDrawerOpen(true)} />
+        <MobileBottomNav activeTab="reviews" onTabChange={() => {}} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-primary/5 to-white pb-20 lg:pb-0">
-      <CustomerHeader
-        activeTab="reviews"
-        user={user}
-        customer={customer}
-        onOpenMobileDrawer={() => setDrawerOpen(true)}
-      />
-
-      <section className="py-8 sm:py-12">
+    <div className="min-h-screen bg-gradient-to-b from-teal-50/30 via-white to-white pb-32 lg:pb-0">
+      <NewHeader user={user} customer={customer} />
+      
+      <main className="py-6 sm:py-8">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          {/* Mobile Header */}
-          <div className="lg:hidden mb-6">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.back()}
-                className="p-2"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <h1 className="text-2xl font-bold text-gray-900">Reviews & Ratings</h1>
-            </div>
+          <div className="mb-6 flex items-center gap-4">
+            <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard')} className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Back to Dashboard
+            </Button>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Reviews</h1>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-6 sm:gap-8">
-            {/* Main Content */}
-            <div className="lg:col-span-2">
-              {/* Desktop Tabs */}
-              <div className="hidden lg:block">
-                <DashboardTabs activeTab="reviews" onTabChange={() => {}} />
-              </div>
-
-              {/* Desktop Header */}
-              <div className="hidden lg:block mb-8">
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Reviews & Ratings</h1>
-                <p className="text-gray-600">View your reviews and ratings</p>
-              </div>
-
-              {(!customer?.phone || !customer?.addressLine1 || !customer?.addressCity) && (
-                <Card className="border border-dashed border-primary/40 bg-white shadow-sm mb-6">
-                  <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                      <h2 className="text-base sm:text-lg font-semibold text-gray-900">Complete your profile</h2>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Add your contact details once so cleaners can reach you after each visit.
-                      </p>
-                    </div>
-                    <div className="flex gap-2 sm:flex-row flex-col w-full sm:w-auto">
-                      <Button className="flex-1 sm:flex-none" onClick={() => setProfileSheetOpen(true)}>
-                        Add details
-                      </Button>
-                      <Button variant="outline" className="flex-1 sm:flex-none" asChild>
-                        <Link href="/contact">Need help?</Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              <div className="mb-6">
-                <QuickStartTasks
-                  badgeText="Boost your feedback"
-                  title="Get ready to share helpful reviews"
-                  subtitle="A little preparation makes it easy to give your cleaner shout-outs or highlight areas to improve."
-                  tasks={[
-                    {
-                      id: 'learn',
-                      title: 'See how reviews help your cleaner',
-                      description: 'Discover what to mention so your cleaner knows exactly what worked.',
-                      cta: 'Review tips',
-                      icon: Star,
-                      href: '/faq',
-                      variant: 'outline',
-                      completed: false,
-                    },
-                    {
-                      id: 'reminder',
-                      title: hasBookings ? 'Remember to review your next visit' : 'Book before you review',
-                      description: hasBookings
-                        ? 'We’ll send a quick reminder after each completed booking.'
-                        : 'Schedule a clean to unlock ratings and reviews.',
-                      cta: hasBookings ? 'View upcoming cleans' : 'Book now',
-                      icon: MessageSquare,
-                      href: hasBookings ? '/dashboard/bookings' : '/booking/service/select',
-                      variant: 'default',
-                      completed: false,
-                    },
-                    {
-                      id: 'photos',
-                      title: 'Collect before & after photos',
-                      description: 'Photos make your feedback crystal clear and help your cleaner wow you next time.',
-                      cta: 'Photo tips',
-                      icon: ImageIcon,
-                      href: '/faq',
-                      variant: 'ghost',
-                      completed: false,
-                    },
-                  ]}
-                />
-              </div>
-
-              {/* Reviews Content */}
-              <ReviewsTab />
+          {reviews.length === 0 ? (
+            <Card className="border-2 border-dashed border-teal-300 bg-teal-50/30">
+              <CardContent className="p-8 text-center">
+                <Star className="h-12 w-12 text-teal-600 mx-auto mb-4" />
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">No reviews yet</h2>
+                <p className="text-gray-600 mb-6">Rate your completed services to help others!</p>
+                <Button asChild className="bg-gradient-to-r from-teal-500 to-green-500">
+                  <Link href="/dashboard/bookings">View Bookings</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {reviews.map((review, index) => (
+                <motion.div
+                  key={review.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <Card className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                className={`h-5 w-5 ${
+                                  i < review.rating
+                                    ? 'fill-yellow-400 text-yellow-400'
+                                    : 'text-gray-300'
+                                }`}
+                              />
+                            ))}
+                            <span className="text-sm text-gray-500 ml-2">
+                              {format(new Date(review.created_at), 'MMM d, yyyy')}
+                            </span>
+                          </div>
+                          {review.booking && (
+                            <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+                              <Calendar className="h-4 w-4" />
+                              <span>{review.booking.service_type}</span>
+                              <span>•</span>
+                              <span>{format(new Date(review.booking.booking_date), 'MMM d, yyyy')}</span>
+                            </div>
+                          )}
+                          {review.comment && (
+                            <p className="text-gray-700 mt-2">{review.comment}</p>
+                          )}
+                        </div>
+                        {review.booking_id && (
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href={`/dashboard/bookings/${review.booking_id}`}>View Booking</Link>
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
             </div>
-
-            {/* Sidebar - Profile & Quick Actions */}
-            <DashboardSidebar
-              user={user}
-              customer={customer}
-              onEditProfile={() => setProfileSheetOpen(true)}
-            />
-          </div>
+          )}
         </div>
-      </section>
+      </main>
 
-      {/* Mobile Bottom Navigation */}
-      <MobileBottomNav activeTab="reviews" onTabChange={() => {}} onMoreClick={() => setDrawerOpen(true)} />
-
-      <MobileDrawer
-        isOpen={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        user={user}
-        customer={customer}
-        onEditProfile={() => {
-          setDrawerOpen(false);
-          setProfileSheetOpen(true);
-        }}
-      />
-
-      <ProfileQuickSetup
-        open={profileSheetOpen}
-        onOpenChange={setProfileSheetOpen}
-        customer={customer}
-        onUpdated={(updated) =>
-          setCustomer((prev) =>
-            prev
-              ? { ...prev, ...updated }
-              : { ...updated, totalBookings: 0 }
-          )
-        }
-      />
+      <MobileBottomNav activeTab="reviews" onTabChange={() => {}} />
     </div>
   );
 }

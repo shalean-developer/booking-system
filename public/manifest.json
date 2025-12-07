@@ -75,6 +75,30 @@
           "sizes": "192x192"
         }
       ]
+    },
+    {
+      "name": "Customer Dashboard",
+      "short_name": "Dashboard",
+      "description": "View your customer dashboard",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "My Bookings",
+      "short_name": "Bookings",
+      "description": "View your bookings",
+      "url": "/dashboard/bookings",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }
