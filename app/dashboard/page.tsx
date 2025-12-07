@@ -45,6 +45,7 @@ interface Booking {
   status: string;
   total_amount: number;
   created_at: string;
+  updated_at: string;
   address_line1: string;
   address_suburb: string;
   address_city: string;
