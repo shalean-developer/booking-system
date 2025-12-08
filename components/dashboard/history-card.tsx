@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Calendar, Clock, MapPin, Star, ChevronDown, ChevronUp, MessageSquare } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { CustomerReviewDialog } from '@/components/review/customer-review-dialog';
 
 interface HistoryCardProps {
   id: string;
