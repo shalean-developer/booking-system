@@ -48,7 +48,7 @@ export function initErrorTracking(serviceConfig: Partial<ErrorTrackingConfig> = 
           dsn: config.dsn,
           environment: config.environment,
           tracesSampleRate: 1.0,
-          beforeSend(event, hint) {
+          beforeSend(event: any, hint: any) {
             // Filter out development errors
             if (config.environment === 'development') {
               console.log('[Sentry] Would send error:', event);
