@@ -15,6 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Clock } from 'lucide-react';
 import { toast } from 'sonner';
+import { devLog } from '@/lib/dev-logger';
 
 interface SessionTimeoutWarningProps {
   warningMinutes?: number; // Minutes before expiry to show warning (default: 5)
@@ -30,6 +31,19 @@ export function SessionTimeoutWarning({
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [isExtending, setIsExtending] = useState(false);
   const [countdown, setCountdown] = useState<number>(0);
+
+  const handleLogout = useCallback(async () => {
+    setIsOpen(false);
+    await safeLogout(supabase, router, {
+      timeout: 5000,
+      onSuccess: () => {
+        toast.info('Your session has expired. Please log in again.');
+      },
+      onError: (error) => {
+        devLog.error('Logout error:', error);
+      },
+    });
+  }, [router]);
 
   const checkSessionExpiry = useCallback(async () => {
     try {
@@ -61,7 +75,7 @@ export function SessionTimeoutWarning({
     } catch (error) {
       devLog.error('Error checking session expiry:', error);
     }
-  }, [warningMinutes]);
+  }, [warningMinutes, handleLogout]);
 
   const handleExtendSession = async () => {
     setIsExtending(true);
@@ -86,19 +100,6 @@ export function SessionTimeoutWarning({
     } finally {
       setIsExtending(false);
     }
-  };
-
-  const handleLogout = async () => {
-    setIsOpen(false);
-    await safeLogout(supabase, router, {
-      timeout: 5000,
-      onSuccess: () => {
-        toast.info('Your session has expired. Please log in again.');
-      },
-      onError: (error) => {
-        devLog.error('Logout error:', error);
-      },
-    });
   };
 
   // Check session expiry periodically
