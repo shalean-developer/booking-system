@@ -118,7 +118,7 @@ export class ReminderService {
     const { data, error } = await this.supabase.rpc('get_bookings_needing_reminders', {
       reminder_hours: hours,
       reminder_type: reminderType,
-    });
+    } as any) as { data: any[] | null; error: any };
 
     if (error) {
       console.error(`Error fetching bookings for ${reminderType}:`, error);
