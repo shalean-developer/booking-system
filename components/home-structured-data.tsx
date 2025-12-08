@@ -8,7 +8,7 @@ export function HomeStructuredData() {
       "itemReviewed": {
         "@type": "LocalBusiness",
         "name": "Shalean Cleaning Services",
-        "@id": "https://shalean.co.za"
+        "@id": "https://shalean.co.za/#organization"
       },
       "author": {
         "@type": "Person",
@@ -28,7 +28,7 @@ export function HomeStructuredData() {
       "itemReviewed": {
         "@type": "LocalBusiness",
         "name": "Shalean Cleaning Services",
-        "@id": "https://shalean.co.za"
+        "@id": "https://shalean.co.za/#organization"
       },
       "author": {
         "@type": "Person",
@@ -48,7 +48,7 @@ export function HomeStructuredData() {
       "itemReviewed": {
         "@type": "LocalBusiness",
         "name": "Shalean Cleaning Services",
-        "@id": "https://shalean.co.za"
+        "@id": "https://shalean.co.za/#organization"
       },
       "author": {
         "@type": "Person",
@@ -68,7 +68,7 @@ export function HomeStructuredData() {
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
-    "@id": "https://shalean.co.za",
+    "@id": "https://shalean.co.za/#organization",
     "name": "Shalean Cleaning Services",
     "description": "Leading cleaning companies in Cape Town offering expert house cleaning services, deep cleaning services, and home cleaning services. Professional cleaning services near you for standard cleaning, deep cleaning, move-in/out, and Airbnb turnover.",
     "url": "https://shalean.co.za",
