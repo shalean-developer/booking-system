@@ -10,6 +10,8 @@ const nextConfig = {
   // Use webpack instead of Turbopack to avoid HMR issues
   // We use webpack for custom chunk splitting configuration
   // Note: --webpack flag is set in package.json dev script
+  // Empty turbopack config to silence build error (builds will still use webpack)
+  turbopack: {},
   images: {
     // Remote patterns for external images
     remotePatterns: [
