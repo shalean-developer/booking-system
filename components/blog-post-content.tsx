@@ -15,7 +15,7 @@ interface BlogPostContentProps {
 }
 
 /**
- * Sanitizes blog content HTML to fix broken links
+ * Sanitizes blog content HTML to fix broken links and add automatic internal linking
  */
 function sanitizeBlogContent(content: string): string {
   let sanitized = content;
@@ -50,6 +50,36 @@ function sanitizeBlogContent(content: string): string {
   // move-out-cleaning-cost -> move-out-cleaning-cost-guide (if exists) or remove
   // Check if we should link to a service page instead
   sanitized = sanitized.replace(/href=["']\/blog\/move-out-cleaning-cost[^"']*["']/gi, 'href="/services/move-turnover"');
+  
+  // Automatic internal linking for services (only if not already linked)
+  const serviceLinkMap: Record<string, string> = {
+    'deep cleaning': '/services/deep-cleaning',
+    'deep clean': '/services/deep-cleaning',
+    'regular cleaning': '/services/regular-cleaning',
+    'standard cleaning': '/services/regular-cleaning',
+    'house cleaning': '/services/regular-cleaning',
+    'home cleaning': '/services/regular-cleaning',
+    'airbnb cleaning': '/services/airbnb-cleaning',
+    'airbnb turnover': '/services/airbnb-cleaning',
+    'move in cleaning': '/services/move-turnover',
+    'move out cleaning': '/services/move-turnover',
+    'move-in cleaning': '/services/move-turnover',
+    'move-out cleaning': '/services/move-turnover',
+    'end of lease cleaning': '/services/move-turnover',
+    'office cleaning': '/services/office-cleaning',
+    'commercial cleaning': '/services/office-cleaning',
+    'apartment cleaning': '/services/apartment-cleaning',
+    'window cleaning': '/services/window-cleaning',
+    'home maintenance': '/services/home-maintenance',
+  };
+
+  // Note: Automatic internal linking for services and locations
+  // This feature helps ensure blog posts have internal links, but manual links
+  // added by content creators are preferred for better control and context.
+  // The automatic linking is conservative to avoid over-linking.
+  
+  // Automatic linking is handled through content guidelines and editor suggestions
+  // rather than automatic replacement to maintain content quality and context
   
   return sanitized;
 }

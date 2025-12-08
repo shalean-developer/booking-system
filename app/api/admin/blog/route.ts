@@ -162,6 +162,7 @@ export async function GET(request: NextRequest) {
 
       return {
         id: post.id,
+        slug: post.slug,
         title: post.title,
         author: authorName,
         status: post.status,

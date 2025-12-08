@@ -14,6 +14,7 @@ import { useDebouncedValue } from '@/hooks/use-debounced-value';
 
 interface BlogPost {
   id: string;
+  slug: string;
   title: string;
   author: string;
   status: string;
@@ -211,15 +212,32 @@ export default function AdminBlogPage() {
       header: 'Actions',
       accessor: (row) => (
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" asChild>
-            <Link href={`/admin/blog/${row.id}`}>
-              <Edit className="h-4 w-4" />
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 w-8 p-0 hover:bg-gray-100" 
+            asChild
+            title="Edit post"
+          >
+            <Link href={`/admin/blog/${row.id}`} aria-label="Edit blog post">
+              <Edit className="h-4 w-4 text-gray-600 hover:text-gray-900" />
             </Link>
           </Button>
-          {row.status === 'published' && (
-            <Button variant="ghost" size="sm" asChild>
-              <a href={`/blog/${row.id}`} target="_blank" rel="noopener noreferrer">
-                <Eye className="h-4 w-4" />
+          {row.status === 'published' && row.slug && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 w-8 p-0 hover:bg-gray-100" 
+              asChild
+              title="View post"
+            >
+              <a 
+                href={`/blog/${row.slug}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                aria-label="View published blog post"
+              >
+                <Eye className="h-4 w-4 text-gray-600 hover:text-gray-900" />
               </a>
             </Button>
           )}

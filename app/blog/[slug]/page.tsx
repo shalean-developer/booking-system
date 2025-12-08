@@ -403,6 +403,42 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 // Revalidate every hour
 export const revalidate = 3600;
 
+/**
+ * Extracts related services from blog post content based on keywords
+ */
+function getRelatedServicesFromPost(post: BlogPostWithDetails): Array<{ title: string; href: string }> {
+  const content = (post.content || '').toLowerCase();
+  const title = (post.title || '').toLowerCase();
+  const combined = `${title} ${content}`;
+  
+  const serviceMap: Array<{ keywords: string[]; title: string; href: string }> = [
+    { keywords: ['deep cleaning', 'deep clean'], title: 'Deep Cleaning', href: '/services/deep-cleaning' },
+    { keywords: ['regular cleaning', 'standard cleaning', 'house cleaning', 'home cleaning'], title: 'Regular Cleaning', href: '/services/regular-cleaning' },
+    { keywords: ['airbnb', 'turnover cleaning', 'short-term rental'], title: 'Airbnb Cleaning', href: '/services/airbnb-cleaning' },
+    { keywords: ['move in', 'move out', 'move-in', 'move-out', 'end of lease'], title: 'Move In/Out Cleaning', href: '/services/move-turnover' },
+    { keywords: ['office cleaning', 'commercial cleaning', 'business cleaning'], title: 'Office Cleaning', href: '/services/office-cleaning' },
+    { keywords: ['apartment cleaning', 'flat cleaning'], title: 'Apartment Cleaning', href: '/services/apartment-cleaning' },
+    { keywords: ['window cleaning'], title: 'Window Cleaning', href: '/services/window-cleaning' },
+    { keywords: ['home maintenance', 'maintenance cleaning'], title: 'Home Maintenance', href: '/services/home-maintenance' },
+  ];
+
+  const matchedServices = serviceMap
+    .filter(service => service.keywords.some(keyword => combined.includes(keyword)))
+    .map(service => ({ title: service.title, href: service.href }))
+    .slice(0, 3);
+
+  // If no services matched, return default services
+  if (matchedServices.length === 0) {
+    return [
+      { title: 'Deep Cleaning', href: '/services/deep-cleaning' },
+      { title: 'Regular Cleaning', href: '/services/regular-cleaning' },
+      { title: 'Move In/Out Cleaning', href: '/services/move-turnover' },
+    ];
+  }
+
+  return matchedServices;
+}
+
 export default async function BlogPostPage({ params }: Props) {
   const { slug } = await params;
   const post = await getPostWithFallback(slug);
@@ -443,7 +479,7 @@ export default async function BlogPostPage({ params }: Props) {
       <BlogPostRelated posts={relatedPosts} currentPostSlug={post.slug} />
 
       {/* CTA Section - Lazy Loaded */}
-      <BlogPostCTA />
+      <BlogPostCTA relatedServices={getRelatedServicesFromPost(post)} />
     </div>
   );
 }
