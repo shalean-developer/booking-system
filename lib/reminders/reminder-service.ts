@@ -275,7 +275,7 @@ export class ReminderService {
     success: boolean
   ) {
     try {
-      await this.supabase.from('sent_reminders').insert({
+      await (this.supabase.from('sent_reminders') as any).insert({
         booking_id: bookingId,
         customer_id: customerId,
         reminder_type: reminderType,
