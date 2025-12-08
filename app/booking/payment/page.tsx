@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase-client';
 import { safeGetSession } from '@/lib/logout-utils';
@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { usePaystackPayment } from 'react-paystack';
 
-export default function PaymentPage() {
+function PaymentContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const bookingId = searchParams.get('bookingId');
@@ -71,9 +71,12 @@ export default function PaymentPage() {
     fetchBooking();
   }, [bookingId, router]);
 
-  // Paystack configuration
+  // Paystack configuration - only initialize on client side
   const paystackPublicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '';
-  const paymentRef = useMemo(() => `BK-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`, []);
+  const paymentRef = useMemo(() => {
+    if (typeof window === 'undefined') return '';
+    return `BK-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+  }, []);
 
   const paystackConfig = useMemo(() => ({
     reference: paymentRef,
@@ -88,6 +91,7 @@ export default function PaymentPage() {
     },
   }), [paymentRef, booking, bookingId, paystackPublicKey]);
 
+  // Initialize payment hook - this will only run on client side due to Suspense boundary
   const initializePayment = usePaystackPayment(paystackConfig);
 
   const handlePayment = () => {
@@ -257,5 +261,25 @@ export default function PaymentPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function PaymentPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-b from-teal-50/30 via-white to-white flex items-center justify-center">
+          <Card className="max-w-md mx-4">
+            <CardContent className="p-8 text-center">
+              <Loader2 className="h-12 w-12 animate-spin text-teal-600 mx-auto mb-4" />
+              <h2 className="text-xl font-bold text-gray-900 mb-2">Loading...</h2>
+              <p className="text-gray-600">Preparing payment</p>
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
+      <PaymentContent />
+    </Suspense>
   );
 }
