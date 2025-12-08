@@ -122,14 +122,28 @@ const testimonials = [
     name: "Samira P.",
     role: "Airbnb host in Gardens",
     quote:
-      "Their turnover cleans keep our reviews glowing. The cleaners note every detail and communicate instantly.",
+      "Their turnover cleans keep our reviews glowing. The cleaners note every detail and communicate instantly. Our Gardens property gets booked constantly, and Shalean ensures every guest arrives to a spotless space.",
     rating: 5,
   },
   {
     name: "Daniel C.",
     role: "Renovation project manager",
     quote:
-      "They handled our post-renovation deep clean on short notice and left the property ready for handover.",
+      "They handled our post-renovation deep clean on short notice and left the property ready for handover. Working on projects across Cape Town, I trust Shalean for consistent quality whether it's a Sea Point apartment or Constantia estate.",
+    rating: 5,
+  },
+  {
+    name: "Sarah M.",
+    role: "Claremont family",
+    quote:
+      "As a busy mom in Claremont, Shalean's regular cleaning service is a lifesaver. The cleaners know our home, work around our schedule, and always leave everything sparkling. Our kids love how clean the house feels after their visits.",
+    rating: 5,
+  },
+  {
+    name: "Michael R.",
+    role: "Camps Bay property owner",
+    quote:
+      "Our Camps Bay rental property requires frequent turnover cleaning, and Shalean delivers every time. They understand the high standards needed for luxury properties and always exceed expectations. Our guests consistently comment on how clean the place is.",
     rating: 5,
   },
 ];

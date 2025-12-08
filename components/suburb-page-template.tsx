@@ -757,28 +757,40 @@ export function SuburbPageTemplate({
               <div className="prose prose-lg max-w-none text-gray-600 space-y-4">
                 <p>
                   {suburb} is a vibrant neighborhood in the {area} region of {city}, known for its 
-                  {suburb.toLowerCase().includes('sea point') ? ' stunning ocean views and cosmopolitan atmosphere' : 
-                   suburb.toLowerCase().includes('claremont') ? ' excellent schools and family-friendly environment' :
-                   suburb.toLowerCase().includes('constantia') ? ' prestigious estates and wine farms' :
-                   suburb.toLowerCase().includes('camps bay') ? ' beautiful beaches and luxury properties' :
-                   suburb.toLowerCase().includes('green point') ? ' proximity to the V&A Waterfront and city center' :
+                  {suburb.toLowerCase().includes('sea point') ? ' stunning ocean views, cosmopolitan atmosphere, and proximity to the Sea Point Promenade' : 
+                   suburb.toLowerCase().includes('claremont') ? ' excellent schools, family-friendly environment, and vibrant shopping district along Main Road' :
+                   suburb.toLowerCase().includes('constantia') ? ' prestigious wine estates, luxury properties, and historic Constantia Valley charm' :
+                   suburb.toLowerCase().includes('camps bay') ? ' beautiful beaches, luxury properties, and iconic Camps Bay Beach with Table Mountain backdrop' :
+                   suburb.toLowerCase().includes('green point') ? ' proximity to the V&A Waterfront, Green Point Park, and vibrant city center lifestyle' :
+                   suburb.toLowerCase().includes('city bowl') ? ' central location, historic architecture, and proximity to Company Gardens and Parliament' :
+                   suburb.toLowerCase().includes('newlands') ? ' leafy streets, Newlands Cricket Ground, and family-oriented community atmosphere' :
+                   suburb.toLowerCase().includes('rondebosch') ? ' university proximity, historic charm, and Rondebosch Common nearby' :
                    ' unique character and community feel'}. 
                   Residents and businesses in {suburb} trust Shalean Cleaning Services for reliable, 
                   professional cleaning that fits their busy lifestyles.
                 </p>
                 <p>
                   Our experienced cleaners understand the specific needs of {suburb} properties, from 
-                  {suburb.toLowerCase().includes('sea point') || suburb.toLowerCase().includes('camps bay') ? ' beachfront apartments and holiday rentals' :
-                   suburb.toLowerCase().includes('claremont') || suburb.toLowerCase().includes('constantia') ? ' family homes and large estates' :
+                  {suburb.toLowerCase().includes('sea point') || suburb.toLowerCase().includes('camps bay') ? ' beachfront apartments and holiday rentals that require frequent turnover cleaning' :
+                   suburb.toLowerCase().includes('claremont') || suburb.toLowerCase().includes('constantia') ? ' family homes and large estates that need comprehensive maintenance' :
+                   suburb.toLowerCase().includes('green point') || suburb.toLowerCase().includes('city bowl') ? ' modern apartments and commercial spaces in the urban core' :
                    ' residential properties and commercial spaces'}. 
                   We offer flexible scheduling, same-day availability, and eco-friendly cleaning options 
-                  to keep your {suburb} property spotless.
+                  to keep your {suburb} property spotless. Whether you're near 
+                  {suburb.toLowerCase().includes('sea point') ? ' the Sea Point Promenade or Beach Road' :
+                   suburb.toLowerCase().includes('claremont') ? ' Claremont Main Road or the Southern Suburbs' :
+                   suburb.toLowerCase().includes('constantia') ? ' the Constantia Wine Route or historic estates' :
+                   suburb.toLowerCase().includes('camps bay') ? ' Camps Bay Beach or the Atlantic Seaboard' :
+                   suburb.toLowerCase().includes('green point') ? ' the V&A Waterfront or Green Point Common' :
+                   ' the local area'}, our team knows the unique cleaning challenges of {suburb} properties.
                 </p>
                 <p>
                   Whether you need regular maintenance cleaning, a deep clean before hosting guests, 
                   or move-in/out cleaning services, Shalean's vetted professionals deliver consistent, 
                   high-quality results. Our cleaners are fully insured, background-checked, and trained 
-                  to meet the highest standards of cleanliness.
+                  to meet the highest standards of cleanliness. We regularly serve {suburb} residents 
+                  with personalized cleaning plans that accommodate everything from high-rise apartment 
+                  living to spacious family homes.
                 </p>
               </div>
               <div className="mt-8 flex flex-wrap gap-4">
