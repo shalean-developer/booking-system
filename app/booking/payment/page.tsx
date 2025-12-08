@@ -11,6 +11,9 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { usePaystackPayment } from 'react-paystack';
 
+// Force dynamic rendering to prevent static generation
+export const dynamic = 'force-dynamic';
+
 function PaymentContent() {
   const router = useRouter();
   const searchParams = useSearchParams();

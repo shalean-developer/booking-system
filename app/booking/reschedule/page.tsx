@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase-client';
 import { safeGetSession } from '@/lib/logout-utils';
@@ -9,7 +9,10 @@ import { Loader2, AlertCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
-export default function ReschedulePage() {
+// Force dynamic rendering to prevent static generation
+export const dynamic = 'force-dynamic';
+
+function RescheduleContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const bookingId = searchParams.get('id');
@@ -189,4 +192,24 @@ export default function ReschedulePage() {
   }
 
   return null; // Will redirect before this renders
+}
+
+export default function ReschedulePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-b from-teal-50/30 via-white to-white flex items-center justify-center">
+          <Card className="max-w-md mx-4">
+            <CardContent className="p-8 text-center">
+              <Loader2 className="h-12 w-12 animate-spin text-teal-600 mx-auto mb-4" />
+              <h2 className="text-xl font-bold text-gray-900 mb-2">Loading...</h2>
+              <p className="text-gray-600">Preparing reschedule form</p>
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
+      <RescheduleContent />
+    </Suspense>
+  );
 }
