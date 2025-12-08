@@ -171,7 +171,14 @@ class PerformanceMonitor {
 
     window.fetch = async function (...args) {
       const startTime = performance.now();
-      const url = typeof args[0] === 'string' ? args[0] : args[0].url;
+      let url: string;
+      if (typeof args[0] === 'string') {
+        url = args[0];
+      } else if (args[0] instanceof URL) {
+        url = args[0].toString();
+      } else {
+        url = (args[0] as Request).url;
+      }
       const method = (args[1]?.method || 'GET').toUpperCase();
 
       try {
