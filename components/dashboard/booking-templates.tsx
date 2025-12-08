@@ -56,7 +56,7 @@ export function BookingTemplates() {
     extras: [] as string[],
     extras_quantities: {} as Record<string, number>,
     notes: '',
-    frequency: 'one-time' as const,
+    frequency: 'one-time' as 'one-time' | 'weekly' | 'bi-weekly' | 'monthly',
     address_line1: '',
     address_suburb: '',
     address_city: '',
