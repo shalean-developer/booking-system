@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Loader2, CreditCard, AlertCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { usePaystackPayment } from 'react-paystack';
 
 // Force dynamic rendering to prevent static generation
 export const dynamic = 'force-dynamic';
@@ -22,6 +21,7 @@ function PaymentContent() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [booking, setBooking] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [PaystackHook, setPaystackHook] = useState<any>(null);
 
   useEffect(() => {
     const fetchBooking = async () => {
@@ -74,6 +74,25 @@ function PaymentContent() {
     fetchBooking();
   }, [bookingId, router]);
 
+  // Dynamically import react-paystack on client side only
+  useEffect(() => {
+    let isMounted = true;
+    import('react-paystack')
+      .then((module) => {
+        if (isMounted) {
+          setPaystackHook(() => module.usePaystackPayment);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load Paystack:', error);
+        setError('Failed to load payment system. Please refresh the page.');
+      });
+    
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // Paystack configuration - only initialize on client side
   const paystackPublicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '';
   const paymentRef = useMemo(() => {
@@ -94,11 +113,19 @@ function PaymentContent() {
     },
   }), [paymentRef, booking, bookingId, paystackPublicKey]);
 
-  // Initialize payment hook - this will only run on client side due to Suspense boundary
-  const initializePayment = usePaystackPayment(paystackConfig);
+  // Initialize payment hook only when PaystackHook is loaded
+  const initializePayment = PaystackHook ? PaystackHook(paystackConfig) : () => {
+    setError('Payment system is still loading. Please wait a moment and try again.');
+  };
 
   const handlePayment = () => {
     if (!booking || !bookingId) return;
+    
+    // Check if Paystack is loaded
+    if (!PaystackHook) {
+      setError('Payment system is still loading. Please wait a moment and try again.');
+      return;
+    }
 
     setIsProcessing(true);
     setError(null);
