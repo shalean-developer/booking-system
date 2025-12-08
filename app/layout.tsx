@@ -106,11 +106,22 @@ export default function RootLayout({
     "name": "Shalean Cleaning Services",
     "alternateName": "Shalean",
     "url": "https://shalean.co.za",
-    "logo": "https://shalean.co.za/icon-512.png",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://shalean.co.za/icon-512.png"
+    },
+    "image": {
+      "@type": "ImageObject",
+      "url": "https://shalean.co.za/assets/og/home-1200x630.jpg",
+      "width": 1200,
+      "height": 630
+    },
     "description": "Professional cleaning services for homes and businesses. Expert cleaners, eco-friendly products, 98% satisfaction rate.",
     "telephone": "+27 87 153 5250",
     "address": {
       "@type": "PostalAddress",
+      "addressRegion": "Western Cape",
+      "addressLocality": "Cape Town",
       "addressCountry": "ZA"
     },
     "sameAs": [
