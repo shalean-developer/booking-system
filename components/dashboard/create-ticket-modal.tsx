@@ -64,7 +64,6 @@ export function CreateTicketModal({ open, onOpenChange, onSuccess, onOptimisticC
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         toast.error('Please log in to create a ticket');
-        setIsSubmitting(false);
         return;
       }
 
@@ -94,10 +93,7 @@ export function CreateTicketModal({ open, onOpenChange, onSuccess, onOptimisticC
       }
 
       toast.success('Ticket created successfully! Our team will respond soon.');
-      setSubject('');
-      setMessage('');
-      setCategory('general');
-      setPriority('normal');
+      reset();
       onOpenChange(false);
       
       if (onSuccess) {
@@ -107,18 +103,12 @@ export function CreateTicketModal({ open, onOpenChange, onSuccess, onOptimisticC
       devLog.error('Error creating ticket:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to create ticket. Please try again.';
       toast.error(errorMessage);
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
   const handleClose = () => {
     if (!isSubmitting) {
-      setSubject('');
-      setMessage('');
-      setCategory('general');
-      setPriority('normal');
-      setErrors({});
+      reset();
       onOpenChange(false);
     }
   };
