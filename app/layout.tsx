@@ -124,6 +124,25 @@ export default function RootLayout({
     }
   };
 
+  // WebSite structured data for site name display in Google search results
+  const websiteSchema = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Shalean Cleaning Services",
+    "url": "https://shalean.co.za",
+    "publisher": {
+      "@id": "https://shalean.co.za/#organization"
+    },
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": {
+        "@type": "EntryPoint",
+        "urlTemplate": "https://shalean.co.za/search?q={search_term_string}"
+      },
+      "query-input": "required name=search_term_string"
+    }
+  };
+
   return (
     <html lang="en">
       <head>
@@ -202,6 +221,12 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: stringifyStructuredData(organizationSchema, "Organization") }}
+        />
+        
+        {/* WebSite Schema for Site Name Display in Google Search Results */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: stringifyStructuredData(websiteSchema) }}
         />
         
         {/* Google Analytics (gtag.js) */}
