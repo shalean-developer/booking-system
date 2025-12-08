@@ -264,7 +264,8 @@ export default function CapeTownPage() {
               <p className="mb-8 text-lg text-gray-600 sm:text-xl">
                 From Atlantic Seaboard apartments to Southern Suburbs family homes, Shalean brings
                 hotel-level cleaning, vetted professionals, and flexible scheduling to every Cape
-                Town neighbourhood.
+                Town neighbourhood. Whether you're in Sea Point, Claremont, Constantia, Camps Bay, or any of our 50+ service areas, 
+                our professional cleaners deliver consistent, high-quality results that keep your home spotless.
               </p>
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                 <Button size="lg" className="px-8 py-4 text-lg" asChild>
@@ -303,7 +304,7 @@ export default function CapeTownPage() {
               <div className="relative h-[420px] w-full max-w-xl overflow-hidden rounded-[3rem] bg-primary/5 shadow-xl">
                 <Image
                   src="/images/cleaning-team-hero.jpg"
-                  alt="Cape Town cleaning team"
+                  alt="Professional cleaning team serving Cape Town homes and offices - Shalean Cleaning Services"
                   fill
                   className="object-cover"
                   priority
@@ -482,7 +483,7 @@ export default function CapeTownPage() {
                   className="flex flex-col overflow-hidden border border-gray-100 bg-white shadow-lg shadow-primary/10"
                 >
                   <div className="relative h-48 w-full">
-                    <Image src={pkg.image} alt={pkg.title} fill className="object-cover" />
+                    <Image src={pkg.image} alt={`${pkg.title} cleaning service in Cape Town - Shalean Cleaning Services`} fill className="object-cover" />
                   </div>
                   <CardHeader>
                     <h3 className="text-xl font-semibold text-gray-900">{pkg.title}</h3>
@@ -624,7 +625,7 @@ export default function CapeTownPage() {
               {blogPosts.map((post) => (
                 <Card key={post.title} className="overflow-hidden border border-gray-100 bg-white shadow-md">
                   <div className="relative h-44 w-full">
-                    <Image src={post.image} alt={post.title} fill className="object-cover" />
+                    <Image src={post.image} alt={`${post.title} - Shalean Cleaning Services blog post about cleaning in Cape Town`} fill className="object-cover" />
                   </div>
                   <CardHeader>
                     <h3 className="text-lg font-semibold text-gray-900">{post.title}</h3>

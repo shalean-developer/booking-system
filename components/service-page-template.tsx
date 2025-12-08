@@ -282,6 +282,9 @@ export function ServicePageTemplate({
               <p className="text-lg text-gray-700 mb-4">
                 When you book our {title.toLowerCase()} service, you can expect punctual arrival, respectful and professional service, and a thorough cleaning that exceeds expectations. We stand behind our work with a 100% satisfaction guarantee—if you're not completely happy, we'll return to make it right at no additional cost.
               </p>
+              <p className="text-lg text-gray-700 mb-4">
+                Our {title.toLowerCase()} service is available throughout <Link href="/location/cape-town" className="text-primary hover:underline font-medium">Cape Town</Link>, including popular areas like <Link href="/location/cape-town/sea-point" className="text-primary hover:underline font-medium">Sea Point</Link>, <Link href="/location/cape-town/claremont" className="text-primary hover:underline font-medium">Claremont</Link>, <Link href="/location/cape-town/constantia" className="text-primary hover:underline font-medium">Constantia</Link>, and <Link href="/location/cape-town/camps-bay" className="text-primary hover:underline font-medium">Camps Bay</Link>. We also serve <Link href="/location/johannesburg" className="text-primary hover:underline font-medium">Johannesburg</Link>, <Link href="/location/pretoria" className="text-primary hover:underline font-medium">Pretoria</Link>, and <Link href="/location/durban" className="text-primary hover:underline font-medium">Durban</Link> with the same high-quality standards.
+              </p>
               <p className="text-lg text-gray-700">
                 Whether you're looking for a one-time deep clean, regular maintenance, or specialized cleaning for a particular occasion, our {title.toLowerCase()} service is flexible and can be customized to your schedule and requirements. Contact us today to discuss your needs and get a personalized quote.
               </p>

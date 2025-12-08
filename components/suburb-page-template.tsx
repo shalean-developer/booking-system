@@ -628,7 +628,7 @@ export function SuburbPageTemplate({
                 {heroImage ? (
                   <Image
                     src={heroImage}
-                    alt={heroImageAlt ?? `Professional cleaners in ${suburb}`}
+                    alt={heroImageAlt ?? `Professional cleaning services in ${suburb}, ${city} - Shalean Cleaning Services`}
                     width={720}
                     height={640}
                     className="h-full w-full object-cover"
@@ -746,8 +746,98 @@ export function SuburbPageTemplate({
         </div>
       </section>
 
+      {/* About Suburb Section - Unique Content */}
+      <section className="py-20 bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+            <div>
+              <h2 className="text-4xl font-bold text-gray-900 mb-6">
+                Professional Cleaning Services in {suburb}, {city}
+              </h2>
+              <div className="prose prose-lg max-w-none text-gray-600 space-y-4">
+                <p>
+                  {suburb} is a vibrant neighborhood in the {area} region of {city}, known for its 
+                  {suburb.toLowerCase().includes('sea point') ? ' stunning ocean views and cosmopolitan atmosphere' : 
+                   suburb.toLowerCase().includes('claremont') ? ' excellent schools and family-friendly environment' :
+                   suburb.toLowerCase().includes('constantia') ? ' prestigious estates and wine farms' :
+                   suburb.toLowerCase().includes('camps bay') ? ' beautiful beaches and luxury properties' :
+                   suburb.toLowerCase().includes('green point') ? ' proximity to the V&A Waterfront and city center' :
+                   ' unique character and community feel'}. 
+                  Residents and businesses in {suburb} trust Shalean Cleaning Services for reliable, 
+                  professional cleaning that fits their busy lifestyles.
+                </p>
+                <p>
+                  Our experienced cleaners understand the specific needs of {suburb} properties, from 
+                  {suburb.toLowerCase().includes('sea point') || suburb.toLowerCase().includes('camps bay') ? ' beachfront apartments and holiday rentals' :
+                   suburb.toLowerCase().includes('claremont') || suburb.toLowerCase().includes('constantia') ? ' family homes and large estates' :
+                   ' residential properties and commercial spaces'}. 
+                  We offer flexible scheduling, same-day availability, and eco-friendly cleaning options 
+                  to keep your {suburb} property spotless.
+                </p>
+                <p>
+                  Whether you need regular maintenance cleaning, a deep clean before hosting guests, 
+                  or move-in/out cleaning services, Shalean's vetted professionals deliver consistent, 
+                  high-quality results. Our cleaners are fully insured, background-checked, and trained 
+                  to meet the highest standards of cleanliness.
+                </p>
+              </div>
+              <div className="mt-8 flex flex-wrap gap-4">
+                <Link href="/services/regular-cleaning" className="text-primary hover:text-primary/80 font-semibold underline underline-offset-4">
+                  Regular Cleaning Services →
+                </Link>
+                <Link href="/services/deep-cleaning" className="text-primary hover:text-primary/80 font-semibold underline underline-offset-4">
+                  Deep Cleaning Services →
+                </Link>
+                <Link href="/services/move-turnover" className="text-primary hover:text-primary/80 font-semibold underline underline-offset-4">
+                  Move-In/Out Cleaning →
+                </Link>
+              </div>
+            </div>
+            <div className="space-y-6">
+              <Card className="border border-primary/10 shadow-lg p-6">
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">Why {suburb} Residents Choose Shalean</h3>
+                <ul className="space-y-3 text-gray-600">
+                  <li className="flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <span>Local knowledge of {suburb} properties and common cleaning challenges</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <span>Flexible scheduling that works around your {suburb} lifestyle</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <span>Same-day and next-day availability for urgent cleaning needs</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <span>Eco-friendly cleaning products safe for families and pets</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <span>100% satisfaction guarantee - we'll return if something's missed</span>
+                  </li>
+                </ul>
+              </Card>
+              <Card className="border border-primary/10 shadow-lg p-6 bg-primary/5">
+                <h3 className="text-xl font-bold text-gray-900 mb-3">Serving {suburb} and Nearby Areas</h3>
+                <p className="text-gray-600 mb-4">
+                  We also provide cleaning services in nearby suburbs including {renderLinkedSuburbs(inlineRelatedLinks)}.
+                </p>
+                <Button variant="outline" className="w-full" asChild>
+                  <Link href={`/location/${citySlug}`}>
+                    View All {city} Service Areas
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Features Section */}
-      <section id="why-shalean" className="py-20">
+      <section id="why-shalean" className="py-20 bg-gray-50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
