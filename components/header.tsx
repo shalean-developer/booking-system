@@ -5,11 +5,17 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, ChevronDown, ArrowUpRight, MessageSquareQuote } from 'lucide-react';
 import { useBookingV2 } from '@/lib/useBookingV2';
 import { Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface HeaderProps {
   variant?: 'default' | 'minimal';
@@ -22,30 +28,28 @@ const navigationItems = [
     key: 'home',
   },
   {
-    name: 'Locations',
-    href: '/location',
-    key: 'locations',
+    name: 'About Us',
+    href: '/about',
+    key: 'about',
   },
   {
-    name: 'Services',
+    name: 'Service',
     href: '/services',
     key: 'services',
   },
-  {
-    name: 'How It Works',
-    href: '/how-it-works',
-    key: 'how-it-works',
-  },
-  {
-    name: 'Sign Up / Login',
-    href: '/login',
-    key: 'auth',
-  },
+];
+
+const locationsDropdownItems = [
+  { name: 'Cape Town', href: '/location/cape-town' },
+  { name: 'Johannesburg', href: '/location/johannesburg' },
+  { name: 'Pretoria', href: '/location/pretoria' },
+  { name: 'Durban', href: '/location/durban' },
 ];
 
 export function Header({ variant = 'default' }: HeaderProps) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [locationsDropdownOpen, setLocationsDropdownOpen] = useState(false);
   
   // Check if we're in booking flow
   const isBookingFlow = pathname?.startsWith('/booking') || pathname?.startsWith('/booking-v2');
@@ -57,10 +61,9 @@ export function Header({ variant = 'default' }: HeaderProps) {
   // Determine current page based on pathname
   const getCurrentPage = () => {
     if (pathname === '/') return 'home';
-    if (pathname.startsWith('/location')) return 'locations';
+    if (pathname.startsWith('/about')) return 'about';
     if (pathname.startsWith('/services')) return 'services';
-    if (pathname.startsWith('/how-it-works')) return 'how-it-works';
-    if (pathname.startsWith('/login') || pathname.startsWith('/signup')) return 'auth';
+    if (pathname.startsWith('/blog')) return 'blog';
     return null;
   };
 
@@ -69,16 +72,27 @@ export function Header({ variant = 'default' }: HeaderProps) {
   // Logo component
   const Logo = () => {
     return (
-      <div className="w-10 h-10 rounded-lg overflow-hidden bg-transparent flex items-center justify-center">
-        <Image 
-          src="/logo.svg"
-          alt="Shalean Logo"
-          width={40}
-          height={40}
-          className="w-8 h-8 object-contain"
-          priority={false}
-        />
-      </div>
+      <Link href="/" className="flex items-center gap-2 flex-shrink-0">
+        <div className="relative w-10 h-10 flex items-center justify-center overflow-hidden">
+          <Image
+            src="/logo.svg"
+            alt="Shalean Logo"
+            width={40}
+            height={40}
+            className="w-[40px] h-[40px] object-contain"
+            style={{ maxWidth: '40px', maxHeight: '40px' }}
+            priority
+            onError={(e) => {
+              // Fallback to PNG if SVG fails
+              const target = e.target as HTMLImageElement;
+              if (target.src.includes('logo.svg')) {
+                target.src = '/logo.png';
+              }
+            }}
+          />
+        </div>
+        <span className="text-xl font-semibold text-gray-900">Shalean</span>
+      </Link>
     );
   };
 
@@ -88,10 +102,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
       <header className="bg-white border-b sticky top-0 z-50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-4">
-            <Link href="/" className="flex items-center gap-2">
-              <Logo />
-              <div className="text-lg md:text-xl font-bold text-gray-900">Shalean</div>
-            </Link>
+            <Logo />
             <Button variant="outline" asChild>
               <Link href="/">Back to Home</Link>
             </Button>
@@ -106,30 +117,66 @@ export function Header({ variant = 'default' }: HeaderProps) {
       <div className="container mx-auto px-4 max-w-7xl relative">
         <div className="flex items-center justify-between py-4">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-3 flex-shrink-0">
-              <Logo />
-            </Link>
+            <Logo />
 
             {/* Desktop Navigation - Hidden in booking flow */}
             {!isBookingFlow && (
-              <nav className="hidden md:flex items-center gap-8">
+              <nav className="hidden md:flex items-center bg-gray-200 border-2 border-gray-300 rounded-full px-1 py-1 gap-0">
                 {navigationItems.map((item) => {
-                const isActive = currentPage === item.key;
+                  const isActive = currentPage === item.key;
                   
                   return (
                     <Link
                       key={item.key}
                       href={item.href}
-                      className={`text-sm font-medium transition-colors ${
+                      className={`text-sm font-medium transition-colors rounded-full px-4 py-2 whitespace-nowrap ${
                         isActive
-                          ? 'text-gray-900 font-semibold'
-                          : 'text-gray-700 hover:text-gray-900'
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'text-gray-700'
                       }`}
                     >
                       {item.name}
                     </Link>
                   );
                 })}
+                
+                {/* Locations Dropdown */}
+                <DropdownMenu open={locationsDropdownOpen} onOpenChange={setLocationsDropdownOpen}>
+                  <DropdownMenuTrigger 
+                    onMouseEnter={() => setLocationsDropdownOpen(true)}
+                    className={`flex items-center gap-1 text-sm font-medium transition-colors rounded-full px-4 py-2 whitespace-nowrap ${
+                      locationsDropdownOpen
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'text-gray-700'
+                    }`}
+                  >
+                    Locations
+                    <ChevronDown className="h-4 w-4" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent 
+                    align="start"
+                    onMouseEnter={() => setLocationsDropdownOpen(true)}
+                    onMouseLeave={() => setLocationsDropdownOpen(false)}
+                  >
+                    {locationsDropdownItems.map((location) => (
+                      <DropdownMenuItem key={location.href} asChild>
+                        <Link href={location.href}>{location.name}</Link>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                
+                {/* Blog Link */}
+                <Link
+                  href="/blog"
+                  className={`text-sm font-medium transition-colors rounded-full px-4 py-2 whitespace-nowrap ${
+                    currentPage === 'blog'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-700'
+                  }`}
+                >
+                  Blog
+                </Link>
               </nav>
             )}
 
@@ -205,8 +252,8 @@ export function Header({ variant = 'default' }: HeaderProps) {
               </div>
             )}
 
-          {/* Right Section: Buttons */}
-            <div className="flex items-center gap-4">
+          {/* Right Section: Cart and Book Now */}
+            <div className="flex items-center gap-6">
               {/* Mobile Menu Button */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -216,24 +263,31 @@ export function Header({ variant = 'default' }: HeaderProps) {
                 {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
               </button>
 
-            {/* Get Free Quote Button - Hidden in booking flow */}
+              {/* Cart - Hidden in booking flow */}
               {!isBookingFlow && (
-                <Button 
-                  variant="outline"
-                  className="hidden md:flex border-primary text-primary hover:bg-primary/10 rounded-lg px-6 py-2 text-sm font-medium transition-colors" 
-                  asChild
+                <Link 
+                  href="/cart"
+                  className="hidden md:flex items-center gap-2 text-gray-900 hover:text-gray-700 transition-colors"
                 >
-                  <Link href="/booking/quote">Get Free Quote</Link>
-                </Button>
+                  <MessageSquareQuote className="h-5 w-5 text-gray-700" />
+                  <span className="text-sm font-medium text-gray-700">Get Free Quote</span>
+                </Link>
               )}
 
-            {/* Become a Cleaner Button */}
-              <Button 
-              className="hidden md:flex bg-primary hover:bg-primary/90 text-white rounded-lg px-6 py-2 text-sm font-medium transition-colors" 
-                asChild
-              >
-              <Link href="/careers">Become a Cleaner</Link>
-              </Button>
+              {/* Contact Us Button - Hidden in booking flow */}
+              {!isBookingFlow && (
+                <Button 
+                  className="hidden md:flex bg-primary hover:bg-primary/90 text-white rounded-full px-6 py-2 text-sm font-medium transition-colors gap-2" 
+                  asChild
+                >
+                  <Link href="/contact" className="flex items-center gap-2">
+                    Book a service
+                    <span className="bg-white rounded-full p-0.5">
+                      <ArrowUpRight className="h-4 w-4 text-primary" />
+                    </span>
+                  </Link>
+                </Button>
+              )}
             </div>
           </div>
 
@@ -259,22 +313,60 @@ export function Header({ variant = 'default' }: HeaderProps) {
                     </Link>
                   );
                 })}
-              {/* Get Free Quote Button - Hidden in booking flow */}
-              {!isBookingFlow && (
-                <Button 
-                  variant="outline"
-                  className="border-primary text-primary hover:bg-primary/10 rounded-lg px-6 py-2 text-sm font-medium transition-colors w-full justify-center" 
-                  asChild
-                >
-                  <Link href="/booking/quote">Get Free Quote</Link>
-                </Button>
-              )}
-              <Button 
-                className="bg-primary hover:bg-primary/90 text-white rounded-lg px-6 py-2 text-sm font-medium transition-colors w-full justify-center" 
-                asChild
-              >
-                <Link href="/careers">Become a Cleaner</Link>
-              </Button>
+                
+                {/* Locations Dropdown Items - Mobile */}
+                {!isBookingFlow && locationsDropdownItems.map((location) => (
+                  <Link
+                    key={location.href}
+                    href={location.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+                  >
+                    {location.name}
+                  </Link>
+                ))}
+                
+                {/* Blog Link - Mobile */}
+                {!isBookingFlow && (
+                  <Link
+                    href="/blog"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`text-sm font-medium transition-colors ${
+                      currentPage === 'blog'
+                        ? 'text-gray-900 font-semibold'
+                        : 'text-gray-700 hover:text-gray-900'
+                    }`}
+                  >
+                    Blog
+                  </Link>
+                )}
+                
+                {/* Cart - Mobile */}
+                {!isBookingFlow && (
+                  <Link 
+                    href="/cart"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+                  >
+                    <MessageSquareQuote className="h-5 w-5 text-gray-700" />
+                    Get Free Quote
+                  </Link>
+                )}
+                
+                {/* Contact Us Button - Mobile */}
+                {!isBookingFlow && (
+                  <Button 
+                    className="bg-primary hover:bg-primary/90 text-white rounded-full px-6 py-2 text-sm font-medium transition-colors w-full justify-center gap-2" 
+                    asChild
+                  >
+                    <Link href="/contact" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
+                      Book a service
+                      <span className="bg-white rounded-full p-0.5">
+                        <ArrowUpRight className="h-4 w-4 text-primary" />
+                      </span>
+                    </Link>
+                  </Button>
+                )}
               </nav>
             </div>
           )}

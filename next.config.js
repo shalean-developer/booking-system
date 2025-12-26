@@ -503,12 +503,13 @@ const nextConfig = {
               reuseExistingChunk: true,
             },
             // Separate large libraries into their own chunks
-            framerMotion: {
-              test: /[\\/]node_modules[\\/]framer-motion[\\/]/,
-              name: 'framer-motion',
-              priority: 20,
-              reuseExistingChunk: true,
-            },
+            // Note: framer-motion chunk splitting removed to prevent loading race conditions
+            // framerMotion: {
+            //   test: /[\\/]node_modules[\\/]framer-motion[\\/]/,
+            //   name: 'framer-motion',
+            //   priority: 20,
+            //   reuseExistingChunk: true,
+            // },
             recharts: {
               test: /[\\/]node_modules[\\/]recharts[\\/]/,
               name: 'recharts',
