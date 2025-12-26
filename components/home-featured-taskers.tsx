@@ -1,103 +1,103 @@
 'use client';
 
 import Image from 'next/image';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { motion } from 'framer-motion';
-import { BadgeCheck } from 'lucide-react';
 
 const cleaners = [
   {
-    name: 'Lucia Pazvakavambwa',
+    name: 'Ashley Byrd',
     avatar: '/images/team-lucia.webp',
-    tasks: 150,
-    location: 'Cape Town',
-    rating: 5.0,
+    years: 8,
+    bgColor: 'bg-blue-500',
   },
   {
-    name: 'Normatter Mazhinji',
+    name: 'Robert Stewart',
     avatar: '/images/team-normatter.webp',
-    tasks: 203,
-    location: 'Sea Point',
-    rating: 5.0,
+    years: 7,
+    bgColor: 'bg-pink-500',
   },
   {
-    name: 'Nyasha Mudani',
+    name: 'Elizabeth Walker',
     avatar: '/images/team-nyasha.webp',
-    tasks: 189,
-    location: 'Claremont',
-    rating: 5.0,
+    years: 9,
+    bgColor: 'bg-green-500',
   },
   {
-    name: 'Maggret Jiri',
+    name: 'Eleanor Howard',
     avatar: '/images/team-lucia.webp',
-    tasks: 167,
-    location: 'Constantia',
-    rating: 5.0,
+    years: 7,
+    bgColor: 'bg-orange-500',
   },
 ];
 
 export function HomeFeaturedCleaners() {
   return (
-    <section className="py-16 bg-white">
+    <section className="py-16 bg-gray-50">
       <div className="container mx-auto px-4 max-w-7xl">
-        <h2 className="text-3xl font-bold text-gray-900 mb-8">Our Expert Cleaning Team</h2>
+        {/* Heading */}
+        <div className="text-center mb-12">
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
+            PRO CLEANERS WITH{' '}
+            <span className="text-[#3b82f6]">7 YEARS</span> OF EXPERIENCE
+          </h2>
+        </div>
         
-        {/* Horizontal Scrollable Carousel */}
-        <div className="overflow-x-auto pb-4 -mx-4 px-4">
-          <div className="flex gap-6 min-w-max md:min-w-0 md:grid md:grid-cols-2 lg:grid-cols-4">
-            {cleaners.map((cleaner, index) => (
-              <motion.div
-                key={index}
-                className="flex-shrink-0 w-72 md:w-auto bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-shadow"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <div className="flex flex-col items-center text-center">
-                  {/* Profile Picture with Verified Badge */}
-                  <div className="relative mb-4">
-                    <div className="relative w-20 h-20 rounded-full overflow-hidden bg-gray-200">
-                      <Image
-                        src={cleaner.avatar}
-                        alt={`${cleaner.name} - Verified professional cleaner in ${cleaner.location}, Cape Town - Shalean Cleaning Services`}
-                        fill
-                        className="object-cover"
-                        sizes="80px"
-                        onError={(e) => {
-                          e.currentTarget.parentElement!.style.backgroundColor = '#e5e7eb';
-                        }}
-                      />
-                    </div>
-                    <BadgeCheck className="absolute -bottom-1 -right-1 h-6 w-6 text-primary bg-white rounded-full" />
-                  </div>
-                  
-                  {/* Name */}
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">{cleaner.name}</h3>
-                  
-                  {/* Location */}
-                  <p className="text-sm text-gray-500 mb-2">{cleaner.location}</p>
-                  
-                  {/* Rating */}
-                  <div className="flex items-center gap-1 mb-2">
-                    <span className="text-yellow-400">★★★★★</span>
-                    <span className="text-sm text-gray-600">({cleaner.rating})</span>
-                  </div>
-                  
-                  {/* Task Count */}
-                  <p className="text-sm text-gray-600 mb-4">{cleaner.tasks} completed cleanings</p>
-                  
-                  {/* Button */}
-                  <Button
-                    className="bg-primary hover:bg-primary/90 text-white w-full rounded-lg"
-                    asChild
-                  >
-                    <Link href="/careers">View Profile</Link>
-                  </Button>
+        {/* Cleaner Profiles */}
+        <div className="flex flex-wrap justify-center items-start gap-6 sm:gap-8 lg:gap-10 max-w-5xl mx-auto">
+          {cleaners.map((cleaner, index) => (
+            <div key={index} className="flex flex-col items-center">
+              {/* Circular Portrait */}
+              <div className="relative mb-4">
+                <div className={`relative w-32 h-32 sm:w-40 sm:h-40 rounded-full overflow-hidden ${cleaner.bgColor} flex items-center justify-center`}>
+                  <Image
+                    src={cleaner.avatar}
+                    alt={`${cleaner.name} - Professional cleaner with ${cleaner.years} years of experience`}
+                    width={160}
+                    height={160}
+                    className="w-full h-full object-cover"
+                    sizes="(max-width: 640px) 128px, 160px"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
                 </div>
-              </motion.div>
-            ))}
+                {/* Years Badge - Oval shaped */}
+                <div className="absolute -bottom-2 -right-2 bg-[#3b82f6] text-white text-xs font-semibold px-3 py-1.5 rounded-[20px] whitespace-nowrap shadow-md">
+                  {cleaner.years} years
+                </div>
+              </div>
+              
+              {/* Name */}
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 text-center">
+                {cleaner.name}
+              </h3>
+            </div>
+          ))}
+          
+          {/* Placeholder for Other Professionals */}
+          <div className="flex flex-col items-center">
+            <div className="relative mb-4">
+              <div className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-full bg-black flex items-center justify-center">
+                {/* Person Icon - White outline */}
+                <svg
+                  className="w-12 h-12 sm:w-16 sm:h-16 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  strokeWidth="2"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                  />
+                </svg>
+              </div>
+            </div>
+            
+            {/* Text below circle */}
+            <p className="text-base sm:text-lg font-semibold text-gray-900 text-center max-w-[160px]">
+              And over 100 other professionals
+            </p>
           </div>
         </div>
       </div>

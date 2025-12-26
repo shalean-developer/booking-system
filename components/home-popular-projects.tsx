@@ -1,228 +1,122 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { CheckCircle2 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Settings, Headphones, ThumbsUp, User } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 
-interface Service {
-  serviceType: string;
-  category: string;
-  avgPrice: string;
-  basePrice: number;
-  icon: string;
-  image: string;
-  order: number;
-}
+const services = [
+  {
+    title: 'Expert workers',
+    description: 'Expert workers are highly skilled professionals with extensive experience in their respective fields.',
+    icon: User,
+    iconBg: 'bg-yellow-100',
+    iconColor: 'text-gray-900',
+    iconFill: 'fill-yellow-100',
+  },
+  {
+    title: 'Advance Services',
+    description: 'Pioneering excellence, innovating solutions, exceeding expectations consistently.',
+    icon: Settings,
+    iconBg: 'bg-yellow-100',
+    iconColor: 'text-gray-900',
+    iconFill: 'fill-yellow-100',
+  },
+  {
+    title: '24/7 Services',
+    description: 'Round-the-clock solutions for your needs, anytime, anywhere. Always available.',
+    icon: Headphones,
+    iconBg: 'bg-orange-100',
+    iconColor: 'text-gray-900',
+    iconFill: 'fill-orange-100',
+    show24: true,
+  },
+  {
+    title: 'Customer Satisfaction',
+    description: 'Delighting customers, one exceptional experience at a time, guaranteed satisfaction.',
+    icon: ThumbsUp,
+    iconBg: 'bg-blue-100',
+    iconColor: 'text-gray-900',
+    iconFill: 'fill-blue-100',
+  },
+];
 
 export function HomePopularServices() {
-  const [services, setServices] = useState<Service[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function fetchServices() {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        // Fetch services from API (which fetches from database)
-        const response = await fetch('/api/services/popular', {
-          method: 'GET',
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Content-Type': 'application/json',
-          },
-        });
-        
-        // Check content type first
-        const contentType = response.headers.get('content-type');
-        const isJson = contentType && contentType.includes('application/json');
-        
-        if (!response.ok) {
-          // Handle 404 specifically
-          if (response.status === 404) {
-            console.error('❌ API endpoint not found: /api/services/popular');
-            throw new Error('Services API endpoint not found. Please check if the route exists.');
-          }
-          
-          // Try to parse error response, but handle non-JSON responses (like HTML 404 pages)
-          let errorData: any = {};
-          
-          try {
-            if (isJson) {
-              try {
-                errorData = await response.json();
-              } catch {
-                // If JSON parsing fails, try text
-                const text = await response.text();
-                if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
-                  errorData = { message: `API endpoint returned HTML (likely 404): /api/services/popular` };
-                } else {
-                  errorData = { message: text || `API returned ${response.status}` };
-                }
-              }
-            } else {
-              // Not JSON - likely HTML
-              const text = await response.text();
-              if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
-                errorData = { message: `API endpoint returned HTML (likely 404): /api/services/popular` };
-              } else {
-                errorData = { message: text || `API returned ${response.status}` };
-              }
-            }
-          } catch (parseError) {
-            // If all parsing fails, use status text
-            errorData = { message: `API returned ${response.status} ${response.statusText}` };
-          }
-          
-          throw new Error(errorData.message || errorData.error || `API returned ${response.status}`);
-        }
-        
-        // Verify content type before parsing JSON
-        if (!isJson) {
-          const text = await response.text();
-          if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
-            throw new Error('API endpoint returned HTML instead of JSON. The endpoint may not exist.');
-          }
-          throw new Error(`API endpoint returned non-JSON response: ${contentType || 'unknown'}`);
-        }
-        
-        const data = await response.json();
-        const fetchedServices = data.services || [];
-        
-        console.log('Fetched services from API:', fetchedServices);
-        console.log('Number of services:', fetchedServices.length);
-        // Log image URLs to verify they're local
-        fetchedServices.forEach((s: Service) => {
-          console.log(`📷 ${s.category}: ${s.image || '(no image)'}`);
-        });
-        
-        if (fetchedServices.length === 0) {
-          console.warn('No services returned from API. Response data:', data);
-          throw new Error(data.message || 'No services found in database');
-        }
-        
-        // Use services fetched from database
-        setServices(fetchedServices);
-      } catch (err: any) {
-        console.error('Error fetching services:', err);
-        setError(err?.message || 'Failed to load services from database');
-        setServices([]); // Empty array - will show error message
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchServices();
-  }, []);
-
-  // Loading state
-  if (loading) {
-    return (
-      <section className="py-16 bg-white">
-        <div className="container mx-auto px-4 max-w-7xl">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">Our Cleaning Services</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                className="bg-white rounded-2xl shadow-lg overflow-hidden animate-pulse"
-              >
-                <div className="h-48 bg-gray-200" />
-                <div className="p-6">
-                  <div className="h-6 bg-gray-200 rounded mb-2" />
-                  <div className="h-4 bg-gray-200 rounded w-24" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  // Error state or no services
-  if (error || services.length === 0) {
-    return (
-      <section className="py-16 bg-white">
-        <div className="container mx-auto px-4 max-w-7xl">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">Our Cleaning Services</h2>
-          {error && (
-            <div className="text-center py-8">
-              <p className="text-red-600 font-medium mb-2">Unable to load services</p>
-              <p className="text-gray-500 text-sm">{error}</p>
-              <p className="text-gray-400 text-xs mt-4">
-                Check browser console for details. Make sure:
-                <br />1. Services table exists and has data
-                <br />2. Pricing config table has matching service types
-                <br />3. RLS policies allow public read access
-              </p>
-            </div>
-          )}
-          {!error && services.length === 0 && (
-            <p className="text-gray-500 text-center py-8">
-              No services available. Please check the database configuration.
-            </p>
-          )}
-        </div>
-      </section>
-    );
-  }
-
   return (
-    <section className="py-16 bg-white">
-      <div className="container mx-auto px-4 max-w-7xl">
-        <h2 className="text-3xl font-bold text-gray-900 mb-8">Our Cleaning Services</h2>
-        
-        {/* Grid Layout - Responsive: 1 column mobile, 2 tablet, 4-5 desktop depending on services */}
-        <div className={`grid grid-cols-1 sm:grid-cols-2 ${services.length > 4 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-6`}>
-          {services.map((service, index) => (
-            <motion.article
-              key={service.serviceType}
-              className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <Link href={`/services/${service.serviceType.toLowerCase().replace(/\s+/g, '-')}`} className="block">
-                <div className="relative h-48 bg-gray-200">
-                  <Image
-                    src={service.image || '/images/service-standard-cleaning.jpg'}
-                    alt={`Professional ${service.category} services in Cape Town - Shalean Cleaning Services`}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                    unoptimized={service.image?.startsWith('/images/')}
-                    onError={(e) => {
-                      console.error(`❌ Failed to load image: ${service.image} for ${service.category}`);
-                      e.currentTarget.parentElement!.style.backgroundColor = '#e5e7eb';
-                    }}
-                    onLoad={() => {
-                      console.log(`✅ Loaded image: ${service.image} for ${service.category}`);
-                    }}
-                  />
-                  <div className="absolute top-4 right-4 text-2xl" aria-hidden="true">{service.icon}</div>
-                </div>
-                <div className="p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-primary transition-colors">{service.category}</h3>
-                  <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                    <CheckCircle2 className="h-4 w-4 text-primary" aria-hidden="true" />
-                    <span className="font-medium text-primary">From {service.avgPrice}</span>
+    <section className="py-16 sm:py-20 lg:py-24 bg-gray-50">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+        {/* Header Section */}
+        <div className="text-center mb-12 sm:mb-16">
+          {/* Our Services Button */}
+          <button className="inline-flex items-center px-4 py-2 bg-gray-100 border border-gray-300 text-gray-700 font-medium rounded-full mb-6">
+            Our Services
+          </button>
+
+          {/* Main Heading */}
+          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
+            We provide best services
+          </h2>
+
+          {/* Description */}
+          <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+            We prioritize your needs and exceed expectations with professional expertise, creative solutions, and reliable support.
+          </p>
+        </div>
+
+        {/* Services Grid - 4 cards horizontal */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
+          {services.map((service, index) => {
+            const Icon = service.icon;
+            return (
+              <Card key={index} className="bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+                <CardContent className="p-6 sm:p-8">
+                  {/* Icon */}
+                  <div className="mb-6 flex justify-center">
+                    <div className="relative">
+                      {index === 0 ? (
+                        // Expert workers - User icon
+                        <div className="w-16 h-16 rounded-lg bg-blue-100 flex items-center justify-center border-2 border-gray-900">
+                          <User className="h-8 w-8 text-blue-600 stroke-[2]" />
+                        </div>
+                      ) : index === 1 ? (
+                        // Advance Services - Settings/Gear icon in yellow
+                        <div className="w-16 h-16 rounded-lg bg-yellow-100 flex items-center justify-center border-2 border-gray-900">
+                          <Settings className="h-8 w-8 text-gray-900 stroke-[2]" />
+                        </div>
+                      ) : index === 2 ? (
+                        // 24/7 Services - Headphones icon in orange/peach
+                        <div className="relative">
+                          <div className="w-16 h-16 rounded-lg bg-orange-100 flex items-center justify-center border-2 border-gray-900">
+                            <Headphones className="h-8 w-8 text-gray-900 stroke-[2]" />
+                          </div>
+                          {service.show24 && (
+                            <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center border-2 border-gray-900">
+                              <span className="text-xs font-bold text-gray-900">24</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        // Customer Satisfaction - ThumbsUp icon
+                        <div className="w-16 h-16 rounded-lg bg-blue-100 flex items-center justify-center border-2 border-gray-900">
+                          <ThumbsUp className="h-8 w-8 text-gray-900 stroke-[2]" />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-500 line-clamp-2">
-                    Professional {service.category.toLowerCase()} services in Cape Town
+
+                  {/* Title */}
+                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 text-center">
+                    {service.title}
+                  </h3>
+
+                  {/* Description */}
+                  <p className="text-base text-gray-600 leading-relaxed text-center">
+                    {service.description}
                   </p>
-                </div>
-              </Link>
-            </motion.article>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
     </section>
   );
 }
-
