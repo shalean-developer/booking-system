@@ -75,9 +75,12 @@ export function HomeFeaturedServices() {
         {/* Featured Services List */}
         <div className="space-y-8 lg:space-y-12">
           {featuredServices.map((service) => {
-            const price = 'serviceType' in service && service.serviceType
-              ? prices[service.serviceType] || `From R${service.serviceType === 'Deep' ? '450' : '250'}`
-              : ('price' in service ? service.price : 'From R450');
+            const serviceType = service.serviceType;
+            const price: string = serviceType && prices[serviceType] 
+              ? prices[serviceType] 
+              : serviceType === 'Deep' 
+                ? 'From R450' 
+                : 'From R250';
             
             return (
             <div
