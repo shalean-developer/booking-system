@@ -35,7 +35,7 @@ export function HomeFeaturedCleaners() {
       <div className="container mx-auto px-4 max-w-7xl">
         {/* Heading */}
         <div className="text-center mb-12">
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-2">
             PRO CLEANERS WITH{' '}
             <span className="text-[#3b82f6]">7 YEARS</span> OF EXPERIENCE
           </h2>
@@ -67,7 +67,7 @@ export function HomeFeaturedCleaners() {
               </div>
               
               {/* Name */}
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 text-center">
+              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 text-center">
                 {cleaner.name}
               </h3>
             </div>

@@ -45,11 +45,11 @@ const citiesByRegion = [
 
 export function HomeCities() {
   return (
-    <section className="py-16 md:py-24 bg-white">
+    <section className="py-16 md:py-24 bg-gray-50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
         {/* Title */}
         <motion.h2
-          className="text-3xl md:text-4xl font-bold text-gray-900 mb-12 text-center"
+          className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-12 text-center"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -83,7 +83,7 @@ export function HomeCities() {
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1, duration: 0.5 }}
               >
-                <h3 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">
+                <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">
                   {region.region}:
                 </h3>
                 <ul className="space-y-2.5">

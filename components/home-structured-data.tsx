@@ -67,7 +67,7 @@ export function HomeStructuredData() {
 
   const structuredData = {
     "@context": "https://schema.org",
-    "@type": "LocalBusiness",
+    "@type": ["LocalBusiness", "CleaningService"],
     "@id": "https://shalean.co.za/#organization",
     "name": "Shalean Cleaning Services",
     "description": "Leading cleaning companies in Cape Town offering expert house cleaning services, deep cleaning services, and home cleaning services. Professional cleaning services near you for standard cleaning, deep cleaning, move-in/out, and Airbnb turnover.",

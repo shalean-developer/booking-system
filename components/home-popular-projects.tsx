@@ -13,7 +13,7 @@ const services = [
     iconFill: 'fill-yellow-100',
   },
   {
-    title: 'Advance Services',
+    title: 'Advanced Services',
     description: 'Pioneering excellence, innovating solutions, exceeding expectations consistently.',
     icon: Settings,
     iconBg: 'bg-yellow-100',
@@ -51,8 +51,8 @@ export function HomePopularServices() {
           </button>
 
           {/* Main Heading */}
-          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
-            We provide best services
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
+            We provide the best services
           </h2>
 
           {/* Description */}
@@ -77,7 +77,7 @@ export function HomePopularServices() {
                           <User className="h-8 w-8 text-blue-600 stroke-[2]" />
                         </div>
                       ) : index === 1 ? (
-                        // Advance Services - Settings/Gear icon in yellow
+                        // Advanced Services - Settings/Gear icon in yellow
                         <div className="w-16 h-16 rounded-lg bg-yellow-100 flex items-center justify-center border-2 border-gray-900">
                           <Settings className="h-8 w-8 text-gray-900 stroke-[2]" />
                         </div>

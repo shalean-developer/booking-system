@@ -1,176 +1,221 @@
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+'use client';
+
+import { useState } from 'react';
+import { Plus, Minus, ArrowUpRight } from 'lucide-react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 import { Header } from "@/components/header";
-import { 
-  HelpCircle,
-  ArrowRight,
-  CheckCircle,
-  Phone,
-  Mail,
-  Clock
-} from "lucide-react";
-import type { Metadata } from "next";
-import { createMetadata, generateCanonical } from "@/lib/metadata";
+import { stringifyStructuredData } from '@/lib/structured-data-validator';
 
-export const metadata: Metadata = createMetadata({
-  title: "Frequently Asked Questions | Shalean",
-  description: "Find answers to common questions about Shalean cleaning services. Learn about our services, pricing, scheduling, booking process, service areas, and satisfaction guarantee.",
-  canonical: generateCanonical("/faq"),
-  ogImage: {
-    url: "https://shalean.co.za/assets/og/faq-1200x630.jpg",
-    alt: "Frequently asked questions about Shalean cleaning services"
-  }
-});
+type FAQCategory = 'getting-started' | 'services-pricing' | 'booking-scheduling' | 'account-technical';
 
-export default function FAQPage() {
-  const faqs = [
+const faqsByCategory: Record<FAQCategory, Array<{ question: string; answer: string }>> = {
+  'getting-started': [
     {
-      question: "What cleaning services do you offer?",
-      answer: "We offer regular cleaning, deep cleaning, move-in/move-out cleaning, Airbnb cleaning, office cleaning, apartment cleaning, and window cleaning services across Cape Town, Johannesburg, Pretoria, and Durban."
+      question: "How do I book a cleaning service?",
+      answer: "Booking is easy! Simply create an account, browse our available cleaning services, select the service and time that works for you, and complete your booking. You'll receive a confirmation email with all the details of your scheduled cleaning."
     },
     {
-      question: "How much do your cleaning services cost?",
-      answer: "Our pricing varies based on the type of service and property size. Regular cleaning starts from R250, deep cleaning from R1,200, and move-in/out cleaning from R980. Contact us for a personalized quote."
+      question: "What cleaning services do you offer?",
+      answer: "We offer a comprehensive range of cleaning services including regular house cleaning, deep cleaning, move-in/move-out cleaning, office cleaning, post-construction cleaning, and specialized services like carpet cleaning and window washing. We can customize our services to meet your specific needs."
     },
     {
       question: "Are your cleaners insured and bonded?",
-      answer: "Yes, all our cleaners are fully insured, bonded, and background-checked. We take security and trust seriously to give you peace of mind."
+      answer: "Yes! All our cleaning professionals are fully insured, bonded, and background-checked for your peace of mind. We take the safety and security of your home seriously, and all our staff undergo thorough screening before joining our team."
     },
     {
-      question: "Do you provide cleaning supplies and equipment?",
-      answer: "Yes, we bring all necessary cleaning supplies and equipment. We use eco-friendly products and professional-grade equipment to ensure the best results."
+      question: "Do I need to provide cleaning supplies and equipment?",
+      answer: "Our equipment policy varies by service type. For Deep Cleaning and Move In/Out Cleaning services, we provide all equipment and supplies at no extra charge. For Regular Cleaning and Airbnb Cleaning services, equipment is available upon customer request for an additional charge. All our cleaning teams bring eco-friendly cleaning products. If you prefer to use specific products, you can let us know and we'll use your preferred supplies."
+    }
+  ],
+  'services-pricing': [
+    {
+      question: "How much do your cleaning services cost?",
+      answer: "Pricing varies based on the size of your space, type of service, and frequency. One-time cleanings typically start from R300, while recurring weekly or bi-weekly services offer discounted rates. We provide free estimates, so contact us for an accurate quote tailored to your needs."
     },
     {
-      question: "How do I book a cleaning service?",
-      answer: "You can book online through our booking system, call us at +27 87 153 5250, or contact us through our website. We offer flexible scheduling to fit your needs."
+      question: "What payment methods do you accept?",
+      answer: "We accept all major credit cards, debit cards, and EFT transfers. For recurring services, you can set up automatic payments for convenience. All payments are processed securely through our platform."
     },
     {
-      question: "Can I schedule regular cleaning appointments?",
-      answer: "Absolutely! We offer weekly, bi-weekly, and monthly cleaning schedules. Regular customers often receive discounted rates and priority booking."
-    },
-    {
-      question: "What areas do you service?",
-      answer: "We currently service Cape Town (all suburbs), Johannesburg (Northern Suburbs, Midrand, Eastern Suburbs, Southern Suburbs, Western Suburbs, Inner City), Pretoria (Central, Eastern, Northern, Western, Southern Suburbs, Golf Estates), and Durban (Coastal North, Central, Western, Southern Suburbs, South Coast, Upper Areas)."
-    },
-    {
-      question: "Do you offer same-day cleaning services?",
-      answer: "Yes, we offer same-day service when available. However, we recommend booking in advance to ensure availability, especially for deep cleaning or move-in/out services."
-    },
-    {
-      question: "What if I'm not satisfied with the cleaning?",
-      answer: "We offer a 100% satisfaction guarantee. If you're not completely satisfied, we'll return within 24 hours to address any concerns at no additional cost."
-    },
-    {
-      question: "Do you clean during weekends and holidays?",
-      answer: "Yes, we offer cleaning services 7 days a week, including weekends and most holidays. Additional charges may apply for holiday cleaning."
-    },
-    {
-      question: "Can I cancel or reschedule my appointment?",
-      answer: "Yes, you can cancel or reschedule your appointment up to 24 hours in advance at no charge. Cancellations within 24 hours may incur a fee."
+      question: "Are there discounts for recurring services?",
+      answer: "Yes! We offer discounted rates for regular recurring cleanings. Weekly cleanings save up to 15%, and bi-weekly cleanings save up to 10% compared to one-time services. The more frequent your service, the more you save while keeping your space consistently clean."
     },
     {
       question: "Do you offer eco-friendly cleaning options?",
-      answer: "Yes, we use eco-friendly cleaning products that are safe for children, pets, and the environment. All our products are biodegradable and non-toxic."
+      answer: "Absolutely! We use eco-friendly, non-toxic cleaning products that are safe for your family, pets, and the environment. All our standard cleanings use green cleaning products at no extra charge. Just let us know if you have any specific preferences or allergies."
     }
+  ],
+  'booking-scheduling': [
+    {
+      question: "How far in advance do I need to book?",
+      answer: "We recommend booking at least 24-48 hours in advance to ensure availability. However, we often have same-day availability for urgent cleaning needs. For recurring services, you can set up a regular schedule and we'll automatically book your appointments."
+    },
+    {
+      question: "Can I reschedule or cancel my cleaning appointment?",
+      answer: "Yes! You can reschedule or cancel your appointment up to 24 hours before the scheduled time at no charge. Cancellations made less than 24 hours in advance may incur a fee. You can manage your bookings directly through your account or by contacting our support team."
+    },
+    {
+      question: "Will I have the same cleaner each time?",
+      answer: "We do our best to assign you the same cleaning professional for consistency and to build trust. However, if your regular cleaner is unavailable, we'll ensure a qualified replacement from our team. You can also request specific cleaners if you have a preference."
+    },
+    {
+      question: "What areas do you service?",
+      answer: "We currently service Cape Town and surrounding suburbs. Enter your address during booking to check if we service your area. We're constantly expanding our coverage, so if we don't service your area yet, let us know and we'll notify you when we become available."
+    }
+  ],
+  'account-technical': [
+    {
+      question: "I forgot my password. How do I reset it?",
+      answer: "Click on \"Forgot Password\" on the login page, enter your email address, and we'll send you a password reset link. Follow the instructions in the email to create a new password. If you don't receive the email, check your spam folder or contact support."
+    },
+    {
+      question: "How do I update my account information or service preferences?",
+      answer: "Go to your account settings, click on \"Edit Profile\" or \"Service Preferences,\" and update any information you want to change. You can update your contact details, address, cleaning preferences, access instructions, and payment methods. Don't forget to save your changes."
+    },
+    {
+      question: "What should I do if I'm not satisfied with the cleaning?",
+      answer: "Your satisfaction is our priority! If you're not happy with the service, please contact us within 24 hours of the cleaning. We'll send a team back to address any issues at no additional charge. We stand behind our work and want to ensure you're completely satisfied."
+    },
+    {
+      question: "I'm experiencing payment issues. Who can help?",
+      answer: "If you're having trouble with payments, please contact our support team immediately. We can help troubleshoot payment issues, process refunds if necessary, and ensure your account is properly set up. We're here to help make the process as smooth as possible."
+    }
+  ]
+};
+
+export default function FAQPage() {
+  const [selectedCategory, setSelectedCategory] = useState<FAQCategory>('getting-started');
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
+
+  const currentFaqs = faqsByCategory[selectedCategory];
+
+  const toggleFAQ = (index: number) => {
+    setOpenIndex(openIndex === index ? null : index);
+  };
+
+  const categories: Array<{ id: FAQCategory; label: string }> = [
+    { id: 'getting-started', label: 'Getting Started' },
+    { id: 'services-pricing', label: 'Services & Pricing' },
+    { id: 'booking-scheduling', label: 'Booking & Scheduling' },
+    { id: 'account-technical', label: 'Account & Technical Issues' }
   ];
 
+  // Flatten all FAQs for structured data
+  const allFaqs = Object.values(faqsByCategory).flat();
+
+  // Generate FAQPage structured data for SEO
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": allFaqs.map((faq) => ({
+      "@type": "Question",
+      "name": faq.question,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": faq.answer
+      }
+    }))
+  };
+
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gradient-to-br from-white via-white to-purple-50/30">
+      {/* FAQPage Schema for SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: stringifyStructuredData(faqSchema, "FAQPage") }}
+      />
       <Header />
 
-      {/* Hero Section */}
-      <section className="py-20 bg-gradient-to-b from-primary/5 to-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
-              <HelpCircle className="h-3 w-3 mr-1" />
-              Help Center
-            </Badge>
-            <h1 className="mb-6 text-5xl font-bold text-gray-900 sm:text-6xl">
-              Frequently Asked <span className="text-primary">Questions</span>
-            </h1>
-            <p className="mx-auto mb-8 max-w-3xl text-xl text-gray-600">
-              Find answers to common questions about our cleaning services, pricing, and policies.
-            </p>
-          </div>
-        </div>
-      </section>
-
       {/* FAQ Section */}
-      <section className="py-20">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <div className="space-y-6">
-            {faqs.map((faq, idx) => (
-              <Card key={idx} className="border-0 shadow-lg">
-                <CardContent className="p-8">
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">
-                    {faq.question}
-                  </h3>
-                  <p className="text-gray-700 leading-relaxed">
-                    {faq.answer}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
+      <section className="py-16 md:py-24">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+            {/* Left Column - Title and Category Buttons */}
+            <div className="space-y-6">
+              <div>
+                <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+                  FAQs
+                </h1>
+                <p className="text-lg text-gray-600">
+                  Everything you need to know about our cleaning services, booking, pricing, and more.
+                </p>
+              </div>
 
-      {/* Contact Section */}
-      <section className="py-20 bg-gray-50">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl font-bold text-gray-900 mb-6">
-            Still Have Questions?
-          </h2>
-          <p className="text-xl text-gray-600 mb-8">
-            Can't find what you're looking for? Our team is here to help.
-          </p>
-          <div className="grid md:grid-cols-3 gap-6 mb-8">
-            <Card className="border-0 shadow-lg">
-              <CardContent className="p-6 text-center">
-                <Phone className="h-8 w-8 text-primary mx-auto mb-4" />
-                <h3 className="font-bold text-gray-900 mb-2">Call Us</h3>
-                <p className="text-gray-600 mb-4">Speak directly with our team</p>
-                <a href="tel:+27871535250" className="text-primary font-medium">
-                  +27 87 153 5250
-                </a>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-lg">
-              <CardContent className="p-6 text-center">
-                <Mail className="h-8 w-8 text-primary mx-auto mb-4" />
-                <h3 className="font-bold text-gray-900 mb-2">Email Us</h3>
-                <p className="text-gray-600 mb-4">Get detailed answers</p>
-                <a href="mailto:support@shalean.co.za" className="text-primary font-medium">
-                  support@shalean.com
-                </a>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-lg">
-              <CardContent className="p-6 text-center">
-                <Clock className="h-8 w-8 text-primary mx-auto mb-4" />
-                <h3 className="font-bold text-gray-900 mb-2">Response Time</h3>
-                <p className="text-gray-600 mb-4">We respond quickly</p>
-                <span className="text-primary font-medium">
-                  Within 2 hours
-                </span>
-              </CardContent>
-            </Card>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-8 py-4 text-lg" asChild>
-              <Link href="/contact">
-                Contact Us
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Link>
-            </Button>
-            <Button size="lg" variant="outline" className="border-primary text-primary hover:bg-primary/10 px-8 py-4 text-lg" asChild>
-              <Link href="/booking/service/select">
-                Book Now
-              </Link>
-            </Button>
+              <div className="flex flex-col gap-3">
+                {categories.map((category) => (
+                  <button
+                    key={category.id}
+                    onClick={() => {
+                      setSelectedCategory(category.id);
+                      setOpenIndex(0);
+                    }}
+                    className={`w-fit text-left px-4 py-2 rounded-full transition-all ${
+                      selectedCategory === category.id
+                        ? 'bg-blue-600 text-white font-semibold'
+                        : 'bg-white text-black border border-blue-600 hover:bg-gray-50'
+                    }`}
+                    aria-label={`Filter FAQs by ${category.label}`}
+                  >
+                    {category.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Right Column - FAQ Accordion */}
+            <div className="space-y-4">
+              {currentFaqs.map((faq, index) => (
+                <div
+                  key={index}
+                  className="bg-white rounded-lg border border-gray-200 overflow-hidden"
+                >
+                  <button
+                    onClick={() => toggleFAQ(index)}
+                    className="w-full text-left px-6 py-5 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                    aria-expanded={openIndex === index}
+                    aria-label={`${faq.question} - Click to ${openIndex === index ? 'collapse' : 'expand'} answer`}
+                  >
+                    <span className="font-semibold text-gray-900 pr-8 flex-1">
+                      {faq.question}
+                    </span>
+                    {openIndex === index ? (
+                      <Minus className="h-5 w-5 text-gray-600 flex-shrink-0" />
+                    ) : (
+                      <Plus className="h-5 w-5 text-gray-600 flex-shrink-0" />
+                    )}
+                  </button>
+                  {openIndex === index && (
+                    <div className="px-6 pb-5 pt-0 text-gray-600 leading-relaxed">
+                      {faq.answer}
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {/* Still have questions section */}
+              <div className="mt-8 pt-8">
+                <div className="bg-purple-50/60 rounded-lg p-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    Still have questions?
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    Contact our support team and we will make sure everything is clear and intuitive for you!
+                  </p>
+                  <Button 
+                    className="bg-primary hover:bg-primary/90 text-white rounded-full pl-6 pr-2 py-2.5 text-sm font-medium transition-colors gap-3" 
+                    asChild
+                  >
+                    <Link href="/contact" className="flex items-center gap-3">
+                      Contact Support
+                      <span className="bg-white rounded-full flex items-center justify-center p-1.5 w-7 h-7 flex-shrink-0">
+                        <ArrowUpRight className="h-4 w-4 text-primary" />
+                      </span>
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>

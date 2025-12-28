@@ -26,7 +26,7 @@ export function AboutMission() {
           <div className="relative h-96 rounded-lg overflow-hidden shadow-xl">
             <Image 
               src="/images/cleaning-team-hero.jpg" 
-              alt="Shalean team" 
+              alt="Professional cleaning team from Shalean Cleaning Services in Cape Town - Expert cleaners providing quality service" 
               fill 
               className="object-cover"
               priority

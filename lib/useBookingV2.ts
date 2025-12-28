@@ -117,7 +117,7 @@ export function useBookingV2() {
 
   // Load from sessionStorage on mount (only once globally)
   useEffect(() => {
-    if (!isInitialized) {
+    if (!isInitialized && typeof window !== 'undefined') {
       // Check for template in sessionStorage first
       const templateRaw = sessionStorage.getItem('booking_template');
       if (templateRaw) {
@@ -146,14 +146,16 @@ export function useBookingV2() {
             currentStep: 1,
           };
           // Clear template from sessionStorage after loading
-          sessionStorage.removeItem('booking_template');
+          if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('booking_template');
+          }
         } catch (e) {
           console.error('Failed to parse booking template:', e);
         }
       }
       
       // Then load regular booking state
-      const raw = sessionStorage.getItem(KEY);
+      const raw = typeof window !== 'undefined' ? sessionStorage.getItem(KEY) : null;
       if (raw) {
         try {
           const loadedState = JSON.parse(raw);
@@ -183,7 +185,9 @@ export function useBookingV2() {
       }
 
       saveTimeoutRef.current = setTimeout(() => {
-        sessionStorage.setItem(KEY, JSON.stringify(globalState));
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(KEY, JSON.stringify(globalState));
+        }
       }, 100);
     }
 
@@ -204,7 +208,9 @@ export function useBookingV2() {
   const reset = useCallback(() => {
     globalState = initial;
     setState(initial);
-    sessionStorage.removeItem(KEY);
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem(KEY);
+    }
     notifyListeners();
   }, [setState]);
 

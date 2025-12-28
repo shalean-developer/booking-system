@@ -283,7 +283,7 @@ export default function CapeTownPage() {
               </p>
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                 <Button size="lg" className="px-8 py-4 text-lg" asChild>
-                  <Link href="/booking/service/select">
+                  <Link href="/booking/service/select" aria-label="Book a cleaning service in Cape Town">
                     Book a Clean
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
@@ -497,7 +497,14 @@ export default function CapeTownPage() {
                   className="flex flex-col overflow-hidden border border-gray-100 bg-white shadow-lg shadow-primary/10"
                 >
                   <div className="relative h-48 w-full">
-                    <Image src={pkg.image} alt={`${pkg.title} cleaning service in Cape Town - Shalean Cleaning Services`} fill className="object-cover" />
+                    <Image 
+                      src={pkg.image} 
+                      alt={`${pkg.title} cleaning service package in Cape Town - Shalean Cleaning Services`} 
+                      fill 
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      loading="lazy"
+                    />
                   </div>
                   <CardHeader>
                     <h3 className="text-xl font-semibold text-gray-900">{pkg.title}</h3>
@@ -514,7 +521,7 @@ export default function CapeTownPage() {
                       ))}
                     </ul>
                     <Button className="mt-4 w-full" asChild>
-                      <Link href="/booking/service/select">Book this package</Link>
+                      <Link href="/booking/service/select" aria-label={`Book ${pkg.title} cleaning package`}>Book this package</Link>
                     </Button>
                   </CardFooter>
                 </Card>
@@ -568,7 +575,14 @@ export default function CapeTownPage() {
               {team.map((member) => (
                 <Card key={member.name} className="border border-gray-100 bg-white shadow-md">
                   <div className="relative h-52 w-full overflow-hidden">
-                    <Image src={member.image} alt={member.name} fill className="object-cover" />
+                    <Image 
+                      src={member.image} 
+                      alt={`${member.name} - ${member.role} at Shalean Cleaning Services in Cape Town`} 
+                      fill 
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      loading="lazy"
+                    />
                   </div>
                   <CardHeader>
                     <h3 className="text-xl font-semibold text-gray-900">{member.name}</h3>

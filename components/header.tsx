@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Menu, X, ChevronDown, ArrowUpRight, MessageSquareQuote } from 'lucide-react';
 import { useBookingV2 } from '@/lib/useBookingV2';
@@ -15,6 +15,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 
 interface HeaderProps {
@@ -46,17 +48,105 @@ const locationsDropdownItems = [
   { name: 'Durban', href: '/location/durban' },
 ];
 
+interface Service {
+  serviceType: string;
+  category: string;
+  icon: string;
+  order: number;
+}
+
 export function Header({ variant = 'default' }: HeaderProps) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [locationsDropdownOpen, setLocationsDropdownOpen] = useState(false);
+  const [servicesDropdownOpen, setServicesDropdownOpen] = useState(false);
+  const [services, setServices] = useState<Service[]>([]);
+  const [isScrollingUp, setIsScrollingUp] = useState(false);
+  const lastScrollY = useRef(0);
   
   // Check if we're in booking flow
   const isBookingFlow = pathname?.startsWith('/booking') || pathname?.startsWith('/booking-v2');
   
+  // Handle scroll direction detection
+  useEffect(() => {
+    // Initialize lastScrollY on mount
+    lastScrollY.current = window.scrollY;
+    
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      const scrollDifference = lastScrollY.current - currentScrollY;
+      
+      // Show border only when scrolling up (and not at the top)
+      if (currentScrollY <= 10) {
+        // At the top of the page, hide border
+        setIsScrollingUp(false);
+      } else if (scrollDifference > 0) {
+        // Scrolling up (positive difference means we moved up)
+        setIsScrollingUp(true);
+      } else if (scrollDifference < 0) {
+        // Scrolling down (negative difference means we moved down)
+        setIsScrollingUp(false);
+      }
+      // If scrollDifference is 0 (no movement), keep current state
+      
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+  
   // Always call hook (React rules), but only use it in booking flow
   const bookingHook = useBookingV2();
   const bookingState = isBookingFlow ? bookingHook.state : { currentStep: 1 };
+
+  // Fetch services for dropdown
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        const response = await fetch('/api/services/popular');
+        const data = await response.json();
+        if (data.services && Array.isArray(data.services)) {
+          setServices(data.services);
+        }
+      } catch (error) {
+        console.error('Error fetching services:', error);
+      }
+    };
+    
+    if (!isBookingFlow) {
+      fetchServices();
+    }
+  }, [isBookingFlow]);
+
+  // Generate service URL from service type
+  const getServiceUrl = (serviceType: string) => {
+    const slug = serviceType.toLowerCase().replace(/\s+/g, '-').replace(/\//g, '-');
+    return `/booking/service/${slug}/details`;
+  };
+
+  // Group services by category
+  const getServicesByCategory = () => {
+    const categories: Record<string, Service[]> = {
+      'Residential': [],
+      'Commercial': [],
+      'Specialized': [],
+    };
+
+    services.forEach((service) => {
+      // Categorize services
+      if (['Standard', 'Deep', 'Move In/Out'].includes(service.serviceType)) {
+        categories['Residential'].push(service);
+      } else if (service.serviceType === 'Airbnb') {
+        categories['Commercial'].push(service);
+      } else {
+        categories['Specialized'].push(service);
+      }
+    });
+
+    // Remove empty categories
+    return Object.entries(categories).filter(([_, services]) => services.length > 0);
+  };
 
   // Determine current page based on pathname
   const getCurrentPage = () => {
@@ -72,11 +162,11 @@ export function Header({ variant = 'default' }: HeaderProps) {
   // Logo component
   const Logo = () => {
     return (
-      <Link href="/" className="flex items-center gap-2 flex-shrink-0">
+      <Link href="/" className="flex items-center gap-2 flex-shrink-0" aria-label="Shalean Cleaning Services - Home">
         <div className="relative w-10 h-10 flex items-center justify-center overflow-hidden">
           <Image
             src="/logo.svg"
-            alt="Shalean Logo"
+            alt="Shalean Cleaning Services logo - Professional cleaning services in Cape Town"
             width={40}
             height={40}
             className="w-[40px] h-[40px] object-contain"
@@ -99,7 +189,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
   // Minimal variant for pages like login
   if (variant === 'minimal') {
     return (
-      <header className="bg-white border-b sticky top-0 z-50">
+      <header className={cn("bg-white sticky top-0 z-50", isScrollingUp ? "border-b" : "border-b-0")}>
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-4">
             <Logo />
@@ -113,7 +203,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
   }
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b shadow-sm">
+    <header className={cn("sticky top-0 z-50 bg-white", isScrollingUp ? "border-b shadow-sm" : "border-b-0 shadow-none")}>
       <div className="container mx-auto px-4 max-w-7xl relative">
         <div className="flex items-center justify-between py-4">
             {/* Logo */}
@@ -121,9 +211,68 @@ export function Header({ variant = 'default' }: HeaderProps) {
 
             {/* Desktop Navigation - Hidden in booking flow */}
             {!isBookingFlow && (
-              <nav className="hidden md:flex items-center bg-gray-200 border-2 border-gray-300 rounded-full px-1 py-1 gap-0">
+              <nav className="hidden md:flex items-center bg-gray-100 rounded-full gap-0" aria-label="Main navigation">
                 {navigationItems.map((item) => {
                   const isActive = currentPage === item.key;
+                  
+                  // Special handling for Service dropdown
+                  if (item.key === 'services') {
+                    return (
+                      <DropdownMenu 
+                        key={item.key}
+                        open={servicesDropdownOpen} 
+                        onOpenChange={setServicesDropdownOpen}
+                      >
+                        <DropdownMenuTrigger 
+                          onMouseEnter={() => setServicesDropdownOpen(true)}
+                          className={`flex items-center gap-1 text-sm font-medium transition-colors rounded-full px-4 py-2 whitespace-nowrap ${
+                            servicesDropdownOpen || isActive
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'text-gray-700'
+                          }`}
+                          aria-label={`${item.name} menu - ${servicesDropdownOpen ? 'Close' : 'Open'} services dropdown`}
+                        >
+                          {item.name}
+                          <ChevronDown className="h-4 w-4" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent 
+                          align="start"
+                          onMouseEnter={() => setServicesDropdownOpen(true)}
+                          onMouseLeave={() => setServicesDropdownOpen(false)}
+                          className="min-w-[240px]"
+                        >
+                          {services.length > 0 ? (
+                            (() => {
+                              const servicesByCategory = getServicesByCategory();
+                              return servicesByCategory.map(([categoryName, categoryServices], index) => (
+                                <div key={categoryName}>
+                                  {index > 0 && <DropdownMenuSeparator />}
+                                  <DropdownMenuLabel className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 py-1.5">
+                                    {categoryName}
+                                  </DropdownMenuLabel>
+                                  {categoryServices.map((service) => (
+                                    <DropdownMenuItem key={service.serviceType} asChild>
+                                      <Link 
+                                        href={getServiceUrl(service.serviceType)}
+                                        className="flex items-center gap-2 cursor-pointer"
+                                      >
+                                        <span className="text-base">{service.icon}</span>
+                                        <span>{service.category}</span>
+                                      </Link>
+                                    </DropdownMenuItem>
+                                  ))}
+                                </div>
+                              ));
+                            })()
+                          ) : (
+                            <DropdownMenuItem asChild>
+                              <Link href={item.href}>View All Services</Link>
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    );
+                  }
                   
                   return (
                     <Link
@@ -149,6 +298,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
                         ? 'bg-blue-100 text-blue-700'
                         : 'text-gray-700'
                     }`}
+                    aria-label={`Locations menu - ${locationsDropdownOpen ? 'Close' : 'Open'} service areas dropdown`}
                   >
                     Locations
                     <ChevronDown className="h-4 w-4" />
@@ -266,7 +416,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
               {/* Cart - Hidden in booking flow */}
               {!isBookingFlow && (
                 <Link 
-                  href="/cart"
+                  href="/booking/quote"
                   className="hidden md:flex items-center gap-2 text-gray-900 hover:text-gray-700 transition-colors"
                 >
                   <MessageSquareQuote className="h-5 w-5 text-gray-700" />
@@ -277,12 +427,12 @@ export function Header({ variant = 'default' }: HeaderProps) {
               {/* Contact Us Button - Hidden in booking flow */}
               {!isBookingFlow && (
                 <Button 
-                  className="hidden md:flex bg-primary hover:bg-primary/90 text-white rounded-full px-6 py-2 text-sm font-medium transition-colors gap-2" 
+                  className="hidden md:flex bg-primary hover:bg-primary/90 text-white rounded-full pl-6 pr-2 py-2.5 text-sm font-medium transition-colors gap-3" 
                   asChild
                 >
-                  <Link href="/contact" className="flex items-center gap-2">
+                  <Link href="/booking/service/standard/details" className="flex items-center gap-3">
                     Book a service
-                    <span className="bg-white rounded-full p-0.5">
+                    <span className="bg-white rounded-full flex items-center justify-center p-1.5 w-7 h-7 flex-shrink-0">
                       <ArrowUpRight className="h-4 w-4 text-primary" />
                     </span>
                   </Link>
@@ -297,6 +447,50 @@ export function Header({ variant = 'default' }: HeaderProps) {
               <nav className="flex flex-col gap-4">
                 {!isBookingFlow && navigationItems.map((item) => {
                   const isActive = currentPage === item.key;
+                  
+                  // Special handling for Service dropdown in mobile
+                  if (item.key === 'services') {
+                    return (
+                      <div key={item.key} className="flex flex-col gap-2">
+                        <Link
+                          href={item.href}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={`text-sm font-medium transition-colors ${
+                            isActive
+                              ? 'text-gray-900 font-semibold'
+                              : 'text-gray-700 hover:text-gray-900'
+                          }`}
+                        >
+                          {item.name}
+                        </Link>
+                        {services.length > 0 && (() => {
+                          const servicesByCategory = getServicesByCategory();
+                          return (
+                            <div className="flex flex-col gap-3 pl-4 border-l-2 border-gray-200">
+                              {servicesByCategory.map(([categoryName, categoryServices]) => (
+                                <div key={categoryName} className="flex flex-col gap-1">
+                                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                    {categoryName}
+                                  </div>
+                                  {categoryServices.map((service) => (
+                                    <Link
+                                      key={service.serviceType}
+                                      href={getServiceUrl(service.serviceType)}
+                                      onClick={() => setMobileMenuOpen(false)}
+                                      className="text-sm text-gray-600 hover:text-gray-900 transition-colors flex items-center gap-2"
+                                    >
+                                      <span>{service.icon}</span>
+                                      <span>{service.category}</span>
+                                    </Link>
+                                  ))}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    );
+                  }
                   
                   return (
                     <Link
@@ -344,7 +538,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
                 {/* Cart - Mobile */}
                 {!isBookingFlow && (
                   <Link 
-                    href="/cart"
+                    href="/booking/quote"
                     onClick={() => setMobileMenuOpen(false)}
                     className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
                   >
@@ -356,13 +550,13 @@ export function Header({ variant = 'default' }: HeaderProps) {
                 {/* Contact Us Button - Mobile */}
                 {!isBookingFlow && (
                   <Button 
-                    className="bg-primary hover:bg-primary/90 text-white rounded-full px-6 py-2 text-sm font-medium transition-colors w-full justify-center gap-2" 
+                    className="bg-primary hover:bg-primary/90 text-white rounded-full pl-6 pr-2 py-2.5 text-sm font-medium transition-colors w-full justify-center gap-3" 
                     asChild
                   >
-                    <Link href="/contact" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
+                    <Link href="/booking/service/standard/details" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3">
                       Book a service
-                      <span className="bg-white rounded-full p-0.5">
-                        <ArrowUpRight className="h-4 w-4 text-primary" />
+                      <span className="bg-white rounded-full flex items-center justify-center p-1.5 w-7 h-7 flex-shrink-0">
+                        <ArrowUpRight className="h-3.5 w-3.5 text-primary" />
                       </span>
                     </Link>
                   </Button>

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Home, Building, Factory, Sparkles, Droplets, ArrowRight, Grid3x3 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -10,6 +11,7 @@ const categories = [
     icon: Home,
     bgColor: 'bg-blue-100',
     iconColor: 'text-blue-600',
+    slug: 'residential-cleaning',
   },
   {
     title: 'Commercial Cleaning',
@@ -17,6 +19,7 @@ const categories = [
     icon: Building,
     bgColor: 'bg-green-100',
     iconColor: 'text-green-600',
+    slug: 'commercial-cleaning',
   },
   {
     title: 'Industrial Cleaning',
@@ -24,6 +27,7 @@ const categories = [
     icon: Factory,
     bgColor: 'bg-orange-100',
     iconColor: 'text-orange-600',
+    slug: 'industrial-cleaning',
   },
   {
     title: 'Specialized Cleaning',
@@ -31,6 +35,7 @@ const categories = [
     icon: Sparkles,
     bgColor: 'bg-purple-100',
     iconColor: 'text-purple-600',
+    slug: 'specialized-cleaning',
   },
   {
     title: 'Outdoor & Exterior Cleaning',
@@ -38,6 +43,7 @@ const categories = [
     icon: Droplets,
     bgColor: 'bg-cyan-100',
     iconColor: 'text-cyan-600',
+    slug: 'outdoor-exterior-cleaning',
   },
   {
     title: 'View all',
@@ -47,6 +53,7 @@ const categories = [
     iconColor: 'text-gray-600',
     border: true,
     isViewAll: true,
+    slug: 'all',
   },
 ];
 
@@ -62,7 +69,7 @@ export function HomeCategories() {
           </button>
 
           {/* Main Heading */}
-          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
             Our cleaning services
           </h2>
 
@@ -78,37 +85,39 @@ export function HomeCategories() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
           {categories.map((category, index) => {
             const Icon = category.icon;
+            const href = category.isViewAll ? '/category' : `/category/${category.slug}`;
             return (
-              <Card
-                key={index}
-                className={`${category.bgColor} border ${category.border ? 'border-gray-200' : 'border-transparent'} rounded-2xl shadow-sm hover:shadow-md transition-shadow relative overflow-hidden`}
-              >
-                <CardContent className="p-6 sm:p-8 relative">
-                  {/* Arrow Button - Top Right */}
-                  <button className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors z-10">
-                    <ArrowRight className="h-4 w-4 text-gray-700" />
-                  </button>
-
-                  {/* Icon */}
-                  <div className="mb-6 flex justify-center">
-                    <div className={`w-16 h-16 rounded-lg ${category.bgColor === 'bg-white' ? 'bg-gray-100' : category.bgColor} flex items-center justify-center border-2 border-gray-900`}>
-                      <Icon className={`h-8 w-8 ${category.iconColor} stroke-[2]`} />
+              <Link key={index} href={href} className="block">
+                <Card
+                  className={`${category.bgColor} border ${category.border ? 'border-gray-200' : 'border-transparent'} rounded-2xl shadow-sm hover:shadow-md transition-all hover:scale-[1.02] cursor-pointer relative overflow-hidden`}
+                >
+                  <CardContent className="p-6 sm:p-8 relative">
+                    {/* Arrow Button - Top Right */}
+                    <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors z-10">
+                      <ArrowRight className="h-4 w-4 text-gray-700" />
                     </div>
-                  </div>
 
-                  {/* Title */}
-                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 text-center">
-                    {category.title}
-                  </h3>
+                    {/* Icon */}
+                    <div className="mb-6 flex justify-center">
+                      <div className={`w-16 h-16 rounded-lg ${category.bgColor === 'bg-white' ? 'bg-gray-100' : category.bgColor} flex items-center justify-center border-2 border-gray-900`}>
+                        <Icon className={`h-8 w-8 ${category.iconColor} stroke-[2]`} />
+                      </div>
+                    </div>
 
-                  {/* Description */}
-                  {category.description && (
-                    <p className="text-base text-gray-600 leading-relaxed text-center">
-                      {category.description}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
+                    {/* Title */}
+                    <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 text-center">
+                      {category.title}
+                    </h3>
+
+                    {/* Description */}
+                    {category.description && (
+                      <p className="text-base text-gray-600 leading-relaxed text-center">
+                        {category.description}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </Link>
             );
           })}
         </div>

@@ -2,15 +2,15 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Smartphone, Users } from 'lucide-react';
+import { Smartphone, Users, ArrowUpRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export function HomeReadyToStart() {
   return (
-    <section className="py-16 md:py-24 bg-white">
+    <section className="py-16 md:py-24 bg-primary m-4 md:m-6 rounded-2xl">
       <div className="container mx-auto px-4 max-w-7xl">
         <motion.h2
-          className="text-3xl md:text-4xl font-bold text-gray-900 mb-12 text-center"
+          className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-12 text-center"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -32,17 +32,22 @@ export function HomeReadyToStart() {
                 <Smartphone className="h-16 w-16 text-primary" />
               </div>
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-4">
+            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">
               Book Your Cleaning Today
             </h3>
             <p className="text-lg text-gray-600 mb-6">
-              Experience the relief of a spotless home in Cape Town. Book trusted cleaners in minutes. Same-day availability for <Link href="/services/regular-cleaning" className="text-primary hover:underline">standard cleaning</Link>, <Link href="/services/deep-cleaning" className="text-primary hover:underline">deep cleaning</Link>, and <Link href="/services/move-turnover" className="text-primary hover:underline">move-in/out cleaning</Link>. Join 500+ satisfied customers with a 5-star rating!
+              Book trusted cleaners in minutes. Same-day availability available.
             </p>
             <Button
-              className="bg-primary hover:bg-primary/90 text-white px-8 py-6 text-lg rounded-lg"
+              className="bg-primary hover:bg-primary/90 text-white rounded-full pl-6 pr-2 py-2.5 text-sm font-medium transition-colors gap-3"
               asChild
             >
-              <Link href="/booking/service/select">Book Now</Link>
+              <Link href="/booking/service/standard/details" className="flex items-center gap-3">
+                Book Now
+                <span className="bg-white rounded-full flex items-center justify-center p-1.5 w-7 h-7 flex-shrink-0">
+                  <ArrowUpRight className="h-4 w-4 text-primary" />
+                </span>
+              </Link>
             </Button>
           </motion.div>
 
@@ -59,17 +64,22 @@ export function HomeReadyToStart() {
                 <Users className="h-16 w-16 text-primary" />
               </div>
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-4">
+            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">
               Join Our Team
             </h3>
             <p className="text-lg text-gray-600 mb-6">
               Work with Shalean as a professional cleaner. Join our trusted team and help make homes spotless.
             </p>
             <Button
-              className="bg-primary hover:bg-primary/90 text-white px-8 py-6 text-lg rounded-lg"
+              className="bg-primary hover:bg-primary/90 text-white rounded-full pl-6 pr-2 py-2.5 text-sm font-medium transition-colors gap-3"
               asChild
             >
-              <Link href="/careers">Become a Cleaner</Link>
+              <Link href="/careers" className="flex items-center gap-3">
+                Become a Cleaner
+                <span className="bg-white rounded-full flex items-center justify-center p-1.5 w-7 h-7 flex-shrink-0">
+                  <ArrowUpRight className="h-4 w-4 text-primary" />
+                </span>
+              </Link>
             </Button>
           </motion.div>
         </div>

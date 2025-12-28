@@ -4,7 +4,7 @@ import { generateOgImageUrl, generateCanonical } from "./metadata";
 export const SEO_CONFIG = {
   // Home page
   home: {
-    title: "Professional Cleaning Services in Cape Town for Homes & Offices",
+    title: "Professional Cleaning You Can Rely On | Cape Town Cleaning Services",
     description: "Book vetted cleaners in Cape Town. Same-day deep cleaning, house cleaning & office cleaning. Insured cleaners, satisfaction guaranteed. From R250. Book online today!",
     canonical: generateCanonical("/"),
     keywords: ["cleaning services Cape Town", "house cleaning Cape Town", "maid service Cape Town", "deep cleaning Cape Town", "office cleaning Cape Town", "Airbnb cleaning Cape Town", "professional cleaners Cape Town", "move out cleaning Cape Town"],

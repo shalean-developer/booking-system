@@ -73,7 +73,7 @@ export function HomeGuides() {
     return (
       <section className="py-16 bg-white">
         <div className="container mx-auto px-4 max-w-7xl">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">Cleaning Guides & Tips</h2>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-8">Cleaning Guides & Tips</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
               <div key={i} className="bg-white border border-gray-200 rounded-2xl overflow-hidden animate-pulse">
@@ -129,7 +129,16 @@ export function HomeGuides() {
         
         {/* Grid Layout - 3 columns on desktop */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {guidesToShow.map((post, index) => (
+          {guidesToShow.map((post, index) => {
+            // Different background colors for each card
+            const backgroundColors = [
+              'bg-blue-100', // Light blue for first card
+              'bg-green-100', // Light green for second card
+              'bg-purple-100', // Light purple for third card
+            ];
+            const bgColor = backgroundColors[index % backgroundColors.length];
+            
+            return (
             <motion.div
               key={post.id}
               initial={{ opacity: 0, y: 20 }}
@@ -139,7 +148,7 @@ export function HomeGuides() {
             >
               <Link
                 href={`/blog/${post.slug}`}
-                className="block bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg transition-shadow"
+                className={`block ${bgColor} border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg transition-shadow`}
               >
                 <div className="relative h-48 bg-gray-200">
                   <Image
@@ -155,7 +164,7 @@ export function HomeGuides() {
                   />
                 </div>
                 <div className="p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-primary transition-colors line-clamp-2">
+                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 hover:text-primary transition-colors line-clamp-2">
                     {post.title}
                   </h3>
                   <p className="text-sm text-gray-600 line-clamp-2">
@@ -164,7 +173,8 @@ export function HomeGuides() {
                 </div>
               </Link>
             </motion.div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
