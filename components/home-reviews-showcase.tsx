@@ -1,48 +1,74 @@
 'use client';
 
-import Image from 'next/image';
+import { useState } from 'react';
 import { Star } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
+import { HomeReviewForm } from '@/components/review/home-review-form';
 
 const testimonials = [
   {
     name: 'Joanne van der Merwe',
     text: 'Shalean\'s cleaning service was fantastic! Everything was spotless and the cleaner was professional and friendly. Highly recommend for Cape Town residents!',
-    avatar: '/images/team-lucia.webp',
     date: '2 weeks ago',
-    location: 'Cape Town',
+    location: 'Camps Bay, Cape Town',
     rating: 5,
     datePublished: '2024-01-15T10:00:00.000Z',
   },
   {
     name: 'Peter Mkhize',
     text: 'I\'ve been using Shalean for months now. The quality is consistently excellent and booking is so easy. Perfect for busy professionals.',
-    avatar: '/images/team-normatter.webp',
     date: '1 month ago',
-    location: 'Johannesburg',
+    location: 'Sea Point, Cape Town',
     rating: 5,
     datePublished: '2023-12-30T10:00:00.000Z',
   },
   {
     name: 'Sarah Johnson',
     text: 'Amazing experience! The cleaner arrived on time and did an incredible job. My Airbnb was spotless for the next guests. Will definitely book again.',
-    avatar: '/images/team-nyasha.webp',
     date: '3 weeks ago',
-    location: 'Cape Town',
+    location: 'Green Point, Cape Town',
     rating: 5,
     datePublished: '2024-01-08T10:00:00.000Z',
   },
   {
     name: 'Michael Dlamini',
-    text: 'Best cleaning service I\'ve tried in Durban. The booking process is easy and the cleaners are top-notch. Worth every rand!',
-    avatar: '/images/team-lucia.webp',
+    text: 'Best cleaning service I\'ve tried in Cape Town. The booking process is easy and the cleaners are top-notch. Worth every rand!',
     date: '1 week ago',
-    location: 'Durban',
+    location: 'Constantia, Cape Town',
     rating: 5,
     datePublished: '2024-01-22T10:00:00.000Z',
   },
 ];
+
+// Helper function to get initials from name
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase();
+}
+
+// Helper function to get a color based on name (for consistent colors)
+function getAvatarColor(name: string): string {
+  const colors = [
+    'bg-blue-500',
+    'bg-green-500',
+    'bg-purple-500',
+    'bg-pink-500',
+    'bg-indigo-500',
+    'bg-teal-500',
+    'bg-orange-500',
+    'bg-red-500',
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+}
 
 // Calculate aggregate rating
 const aggregateRating = {
@@ -77,6 +103,8 @@ const reviewSchemas = testimonials.map((testimonial) => ({
 }));
 
 export function HomeReviewsShowcase() {
+  const [isReviewFormOpen, setIsReviewFormOpen] = useState(false);
+
   return (
     <section id="testimonials" className="py-16 sm:py-20 lg:py-24 bg-white" aria-label="Customer reviews and testimonials">
       {/* Review Schema for each testimonial */}
@@ -126,19 +154,11 @@ export function HomeReviewsShowcase() {
               <Card className="border border-gray-200 bg-white hover:shadow-xl transition-all duration-300 rounded-2xl h-full">
                 <CardContent className="p-6 lg:p-8">
                   <div className="flex items-start gap-4">
-                    {/* Profile Picture with Blue Background */}
-                    <div className="w-16 h-16 rounded-full overflow-hidden bg-primary flex-shrink-0 flex items-center justify-center border-2 border-primary/20">
-                      <Image
-                        src={testimonial.avatar}
-                        alt={`${testimonial.name} - Shalean Cleaning customer review`}
-                        width={64}
-                        height={64}
-                        className="w-full h-full object-cover"
-                        sizes="64px"
-                        onError={(e) => {
-                          e.currentTarget.parentElement!.style.backgroundColor = '#3b82f6';
-                        }}
-                      />
+                    {/* Placeholder Avatar with Initials */}
+                    <div className={`w-16 h-16 rounded-full flex-shrink-0 flex items-center justify-center border-2 border-primary/20 ${getAvatarColor(testimonial.name)}`}>
+                      <span className="text-white font-semibold text-lg">
+                        {getInitials(testimonial.name)}
+                      </span>
                     </div>
                     
                     {/* Content */}
@@ -197,15 +217,26 @@ export function HomeReviewsShowcase() {
             <p className="text-sm text-gray-600">
               Share your review and help others discover our cleaning services in Cape Town
             </p>
-            <a
-              href="mailto:support@shalean.co.za?subject=Review%20for%20Shalean%20Cleaning%20Services"
-              className="text-sm text-primary hover:text-primary/80 font-semibold underline"
+            <Button
+              onClick={() => setIsReviewFormOpen(true)}
+              variant="default"
+              className="mt-2"
             >
               Leave a Review →
-            </a>
+            </Button>
           </div>
         </motion.div>
       </div>
+
+      {/* Review Form Dialog */}
+      <HomeReviewForm
+        open={isReviewFormOpen}
+        onClose={() => setIsReviewFormOpen(false)}
+        onSuccess={() => {
+          // Optionally refresh or show a success message
+          console.log('Review submitted successfully');
+        }}
+      />
     </section>
   );
 }

@@ -265,7 +265,7 @@ export default function RootLayout({
           async
         />
       </head>
-      <body className={cn(inter.variable, playfairDisplay.variable, inter.className, "min-h-screen bg-slate-50")}>
+      <body className={cn(inter.variable, playfairDisplay.variable, inter.className, "min-h-screen bg-slate-50")} suppressHydrationWarning>
         {gtmId && (
           <>
             {/* Google Tag Manager */}
@@ -296,6 +296,7 @@ export default function RootLayout({
           href="#main-content" 
           className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-white focus:rounded-md focus:shadow-lg"
           aria-label="Skip to main content"
+          suppressHydrationWarning
         >
           Skip to main content
         </a>

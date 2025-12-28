@@ -128,7 +128,7 @@ export function HomeFeaturedServices() {
 
               {/* Image in rounded frame with background */}
               <div className="w-full lg:w-1/2 relative">
-                <div className="relative h-[250px] sm:h-[320px] lg:h-[400px] rounded-2xl overflow-hidden bg-gray-100">
+                <div className="relative h-[250px] sm:h-[320px] lg:h-[400px] rounded-2xl overflow-hidden bg-gray-100" style={{ position: 'relative' }}>
                   <Image
                     src={service.image}
                     alt={`${service.title} service in ${service.location} - Shalean Cleaning Services`}

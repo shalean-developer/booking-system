@@ -6,26 +6,20 @@ const cleaners = [
   {
     name: 'Ashley Byrd',
     avatar: '/images/team-lucia.webp',
-    years: 8,
+    years: 2,
     bgColor: 'bg-blue-500',
   },
   {
     name: 'Robert Stewart',
     avatar: '/images/team-normatter.webp',
-    years: 7,
+    years: 2,
     bgColor: 'bg-pink-500',
   },
   {
     name: 'Elizabeth Walker',
     avatar: '/images/team-nyasha.webp',
-    years: 9,
+    years: 2,
     bgColor: 'bg-green-500',
-  },
-  {
-    name: 'Eleanor Howard',
-    avatar: '/images/team-lucia.webp',
-    years: 7,
-    bgColor: 'bg-orange-500',
   },
 ];
 
@@ -36,8 +30,8 @@ export function HomeFeaturedCleaners() {
         {/* Heading */}
         <div className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-2">
-            PRO CLEANERS WITH{' '}
-            <span className="text-[#3b82f6]">7 YEARS</span> OF EXPERIENCE
+            Pro cleaners with{' '}
+            <span className="text-[#3b82f6]">2 years</span> of experience
           </h2>
         </div>
         
@@ -76,7 +70,7 @@ export function HomeFeaturedCleaners() {
           {/* Placeholder for Other Professionals */}
           <div className="flex flex-col items-center">
             <div className="relative mb-4">
-              <div className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-full bg-black flex items-center justify-center">
+              <div className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-full bg-[#3b82f6] flex items-center justify-center">
                 {/* Person Icon - White outline */}
                 <svg
                   className="w-12 h-12 sm:w-16 sm:h-16 text-white"

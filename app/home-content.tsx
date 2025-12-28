@@ -182,7 +182,7 @@ export function HomeContent() {
         {/* Office Cleaning Team Image Section */}
         <section aria-label="Professional cleaning team" className="pt-0 pb-0 bg-white">
           <div className="container mx-auto px-4 max-w-7xl">
-            <div className="relative w-full max-w-4xl mx-auto h-[350px] md:h-[400px] rounded-lg overflow-hidden shadow-lg">
+            <div className="relative w-full max-w-4xl mx-auto h-[350px] md:h-[400px] rounded-lg overflow-hidden shadow-lg" style={{ position: 'relative' }}>
               <Image
                 src="/images/office-cleaning-team.jpg"
                 alt="Professional office cleaning team disinfecting and cleaning office environment in Cape Town - Shalean Cleaning Services"
