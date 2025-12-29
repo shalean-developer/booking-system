@@ -54,6 +54,8 @@ export interface QuoteRequest {
   lastName: string;
   email: string;
   phone: string;
+  location: string;
+  notes?: string;
   quoteId?: string; // Optional since it's generated on the server
 }
 

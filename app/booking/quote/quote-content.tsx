@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -15,14 +15,18 @@ import {
   ArrowLeft,
   ArrowRight,
   Loader2,
-  Refrigerator,
-  Flame,
-  Package,
-  Wind,
-  Paintbrush,
-  Shirt,
-  Plus,
+  LucideIcon,
 } from 'lucide-react';
+import {
+  FridgeIcon,
+  OvenIcon,
+  CabinetsIcon,
+  WindowsIcon,
+  WallsIcon,
+  IroningIcon,
+  LaundryIcon,
+  EXTRA_ICONS,
+} from '@/components/extra-service-icons';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -31,48 +35,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import type { ServiceType } from '@/types/booking';
 
-// Service options with Lucide icons
-const serviceOptions = [
-  {
-    id: 'Standard' as ServiceType,
-    label: 'Standard',
-    subLabel: 'Cleaning',
-    icon: Home,
-    description: 'Regular home cleaning',
-  },
-  {
-    id: 'Deep' as ServiceType,
-    label: 'Deep',
-    subLabel: 'Cleaning',
-    icon: Star,
-    description: 'Thorough deep cleaning',
-  },
-  {
-    id: 'Move In/Out' as ServiceType,
-    label: 'Moving',
-    subLabel: 'Cleaning',
-    icon: Building,
-    description: 'Moving transition cleaning',
-  },
-  {
-    id: 'Airbnb' as ServiceType,
-    label: 'Airbnb',
-    subLabel: 'Cleaning',
-    icon: Calendar,
-    description: 'Airbnb turnover cleaning',
-  },
-];
+// Service type to Lucide icon mapping
+const SERVICE_ICON_MAP: Record<string, LucideIcon> = {
+  'Standard': Home,
+  'Deep': Star,
+  'Move In/Out': Building,
+  'Airbnb': Calendar,
+};
 
-// Extra services with Lucide icons
-const extrasList = [
-  { id: 'Inside Fridge', label: 'Inside Fridge', icon: Refrigerator },
-  { id: 'Inside Oven', label: 'Inside Oven', icon: Flame },
-  { id: 'Inside Cabinets', label: 'Inside Cabinets', icon: Package },
-  { id: 'Interior Windows', label: 'Interior Windows', icon: Wind },
-  { id: 'Interior Walls', label: 'Interior Walls', icon: Paintbrush },
-  { id: 'Ironing', label: 'Ironing', icon: Shirt },
-  { id: 'Laundry', label: 'Laundry', icon: Plus },
-];
+interface ServiceOption {
+  id: ServiceType;
+  label: string;
+  subLabel: string;
+  icon: LucideIcon;
+  description: string;
+}
+
+interface ExtraService {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
 
 interface ContactCardProps {
   contact: {
@@ -181,7 +164,33 @@ interface ServiceGridProps {
   setSelected: (service: ServiceType) => void;
 }
 
-function ServiceGrid({ selected, setSelected }: ServiceGridProps) {
+interface ServiceGridProps {
+  selected: ServiceType | null;
+  setSelected: (service: ServiceType) => void;
+  services: ServiceOption[];
+}
+
+function ServiceGrid({ selected, setSelected, services }: ServiceGridProps) {
+  if (services.length === 0) {
+    return (
+      <motion.div
+        layout
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.1 }}
+      >
+        <Card className="border-0 shadow-lg">
+          <CardHeader className="px-4 sm:px-6 py-4 sm:py-5">
+            <CardTitle className="text-lg sm:text-xl">2. Select Your Service</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+            <div className="text-center text-gray-500 py-8">Loading services...</div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
       layout
@@ -195,7 +204,7 @@ function ServiceGrid({ selected, setSelected }: ServiceGridProps) {
         </CardHeader>
         <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-            {serviceOptions.map((s) => {
+            {services.map((s) => {
               const isSelected = selected === s.id;
               const Icon = s.icon;
               return (
@@ -291,9 +300,30 @@ function HomeDetailsCard({ bedrooms, setBedrooms, bathrooms, setBathrooms }: Hom
 interface ExtrasGridProps {
   selectedExtras: string[];
   toggleExtra: (extra: string) => void;
+  extras: ExtraService[];
 }
 
-function ExtrasGrid({ selectedExtras, toggleExtra }: ExtrasGridProps) {
+function ExtrasGrid({ selectedExtras, toggleExtra, extras }: ExtrasGridProps) {
+  if (extras.length === 0) {
+    return (
+      <motion.div
+        layout
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.3 }}
+      >
+        <Card className="border-0 shadow-lg">
+          <CardHeader className="px-4 sm:px-6 py-4 sm:py-5">
+            <CardTitle className="text-lg sm:text-xl font-bold text-gray-800">4. Additional Services (Optional)</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+            <div className="text-center text-gray-500 py-8">Loading extra services...</div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
       layout
@@ -303,39 +333,33 @@ function ExtrasGrid({ selectedExtras, toggleExtra }: ExtrasGridProps) {
     >
       <Card className="border-0 shadow-lg">
         <CardHeader className="px-4 sm:px-6 py-4 sm:py-5">
-          <CardTitle className="text-lg sm:text-xl">4. Additional Services (Optional)</CardTitle>
+          <CardTitle className="text-lg sm:text-xl font-bold text-gray-800">4. Additional Services (Optional)</CardTitle>
         </CardHeader>
         <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-3 sm:gap-4">
-            {extrasList.map((ex) => {
+          <div className="flex flex-wrap gap-4 sm:gap-5 md:gap-6">
+            {extras.map((ex) => {
               const isPressed = selectedExtras.includes(ex.id);
               const Icon = ex.icon;
-              const labelWords = ex.label.split(' ');
               return (
                 <button
                   key={ex.id}
                   aria-pressed={isPressed}
                   onClick={() => toggleExtra(ex.id)}
-                  className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 cursor-pointer transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/30 ${
-                    isPressed
-                      ? 'bg-primary/5 shadow-md ring-2 ring-primary/40 border-primary'
-                      : 'bg-white border-gray-100 hover:border-gray-200'
-                  }`}
+                  className="flex flex-col items-center gap-3 cursor-pointer transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500/30"
+                  type="button"
                 >
-                  <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center ${
-                    isPressed ? 'bg-primary/10' : 'bg-gray-50'
+                  <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full border flex items-center justify-center transition-colors ${
+                    isPressed
+                      ? 'border-green-600 bg-green-50/50'
+                      : 'border-green-500 bg-white'
                   }`}>
-                    <Icon className={`h-5 w-5 sm:h-6 sm:w-6 ${
-                      isPressed ? 'text-primary' : 'text-gray-600'
+                    <Icon className={`h-8 w-8 sm:h-9 sm:w-9 ${
+                      isPressed ? 'text-green-700' : 'text-green-600'
                     }`} strokeWidth={1.5} />
                   </div>
-                  <div className="text-center">
-                    {labelWords.map((word, index) => (
-                      <div key={index} className="text-xs font-medium text-gray-700 leading-tight">
-                        {word}
-                      </div>
-                    ))}
-                  </div>
+                  <span className="text-xs sm:text-sm text-gray-700 font-normal text-center leading-tight max-w-[80px]">
+                    {ex.label}
+                  </span>
                 </button>
               );
             })}
@@ -462,6 +486,93 @@ export function QuoteContent() {
   const [bathrooms, setBathrooms] = useState(1);
   const [extras, setExtras] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [services, setServices] = useState<ServiceOption[]>([]);
+  const [extrasList, setExtrasList] = useState<ExtraService[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch services and extras from database
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const response = await fetch('/api/quote/services');
+        const data = await response.json();
+
+        if (data.ok) {
+          // Transform services data
+          const transformedServices: ServiceOption[] = data.services.map((s: any) => ({
+            id: s.id as ServiceType,
+            label: s.label,
+            subLabel: s.subLabel,
+            icon: SERVICE_ICON_MAP[s.id] || Home, // Fallback to Home icon
+            description: s.description || '',
+          }));
+
+          // Transform extras data with icon mapping
+          const transformedExtras: ExtraService[] = data.extras.map((ex: any) => {
+            // Map database name to icon component
+            // Try exact match first
+            let IconComponent = EXTRA_ICONS[ex.id as keyof typeof EXTRA_ICONS];
+            
+            // Handle variations and individual services
+            if (!IconComponent) {
+              const idLower = ex.id.toLowerCase();
+              if (idLower.includes('laundry') && idLower.includes('ironing')) {
+                IconComponent = EXTRA_ICONS['Laundry & Ironing'] || LaundryIcon;
+              } else if (idLower.includes('ironing')) {
+                IconComponent = IroningIcon;
+              } else if (idLower.includes('laundry')) {
+                IconComponent = LaundryIcon;
+              } else if (idLower.includes('fridge')) {
+                IconComponent = FridgeIcon;
+              } else if (idLower.includes('oven')) {
+                IconComponent = OvenIcon;
+              } else if (idLower.includes('cabinet')) {
+                IconComponent = CabinetsIcon;
+              } else if (idLower.includes('window')) {
+                IconComponent = WindowsIcon;
+              } else if (idLower.includes('wall')) {
+                IconComponent = WallsIcon;
+              } else {
+                // Try to find a partial match in EXTRA_ICONS
+                const matchingKey = Object.keys(EXTRA_ICONS).find(key => 
+                  key.toLowerCase().includes(idLower) || idLower.includes(key.toLowerCase())
+                );
+                if (matchingKey) {
+                  IconComponent = EXTRA_ICONS[matchingKey as keyof typeof EXTRA_ICONS];
+                } else {
+                  // Default fallback
+                  IconComponent = FridgeIcon;
+                }
+              }
+            }
+            
+            return {
+              id: ex.id,
+              label: ex.label,
+              icon: IconComponent,
+            };
+          });
+
+          setServices(transformedServices);
+          setExtrasList(transformedExtras);
+        } else {
+          console.error('Failed to fetch services:', data.error);
+          // Fallback to empty arrays on error
+          setServices([]);
+          setExtrasList([]);
+        }
+      } catch (error) {
+        console.error('Error fetching services:', error);
+        // Fallback to empty arrays on error
+        setServices([]);
+        setExtrasList([]);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchData();
+  }, []);
 
   function toggleExtra(id: string) {
     setExtras((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
@@ -556,14 +667,25 @@ export function QuoteContent() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-8 space-y-6">
             <ContactCard contact={contact} setContact={setContact} />
-            <ServiceGrid selected={serviceId} setSelected={setServiceId} />
-            <HomeDetailsCard
-              bedrooms={bedrooms}
-              setBedrooms={setBedrooms}
-              bathrooms={bathrooms}
-              setBathrooms={setBathrooms}
-            />
-            <ExtrasGrid selectedExtras={extras} toggleExtra={toggleExtra} />
+            {isLoading ? (
+              <Card className="border-0 shadow-lg">
+                <CardContent className="px-4 sm:px-6 py-8 text-center">
+                  <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
+                  <p className="text-sm text-gray-600">Loading services...</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                <ServiceGrid selected={serviceId} setSelected={setServiceId} services={services} />
+                <HomeDetailsCard
+                  bedrooms={bedrooms}
+                  setBedrooms={setBedrooms}
+                  bathrooms={bathrooms}
+                  setBathrooms={setBathrooms}
+                />
+                <ExtrasGrid selectedExtras={extras} toggleExtra={toggleExtra} extras={extrasList} />
+              </>
+            )}
           </div>
 
           <div className="hidden lg:block lg:col-span-4">

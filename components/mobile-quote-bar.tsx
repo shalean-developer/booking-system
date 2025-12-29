@@ -3,6 +3,7 @@
 import React from 'react';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import type { ServiceType } from '@/types/booking';
 
 interface MobileQuoteBarProps {
   contact: {
@@ -10,14 +11,15 @@ interface MobileQuoteBarProps {
     lastName: string;
     email: string;
     phone: string;
+    location: string;
   };
-  serviceId: string | null;
+  serviceId: ServiceType | null;
   onSubmit: () => void;
   isSubmitting: boolean;
 }
 
 export function MobileQuoteBar({ contact, serviceId, onSubmit, isSubmitting }: MobileQuoteBarProps) {
-  const isFormValid = contact.firstName && contact.lastName && contact.email && contact.phone && serviceId;
+  const isFormValid = contact.firstName && contact.lastName && contact.email && contact.phone && contact.location && serviceId;
 
   return (
     <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 p-4 bg-gradient-to-t from-slate-50 via-slate-50 to-transparent">

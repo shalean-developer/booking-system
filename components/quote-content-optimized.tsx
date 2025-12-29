@@ -1,16 +1,16 @@
 "use client";
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import type { ServiceType } from '@/types/booking';
 
 // Import static components
-import { QuoteHeader } from '@/components/quote-header';
 import { QuoteHero } from '@/components/quote-hero';
 import { ContactCard } from '@/components/quote-contact-card';
 import { ServiceGrid } from '@/components/quote-service-grid';
 import { HomeDetailsCard } from '@/components/quote-home-details';
+import { NotesCard } from '@/components/quote-notes-card';
 
 // Dynamic imports for below-fold components
 const ExtrasGrid = dynamic(() => import('@/components/quote-extras-grid').then(mod => ({ default: mod.ExtrasGrid })), {
@@ -32,7 +32,9 @@ export function QuoteContent() {
     lastName: '',
     email: '',
     phone: '',
+    location: '',
   });
+  const [notes, setNotes] = useState('');
   const [serviceId, setServiceId] = useState<ServiceType | null>(null);
   const [bedrooms, setBedrooms] = useState(0);
   const [bathrooms, setBathrooms] = useState(1);
@@ -63,6 +65,8 @@ export function QuoteContent() {
           lastName: contact.lastName,
           email: contact.email,
           phone: contact.phone,
+          location: contact.location,
+          notes,
         }),
       });
 
@@ -73,22 +77,12 @@ export function QuoteContent() {
       const result = await response.json();
 
       if (result.ok) {
-        // Show success message even if email failed
-        if (result.emailError) {
-          if (result.emailError === 'Email service not configured') {
-            console.log('Quote recorded successfully (email service not configured):', result.quoteId);
-          } else {
-            console.warn('Email sending failed but quote was recorded:', result.emailError);
-          }
-        }
-
         // Redirect to quote confirmation page
         router.push('/booking/quote/confirmation');
       } else {
         alert(`Failed to send quote confirmation: ${result.error || 'Please try again.'}`);
       }
     } catch (error) {
-      console.error('Quote confirmation error:', error);
       alert(`An error occurred: ${error instanceof Error ? error.message : 'Please try again.'}`);
     } finally {
       setIsSubmitting(false);
@@ -97,17 +91,14 @@ export function QuoteContent() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <QuoteHeader />
-
       {/* Main Content */}
-      <div className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-8 py-6 sm:py-8 lg:py-12">
-        <div className="opacity-0 animate-[fadeIn_0.5s_ease-in-out_forwards]">
+      <div className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-8 py-6 sm:py-8 lg:py-12 pb-24 lg:pb-12">
+        <div className="opacity-0 animate-[fade-in_0.5s_ease-in-out_0.1s_forwards]">
           <QuoteHero />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-8 space-y-6">
+          <div className="lg:col-span-8 space-y-6 flex flex-col items-center">
             <ContactCard contact={contact} setContact={setContact} />
             <ServiceGrid selected={serviceId} setSelected={setServiceId} />
             <HomeDetailsCard
@@ -117,6 +108,7 @@ export function QuoteContent() {
               setBathrooms={setBathrooms}
             />
             <ExtrasGrid selectedExtras={extras} toggleExtra={toggleExtra} />
+            <NotesCard notes={notes} setNotes={setNotes} />
           </div>
 
           <div className="hidden lg:block lg:col-span-4">

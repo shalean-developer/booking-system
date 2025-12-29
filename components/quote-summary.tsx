@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowRight, Loader2 } from 'lucide-react';
@@ -14,6 +14,7 @@ interface QuoteSummaryProps {
     lastName: string;
     email: string;
     phone: string;
+    location: string;
   };
   serviceId: ServiceType | null;
   bedrooms: number;
@@ -23,8 +24,43 @@ interface QuoteSummaryProps {
   isSubmitting: boolean;
 }
 
+interface ApiExtraResponse {
+  id: string;
+  label?: string;
+}
+
 export function QuoteSummary({ contact, serviceId, bedrooms, bathrooms, extras, onSubmit, isSubmitting }: QuoteSummaryProps) {
-  const isFormValid = contact.firstName && contact.lastName && contact.email && contact.phone && serviceId;
+  const isFormValid = contact.firstName && contact.lastName && contact.email && contact.phone && contact.location && serviceId;
+  const [extrasList, setExtrasList] = useState<Array<{ id: string; label: string }>>([]);
+
+  useEffect(() => {
+    async function fetchExtras() {
+      try {
+        const response = await fetch('/api/quote/services');
+        const data = await response.json();
+
+        if (data.ok && data.extras) {
+          const transformedExtras = (data.extras as ApiExtraResponse[]).map((ex) => ({
+            id: ex.id?.trim() || '',
+            label: ex.label?.trim() || ex.id?.trim() || '',
+          }));
+          setExtrasList(transformedExtras);
+        }
+      } catch (error) {
+        // Silently handle error - extras list will remain empty
+      }
+    }
+
+    fetchExtras();
+  }, []);
+
+  // Get selected extra labels
+  const selectedExtraLabels = extras
+    .map(extraId => {
+      const extra = extrasList.find(e => e.id === extraId || e.id.trim().toLowerCase() === extraId.trim().toLowerCase());
+      return extra?.label || extraId;
+    })
+    .filter(Boolean);
 
   return (
     <motion.div
@@ -50,13 +86,23 @@ export function QuoteSummary({ contact, serviceId, bedrooms, bathrooms, extras, 
             <div className="flex justify-between items-center">
               <div className="text-sm text-gray-600">Home details</div>
               <div className="text-sm font-medium text-gray-800">
-                {bedrooms} bd • {bathrooms} ba
+                {bedrooms} Bed • {bathrooms} Bath
               </div>
             </div>
 
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-start">
               <div className="text-sm text-gray-600">Extras</div>
-              <div className="text-sm font-medium text-gray-800">{extras.length}</div>
+              <div className="text-sm font-medium text-gray-800 text-right max-w-[60%]">
+                {selectedExtraLabels.length > 0 ? (
+                  <div className="space-y-1">
+                    {selectedExtraLabels.map((label, index) => (
+                      <div key={index}>{label}</div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-gray-400">None</span>
+                )}
+              </div>
             </div>
 
             <hr className="border-t border-gray-200 my-2" />

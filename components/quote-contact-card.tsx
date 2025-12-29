@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { User, Mail, Phone } from 'lucide-react';
+import { User, Mail, Phone, MapPin } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,8 +13,9 @@ interface ContactCardProps {
     lastName: string;
     email: string;
     phone: string;
+    location: string;
   };
-  setContact: (contact: any) => void;
+  setContact: React.Dispatch<React.SetStateAction<ContactCardProps['contact']>>;
 }
 
 export function ContactCard({ contact, setContact }: ContactCardProps) {
@@ -24,6 +25,7 @@ export function ContactCard({ contact, setContact }: ContactCardProps) {
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
+      className="w-full max-w-[576px]"
     >
       <Card className="border-0 shadow-lg">
         <CardHeader className="px-4 sm:px-6 py-4 sm:py-5">
@@ -83,7 +85,7 @@ export function ContactCard({ contact, setContact }: ContactCardProps) {
                 />
               </div>
             </div>
-            <div className="sm:col-span-2">
+            <div>
               <Label htmlFor="phone" className="text-sm text-gray-600 mb-2 block">
                 Phone Number
               </Label>
@@ -98,6 +100,24 @@ export function ContactCard({ contact, setContact }: ContactCardProps) {
                   className="pl-10"
                   placeholder="+27 12 345 6789"
                   aria-label="Phone number"
+                  required
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="location" className="text-sm text-gray-600 mb-2 block">
+                Location
+              </Label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="location"
+                  type="text"
+                  value={contact.location}
+                  onChange={(e) => setContact({ ...contact, location: e.target.value })}
+                  className="pl-10"
+                  placeholder="Enter your address or area"
+                  aria-label="Location"
                   required
                 />
               </div>

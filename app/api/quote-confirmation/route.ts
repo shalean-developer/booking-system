@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     }
 
     // Validate required fields
-    const requiredFields = ['service', 'firstName', 'lastName', 'email', 'phone'];
+    const requiredFields = ['service', 'firstName', 'lastName', 'email', 'phone', 'location'];
     const missingFields = requiredFields.filter(field => !body[field as keyof QuoteRequest]);
     
     if (missingFields.length > 0) {
@@ -77,6 +77,8 @@ export async function POST(req: Request) {
           last_name: body.lastName,
           email: body.email,
           phone: body.phone,
+          location: body.location,
+          notes: body.notes || null,
           status: 'pending',
           estimated_price: estimatedPrice
         });
@@ -106,6 +108,8 @@ export async function POST(req: Request) {
       lastName: body.lastName || '',
       email: body.email || '',
       phone: body.phone || '',
+      location: body.location || '',
+      notes: body.notes || '',
       quoteId
     };
 
