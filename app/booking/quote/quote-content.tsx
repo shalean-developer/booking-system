@@ -355,7 +355,7 @@ function ExtrasGrid({ selectedExtras, toggleExtra, extras }: ExtrasGridProps) {
                   }`}>
                     <Icon className={`h-8 w-8 sm:h-9 sm:w-9 ${
                       isPressed ? 'text-green-700' : 'text-green-600'
-                    }`} strokeWidth={1.5} />
+                    }`} />
                   </div>
                   <span className="text-xs sm:text-sm text-gray-700 font-normal text-center leading-tight max-w-[80px]">
                     {ex.label}
