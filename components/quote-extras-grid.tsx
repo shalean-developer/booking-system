@@ -162,7 +162,7 @@ export function ExtrasGrid({ selectedExtras, toggleExtra }: ExtrasGridProps) {
                     }`}>
                       <Icon className={`h-5 w-5 sm:h-6 sm:w-6 ${
                         isPressed ? 'text-primary' : 'text-gray-600'
-                      }`} strokeWidth={1.5} />
+                      }`} />
                     </div>
                     <div className="text-center">
                       {labelWords.map((word, index) => (
