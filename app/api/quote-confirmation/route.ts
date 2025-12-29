@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   console.log('=== QUOTE CONFIRMATION API CALLED ===');
   try {
     // Validate request body
-    let body: QuoteRequest;
+    let body: any;
     try {
       body = await req.json();
     } catch (parseError) {
@@ -24,7 +24,10 @@ export async function POST(req: Request) {
 
     // Validate required fields
     const requiredFields = ['service', 'firstName', 'lastName', 'email', 'phone', 'location'];
-    const missingFields = requiredFields.filter(field => !body[field as keyof QuoteRequest]);
+    const missingFields = requiredFields.filter(field => {
+      const value = body[field];
+      return value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
+    });
     
     if (missingFields.length > 0) {
       console.error('Missing required fields:', missingFields);
@@ -35,7 +38,7 @@ export async function POST(req: Request) {
     }
 
     // Validate service type
-    const validServices: ServiceType[] = ['Standard', 'Deep', 'Move In/Out', 'Airbnb'];
+    const validServices: ServiceType[] = ['Standard', 'Deep', 'Move In/Out', 'Airbnb', 'Carpet'];
     if (!validServices.includes(body.service as ServiceType)) {
       console.error('Invalid service type:', body.service);
       return NextResponse.json(
@@ -77,7 +80,7 @@ export async function POST(req: Request) {
           last_name: body.lastName,
           email: body.email,
           phone: body.phone,
-          location: body.location,
+          location: body.location.trim(),
           notes: body.notes || null,
           status: 'pending',
           estimated_price: estimatedPrice
@@ -110,7 +113,8 @@ export async function POST(req: Request) {
       phone: body.phone || '',
       location: body.location || '',
       notes: body.notes || '',
-      quoteId
+      quoteId,
+      carpetDetails: body.carpetDetails || undefined // Include carpet details if provided
     };
 
     // Check if RESEND_API_KEY is configured

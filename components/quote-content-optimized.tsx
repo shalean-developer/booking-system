@@ -50,7 +50,7 @@ export function QuoteContent() {
 
   // Reset carpet details when service changes away from Carpet
   useEffect(() => {
-    if (serviceId !== 'Carpet') {
+    if (serviceId && serviceId !== ('Carpet' as ServiceType)) {
       setCarpetDetails({
         hasFittedCarpets: false,
         hasLooseCarpets: false,
@@ -63,7 +63,7 @@ export function QuoteContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Check if Carpet service is selected (not in extras)
-  const isCarpetSelected = serviceId === 'Carpet';
+  const isCarpetSelected = serviceId === ('Carpet' as ServiceType);
 
   function toggleExtra(id: string) {
     // Filter out carpet cleaning from extras (it's now a service, not an extra)
@@ -105,7 +105,17 @@ export function QuoteContent() {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        // Try to get error message from response
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch {
+          // If response is not JSON, use default message
+        }
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();

@@ -13,6 +13,7 @@ export const PRICING = {
     'Deep': { base: 1200, bedroom: 180, bathroom: 250 },
     'Move In/Out': { base: 980, bedroom: 160, bathroom: 220 },
     'Airbnb': { base: 230, bedroom: 18, bathroom: 26 },
+    'Carpet': { base: 350, bedroom: 50, bathroom: 0 },
   },
   extras: {
     'Inside Fridge': 30,

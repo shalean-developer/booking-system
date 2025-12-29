@@ -1,6 +1,6 @@
 // Core booking data types
 
-export type ServiceType = 'Standard' | 'Deep' | 'Move In/Out' | 'Airbnb';
+export type ServiceType = 'Standard' | 'Deep' | 'Move In/Out' | 'Airbnb' | 'Carpet';
 
 export interface BookingState {
   step: 1 | 2 | 3 | 4 | 5 | 6;

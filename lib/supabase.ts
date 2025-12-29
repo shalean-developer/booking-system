@@ -244,6 +244,7 @@ export interface Database {
           last_name: string
           email: string
           phone: string
+          location: string | null
           status: string
           estimated_price: number | null
           notes: string | null
@@ -260,6 +261,7 @@ export interface Database {
           last_name: string
           email: string
           phone: string
+          location?: string | null
           status?: string
           estimated_price?: number | null
           notes?: string | null
@@ -276,6 +278,7 @@ export interface Database {
           last_name?: string
           email?: string
           phone?: string
+          location?: string | null
           status?: string
           estimated_price?: number | null
           notes?: string | null

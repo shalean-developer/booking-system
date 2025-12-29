@@ -45,6 +45,14 @@ export async function sendEmail({ to, subject, html }: EmailData) {
   }
 }
 
+export interface CarpetDetails {
+  hasFittedCarpets: boolean;
+  hasLooseCarpets: boolean;
+  numberOfRooms: number;
+  numberOfLooseCarpets: number;
+  roomStatus: 'empty' | 'hasProperty';
+}
+
 export interface QuoteRequest {
   service: ServiceType | string;
   bedrooms: number;
@@ -57,6 +65,7 @@ export interface QuoteRequest {
   location: string;
   notes?: string;
   quoteId?: string; // Optional since it's generated on the server
+  carpetDetails?: CarpetDetails; // Optional, only for Carpet service
 }
 
 export function generateBookingConfirmationEmail(booking: BookingState & { bookingId: string; totalAmount?: number }): EmailData {
@@ -306,7 +315,27 @@ export function generateAdminBookingNotificationEmail(booking: BookingState & { 
 }
 
 export function generateQuoteConfirmationEmail(quote: QuoteRequest): EmailData {
-  
+  // Build carpet details section if service is Carpet
+  const carpetSection = quote.service === 'Carpet' && quote.carpetDetails ? `
+    <h4>Carpet Cleaning Details</h4>
+    <p><strong>Carpet Type:</strong> ${
+      quote.carpetDetails.hasFittedCarpets && quote.carpetDetails.hasLooseCarpets 
+        ? 'Fitted Carpets & Loose Carpets/Rugs'
+        : quote.carpetDetails.hasFittedCarpets 
+        ? 'Fitted Carpets'
+        : quote.carpetDetails.hasLooseCarpets 
+        ? 'Loose Carpets/Rugs'
+        : 'Not specified'
+    }</p>
+    ${quote.carpetDetails.hasFittedCarpets && quote.carpetDetails.numberOfRooms > 0 ? `
+      <p><strong>Rooms with Fitted Carpets:</strong> ${quote.carpetDetails.numberOfRooms} ${quote.carpetDetails.numberOfRooms === 1 ? 'Room' : 'Rooms'}</p>
+    ` : ''}
+    ${quote.carpetDetails.hasLooseCarpets && quote.carpetDetails.numberOfLooseCarpets > 0 ? `
+      <p><strong>Loose Carpets/Rugs:</strong> ${quote.carpetDetails.numberOfLooseCarpets} ${quote.carpetDetails.numberOfLooseCarpets === 1 ? 'Item' : 'Items'}</p>
+    ` : ''}
+    <p><strong>Room Status:</strong> ${quote.carpetDetails.roomStatus === 'empty' ? 'Empty (Furniture moved)' : 'Has Property (Furniture in place)'}</p>
+  ` : '';
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -319,7 +348,8 @@ export function generateQuoteConfirmationEmail(quote: QuoteRequest): EmailData {
         .header { background-color: #0C53ED; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
         .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
         .quote-details { background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
-        .order-summary { background-color: #e8f4fd; padding: 15px; border-radius: 8px; margin: 20px 0; }
+        .contact-info { background-color: #e8f4fd; padding: 15px; border-radius: 8px; margin: 20px 0; }
+        .notes { background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; }
         .total { font-size: 18px; font-weight: bold; color: #0C53ED; }
         .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
       </style>
@@ -340,9 +370,14 @@ export function generateQuoteConfirmationEmail(quote: QuoteRequest): EmailData {
           <p><strong>Quote ID:</strong> ${quote.quoteId || 'N/A'}</p>
           <p><strong>Service Type:</strong> ${quote.service}</p>
           
+          <h4>Location</h4>
+          <p><strong>Address/Location:</strong> ${quote.location || 'Not provided'}</p>
+          
           <h4>Home Details</h4>
           <p><strong>Bedrooms:</strong> ${quote.bedrooms}</p>
           <p><strong>Bathrooms:</strong> ${quote.bathrooms}</p>
+          
+          ${carpetSection}
           
           ${quote.extras.length > 0 ? `
             <h4>Additional Services</h4>
@@ -350,6 +385,20 @@ export function generateQuoteConfirmationEmail(quote: QuoteRequest): EmailData {
               ${quote.extras.map(extra => `<li>${extra}</li>`).join('')}
             </ul>
           ` : ''}
+        </div>
+        
+        ${quote.notes && quote.notes.trim() ? `
+          <div class="notes">
+            <h4>Your Notes/Instructions</h4>
+            <p>${quote.notes}</p>
+          </div>
+        ` : ''}
+        
+        <div class="contact-info">
+          <h4>Your Contact Information</h4>
+          <p><strong>Name:</strong> ${quote.firstName} ${quote.lastName}</p>
+          <p><strong>Email:</strong> ${quote.email}</p>
+          <p><strong>Phone:</strong> ${quote.phone}</p>
         </div>
         
         <p>Our team will review your requirements and get back to you within 24 hours with a final quote and available booking slots.</p>
@@ -386,6 +435,27 @@ export function generateAdminQuoteNotificationEmail(quote: QuoteRequest): EmailD
   }, 'one-time');
   const totalPrice = pricingDetails.total;
   
+  // Build carpet details section if service is Carpet
+  const carpetSection = quote.service === 'Carpet' && quote.carpetDetails ? `
+    <h4>Carpet Cleaning Details</h4>
+    <p><strong>Carpet Type:</strong> ${
+      quote.carpetDetails.hasFittedCarpets && quote.carpetDetails.hasLooseCarpets 
+        ? 'Fitted Carpets & Loose Carpets/Rugs'
+        : quote.carpetDetails.hasFittedCarpets 
+        ? 'Fitted Carpets'
+        : quote.carpetDetails.hasLooseCarpets 
+        ? 'Loose Carpets/Rugs'
+        : 'Not specified'
+    }</p>
+    ${quote.carpetDetails.hasFittedCarpets && quote.carpetDetails.numberOfRooms > 0 ? `
+      <p><strong>Rooms with Fitted Carpets:</strong> ${quote.carpetDetails.numberOfRooms} ${quote.carpetDetails.numberOfRooms === 1 ? 'Room' : 'Rooms'}</p>
+    ` : ''}
+    ${quote.carpetDetails.hasLooseCarpets && quote.carpetDetails.numberOfLooseCarpets > 0 ? `
+      <p><strong>Loose Carpets/Rugs:</strong> ${quote.carpetDetails.numberOfLooseCarpets} ${quote.carpetDetails.numberOfLooseCarpets === 1 ? 'Item' : 'Items'}</p>
+    ` : ''}
+    <p><strong>Room Status:</strong> ${quote.carpetDetails.roomStatus === 'empty' ? 'Empty (Furniture moved)' : 'Has Property (Furniture in place)'}</p>
+  ` : '';
+  
   const html = `
     <!DOCTYPE html>
     <html>
@@ -399,6 +469,7 @@ export function generateAdminQuoteNotificationEmail(quote: QuoteRequest): EmailD
         .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
         .quote-details { background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
         .contact-info { background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; }
+        .notes { background-color: #e8f4fd; padding: 15px; border-radius: 8px; margin: 20px 0; }
         .total { font-size: 18px; font-weight: bold; color: #0C53ED; }
         .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
       </style>
@@ -417,9 +488,14 @@ export function generateAdminQuoteNotificationEmail(quote: QuoteRequest): EmailD
           <p><strong>Quote ID:</strong> ${quote.quoteId || 'N/A'}</p>
           <p><strong>Service Type:</strong> ${quote.service}</p>
           
+          <h4>Location</h4>
+          <p><strong>Address/Location:</strong> ${quote.location || 'Not provided'}</p>
+          
           <h4>Home Details</h4>
           <p><strong>Bedrooms:</strong> ${quote.bedrooms}</p>
           <p><strong>Bathrooms:</strong> ${quote.bathrooms}</p>
+          
+          ${carpetSection}
           
           ${quote.extras.length > 0 ? `
             <h4>Additional Services Requested</h4>
@@ -428,6 +504,13 @@ export function generateAdminQuoteNotificationEmail(quote: QuoteRequest): EmailD
             </ul>
           ` : ''}
         </div>
+        
+        ${quote.notes && quote.notes.trim() ? `
+          <div class="notes">
+            <h4>Customer Notes/Instructions</h4>
+            <p>${quote.notes}</p>
+          </div>
+        ` : ''}
         
         <div class="contact-info">
           <h3>Customer Contact Information</h3>
