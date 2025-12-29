@@ -235,24 +235,33 @@ export function GarageIcon({ className = 'w-6 h-6' }: IconProps) {
   );
 }
 
-// Balcony Cleaning - Balcony railing icon
+// Balcony Cleaning - Balcony railing with decorative pattern
 export function BalconyIcon({ className = 'w-6 h-6' }: IconProps) {
   return (
     <svg
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
     >
-      <rect x="4" y="10" width="16" height="4" rx="1" />
-      <path d="M6 14v6" />
-      <path d="M10 14v6" />
-      <path d="M14 14v6" />
-      <path d="M18 14v6" />
-      <path d="M7 10V6h10v4" />
+      {/* Top horizontal rail */}
+      <line x1="4" y1="8" x2="20" y2="8" />
+      {/* Bottom horizontal rail */}
+      <line x1="5" y1="16" x2="19" y2="16" />
+      {/* Vertical balusters - alternating pattern */}
+      <line x1="6.5" y1="8" x2="6.5" y2="16" />
+      <line x1="9" y1="8" x2="9" y2="16" />
+      <line x1="12" y1="8" x2="12" y2="16" />
+      <line x1="15" y1="8" x2="15" y2="16" />
+      <line x1="17.5" y1="8" x2="17.5" y2="16" />
+      {/* Platform base */}
+      <line x1="4" y1="16" x2="20" y2="16" strokeWidth="2" />
+      {/* Decorative accent lines on platform */}
+      <line x1="6" y1="18" x2="10" y2="18" />
+      <line x1="14" y1="18" x2="18" y2="18" />
     </svg>
   );
 }

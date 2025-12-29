@@ -62,7 +62,13 @@ export function ExtrasGrid({ selectedExtras, toggleExtra }: ExtrasGridProps) {
             return true;
           });
 
-          const transformedExtras: ExtraService[] = uniqueExtras.map((ex) => {
+          // Filter out carpet cleaning (it's now a service, not an extra)
+          const filteredExtras = uniqueExtras.filter((ex) => {
+            const idLower = ex.id.toLowerCase();
+            return !idLower.includes('carpet');
+          });
+
+          const transformedExtras: ExtraService[] = filteredExtras.map((ex) => {
             // Map database name to icon component
             let IconComponent = EXTRA_ICONS[ex.id as keyof typeof EXTRA_ICONS];
             

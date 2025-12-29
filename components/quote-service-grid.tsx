@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Home, Star, Building, Calendar, LucideIcon, Loader2 } from 'lucide-react';
+import { Home, Star, Building, Calendar, LucideIcon, Loader2, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ServiceType } from '@/types/booking';
 
@@ -12,6 +12,7 @@ const SERVICE_ICON_MAP: Record<string, LucideIcon> = {
   'Deep': Star,
   'Move In/Out': Building,
   'Airbnb': Calendar,
+  'Carpet': Sparkles,
 };
 
 interface ServiceOption {

@@ -7,6 +7,7 @@ import { ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ServiceType } from '@/types/booking';
+import type { CarpetDetails } from '@/components/quote-carpet-details';
 
 interface QuoteSummaryProps {
   contact: {
@@ -22,6 +23,8 @@ interface QuoteSummaryProps {
   extras: string[];
   onSubmit: () => void;
   isSubmitting: boolean;
+  isCarpetSelected?: boolean;
+  carpetDetails?: CarpetDetails;
 }
 
 interface ApiExtraResponse {
@@ -29,7 +32,7 @@ interface ApiExtraResponse {
   label?: string;
 }
 
-export function QuoteSummary({ contact, serviceId, bedrooms, bathrooms, extras, onSubmit, isSubmitting }: QuoteSummaryProps) {
+export function QuoteSummary({ contact, serviceId, bedrooms, bathrooms, extras, onSubmit, isSubmitting, isCarpetSelected = false, carpetDetails }: QuoteSummaryProps) {
   const isFormValid = contact.firstName && contact.lastName && contact.email && contact.phone && contact.location && serviceId;
   const [extrasList, setExtrasList] = useState<Array<{ id: string; label: string }>>([]);
 
@@ -83,27 +86,74 @@ export function QuoteSummary({ contact, serviceId, bedrooms, bathrooms, extras, 
               </div>
             </div>
 
-            <div className="flex justify-between items-center">
-              <div className="text-sm text-gray-600">Home details</div>
-              <div className="text-sm font-medium text-gray-800">
-                {bedrooms} Bed • {bathrooms} Bath
-              </div>
-            </div>
-
-            <div className="flex justify-between items-start">
-              <div className="text-sm text-gray-600">Extras</div>
-              <div className="text-sm font-medium text-gray-800 text-right max-w-[60%]">
-                {selectedExtraLabels.length > 0 ? (
-                  <div className="space-y-1">
-                    {selectedExtraLabels.map((label, index) => (
-                      <div key={index}>{label}</div>
-                    ))}
+            {/* Show carpet details when Carpet service is selected, otherwise show home details */}
+            {isCarpetSelected && carpetDetails ? (
+              <>
+                <div className="flex justify-between items-start">
+                  <div className="text-sm text-gray-600">Carpet Type</div>
+                  <div className="text-sm font-medium text-gray-800 text-right max-w-[60%]">
+                    {carpetDetails.hasFittedCarpets && carpetDetails.hasLooseCarpets ? (
+                      <div>Fitted & Loose</div>
+                    ) : carpetDetails.hasFittedCarpets ? (
+                      <div>Fitted Carpets</div>
+                    ) : carpetDetails.hasLooseCarpets ? (
+                      <div>Loose Carpets/Rugs</div>
+                    ) : (
+                      <span className="text-gray-400">Not specified</span>
+                    )}
                   </div>
-                ) : (
-                  <span className="text-gray-400">None</span>
+                </div>
+
+                {carpetDetails.hasFittedCarpets && carpetDetails.numberOfRooms > 0 && (
+                  <div className="flex justify-between items-center">
+                    <div className="text-sm text-gray-600">Rooms with Fitted Carpets</div>
+                    <div className="text-sm font-medium text-gray-800">
+                      {carpetDetails.numberOfRooms} {carpetDetails.numberOfRooms === 1 ? 'Room' : 'Rooms'}
+                    </div>
+                  </div>
                 )}
-              </div>
-            </div>
+
+                {carpetDetails.hasLooseCarpets && carpetDetails.numberOfLooseCarpets > 0 && (
+                  <div className="flex justify-between items-center">
+                    <div className="text-sm text-gray-600">Loose Carpets/Rugs</div>
+                    <div className="text-sm font-medium text-gray-800">
+                      {carpetDetails.numberOfLooseCarpets} {carpetDetails.numberOfLooseCarpets === 1 ? 'Item' : 'Items'}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center">
+                  <div className="text-sm text-gray-600">Room Status</div>
+                  <div className="text-sm font-medium text-gray-800">
+                    {carpetDetails.roomStatus === 'empty' ? 'Room is Empty' : 'Has Property (Needs to be Moved)'}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between items-center">
+                  <div className="text-sm text-gray-600">Home details</div>
+                  <div className="text-sm font-medium text-gray-800">
+                    {bedrooms} Bed • {bathrooms} Bath
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-start">
+                  <div className="text-sm text-gray-600">Extras</div>
+                  <div className="text-sm font-medium text-gray-800 text-right max-w-[60%]">
+                    {selectedExtraLabels.length > 0 ? (
+                      <div className="space-y-1">
+                        {selectedExtraLabels.map((label, index) => (
+                          <div key={index}>{label}</div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">None</span>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
 
             <hr className="border-t border-gray-200 my-2" />
 

@@ -9,9 +9,12 @@ import { Textarea } from '@/components/ui/textarea';
 interface NotesCardProps {
   notes: string;
   setNotes: (notes: string) => void;
+  isCarpetSelected?: boolean;
 }
 
-export function NotesCard({ notes, setNotes }: NotesCardProps) {
+export function NotesCard({ notes, setNotes, isCarpetSelected = false }: NotesCardProps) {
+  const stepNumber = isCarpetSelected ? '4' : '5';
+  
   return (
     <motion.div
       layout
@@ -22,7 +25,7 @@ export function NotesCard({ notes, setNotes }: NotesCardProps) {
     >
       <Card className="border-0 shadow-lg">
         <CardHeader className="px-4 sm:px-6 py-4 sm:py-5">
-          <CardTitle className="text-lg sm:text-xl">5. Additional Notes (Optional)</CardTitle>
+          <CardTitle className="text-lg sm:text-xl">{stepNumber}. Additional Notes (Optional)</CardTitle>
         </CardHeader>
         <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
           <div>

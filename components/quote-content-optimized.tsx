@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import type { ServiceType } from '@/types/booking';
@@ -11,6 +11,7 @@ import { ContactCard } from '@/components/quote-contact-card';
 import { ServiceGrid } from '@/components/quote-service-grid';
 import { HomeDetailsCard } from '@/components/quote-home-details';
 import { NotesCard } from '@/components/quote-notes-card';
+import type { CarpetDetails } from '@/components/quote-carpet-details';
 
 // Dynamic imports for below-fold components
 const ExtrasGrid = dynamic(() => import('@/components/quote-extras-grid').then(mod => ({ default: mod.ExtrasGrid })), {
@@ -39,10 +40,42 @@ export function QuoteContent() {
   const [bedrooms, setBedrooms] = useState(0);
   const [bathrooms, setBathrooms] = useState(1);
   const [extras, setExtras] = useState<string[]>([]);
+  const [carpetDetails, setCarpetDetails] = useState<CarpetDetails>({
+    hasFittedCarpets: false,
+    hasLooseCarpets: false,
+    numberOfRooms: 0,
+    numberOfLooseCarpets: 0,
+    roomStatus: 'empty',
+  });
+
+  // Reset carpet details when service changes away from Carpet
+  useEffect(() => {
+    if (serviceId !== 'Carpet') {
+      setCarpetDetails({
+        hasFittedCarpets: false,
+        hasLooseCarpets: false,
+        numberOfRooms: 0,
+        numberOfLooseCarpets: 0,
+        roomStatus: 'empty',
+      });
+    }
+  }, [serviceId]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Check if Carpet service is selected (not in extras)
+  const isCarpetSelected = serviceId === 'Carpet';
 
   function toggleExtra(id: string) {
-    setExtras((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
+    // Filter out carpet cleaning from extras (it's now a service, not an extra)
+    const isCarpetExtra = id.toLowerCase().includes('carpet') || id === 'Carpet Cleaning';
+    if (isCarpetExtra) {
+      return; // Don't allow carpet to be selected as an extra
+    }
+    
+    setExtras((prev) => {
+      const isCurrentlySelected = prev.includes(id);
+      return isCurrentlySelected ? prev.filter((p) => p !== id) : [...prev, id];
+    });
   }
 
   const handleSubmit = async () => {
@@ -67,6 +100,7 @@ export function QuoteContent() {
           phone: contact.phone,
           location: contact.location,
           notes,
+          carpetDetails: isCarpetSelected ? carpetDetails : undefined,
         }),
       });
 
@@ -106,9 +140,14 @@ export function QuoteContent() {
               setBedrooms={setBedrooms}
               bathrooms={bathrooms}
               setBathrooms={setBathrooms}
+              isCarpetSelected={isCarpetSelected}
+              carpetDetails={carpetDetails}
+              setCarpetDetails={setCarpetDetails}
             />
-            <ExtrasGrid selectedExtras={extras} toggleExtra={toggleExtra} />
-            <NotesCard notes={notes} setNotes={setNotes} />
+            {!isCarpetSelected && (
+              <ExtrasGrid selectedExtras={extras} toggleExtra={toggleExtra} />
+            )}
+            <NotesCard notes={notes} setNotes={setNotes} isCarpetSelected={isCarpetSelected} />
           </div>
 
           <div className="hidden lg:block lg:col-span-4">
@@ -120,6 +159,8 @@ export function QuoteContent() {
               extras={extras}
               onSubmit={handleSubmit}
               isSubmitting={isSubmitting}
+              isCarpetSelected={isCarpetSelected}
+              carpetDetails={carpetDetails}
             />
           </div>
         </div>
