@@ -163,7 +163,7 @@ function LoginForm() {
                 Sign In
               </h1>
               <p className="text-gray-600 text-sm md:text-base">
-                Access your account to manage bookings and preferences. New to Shalean? <Link href="/" className="text-primary hover:underline">Visit our homepage</Link> to learn about our <Link href="/services" className="text-primary hover:underline">cleaning services</Link> in <Link href="/location" className="text-primary hover:underline">locations</Link> across South Africa.
+                Access your account to manage bookings and preferences. New to Shalean? <Link href="/" className="text-primary hover:underline">Visit our homepage</Link> to learn about our <Link href="/services" className="text-primary hover:underline">cleaning services</Link> in <Link href="/location" className="text-primary hover:underline">locations</Link> across South Africa. Explore our <Link href="/services/regular-cleaning" className="text-primary hover:underline">regular cleaning</Link>, <Link href="/services/deep-cleaning" className="text-primary hover:underline">deep cleaning</Link>, and <Link href="/services/move-turnover" className="text-primary hover:underline">move-in/out cleaning</Link> services. Check out our <Link href="/pricing" className="text-primary hover:underline">pricing</Link> and <Link href="/how-it-works" className="text-primary hover:underline">how it works</Link> pages.
               </p>
             </div>
 
@@ -327,6 +327,12 @@ function LoginForm() {
                   <Link href="/how-it-works" className="text-primary hover:underline font-medium">How It Works</Link>
                   <span className="text-gray-400">•</span>
                   <Link href="/pricing" className="text-primary hover:underline font-medium">Pricing</Link>
+                  <span className="text-gray-400">•</span>
+                  <Link href="/testimonials" className="text-primary hover:underline font-medium">Testimonials</Link>
+                  <span className="text-gray-400">•</span>
+                  <Link href="/blog" className="text-primary hover:underline font-medium">Blog</Link>
+                  <span className="text-gray-400">•</span>
+                  <Link href="/faq" className="text-primary hover:underline font-medium">FAQ</Link>
                 </div>
               </div>
               <div className="text-center text-xs text-gray-500">

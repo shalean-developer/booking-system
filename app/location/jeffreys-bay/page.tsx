@@ -80,7 +80,7 @@ export default function JeffreysBayPage() {
               Popular Cleaning Services in Jeffreys Bay
             </h2>
             <p className="text-lg text-gray-600">
-              Pick a cleaning package and match it with a Jeffreys Bay team that knows your neighbourhood.
+              Pick a cleaning package and match it with a Jeffreys Bay team that knows your neighbourhood. Whether you need <Link href="/services/regular-cleaning" className="text-primary hover:underline">regular cleaning</Link>, <Link href="/services/deep-cleaning" className="text-primary hover:underline">deep cleaning</Link>, or <Link href="/services/one-time-cleaning" className="text-primary hover:underline">one-time cleaning</Link>, we've got you covered.
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
@@ -170,7 +170,7 @@ export default function JeffreysBayPage() {
               Explore All Our Services
             </h2>
             <p className="text-lg text-gray-600">
-              Discover our full range of professional cleaning services available in Jeffreys Bay.
+              Discover our full range of professional cleaning services available in Jeffreys Bay. From <Link href="/services/office-cleaning" className="text-primary hover:underline">office cleaning</Link> to <Link href="/services/window-cleaning" className="text-primary hover:underline">window cleaning</Link>, we provide comprehensive solutions. Check out our <Link href="/pricing" className="text-primary hover:underline">pricing</Link> and <Link href="/how-it-works" className="text-primary hover:underline">how it works</Link> to learn more.
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
