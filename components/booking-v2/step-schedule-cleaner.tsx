@@ -37,7 +37,7 @@ export function StepScheduleCleaner() {
 
   // Cleaner state
   const [cleaners, setCleaners] = useState<Cleaner[]>([]);
-  const [isLoadingCleaners, setIsLoadingCleaners] = useState(true);
+  const [isLoadingCleaners, setIsLoadingCleaners] = useState(false);
   const [selectedCleanerId, setSelectedCleanerId] = useState<string | null>(state.cleaner_id);
   const [favoriteCleanerIds, setFavoriteCleanerIds] = useState<Set<string>>(new Set());
   const [togglingFavoriteId, setTogglingFavoriteId] = useState<string | null>(null);
@@ -51,6 +51,32 @@ export function StepScheduleCleaner() {
   const [sortOption, setSortOption] = useState<'recommended' | 'rating' | 'experience'>('recommended');
 
   const needsTeam = requiresTeam(state.service);
+
+  // Load user favorites immediately on mount (non-blocking)
+  useEffect(() => {
+    const loadFavorites = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        const response = await fetch('/api/dashboard/favorites', {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+        });
+
+        const data = await response.json();
+        if (response.ok && data.ok && data.favorites) {
+          const favoriteIds = new Set(data.favorites.map((fav: any) => fav.cleaner_id));
+          setFavoriteCleanerIds(favoriteIds);
+        }
+      } catch (err) {
+        // Silently fail - favorites are optional
+      }
+    };
+
+    loadFavorites();
+  }, []);
 
   // Load booking data when rescheduling
   useEffect(() => {
@@ -92,8 +118,11 @@ export function StepScheduleCleaner() {
     loadBookingForReschedule();
   }, [rescheduleId, updateField]);
 
-  // Fetch cleaners when date and suburb are available
+  // Fetch cleaners when date and suburb are available (with debouncing)
   useEffect(() => {
+    // Abort controller for cleanup
+    const abortController = new AbortController();
+
     const fetchCleaners = async () => {
       if (needsTeam) {
         setIsLoadingCleaners(false);
@@ -105,6 +134,7 @@ export function StepScheduleCleaner() {
 
       if (!state.date || !location) {
         setIsLoadingCleaners(false);
+        setCleaners([]); // Clear cleaners when date/location not available
         return; // Don't show error, just wait for date/location
       }
 
@@ -118,22 +148,52 @@ export function StepScheduleCleaner() {
           suburb: state.address.suburb || '', // Pass suburb as well if available
         });
 
-        const response = await fetch(`/api/cleaners/available?${params}`);
+        const response = await fetch(`/api/cleaners/available?${params}`, {
+          signal: abortController.signal,
+        });
+
+        // Check if request was aborted
+        if (abortController.signal.aborted) {
+          return;
+        }
+
         const data: AvailableCleanersResponse = await response.json();
+
+        if (abortController.signal.aborted) {
+          return;
+        }
 
         if (data.ok) {
           setCleaners(data.cleaners);
         } else {
           setCleanerError(data.error || 'Failed to fetch cleaners');
         }
-      } catch (err) {
-        setCleanerError('Failed to load available cleaners');
+      } catch (err: any) {
+        // Ignore abort errors
+        if (err.name === 'AbortError') {
+          return;
+        }
+        if (!abortController.signal.aborted) {
+          setCleanerError('Failed to load available cleaners');
+        }
       } finally {
-        setIsLoadingCleaners(false);
+        // Only update loading state if request wasn't aborted
+        if (!abortController.signal.aborted) {
+          setIsLoadingCleaners(false);
+        }
       }
     };
 
-    fetchCleaners();
+    // Debounce the fetch to avoid too many rapid requests
+    const timeoutId = setTimeout(() => {
+      fetchCleaners();
+    }, 300); // 300ms debounce
+
+    // Cleanup function to abort ongoing requests and clear timeout
+    return () => {
+      clearTimeout(timeoutId);
+      abortController.abort();
+    };
   }, [state.date, state.address.suburb, state.address.city, needsTeam]);
 
 
@@ -148,16 +208,32 @@ export function StepScheduleCleaner() {
   const handleSelectCleaner = useCallback((cleanerId: string) => {
     setSelectedCleanerId(cleanerId);
     updateField('cleaner_id', cleanerId);
-  }, [updateField]);
+    
+    // Store cleaner data to avoid re-fetching in booking summary
+    const cleaner = cleaners.find(c => c.id === cleanerId);
+    if (cleaner) {
+      updateField('selectedCleaner', {
+        id: cleaner.id,
+        name: cleaner.name,
+        photo_url: cleaner.photo_url || null,
+        rating: cleaner.rating || 0,
+        years_experience: cleaner.years_experience,
+      });
+    }
+  }, [updateField, cleaners]);
 
   const handleSelectTeam = useCallback((teamName: TeamName) => {
     setSelectedTeam(teamName);
     updateField('selected_team', teamName);
     updateField('requires_team', true);
+    updateField('cleaner_id', null);
+    updateField('selectedCleaner', null);
+    setSelectedCleanerId(null);
   }, [updateField]);
 
   const handleLetUsChoose = useCallback(() => {
     updateField('cleaner_id', null);
+    updateField('selectedCleaner', null);
     updateField('selected_team', null);
     setSelectedCleanerId(null);
     setSelectedTeam(null);

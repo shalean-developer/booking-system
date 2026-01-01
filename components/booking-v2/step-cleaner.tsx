@@ -121,6 +121,7 @@ export function StepCleaner() {
     try {
       setIsSubmitting(true);
       updateField('cleaner_id', null);
+      updateField('selectedCleaner', null);
       updateField('selected_team', null);
       
       router.push(getReviewPath(state.service));

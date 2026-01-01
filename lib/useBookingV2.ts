@@ -5,6 +5,14 @@ import type { ServiceType, TeamName } from '@/types/booking';
 
 const KEY = 'booking_state_v2';
 
+export interface CarpetDetails {
+  hasFittedCarpets: boolean;
+  hasLooseCarpets: boolean;
+  numberOfRooms: number; // For fitted carpets
+  numberOfLooseCarpets: number; // For loose carpets/rugs
+  roomStatus: 'empty' | 'hasProperty';
+}
+
 export interface BookingStateV2 {
   // Step 1
   service: ServiceType | null;
@@ -15,6 +23,8 @@ export interface BookingStateV2 {
   extras: string[];
   extrasQuantities: Record<string, number>;
   notes: string;
+  carpetDetails: CarpetDetails | null; // For Carpet service
+  provideEquipment: boolean; // For Standard/Airbnb services
   
   // Step 3
   date: string | null;
@@ -35,6 +45,13 @@ export interface BookingStateV2 {
   
   // Step 5
   cleaner_id: string | null;
+  selectedCleaner: {
+    id: string;
+    name: string;
+    photo_url: string | null;
+    rating: number;
+    years_experience?: number;
+  } | null; // Store selected cleaner data to avoid re-fetching
   selected_team: TeamName | null;
   requires_team: boolean;
   tipAmount: number; // Tip amount for cleaner
@@ -53,6 +70,8 @@ const initial: BookingStateV2 = {
   extras: [],
   extrasQuantities: {},
   notes: '',
+  carpetDetails: null,
+  provideEquipment: false,
   date: null,
   time: null,
   frequency: 'one-time',
@@ -67,6 +86,7 @@ const initial: BookingStateV2 = {
     city: '',
   },
   cleaner_id: null,
+  selectedCleaner: null,
   selected_team: null,
   requires_team: false,
   tipAmount: 0,
@@ -140,6 +160,7 @@ export function useBookingV2() {
               city: template.address_city || '',
             },
             cleaner_id: template.cleaner_id || null,
+            selectedCleaner: null, // Don't persist cleaner data from template
             selected_team: template.selected_team || null,
             requires_team: template.requires_team || false,
             tipAmount: template.tip_amount ? template.tip_amount / 100 : 0, // Convert cents to rands
@@ -164,6 +185,9 @@ export function useBookingV2() {
             ...loadedState,
             extrasQuantities: loadedState.extrasQuantities || {},
             address: loadedState.address || globalState.address,
+            carpetDetails: loadedState.carpetDetails || null,
+            provideEquipment: loadedState.provideEquipment || false,
+            selectedCleaner: loadedState.selectedCleaner || null, // Handle new field
           };
         } catch (e) {
           console.error('Failed to parse booking state:', e);

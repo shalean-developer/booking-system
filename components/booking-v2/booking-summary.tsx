@@ -2,6 +2,7 @@
 
 import { useMemo, useEffect, useState } from 'react';
 import { useBookingV2 } from '@/lib/useBookingV2';
+import { useBookingFormData } from '@/lib/useBookingFormData';
 import { calcTotalSync, calcTotalAsync, PRICING, getServicePricing, getCurrentPricing } from '@/lib/pricing';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +14,7 @@ import Image from 'next/image';
 
 export function BookingSummaryV2() {
   const { state } = useBookingV2();
+  const { data: formData } = useBookingFormData();
   const [pricingDetails, setPricingDetails] = useState<{
     subtotal: number;
     serviceFee: number;
@@ -22,12 +24,49 @@ export function BookingSummaryV2() {
   } | null>(null);
   const [extraPrices, setExtraPrices] = useState<{ [key: string]: number }>({});
   const [serviceFeeAmount, setServiceFeeAmount] = useState<number>(PRICING.serviceFee);
+  const [surgePricingInfo, setSurgePricingInfo] = useState<{
+    active: boolean;
+    percentage: number | null;
+    amount: number;
+  } | null>(null);
   const [selectedCleaner, setSelectedCleaner] = useState<Cleaner | null>(null);
   const [isLoadingCleaner, setIsLoadingCleaner] = useState(false);
 
 
   // Get service-specific pricing (sync for display)
   const servicePricing = useMemo(() => getServicePricing(state.service), [state.service]);
+
+  // Check surge pricing when date and service are available
+  useEffect(() => {
+    if (state.service && state.date && (state.service === 'Standard' || state.service === 'Airbnb')) {
+      const checkSurgePricing = async () => {
+        try {
+          const response = await fetch(
+            `/api/bookings/availability?service_type=${encodeURIComponent(state.service!)}&date=${state.date}`
+          );
+          const data = await response.json();
+          
+          if (data.ok && data.surge_pricing_active && data.surge_percentage && pricingDetails) {
+            const surgeAmount = pricingDetails.total * (data.surge_percentage / 100);
+            setSurgePricingInfo({
+              active: true,
+              percentage: data.surge_percentage,
+              amount: surgeAmount,
+            });
+          } else {
+            setSurgePricingInfo(null);
+          }
+        } catch (error) {
+          console.error('Error checking surge pricing:', error);
+          setSurgePricingInfo(null);
+        }
+      };
+
+      checkSurgePricing();
+    } else {
+      setSurgePricingInfo(null);
+    }
+  }, [state.service, state.date, pricingDetails]);
 
   // Create stable string key for extras array to detect changes
   const extrasKey = useMemo(
@@ -38,6 +77,7 @@ export function BookingSummaryV2() {
   // Calculate pricing synchronously for immediate display
   useEffect(() => {
     if (state.service) {
+      const equipmentCharge = formData?.equipment?.charge || PRICING.equipmentCharge || 500;
       const syncDetails = calcTotalSync(
         {
           service: state.service,
@@ -45,6 +85,9 @@ export function BookingSummaryV2() {
           bathrooms: state.bathrooms || 0,
           extras: state.extras || [],
           extrasQuantities: state.extrasQuantities || {},
+          carpetDetails: state.carpetDetails,
+          provideEquipment: state.provideEquipment,
+          equipmentCharge: equipmentCharge,
         },
         state.frequency || 'one-time'
       );
@@ -72,6 +115,7 @@ export function BookingSummaryV2() {
 
         if (state.service) {
           // Use async calculation for more accurate database pricing
+          const equipmentCharge = formData?.equipment?.charge || PRICING.equipmentCharge || 500;
           const details = await calcTotalAsync(
             {
               service: state.service,
@@ -79,6 +123,9 @@ export function BookingSummaryV2() {
               bathrooms: state.bathrooms || 0,
               extras: state.extras || [],
               extrasQuantities: state.extrasQuantities || {},
+              carpetDetails: state.carpetDetails,
+              provideEquipment: state.provideEquipment,
+              equipmentCharge: equipmentCharge,
             },
             state.frequency || 'one-time'
           );
@@ -92,11 +139,25 @@ export function BookingSummaryV2() {
     };
 
     fetchPricing();
-  }, [state.service, state.bedrooms, state.bathrooms, extrasKey, state.frequency, state.extrasQuantities]);
+  }, [state.service, state.bedrooms, state.bathrooms, extrasKey, state.frequency, state.extrasQuantities, state.provideEquipment, formData?.equipment?.charge]);
 
-  // Fetch cleaner details when cleaner_id is available
+  // Use stored cleaner data if available, otherwise fetch
   useEffect(() => {
     if (state.cleaner_id && !state.requires_team) {
+      // First check if we have the cleaner data already stored
+      if (state.selectedCleaner && state.selectedCleaner.id === state.cleaner_id) {
+        setSelectedCleaner({
+          id: state.selectedCleaner.id,
+          name: state.selectedCleaner.name,
+          photo_url: state.selectedCleaner.photo_url,
+          rating: state.selectedCleaner.rating,
+          years_experience: state.selectedCleaner.years_experience,
+        });
+        setIsLoadingCleaner(false);
+        return;
+      }
+      
+      // If not stored, fetch it (fallback for edge cases)
       setIsLoadingCleaner(true);
       fetch(`/api/cleaners?id=${state.cleaner_id}`)
         .then((res) => res.json())
@@ -109,8 +170,9 @@ export function BookingSummaryV2() {
         .finally(() => setIsLoadingCleaner(false));
     } else {
       setSelectedCleaner(null);
+      setIsLoadingCleaner(false);
     }
-  }, [state.cleaner_id, state.requires_team]);
+  }, [state.cleaner_id, state.requires_team, state.selectedCleaner]);
 
   const total = pricingDetails?.total || 0;
 
@@ -152,6 +214,49 @@ export function BookingSummaryV2() {
               </Badge>
             </div>
 
+          {/* Carpet Details - Show when Carpet service is selected */}
+          {state.service === 'Carpet' && state.carpetDetails && (
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900 mb-3">Carpet Details</h3>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600">Carpet Type</span>
+                  <span className="font-medium text-slate-900 text-right">
+                    {state.carpetDetails.hasFittedCarpets && state.carpetDetails.hasLooseCarpets
+                      ? 'Fitted & Loose'
+                      : state.carpetDetails.hasFittedCarpets
+                      ? 'Fitted Carpets'
+                      : state.carpetDetails.hasLooseCarpets
+                      ? 'Loose Carpets/Rugs'
+                      : 'Not specified'}
+                  </span>
+                </div>
+                {state.carpetDetails.hasFittedCarpets && state.carpetDetails.numberOfRooms > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-600">Rooms with Fitted Carpets</span>
+                    <span className="font-medium text-slate-900">
+                      {state.carpetDetails.numberOfRooms} {state.carpetDetails.numberOfRooms === 1 ? 'Room' : 'Rooms'}
+                    </span>
+                  </div>
+                )}
+                {state.carpetDetails.hasLooseCarpets && state.carpetDetails.numberOfLooseCarpets > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-600">Loose Carpets/Rugs</span>
+                    <span className="font-medium text-slate-900">
+                      {state.carpetDetails.numberOfLooseCarpets} {state.carpetDetails.numberOfLooseCarpets === 1 ? 'Item' : 'Items'}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600">Room Status</span>
+                  <span className="font-medium text-slate-900">
+                    {state.carpetDetails.roomStatus === 'empty' ? 'Empty' : 'Has Property'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Price Breakdown */}
           {servicePricing && (
             <div>
@@ -161,12 +266,44 @@ export function BookingSummaryV2() {
                   <span className="text-slate-600">Base Price</span>
                   <span className="font-medium text-slate-900">R{servicePricing.base.toFixed(2)}</span>
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-600">Bedrooms & Bathrooms ({state.bedrooms || 0} bed, {state.bathrooms || 0} bath)</span>
-                  <span className="font-medium text-slate-900">
-                    R{(((state.bedrooms || 0) * servicePricing.bedroom) + ((state.bathrooms || 0) * servicePricing.bathroom)).toFixed(2)}
-                  </span>
-                </div>
+                {state.service !== 'Carpet' && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-600">Bedrooms & Bathrooms ({state.bedrooms || 0} bed, {state.bathrooms || 0} bath)</span>
+                    <span className="font-medium text-slate-900">
+                      R{(((state.bedrooms || 0) * servicePricing.bedroom) + ((state.bathrooms || 0) * servicePricing.bathroom)).toFixed(2)}
+                    </span>
+                  </div>
+                )}
+                {state.service === 'Carpet' && state.carpetDetails && (
+                  <>
+                    {state.carpetDetails.hasFittedCarpets && state.carpetDetails.numberOfRooms > 0 && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-600">
+                          Fitted Carpets ({state.carpetDetails.numberOfRooms} {state.carpetDetails.numberOfRooms === 1 ? 'room' : 'rooms'} × R300)
+                        </span>
+                        <span className="font-medium text-slate-900">
+                          R{(state.carpetDetails.numberOfRooms * 300).toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    {state.carpetDetails.hasLooseCarpets && state.carpetDetails.numberOfLooseCarpets > 0 && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-600">
+                          Loose Carpets/Rugs ({state.carpetDetails.numberOfLooseCarpets} {state.carpetDetails.numberOfLooseCarpets === 1 ? 'item' : 'items'} × R200)
+                        </span>
+                        <span className="font-medium text-slate-900">
+                          R{(state.carpetDetails.numberOfLooseCarpets * 200).toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    {state.carpetDetails.roomStatus === 'hasProperty' && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-600">Property Move Fee (Extra Person)</span>
+                        <span className="font-medium text-slate-900">R250.00</span>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -180,6 +317,34 @@ export function BookingSummaryV2() {
                 <span className="font-medium text-slate-900">
                   R{extrasTotal.toFixed(2)}
                 </span>
+              </div>
+            </div>
+          )}
+
+          {/* Equipment & Supplies */}
+          {state.provideEquipment && (state.service === 'Standard' || state.service === 'Airbnb') && (
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900 mb-2">Equipment & Supplies</h3>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600">Equipment & Supplies</span>
+                  <span className="font-medium text-slate-900">
+                    R{((formData?.equipment?.charge || PRICING.equipmentCharge || 500)).toFixed(2)}
+                  </span>
+                </div>
+                {formData?.equipment?.items && formData.equipment.items.length > 0 && (
+                  <div className="mt-2 pl-2 border-l-2 border-blue-200">
+                    <p className="text-xs text-slate-600 mb-1">Included items:</p>
+                    <ul className="space-y-1">
+                      {formData.equipment.items.map((item, index) => (
+                        <li key={index} className="text-xs text-slate-600 flex items-center gap-1">
+                          <span className="text-blue-600">•</span>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </div>
           )}
