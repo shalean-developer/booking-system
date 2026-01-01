@@ -111,7 +111,7 @@ export default function SitemapPage() {
               Site <span className="text-primary">Map</span>
             </h1>
             <p className="mx-auto mb-8 max-w-3xl text-xl text-gray-600">
-              Find all our pages and services organized by category for easy navigation.
+              Find all our pages and services organized by category for easy navigation. Browse our <Link href="/services" className="text-primary hover:underline">cleaning services</Link>, explore <Link href="/location" className="text-primary hover:underline">service locations</Link>, or <Link href="/booking/service/select" className="text-primary hover:underline">book a cleaning</Link> today.
             </p>
           </div>
         </div>

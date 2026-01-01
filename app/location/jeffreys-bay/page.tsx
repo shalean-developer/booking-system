@@ -60,7 +60,7 @@ export default function JeffreysBayPage() {
             </h1>
             <p className="mx-auto mb-8 max-w-3xl text-xl text-gray-600">
               Professional cleaning services available throughout Jeffreys Bay.
-              Book your trusted cleaner today!
+              Book your trusted cleaner today! We also serve <Link href="/location/east-london" className="text-primary hover:underline">East London</Link>, <Link href="/location/port-elizabeth" className="text-primary hover:underline">Port Elizabeth</Link>, and <Link href="/location/grahamstown" className="text-primary hover:underline">Grahamstown</Link>. Explore our <Link href="/services" className="text-primary hover:underline">cleaning services</Link> including <Link href="/services/regular-cleaning" className="text-primary hover:underline">regular cleaning</Link>, <Link href="/services/deep-cleaning" className="text-primary hover:underline">deep cleaning</Link>, and <Link href="/services/move-turnover" className="text-primary hover:underline">move-in/out cleaning</Link>.
             </p>
             <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-8 py-4 text-lg" asChild>
               <Link href="/booking/service/select">

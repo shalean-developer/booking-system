@@ -78,7 +78,7 @@ export default function PostConstructionCleaningServicePage() {
   return (
     <ServicePageTemplate
       title="Professional Post-Construction Cleaning Services in Cape Town"
-      description="Transform your construction site into a pristine space with Shalean's post-construction cleaning in Cape Town. Our professional team removes all dust, debris, and construction residue. Trusted cleaners ensuring your property is move-in ready."
+      description="Transform your construction site into a pristine space with Shalean's post-construction cleaning in Cape Town, Johannesburg, Pretoria, Durban, East London, Port Elizabeth, Jeffreys Bay, Grahamstown, and throughout South Africa. Our professional team removes all dust, debris, and construction residue. Trusted cleaners ensuring your property is move-in ready."
       icon={Building}
       features={features}
       pricing="From R500"

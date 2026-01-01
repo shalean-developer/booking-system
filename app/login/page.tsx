@@ -163,7 +163,7 @@ function LoginForm() {
                 Sign In
               </h1>
               <p className="text-gray-600 text-sm md:text-base">
-                Access your account to manage bookings and preferences
+                Access your account to manage bookings and preferences. New to Shalean? <Link href="/" className="text-primary hover:underline">Visit our homepage</Link> to learn about our <Link href="/services" className="text-primary hover:underline">cleaning services</Link> in <Link href="/location" className="text-primary hover:underline">locations</Link> across South Africa.
               </p>
             </div>
 

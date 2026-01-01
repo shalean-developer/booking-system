@@ -78,7 +78,7 @@ export default function OneTimeCleaningServicePage() {
   return (
     <ServicePageTemplate
       title="Professional One-Time Cleaning Services in Cape Town"
-      description="Need a single deep clean? Shalean Cleaning Services offers professional one-time cleaning in Cape Town. Our trusted team provides comprehensive cleaning for homes and offices. Perfect for special occasions, spring cleaning, or when you need extra help."
+      description="Need a single deep clean? Shalean Cleaning Services offers professional one-time cleaning in Cape Town, Johannesburg, Pretoria, Durban, East London, Port Elizabeth, Jeffreys Bay, Grahamstown, and throughout South Africa. Our trusted team provides comprehensive cleaning for homes and offices. Perfect for special occasions, spring cleaning, or when you need extra help."
       icon={Calendar}
       features={features}
       pricing="From R250"
