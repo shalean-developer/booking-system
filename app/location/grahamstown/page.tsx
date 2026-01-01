@@ -102,6 +102,94 @@ export default function GrahamstownPage() {
         </div>
       </section>
 
+      {/* Related Locations Section */}
+      <section className="py-16 bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              Other Eastern Cape Locations
+            </h2>
+            <p className="text-lg text-gray-600">
+              We also provide professional cleaning services in other Eastern Cape cities.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <MapPin className="h-6 w-6 text-primary" />
+                  <h3 className="text-xl font-semibold text-gray-900">East London</h3>
+                </div>
+                <p className="text-gray-600 mb-4">Professional cleaning services throughout East London.</p>
+                <Button asChild variant="outline" className="w-full border-primary text-primary hover:bg-primary/10">
+                  <Link href="/location/east-london">View East London Services</Link>
+                </Button>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <MapPin className="h-6 w-6 text-primary" />
+                  <h3 className="text-xl font-semibold text-gray-900">Port Elizabeth</h3>
+                </div>
+                <p className="text-gray-600 mb-4">Expert cleaners available in Port Elizabeth.</p>
+                <Button asChild variant="outline" className="w-full border-primary text-primary hover:bg-primary/10">
+                  <Link href="/location/port-elizabeth">View Port Elizabeth Services</Link>
+                </Button>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <MapPin className="h-6 w-6 text-primary" />
+                  <h3 className="text-xl font-semibold text-gray-900">Jeffreys Bay</h3>
+                </div>
+                <p className="text-gray-600 mb-4">Trusted cleaning services in Jeffreys Bay.</p>
+                <Button asChild variant="outline" className="w-full border-primary text-primary hover:bg-primary/10">
+                  <Link href="/location/jeffreys-bay">View Jeffreys Bay Services</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="text-center mt-8">
+            <Link href="/location">
+              <Button variant="outline" className="border-primary text-primary hover:bg-primary/10">
+                View All Service Locations
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Additional Services Section */}
+      <section className="py-16 bg-gray-50">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              Explore All Our Services
+            </h2>
+            <p className="text-lg text-gray-600">
+              Discover our full range of professional cleaning services available in Grahamstown.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Link href="/services/one-time-cleaning" className="text-center p-4 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-primary transition-colors">One-Time Cleaning</h3>
+            </Link>
+            <Link href="/services/post-construction-cleaning" className="text-center p-4 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-primary transition-colors">Post-Construction</h3>
+            </Link>
+            <Link href="/services/airbnb-cleaning" className="text-center p-4 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-primary transition-colors">Airbnb Cleaning</h3>
+            </Link>
+            <Link href="/services" className="text-center p-4 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-primary transition-colors">All Services</h3>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Contact Section */}
       <section className="py-20 bg-gradient-to-br from-primary/5 to-primary/10">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
@@ -124,6 +212,15 @@ export default function GrahamstownPage() {
                 +27 87 153 5250
               </a>
             </Button>
+          </div>
+          <div className="mt-8 flex flex-wrap justify-center gap-4 text-sm">
+            <Link href="/testimonials" className="text-primary hover:underline">Read Testimonials</Link>
+            <span className="text-gray-400">•</span>
+            <Link href="/blog" className="text-primary hover:underline">Cleaning Tips & Blog</Link>
+            <span className="text-gray-400">•</span>
+            <Link href="/faq" className="text-primary hover:underline">FAQ</Link>
+            <span className="text-gray-400">•</span>
+            <Link href="/how-it-works" className="text-primary hover:underline">How It Works</Link>
           </div>
         </div>
       </section>

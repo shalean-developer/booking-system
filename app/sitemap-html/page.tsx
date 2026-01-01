@@ -35,7 +35,9 @@ export default function SitemapPage() {
     { name: "Office Cleaning", href: "/services/office-cleaning" },
     { name: "Apartment Cleaning", href: "/services/apartment-cleaning" },
     { name: "Window Cleaning", href: "/services/window-cleaning" },
-    { name: "Home Maintenance", href: "/services/home-maintenance" }
+    { name: "Home Maintenance", href: "/services/home-maintenance" },
+    { name: "One-Time Cleaning", href: "/services/one-time-cleaning" },
+    { name: "Post-Construction Cleaning", href: "/services/post-construction-cleaning" }
   ];
 
   const locations = [
@@ -43,7 +45,11 @@ export default function SitemapPage() {
     { name: "Cape Town", href: "/location/cape-town" },
     { name: "Johannesburg", href: "/location/johannesburg" },
     { name: "Pretoria", href: "/location/pretoria" },
-    { name: "Durban", href: "/location/durban" }
+    { name: "Durban", href: "/location/durban" },
+    { name: "Port Elizabeth", href: "/location/port-elizabeth" },
+    { name: "East London", href: "/location/east-london" },
+    { name: "Jeffreys Bay", href: "/location/jeffreys-bay" },
+    { name: "Grahamstown", href: "/location/grahamstown" }
   ];
 
   const capeTownAreas = [

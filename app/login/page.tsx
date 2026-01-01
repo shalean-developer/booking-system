@@ -312,6 +312,27 @@ function LoginForm() {
                 Privacy Policy
               </Link>
             </div>
+
+            {/* Additional Links */}
+            <div className="mt-8 pt-8 border-t border-gray-200">
+              <div className="text-center text-sm text-gray-600 mb-4">
+                <p className="mb-3">New to Shalean? Explore our services:</p>
+                <div className="flex flex-wrap justify-center gap-3">
+                  <Link href="/" className="text-primary hover:underline font-medium">Home</Link>
+                  <span className="text-gray-400">•</span>
+                  <Link href="/services" className="text-primary hover:underline font-medium">Services</Link>
+                  <span className="text-gray-400">•</span>
+                  <Link href="/location" className="text-primary hover:underline font-medium">Locations</Link>
+                  <span className="text-gray-400">•</span>
+                  <Link href="/how-it-works" className="text-primary hover:underline font-medium">How It Works</Link>
+                  <span className="text-gray-400">•</span>
+                  <Link href="/pricing" className="text-primary hover:underline font-medium">Pricing</Link>
+                </div>
+              </div>
+              <div className="text-center text-xs text-gray-500">
+                <Link href="/contact" className="text-primary hover:underline">Need help? Contact us</Link>
+              </div>
+            </div>
           </div>
         </div>
       </section>
