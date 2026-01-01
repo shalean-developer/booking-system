@@ -189,7 +189,7 @@ export function HomeContent() {
                 fill
                 className="object-cover"
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1280px"
-                priority={false}
+                priority={true}
               />
             </div>
           </div>

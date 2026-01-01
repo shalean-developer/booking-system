@@ -18,9 +18,9 @@ const inter = Inter({
 
 const playfairDisplay = Playfair_Display({
   subsets: ["latin"],
-  display: 'swap',
+  display: 'optional',
   variable: '--font-playfair',
-  style: ['italic', 'normal'],
+  // Only load normal style - italic can be achieved via CSS font-style
 });
 
 export const metadata: Metadata = {
@@ -161,6 +161,8 @@ export default function RootLayout({
         <link rel="preconnect" href="https://shalean.co.za" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://www.googletagmanager.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+        <link rel="dns-prefetch" href="https://www.google-analytics.com" />
+        <link rel="dns-prefetch" href="https://analytics.ahrefs.com" />
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
         <link rel="dns-prefetch" href="https://utfvbtcszzafuoyytlpf.supabase.co" />
         
@@ -173,60 +175,7 @@ export default function RootLayout({
           `
         }} />
         
-        {/* Async CSS Loading Script - Makes CSS non-blocking */}
-        <Script
-          id="async-css-loader"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                // Convert blocking CSS to non-blocking using media="print" trick
-                function makeCSSAsync() {
-                  var links = document.querySelectorAll('link[rel="stylesheet"]');
-                  links.forEach(function(link) {
-                    // Skip if already processed or not a Next.js CSS file
-                    if (link.hasAttribute('data-async-css')) return;
-                    var href = link.href || link.getAttribute('href');
-                    if (!href || !href.includes('_next/static')) return;
-                    
-                    // Mark as processed
-                    link.setAttribute('data-async-css', 'true');
-                    
-                    // Use media="print" trick to load CSS asynchronously
-                    var media = link.media || 'all';
-                    link.media = 'print';
-                    link.onload = function() {
-                      this.media = media;
-                    };
-                    // Fallback: set media back after load
-                    link.addEventListener('load', function() {
-                      this.media = media;
-                    });
-                    // Error fallback
-                    link.addEventListener('error', function() {
-                      this.media = media;
-                    });
-                  });
-                }
-                
-                // Run immediately and also after DOMContentLoaded
-                makeCSSAsync();
-                if (document.readyState === 'loading') {
-                  document.addEventListener('DOMContentLoaded', makeCSSAsync);
-                }
-                
-                // Also check periodically for dynamically added CSS (Next.js may add them)
-                var observer = new MutationObserver(function(mutations) {
-                  makeCSSAsync();
-                });
-                observer.observe(document.head, {
-                  childList: true,
-                  subtree: true
-                });
-              })();
-            `
-          }}
-        />
+        {/* CSS is optimized by Next.js automatically - no custom loader needed */}
         
         {/* Organization Schema for Brand Name Display */}
         <script
@@ -240,14 +189,14 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: stringifyStructuredData(websiteSchema) }}
         />
         
-        {/* Google Analytics (gtag.js) */}
+        {/* Google Analytics (gtag.js) - Deferred to lazyOnload for better performance */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-VV357GZWXM"
-          strategy="afterInteractive"
+          strategy="lazyOnload"
         />
         <Script
           id="google-analytics"
-          strategy="afterInteractive"
+          strategy="lazyOnload"
           dangerouslySetInnerHTML={{
             __html: `
               window.dataLayer = window.dataLayer || [];
@@ -258,11 +207,11 @@ export default function RootLayout({
           }}
         />
         
-        {/* Ahrefs Analytics */}
-        <script
+        {/* Ahrefs Analytics - Deferred to lazyOnload for better performance */}
+        <Script
           src="https://analytics.ahrefs.com/analytics.js"
           data-key="03pYd6IC2yPD0CqqG1dMTg"
-          async
+          strategy="lazyOnload"
         />
       </head>
       <body className={cn(inter.variable, playfairDisplay.variable, inter.className, "min-h-screen bg-slate-50")} suppressHydrationWarning>

@@ -100,8 +100,11 @@ export function Header({ variant = 'default' }: HeaderProps) {
   const bookingHook = useBookingV2();
   const bookingState = isBookingFlow ? bookingHook.state : { currentStep: 1 };
 
-  // Fetch services for dropdown
+  // Fetch services for dropdown - Deferred to prevent blocking initial render
   useEffect(() => {
+    if (isBookingFlow) return;
+    
+    // Defer API call until after initial render and when browser is idle
     const fetchServices = async () => {
       try {
         const response = await fetch('/api/services/popular');
@@ -114,8 +117,12 @@ export function Header({ variant = 'default' }: HeaderProps) {
       }
     };
     
-    if (!isBookingFlow) {
-      fetchServices();
+    // Use requestIdleCallback if available, otherwise delay by 1 second
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      (window as any).requestIdleCallback(fetchServices, { timeout: 2000 });
+    } else {
+      // Fallback: delay fetch until after initial render
+      setTimeout(fetchServices, 1000);
     }
   }, [isBookingFlow]);
 
