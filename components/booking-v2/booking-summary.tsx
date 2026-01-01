@@ -151,7 +151,7 @@ export function BookingSummaryV2() {
           name: state.selectedCleaner.name,
           photo_url: state.selectedCleaner.photo_url,
           rating: state.selectedCleaner.rating,
-          years_experience: state.selectedCleaner.years_experience,
+          years_experience: state.selectedCleaner.years_experience ?? null,
         });
         setIsLoadingCleaner(false);
         return;
