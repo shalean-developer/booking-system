@@ -151,7 +151,15 @@ export function BookingSummaryV2() {
           name: state.selectedCleaner.name,
           photo_url: state.selectedCleaner.photo_url,
           rating: state.selectedCleaner.rating,
+          areas: [],
+          bio: null,
           years_experience: state.selectedCleaner.years_experience ?? null,
+          specialties: null,
+          phone: null,
+          email: null,
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         });
         setIsLoadingCleaner(false);
         return;
@@ -163,7 +171,21 @@ export function BookingSummaryV2() {
         .then((res) => res.json())
         .then((data) => {
           if (data.ok && data.cleaner) {
-            setSelectedCleaner(data.cleaner);
+            setSelectedCleaner({
+              id: data.cleaner.id,
+              name: data.cleaner.name,
+              photo_url: data.cleaner.photo_url,
+              rating: data.cleaner.rating,
+              areas: [],
+              bio: null,
+              years_experience: data.cleaner.years_experience ?? null,
+              specialties: null,
+              phone: null,
+              email: null,
+              is_active: true,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
           }
         })
         .catch(() => {})
