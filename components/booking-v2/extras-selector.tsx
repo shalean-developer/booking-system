@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { EXTRA_ICONS } from '@/components/extra-service-icons';
+import { PRICING } from '@/lib/pricing';
 import {
   fallbackAllExtrasList,
   fallbackQuantityExtras,
@@ -63,7 +64,7 @@ export function ExtrasSelector({
           const isSelected = selectedExtras.includes(extra);
           const extraKey = extra as keyof typeof EXTRA_ICONS;
           const IconComponent = EXTRA_ICONS[extraKey];
-          const isQuantityExtra = quantityExtrasSet.has(extra);
+          const isQuantityExtra = quantityExtrasSet.has(extra as keyof typeof PRICING.extras);
           const quantity = extrasQuantities[extra] ?? (isSelected ? DEFAULT_QUANTITY : 0);
 
           return (
