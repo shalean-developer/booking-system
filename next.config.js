@@ -12,6 +12,8 @@ const nextConfig = {
   // Note: --webpack flag is set in package.json dev script
   // Empty turbopack config to silence build error (builds will still use webpack)
   turbopack: {},
+  // Enable SWC minification for better performance (enabled by default in Next.js 13+)
+  swcMinify: true,
   images: {
     // Remote patterns for external images
     remotePatterns: [
@@ -644,7 +646,17 @@ const nextConfig = {
   // Experimental optimizations
   experimental: {
     optimizeCss: true,
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons', 'framer-motion'],
+    optimizePackageImports: [
+      'lucide-react', 
+      '@radix-ui/react-icons', 
+      'framer-motion',
+      '@radix-ui/react-accordion',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-select',
+      '@radix-ui/react-tabs',
+      'date-fns',
+    ],
   },
   // Compiler options for modern JavaScript
   compiler: {
@@ -677,6 +689,9 @@ const nextConfig = {
         ...config.optimization,
         splitChunks: {
           chunks: 'all',
+          maxInitialRequests: 25,
+          minSize: 20000,
+          maxSize: 250000,
           cacheGroups: {
             default: {
               minChunks: 2,
@@ -688,32 +703,57 @@ const nextConfig = {
               name: 'vendors',
               priority: -10,
               reuseExistingChunk: true,
+              enforce: true,
             },
-            // Separate large libraries into their own chunks
-            // Note: framer-motion chunk splitting removed to prevent loading race conditions
-            // framerMotion: {
-            //   test: /[\\/]node_modules[\\/]framer-motion[\\/]/,
-            //   name: 'framer-motion',
-            //   priority: 20,
-            //   reuseExistingChunk: true,
-            // },
+            // Separate large libraries into their own chunks for better code splitting
+            framerMotion: {
+              test: /[\\/]node_modules[\\/]framer-motion[\\/]/,
+              name: 'framer-motion',
+              priority: 20,
+              reuseExistingChunk: true,
+              enforce: true,
+            },
             recharts: {
               test: /[\\/]node_modules[\\/]recharts[\\/]/,
               name: 'recharts',
               priority: 20,
               reuseExistingChunk: true,
+              enforce: true,
             },
             radixUI: {
               test: /[\\/]node_modules[\\/]@radix-ui[\\/]/,
               name: 'radix-ui',
               priority: 15,
               reuseExistingChunk: true,
+              enforce: true,
             },
             sonner: {
               test: /[\\/]node_modules[\\/]sonner[\\/]/,
               name: 'sonner',
               priority: 20,
               reuseExistingChunk: true,
+              enforce: true,
+            },
+            react: {
+              test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+              name: 'react',
+              priority: 25,
+              reuseExistingChunk: true,
+              enforce: true,
+            },
+            supabase: {
+              test: /[\\/]node_modules[\\/]@supabase[\\/]/,
+              name: 'supabase',
+              priority: 15,
+              reuseExistingChunk: true,
+              enforce: true,
+            },
+            dndKit: {
+              test: /[\\/]node_modules[\\/]@dnd-kit[\\/]/,
+              name: 'dnd-kit',
+              priority: 15,
+              reuseExistingChunk: true,
+              enforce: true,
             },
           },
         },

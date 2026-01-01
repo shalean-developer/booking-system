@@ -11,14 +11,16 @@ const inter = Inter({
   subsets: ["latin"],
   display: 'swap',
   preload: true,
-  fallback: ['system-ui', 'arial'],
+  fallback: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'arial', 'sans-serif'],
   adjustFontFallback: true,
   variable: '--font-inter',
 });
 
 const playfairDisplay = Playfair_Display({
   subsets: ["latin"],
-  display: 'optional',
+  display: 'swap',
+  preload: false, // Load on demand since it's used less frequently
+  fallback: ['serif'],
   variable: '--font-playfair',
   // Only load normal style - italic can be achieved via CSS font-style
 });
@@ -159,12 +161,22 @@ export default function RootLayout({
       <head>
         {/* Resource Hints for Performance - Preconnect for critical origins */}
         <link rel="preconnect" href="https://shalean.co.za" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://www.googletagmanager.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
         <link rel="dns-prefetch" href="https://www.google-analytics.com" />
         <link rel="dns-prefetch" href="https://analytics.ahrefs.com" />
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
         <link rel="dns-prefetch" href="https://utfvbtcszzafuoyytlpf.supabase.co" />
+        
+        {/* Preload critical images for LCP optimization */}
+        <link 
+          rel="preload" 
+          href="/images/office-cleaning-team.jpg" 
+          as="image" 
+          fetchPriority="high"
+        />
         
         {/* Critical CSS - Minimal styles for above-the-fold content */}
         <style dangerouslySetInnerHTML={{

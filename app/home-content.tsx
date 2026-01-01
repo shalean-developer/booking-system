@@ -189,7 +189,9 @@ export function HomeContent() {
                 fill
                 className="object-cover"
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1280px"
-                priority={true}
+                priority
+                fetchPriority="high"
+                quality={85}
               />
             </div>
           </div>
