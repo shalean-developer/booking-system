@@ -67,7 +67,7 @@ export function StepScheduleCleaner() {
 
         const data = await response.json();
         if (response.ok && data.ok && data.favorites) {
-          const favoriteIds = new Set(data.favorites.map((fav: any) => fav.cleaner_id));
+          const favoriteIds = new Set<string>(data.favorites.map((fav: any) => fav.cleaner_id as string));
           setFavoriteCleanerIds(favoriteIds);
         }
       } catch (err) {
@@ -217,7 +217,7 @@ export function StepScheduleCleaner() {
         name: cleaner.name,
         photo_url: cleaner.photo_url || null,
         rating: cleaner.rating || 0,
-        years_experience: cleaner.years_experience,
+        years_experience: cleaner.years_experience ?? undefined,
       });
     }
   }, [updateField, cleaners]);

@@ -2,6 +2,7 @@ import type { ServiceType } from '@/types/booking';
 import type { LucideIcon } from 'lucide-react';
 import { Home, Building, Star, Calendar } from 'lucide-react';
 import { PRICING } from '@/lib/pricing';
+import type { BookingFormService } from '@/lib/useBookingFormData';
 
 // Icon name to component mapping
 export const iconMap: Record<string, LucideIcon> = {
@@ -12,17 +13,7 @@ export const iconMap: Record<string, LucideIcon> = {
 };
 
 // Fallback services (used when database is unavailable)
-export const fallbackServices: {
-  type: ServiceType;
-  label: string;
-  subLabel: string;
-  description: string;
-  checklist: string[];
-  badge?: 'Popular' | 'New';
-  icon: LucideIcon;
-  image: string;
-  displayOrder: number;
-}[] = [
+export const fallbackServices: BookingFormService[] = [
   {
     type: 'Standard',
     label: 'Standard Cleaning',
@@ -36,7 +27,7 @@ export const fallbackServices: {
       'Dusting, vacuuming and mopping throughout the home',
       'Beds made plus general tidy of living spaces',
     ],
-    icon: Home,
+    icon: 'Home',
     displayOrder: 0,
   },
   {
@@ -51,7 +42,7 @@ export const fallbackServices: {
       'Baseboards, skirting and door frames wiped down',
       'Built-up grime and limescale treated throughout',
     ],
-    icon: Star,
+    icon: 'Star',
     displayOrder: 1,
   },
   {
@@ -66,7 +57,7 @@ export const fallbackServices: {
       'Walls, switches and skirting wiped for scuff marks',
       'Floors vacuumed and mopped in every room',
     ],
-    icon: Building,
+    icon: 'Building',
     displayOrder: 2,
   },
   {
@@ -81,7 +72,7 @@ export const fallbackServices: {
       'Kitchen tidied with dishes done and surfaces sanitised',
       'Amenities restocked and space lightly staged for arrivals',
     ],
-    icon: Calendar,
+    icon: 'Calendar',
     displayOrder: 3,
   },
 ];

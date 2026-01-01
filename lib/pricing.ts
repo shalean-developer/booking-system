@@ -465,9 +465,8 @@ export async function calcTotalAsync(
       if (input.equipmentCharge) {
         equipmentCharge = input.equipmentCharge;
       } else {
-        // Fetch from database pricing
-        const equipmentChargeData = pricing.equipmentCharge ?? PRICING.equipmentCharge ?? 500;
-        equipmentCharge = equipmentChargeData;
+        // Equipment charge is only in fallback PRICING (not in database)
+        equipmentCharge = PRICING.equipmentCharge ?? 500;
       }
     }
 

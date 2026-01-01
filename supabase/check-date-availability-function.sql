@@ -22,6 +22,8 @@ DECLARE
   v_team_bookings RECORD;
   v_available_teams TEXT[] := ARRAY[]::TEXT[];
   v_all_teams TEXT[] := ARRAY['Team A', 'Team B', 'Team C'];
+  v_surge_active BOOLEAN := false;
+  v_surge_pct DECIMAL := NULL;
 BEGIN
   -- Get scheduling limits for this service type
   SELECT 
@@ -92,28 +94,26 @@ BEGIN
       AND status != 'cancelled';
 
     -- Check if surge pricing is active
-    DECLARE
-      v_surge_active BOOLEAN := false;
-      v_surge_pct DECIMAL := NULL;
-    BEGIN
-      IF v_limit_record.surge_pricing_enabled 
-         AND v_limit_record.surge_threshold IS NOT NULL 
-         AND v_booking_count >= v_limit_record.surge_threshold THEN
-        v_surge_active := true;
-        v_surge_pct := v_limit_record.surge_percentage;
-      END IF;
+    v_surge_active := false;
+    v_surge_pct := NULL;
+    
+    IF v_limit_record.surge_pricing_enabled 
+       AND v_limit_record.surge_threshold IS NOT NULL 
+       AND v_booking_count >= v_limit_record.surge_threshold THEN
+      v_surge_active := true;
+      v_surge_pct := v_limit_record.surge_percentage;
+    END IF;
 
-      -- Available if under max bookings
-      RETURN QUERY SELECT 
-        (v_booking_count < v_limit_record.max_bookings_per_date)::BOOLEAN,
-        GREATEST(0, v_limit_record.max_bookings_per_date - v_booking_count)::INTEGER,
-        v_booking_count::INTEGER,
-        v_limit_record.max_bookings_per_date::INTEGER,
-        v_surge_active::BOOLEAN,
-        v_surge_pct,
-        false::BOOLEAN,
-        ARRAY[]::TEXT[];
-    END;
+    -- Available if under max bookings
+    RETURN QUERY SELECT 
+      (v_booking_count < v_limit_record.max_bookings_per_date)::BOOLEAN,
+      GREATEST(0, v_limit_record.max_bookings_per_date - v_booking_count)::INTEGER,
+      v_booking_count::INTEGER,
+      v_limit_record.max_bookings_per_date::INTEGER,
+      v_surge_active::BOOLEAN,
+      v_surge_pct,
+      false::BOOLEAN,
+      ARRAY[]::TEXT[];
   END IF;
 END;
 $$ LANGUAGE plpgsql;

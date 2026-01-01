@@ -46,6 +46,7 @@ const extrasMeta: Record<keyof typeof PRICING.extras, { blurb: string }> = {
   'Garage Cleaning': { blurb: 'Sweep, dust and organise your garage floor' },
   'Balcony Cleaning': { blurb: 'Wash floors, railings and outdoor furniture' },
   'Couch Cleaning': { blurb: 'Refresh upholstery with fabric-safe cleaner' },
+  'Mattress Cleaning': { blurb: 'Deep clean and sanitize mattresses' },
   'Outside Window Cleaning': { blurb: 'Exterior glass and frames washed' },
 };
 
