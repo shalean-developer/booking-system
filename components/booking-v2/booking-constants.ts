@@ -21,6 +21,7 @@ export const fallbackServices: {
   badge?: 'Popular' | 'New';
   icon: LucideIcon;
   image: string;
+  displayOrder: number;
 }[] = [
   {
     type: 'Standard',
@@ -36,6 +37,7 @@ export const fallbackServices: {
       'Beds made plus general tidy of living spaces',
     ],
     icon: Home,
+    displayOrder: 0,
   },
   {
     type: 'Deep',
@@ -50,6 +52,7 @@ export const fallbackServices: {
       'Built-up grime and limescale treated throughout',
     ],
     icon: Star,
+    displayOrder: 1,
   },
   {
     type: 'Move In/Out',
@@ -64,6 +67,7 @@ export const fallbackServices: {
       'Floors vacuumed and mopped in every room',
     ],
     icon: Building,
+    displayOrder: 2,
   },
   {
     type: 'Airbnb',
@@ -78,6 +82,7 @@ export const fallbackServices: {
       'Amenities restocked and space lightly staged for arrivals',
     ],
     icon: Calendar,
+    displayOrder: 3,
   },
 ];
 
