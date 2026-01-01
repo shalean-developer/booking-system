@@ -226,6 +226,8 @@ export async function POST(req: Request) {
               service_fee: (body.serviceFee || 0) * 100,
               frequency_discount: (body.frequencyDiscount || 0) * 100,
               price_snapshot: priceSnapshot,
+              provide_equipment: (body as any).provideEquipment || false,
+              equipment_charge: (body as any).equipmentCharge ? ((body as any).equipmentCharge * 100) : 0,
               status: 'pending',
             })
             .select();

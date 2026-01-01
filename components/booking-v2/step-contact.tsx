@@ -86,25 +86,25 @@ export function StepContact() {
   }, [state.service, router, getSchedulePath]);
 
   const onSubmit = useCallback((data: ContactForm) => {
-    setState({
-      ...state,
+    setState((prevState) => ({
+      ...prevState,
       firstName: data.firstName,
       lastName: data.lastName,
       email: data.email,
       phone: data.phone,
       address: {
-        ...state.address,
+        ...prevState.address,
         line1: data.line1,
         line2: data.line2 || '',
         suburb: data.suburb,
         city: data.city,
       },
-    });
+    }));
     
     if (state.service) {
       router.push(getReviewPath(state.service));
     }
-  }, [state, setState, router, getReviewPath]);
+  }, [state.service, setState, router, getReviewPath]);
 
   return (
     <motion.div

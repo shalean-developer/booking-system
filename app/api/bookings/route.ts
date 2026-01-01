@@ -289,6 +289,74 @@ export async function POST(req: Request) {
         snapshot_date: new Date().toISOString(),
       };
 
+      // STEP 4.5: Check availability and apply surge pricing if needed
+      console.log('Step 4.5: Checking date availability and surge pricing...');
+      let surgePricingApplied = false;
+      let surgeAmount = 0;
+      let adjustedTotalAmount = body.totalAmount || 0;
+
+      if (body.date && body.service) {
+        try {
+          // Call the database function directly to check availability
+          const { data: availabilityData, error: availabilityError } = await supabase.rpc('check_date_availability', {
+            p_service_type: body.service,
+            p_booking_date: body.date,
+          });
+
+          if (availabilityError) {
+            console.error('⚠️ Error checking availability:', availabilityError);
+            // Continue with booking but log the error
+          } else if (availabilityData && availabilityData.length > 0) {
+            const availability = availabilityData[0];
+            
+            if (!availability.available) {
+              console.error('❌ Date is not available for booking');
+              return NextResponse.json(
+                { ok: false, error: 'This date is no longer available. Please select another date.' },
+                { status: 400 }
+              );
+            }
+
+            // Check if surge pricing is active for Standard/Airbnb services
+            if (availability.surge_pricing_active && availability.surge_percentage) {
+              console.log(`📈 Surge pricing active: ${availability.surge_percentage}% increase`);
+              const { calculateSurgePricing } = await import('@/lib/surge-pricing');
+              const surgeInfo = calculateSurgePricing(
+                adjustedTotalAmount,
+                availability.current_bookings,
+                availability.current_bookings >= 70 ? 70 : null,
+                Number(availability.surge_percentage)
+              );
+
+              if (surgeInfo.isActive) {
+                surgePricingApplied = true;
+                surgeAmount = surgeInfo.surgeAmount;
+                adjustedTotalAmount = surgeInfo.finalAmount;
+                console.log(`💰 Surge pricing applied: R${surgeAmount.toFixed(2)} (${surgeInfo.percentage}%)`);
+                console.log(`💰 Original: R${surgeInfo.originalAmount.toFixed(2)}, Final: R${adjustedTotalAmount.toFixed(2)}`);
+              }
+            }
+
+            // For team bookings, verify the selected team is available
+            if (body.service === 'Deep' || body.service === 'Move In/Out') {
+              if (body.selected_team && availability.available_teams) {
+                if (!availability.available_teams.includes(body.selected_team)) {
+                  console.error('❌ Selected team is not available');
+                  return NextResponse.json(
+                    { ok: false, error: `${body.selected_team} is not available on this date. Please select another team or date.` },
+                    { status: 400 }
+                  );
+                }
+              }
+            }
+          }
+        } catch (availabilityError) {
+          console.error('⚠️ Error checking availability:', availabilityError);
+          // Continue with booking but log the error
+          // In production, you might want to fail here for safety
+        }
+      }
+
       // Check if this is a team-based booking
       const requiresTeam = body.service === 'Deep' || body.service === 'Move In/Out';
       
@@ -355,10 +423,12 @@ export async function POST(req: Request) {
           address_suburb: body.address.suburb,
           address_city: body.address.city,
           payment_reference: body.paymentReference,
-          total_amount: (body.totalAmount || 0) * 100, // Convert rands to cents (includes tip)
+          total_amount: Math.round(adjustedTotalAmount * 100), // Convert rands to cents (includes tip and surge)
           tip_amount: tipAmountInCents, // Store tip separately (goes 100% to cleaner)
           cleaner_earnings: cleanerEarnings,
           requires_team: requiresTeam, // Flag for team-based bookings
+          surge_pricing_applied: surgePricingApplied,
+          surge_amount: Math.round(surgeAmount * 100), // Store surge amount in cents
           frequency: frequencyForDb, // One-time bookings must be NULL
           service_fee: (body.serviceFee || 0) * 100, // Convert rands to cents
           frequency_discount: (body.frequencyDiscount || 0) * 100, // Convert rands to cents

@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { motion } from 'framer-motion';
-import { Calendar, MapPin, Clock, Home, User, Mail, Phone, FileText, Loader2, CreditCard, AlertCircle, Shield, Star, Pencil } from 'lucide-react';
+import { Calendar, Clock, Home, User, Mail, Phone, Loader2, CreditCard, AlertCircle, Shield, Star, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { Cleaner } from '@/types/booking';
@@ -86,10 +86,11 @@ export function StepReview() {
         bathrooms: state.bathrooms,
         extras: state.extras || [],
         extrasQuantities: state.extrasQuantities,
+        carpetDetails: state.carpetDetails,
       },
       state.frequency || 'one-time'
     );
-  }, [state.service, state.bedrooms, state.bathrooms, state.extras, state.extrasQuantities, state.frequency]);
+  }, [state.service, state.bedrooms, state.bathrooms, state.extras, state.extrasQuantities, state.frequency, state.carpetDetails]);
 
   const extrasDisplay = useMemo(() => {
     return state.extras.map((extra) => {
@@ -168,48 +169,26 @@ export function StepReview() {
 
   useEffect(() => {
     if (state.cleaner_id && !state.requires_team && state.cleaner_id !== 'manual') {
-      console.log('🔄 Fetching cleaner:', {
-        cleaner_id: state.cleaner_id,
-        requires_team: state.requires_team,
-      });
-      
       setIsLoadingCleaner(true);
       setSelectedCleaner(null);
       
       fetch(`/api/cleaners?id=${state.cleaner_id}`)
         .then(async (res) => {
-          console.log('📡 API Response status:', res.status, res.statusText);
           const data = await res.json();
-          console.log('📦 API Response data:', data);
           
           if (res.ok && data.ok && data.cleaner) {
-            console.log('✅ Cleaner found:', data.cleaner);
             setSelectedCleaner(data.cleaner);
           } else {
-            console.warn('⚠️ Cleaner not found or error:', {
-              resOk: res.ok,
-              dataOk: data.ok,
-              hasCleaner: !!data.cleaner,
-              error: data.error,
-              fullData: data,
-            });
             setSelectedCleaner(null);
           }
         })
-        .catch((error) => {
-          console.error('❌ Failed to fetch cleaner:', error);
+        .catch(() => {
           setSelectedCleaner(null);
         })
         .finally(() => {
-          console.log('🏁 Loading complete');
           setIsLoadingCleaner(false);
         });
     } else {
-      console.log('⏭️ Skipping cleaner fetch:', {
-        hasCleanerId: !!state.cleaner_id,
-        requires_team: state.requires_team,
-        cleaner_id: state.cleaner_id,
-      });
       setSelectedCleaner(null);
       setIsLoadingCleaner(false);
     }
@@ -223,7 +202,6 @@ export function StepReview() {
 
   // Handle payment success
   const handlePaymentSuccess = useCallback(async (reference: string) => {
-    console.log('✅ Payment successful, reference:', reference);
     setIsProcessingPayment(true);
     setPaymentReference(reference);
     setPaymentError(null);
@@ -239,13 +217,10 @@ export function StepReview() {
       const verifyData = await verifyResponse.json();
 
       if (!verifyResponse.ok || !verifyData.ok) {
-        console.error('❌ Payment verification failed:', verifyData);
         setPaymentError(verifyData.error || 'Payment verification failed. Please contact support if you were charged.');
         setIsProcessingPayment(false);
         return;
       }
-
-      console.log('✅ Payment verified, creating booking...');
 
       // Create booking with payment reference
       const bookingPayload = {
@@ -268,11 +243,8 @@ export function StepReview() {
       const bookingData = await bookingResponse.json();
 
       if (bookingResponse.ok && bookingData.ok) {
-        console.log('✅ Booking created successfully:', bookingData.bookingId);
-        
         // Redirect to confirmation page
         const confirmationUrl = getConfirmationPath(bookingData.bookingId);
-        console.log('✅ Redirecting to confirmation:', confirmationUrl);
         
         // Store booking reference before redirect
         sessionStorage.setItem('last_booking_ref', bookingData.bookingId);
@@ -281,12 +253,10 @@ export function StepReview() {
         // Redirect to confirmation page
         window.location.href = confirmationUrl;
       } else {
-        console.error('❌ Booking creation failed:', bookingData);
         setPaymentError(bookingData.error || 'Failed to create booking. Please contact support.');
         setIsProcessingPayment(false);
       }
     } catch (error) {
-      console.error('❌ Error processing payment:', error);
       setPaymentError('An error occurred while processing your booking. Please contact support if you were charged.');
       setIsProcessingPayment(false);
     }
@@ -300,82 +270,25 @@ export function StepReview() {
     setDiscountError(null);
 
     try {
-      let response: Response;
-      try {
-        response = await fetch('/api/discount-codes/validate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            code: discountCode.trim(),
-            service_type: state.service,
-            subtotal: pricingDetails.total,
-          }),
-        });
-      } catch (fetchError: any) {
-        // Network error (connection failed, CORS, etc.)
-        console.error('Network error validating discount code:', fetchError);
-        setDiscountError('Network error. Please check your connection and try again.');
-        setDiscountAmount(0);
-        setAppliedDiscount(null);
-        setIsValidatingDiscount(false);
-        return;
-      }
+      const response = await fetch('/api/discount-codes/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: discountCode.trim(),
+          service_type: state.service,
+          subtotal: pricingDetails.total,
+        }),
+      });
 
-      // Check content type first to avoid JSON parsing errors
-      const contentType = response.headers.get('content-type');
-      const isJson = contentType && contentType.includes('application/json');
-
-      // Check if response is OK
       if (!response.ok) {
-        let errorMessage = `HTTP error! status: ${response.status}`;
-        try {
-          if (isJson) {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorMessage;
-          } else {
-            const text = await response.text();
-            if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
-              errorMessage = 'API endpoint not found. Please restart the dev server or contact support.';
-            } else {
-              errorMessage = text || errorMessage;
-            }
-          }
-        } catch (parseError) {
-          errorMessage = response.statusText || errorMessage;
-        }
-        setDiscountError(errorMessage);
+        const errorData = await response.json().catch(() => ({ error: 'Failed to validate discount code' }));
+        setDiscountError(errorData.error || 'Failed to validate discount code');
         setDiscountAmount(0);
         setAppliedDiscount(null);
-        setIsValidatingDiscount(false);
         return;
       }
 
-      // Verify it's JSON before parsing
-      if (!isJson) {
-        const text = await response.text();
-        if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
-          setDiscountError('API endpoint not found. Please restart the dev server.');
-        } else {
-          setDiscountError('Invalid response from server. Please try again.');
-        }
-        setDiscountAmount(0);
-        setAppliedDiscount(null);
-        setIsValidatingDiscount(false);
-        return;
-      }
-
-      // Parse JSON response
-      let data;
-      try {
-        data = await response.json();
-      } catch (jsonError) {
-        console.error('JSON parsing error:', jsonError);
-        setDiscountError('Invalid response from server. Please try again.');
-        setDiscountAmount(0);
-        setAppliedDiscount(null);
-        setIsValidatingDiscount(false);
-        return;
-      }
+      const data = await response.json();
 
       if (data.ok && data.discount) {
         setDiscountAmount(data.discount.discount_amount);
@@ -391,8 +304,7 @@ export function StepReview() {
         setAppliedDiscount(null);
       }
     } catch (error: any) {
-      console.error('Error validating discount code:', error);
-      setDiscountError(error.message || 'Failed to validate discount code. Please try again.');
+      setDiscountError(error?.message || 'Network error. Please check your connection and try again.');
       setDiscountAmount(0);
       setAppliedDiscount(null);
     } finally {
@@ -409,7 +321,6 @@ export function StepReview() {
 
   // Handle payment close (user closed popup)
   const handlePaymentClose = useCallback(() => {
-    console.log('Payment popup closed');
     setIsProcessingPayment(false);
     // Don't show error if user just closed the popup
   }, []);
@@ -651,25 +562,9 @@ export function StepReview() {
                     <p className="text-xs font-semibold text-slate-900 mb-1">
                       Cleaner Selected
                     </p>
-                    <p className="text-xs text-slate-600 mb-2">
+                    <p className="text-xs text-slate-600">
                       Professional cleaner assigned
                     </p>
-                    {state.cleaner_id && (
-                      <div className="mt-2 pt-2 border-t border-slate-300">
-                        <p className="text-xs text-slate-500">
-                          <strong>Debug Info:</strong>
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Cleaner ID: {state.cleaner_id}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Loading: {isLoadingCleaner ? 'Yes' : 'No'}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Has Cleaner Data: {selectedCleaner ? 'Yes' : 'No'}
-                        </p>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>

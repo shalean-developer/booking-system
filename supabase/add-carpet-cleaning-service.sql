@@ -34,15 +34,17 @@ ON CONFLICT (service_type) DO UPDATE SET
   updated_at = NOW();
 
 -- Step 4: Insert Carpet Cleaning pricing
--- Base price for carpet cleaning (per room/area)
+-- Base price for carpet cleaning
 INSERT INTO pricing_config (service_type, price_type, item_name, price, effective_date, is_active, notes)
 VALUES
   -- Base price for carpet cleaning
-  ('Carpet', 'base', NULL, 350.00, CURRENT_DATE, true, 'Initial pricing - Carpet cleaning base price per room'),
-  -- Per bedroom rate (if applicable)
-  ('Carpet', 'bedroom', NULL, 50.00, CURRENT_DATE, true, 'Initial pricing - Carpet cleaning per additional bedroom'),
-  -- Per bathroom rate (if applicable) 
-  ('Carpet', 'bathroom', NULL, 0.00, CURRENT_DATE, true, 'Initial pricing - Carpet cleaning bathroom rate (not typically applicable)')
+  ('Carpet', 'base', NULL, 150.00, CURRENT_DATE, true, 'Base price for carpet cleaning service'),
+  -- Per fitted carpet room rate
+  ('Carpet', 'bedroom', NULL, 300.00, CURRENT_DATE, true, 'Price per fitted carpet room'),
+  -- Per loose carpet/rug rate
+  ('Carpet', 'bathroom', NULL, 200.00, CURRENT_DATE, true, 'Price per loose carpet/rug'),
+  -- Property move fee (extra person charge)
+  ('Carpet', 'extra', 'property_move', 250.00, CURRENT_DATE, true, 'Extra charge when property needs to be moved (extra person)')
 ON CONFLICT DO NOTHING;
 
 -- Verify the data

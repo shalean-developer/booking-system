@@ -286,6 +286,29 @@ export function CouchIcon({ className = 'w-6 h-6' }: IconProps) {
   );
 }
 
+// Mattress Cleaning - Bed/mattress icon
+export function MattressIcon({ className = 'w-6 h-6' }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <rect x="3" y="6" width="18" height="12" rx="1.5" />
+      <path d="M3 10h18" />
+      <path d="M3 14h18" />
+      <path d="M7 10v4" />
+      <path d="M17 10v4" />
+      <circle cx="9" cy="12" r="0.8" />
+      <circle cx="15" cy="12" r="0.8" />
+    </svg>
+  );
+}
+
 // Outside Window Cleaning - Window with sparkle icon
 export function OutsideWindowIcon({ className = 'w-6 h-6' }: IconProps) {
   return (
@@ -345,6 +368,7 @@ export const EXTRA_ICONS = {
   'Garage Cleaning': GarageIcon,
   'Balcony Cleaning': BalconyIcon,
   'Couch Cleaning': CouchIcon,
+  'Mattress Cleaning': MattressIcon,
   'Outside Window Cleaning': OutsideWindowIcon,
 } as const;
 

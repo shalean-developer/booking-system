@@ -31,8 +31,60 @@ export function StepSchedule() {
       frequencyDiscountPercent: number;
     }>
   >();
+  
+  // Availability state for dates
+  const [dateAvailability, setDateAvailability] = useState<Record<string, {
+    available: boolean;
+    slots_remaining: number;
+    surge_pricing_active: boolean;
+    surge_percentage: number | null;
+    available_teams?: string[];
+  }>>({});
+  const [loadingAvailability, setLoadingAvailability] = useState<Record<string, boolean>>({});
 
   const today = useMemo(() => startOfToday(), []);
+
+  // Check availability for dates when service or dates change
+  useEffect(() => {
+    if (!state.service || visibleDates.length === 0) return;
+
+    const checkAvailability = async () => {
+      const availabilityPromises = visibleDates.map(async (date) => {
+        const dateStr = format(date, 'yyyy-MM-dd');
+        if (date < today) return; // Skip past dates
+        
+        setLoadingAvailability(prev => ({ ...prev, [dateStr]: true }));
+        
+        try {
+          const response = await fetch(
+            `/api/bookings/availability?service_type=${encodeURIComponent(state.service!)}&date=${dateStr}`
+          );
+          const data = await response.json();
+          
+          if (data.ok) {
+            setDateAvailability(prev => ({
+              ...prev,
+              [dateStr]: {
+                available: data.available,
+                slots_remaining: data.slots_remaining,
+                surge_pricing_active: data.surge_pricing_active || false,
+                surge_percentage: data.surge_percentage || null,
+                available_teams: data.available_teams || [],
+              },
+            }));
+          }
+        } catch (error) {
+          console.error('Error checking availability:', error);
+        } finally {
+          setLoadingAvailability(prev => ({ ...prev, [dateStr]: false }));
+        }
+      });
+
+      await Promise.all(availabilityPromises);
+    };
+
+    checkAvailability();
+  }, [state.service, visibleDates, today]);
 
   const normalizedSelectedDate = useMemo(() => {
     if (state.date) {
@@ -292,7 +344,11 @@ export function StepSchedule() {
                         const isSelected =
                           selectedDate && format(date, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
                         const isToday = date.getTime() === today.getTime();
-                        const isDisabled = date < today;
+                        const dateStr = format(date, 'yyyy-MM-dd');
+                        const availability = dateAvailability[dateStr];
+                        const isDisabled = date < today || (availability && !availability.available);
+                        const isLoading = loadingAvailability[dateStr];
+                        const hasSurge = availability?.surge_pricing_active || false;
 
                         return (
                           <button
@@ -303,18 +359,30 @@ export function StepSchedule() {
                             disabled={isDisabled}
                             data-date-card
                             className={cn(
-                              'flex flex-col items-center justify-center rounded-lg px-5 py-3 min-w-[104px] transition-all',
+                              'flex flex-col items-center justify-center rounded-lg px-5 py-3 min-w-[104px] transition-all relative',
                               'focus:outline-none focus:ring-2 focus:ring-primary/30',
                               isSelected
                                 ? 'bg-[#D0EEF2] text-gray-900'
                                 : isToday
                                 ? 'bg-blue-50 border-2 border-blue-400 text-gray-900 hover:border-blue-500'
                                 : 'bg-white border border-[#E0E0E0] text-gray-900 hover:border-gray-300',
-                              isDisabled && 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
+                              isDisabled && 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed',
+                              hasSurge && !isDisabled && 'border-orange-300 bg-orange-50'
                             )}
                           >
                             <span className="text-sm font-bold whitespace-nowrap">{format(date, 'EEE')}</span>
                             <span className="text-sm font-medium mt-1 whitespace-nowrap">{format(date, 'MMM d')}</span>
+                            {isLoading && (
+                              <span className="text-xs text-gray-500 mt-1">Loading...</span>
+                            )}
+                            {!isLoading && availability && !availability.available && (
+                              <span className="text-xs text-red-600 mt-1 font-semibold">Full</span>
+                            )}
+                            {!isLoading && hasSurge && availability?.surge_percentage && (
+                              <span className="text-xs text-orange-600 mt-1 font-semibold">
+                                +{availability.surge_percentage}% surge
+                              </span>
+                            )}
                             {isToday && (
                               <span className="mt-1 inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary whitespace-nowrap">
                                 Today

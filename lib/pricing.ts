@@ -13,7 +13,7 @@ export const PRICING = {
     'Deep': { base: 1200, bedroom: 180, bathroom: 250 },
     'Move In/Out': { base: 980, bedroom: 160, bathroom: 220 },
     'Airbnb': { base: 230, bedroom: 18, bathroom: 26 },
-    'Carpet': { base: 350, bedroom: 50, bathroom: 0 },
+    'Carpet': { base: 150, bedroom: 300, bathroom: 200 }, // bedroom = fitted carpet per room, bathroom = loose carpet/rug per item
   },
   extras: {
     'Inside Fridge': 30,
@@ -27,9 +27,11 @@ export const PRICING = {
     'Garage Cleaning': 110,
     'Balcony Cleaning': 90,
     'Couch Cleaning': 130,
+    'Mattress Cleaning': 140,
     'Outside Window Cleaning': 125,
   },
   serviceFee: 50,
+  equipmentCharge: 500, // Equipment & supplies charge for Standard/Airbnb services
   frequencyDiscounts: {
     'weekly': 15,
     'bi-weekly': 10,
@@ -118,6 +120,15 @@ export function calcTotalSync(
     bathrooms: number;
     extras: string[];
     extrasQuantities?: Record<string, number>;
+    carpetDetails?: {
+      hasFittedCarpets: boolean;
+      hasLooseCarpets: boolean;
+      numberOfRooms: number;
+      numberOfLooseCarpets: number;
+      roomStatus: 'empty' | 'hasProperty';
+    } | null;
+    provideEquipment?: boolean;
+    equipmentCharge?: number;
   },
   frequency: 'one-time' | 'weekly' | 'bi-weekly' | 'monthly' = 'one-time'
 ): {
@@ -148,7 +159,48 @@ export function calcTotalSync(
     };
   }
 
-  // Calculate base + rooms + extras
+  // Special pricing calculation for Carpet service
+  if (input.service === 'Carpet' && input.carpetDetails) {
+    const base = servicePricing.base; // R150
+    const fittedCarpets = input.carpetDetails.hasFittedCarpets 
+      ? input.carpetDetails.numberOfRooms * servicePricing.bedroom // R300 per room
+      : 0;
+    const looseCarpets = input.carpetDetails.hasLooseCarpets
+      ? input.carpetDetails.numberOfLooseCarpets * servicePricing.bathroom // R200 per item
+      : 0;
+    const propertyMoveFee = input.carpetDetails.roomStatus === 'hasProperty' ? 250 : 0; // R250 extra person charge
+    
+    const extrasTotal = input.extras.reduce((sum, extraName) => {
+      const quantity = input.extrasQuantities?.[extraName] ?? 1;
+      const unitPrice = PRICING.extras[extraName as ExtraKey] ?? 0;
+      return sum + unitPrice * Math.max(quantity, 1);
+    }, 0);
+
+    const subtotal = base + fittedCarpets + looseCarpets + propertyMoveFee + extrasTotal;
+    
+    // Add service fee
+    const serviceFee = PRICING.serviceFee;
+    
+    // Calculate frequency discount
+    const discountPercent = frequency !== 'one-time' 
+      ? (PRICING.frequencyDiscounts[frequency] || 0)
+      : 0;
+    const frequencyDiscount = (subtotal * discountPercent) / 100;
+    
+    // Calculate total
+    const total = Math.round(subtotal + serviceFee - frequencyDiscount);
+    
+    return {
+      subtotal: Math.round(subtotal),
+      serviceFee: Math.round(serviceFee),
+      frequencyDiscount: Math.round(frequencyDiscount),
+      frequencyDiscountPercent: discountPercent,
+      total,
+    };
+  }
+
+  // Standard pricing calculation for other services
+  // Calculate base + rooms + extras + equipment charge (if applicable)
   const base = servicePricing.base;
   const beds = (input.bedrooms || 0) * servicePricing.bedroom;
   const baths = (input.bathrooms || 0) * servicePricing.bathroom;
@@ -158,7 +210,12 @@ export function calcTotalSync(
     return sum + unitPrice * Math.max(quantity, 1);
   }, 0);
 
-  const subtotal = base + beds + baths + extrasTotal;
+  // Add equipment charge for Standard/Airbnb services if equipment is provided
+  const equipmentCharge = (input.provideEquipment && (input.service === 'Standard' || input.service === 'Airbnb'))
+    ? (input.equipmentCharge ?? PRICING.equipmentCharge)
+    : 0;
+
+  const subtotal = base + beds + baths + extrasTotal + equipmentCharge;
 
   // Add service fee
   const serviceFee = PRICING.serviceFee;
@@ -194,6 +251,15 @@ export async function calcTotalAsync(
     bathrooms: number;
     extras: string[];
     extrasQuantities?: Record<string, number>;
+    carpetDetails?: {
+      hasFittedCarpets: boolean;
+      hasLooseCarpets: boolean;
+      numberOfRooms: number;
+      numberOfLooseCarpets: number;
+      roomStatus: 'empty' | 'hasProperty';
+    } | null;
+    provideEquipment?: boolean;
+    equipmentCharge?: number;
   },
   frequency: 'one-time' | 'weekly' | 'bi-weekly' | 'monthly' = 'one-time'
 ): Promise<{
@@ -211,6 +277,73 @@ export async function calcTotalAsync(
       frequencyDiscountPercent: 0,
       total: 0,
     };
+  }
+
+  // Special pricing calculation for Carpet service
+  if (input.service === 'Carpet' && input.carpetDetails) {
+    try {
+      const pricing = await fetchActivePricing();
+      const servicePricing = pricing.services[input.service] || PRICING.services[input.service];
+      
+      const base = servicePricing.base; // R150
+      const fittedCarpets = input.carpetDetails.hasFittedCarpets 
+        ? input.carpetDetails.numberOfRooms * servicePricing.bedroom // R300 per room
+        : 0;
+      const looseCarpets = input.carpetDetails.hasLooseCarpets
+        ? input.carpetDetails.numberOfLooseCarpets * servicePricing.bathroom // R200 per item
+        : 0;
+      const propertyMoveFee = input.carpetDetails.roomStatus === 'hasProperty' ? 250 : 0; // R250 extra person charge
+      
+      const uniqueExtras = Array.from(new Set(input.extras));
+      const extrasTotal = uniqueExtras.reduce((sum, extraName) => {
+        const quantity = input.extrasQuantities?.[extraName] ?? 1;
+        const normalizedName = extraName.trim();
+        let unitPrice = pricing.extras[normalizedName] ?? 0;
+        
+        if (unitPrice === 0) {
+          const matchingKey = Object.keys(pricing.extras).find(
+            key => key.toLowerCase().trim() === normalizedName.toLowerCase()
+          );
+          if (matchingKey) {
+            unitPrice = pricing.extras[matchingKey] ?? 0;
+          }
+        }
+        
+        if (unitPrice === 0) {
+          unitPrice = PRICING.extras[normalizedName as ExtraKey] ?? 0;
+        }
+        
+        return sum + unitPrice * Math.max(quantity, 1);
+      }, 0);
+
+      const subtotal = base + fittedCarpets + looseCarpets + propertyMoveFee + extrasTotal;
+      
+      let serviceFee = pricing.serviceFee ?? PRICING.serviceFee ?? 0;
+      const fallbackServiceFee = PRICING.serviceFee;
+      
+      if (serviceFee > 0 && serviceFee !== 50 && serviceFee !== 40) {
+        serviceFee = fallbackServiceFee;
+      } else if (serviceFee === 0 && fallbackServiceFee > 0) {
+        serviceFee = fallbackServiceFee;
+      }
+      
+      const discountPercent = frequency !== 'one-time' 
+        ? (pricing.frequencyDiscounts[frequency] || 0)
+        : 0;
+      const frequencyDiscount = (subtotal * discountPercent) / 100;
+      const total = Math.round(subtotal + serviceFee - frequencyDiscount);
+      
+      return {
+        subtotal: Math.round(subtotal),
+        serviceFee: Math.round(serviceFee),
+        frequencyDiscount: Math.round(frequencyDiscount),
+        frequencyDiscountPercent: discountPercent,
+        total,
+      };
+    } catch (error) {
+      // Fallback to sync calculation
+      return calcTotalSync(input, frequency);
+    }
   }
 
   try {
@@ -326,7 +459,19 @@ export async function calcTotalAsync(
       return sum + totalPrice;
     }, 0);
 
-    const subtotal = base + beds + baths + extrasTotal;
+    // Fetch equipment charge from database or use provided/default
+    let equipmentCharge = 0;
+    if (input.provideEquipment && (input.service === 'Standard' || input.service === 'Airbnb')) {
+      if (input.equipmentCharge) {
+        equipmentCharge = input.equipmentCharge;
+      } else {
+        // Fetch from database pricing
+        const equipmentChargeData = pricing.equipmentCharge ?? PRICING.equipmentCharge ?? 500;
+        equipmentCharge = equipmentChargeData;
+      }
+    }
+
+    const subtotal = base + beds + baths + extrasTotal + equipmentCharge;
 
     // Validate and use fallback service fee if invalid
     let serviceFee = pricing.serviceFee ?? PRICING.serviceFee ?? 0;
@@ -397,43 +542,8 @@ export async function calcTotalAsync(
   } catch (error) {
     console.warn('⚠️ Failed to calculate total from database, using fallback:', error);
 
-    // Fallback calculation
-    const servicePricing = PRICING.services[input.service];
-    if (!servicePricing) {
-      console.error(`⚠️ Service pricing not found for ${input.service} in fallback`);
-      return {
-        subtotal: 0,
-        serviceFee: 0,
-        frequencyDiscount: 0,
-        frequencyDiscountPercent: 0,
-        total: 0,
-      };
-    }
-    
-    const base = servicePricing.base;
-    const beds = (input.bedrooms || 0) * servicePricing.bedroom;
-    const baths = (input.bathrooms || 0) * servicePricing.bathroom;
-    const extrasTotal = input.extras.reduce((sum, extraName) => {
-      const quantity = input.extrasQuantities?.[extraName] ?? 1;
-      const unitPrice = PRICING.extras[extraName as ExtraKey] ?? 0;
-      return sum + unitPrice * Math.max(quantity, 1);
-    }, 0);
-
-    const subtotal = base + beds + baths + extrasTotal;
-    const serviceFee = PRICING.serviceFee ?? 0;
-    const discountPercent = frequency !== 'one-time' 
-      ? (PRICING.frequencyDiscounts[frequency] || 0)
-      : 0;
-    const frequencyDiscount = (subtotal * discountPercent) / 100;
-    const total = Math.round(subtotal + serviceFee - frequencyDiscount);
-
-    return {
-      subtotal: Math.round(subtotal),
-      serviceFee: Math.round(serviceFee),
-      frequencyDiscount: Math.round(frequencyDiscount),
-      frequencyDiscountPercent: discountPercent,
-      total,
-    };
+    // Fallback to sync calculation (which handles carpet details)
+    return calcTotalSync(input, frequency);
   }
 }
 

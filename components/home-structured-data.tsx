@@ -152,7 +152,7 @@ export function HomeStructuredData() {
     "review": reviews,
     "sameAs": [
       process.env.NEXT_PUBLIC_GBP_URL || "https://www.google.com/maps/place/Shalean+Cleaning+Services",
-      "https://instagram.com/shaleancleaning"
+      "https://www.instagram.com/shalean_cleaning_services"
     ]
   };
 

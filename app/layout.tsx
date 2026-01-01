@@ -125,9 +125,9 @@ export default function RootLayout({
       "addressCountry": "ZA"
     },
     "sameAs": [
-      "https://instagram.com/shaleancleaning"
+      "https://www.instagram.com/shalean_cleaning_services"
     ],
-    "foundingDate": "2020",
+    "foundingDate": "2022",
     "numberOfEmployees": "50+",
     "serviceArea": {
       "@type": "Country",

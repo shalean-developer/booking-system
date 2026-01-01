@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   Users,
   Calendar,
+  CalendarCheck,
   DollarSign,
   Settings,
   FileText,
@@ -52,6 +53,7 @@ const navigationSections: NavSection[] = [
     items: [
   { name: 'Bookings', href: '/admin/bookings', icon: Calendar },
       { name: 'Schedule', href: '/admin/schedule', icon: Clock },
+      { name: 'Scheduling', href: '/admin/scheduling', icon: CalendarCheck },
       { name: 'Recurring Schedules', href: '/admin/recurring-schedules', icon: Repeat },
     ],
   },
