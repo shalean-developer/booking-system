@@ -257,6 +257,193 @@ const nextConfig = {
         destination: '/location/pretoria/sunnyside',
         permanent: true,
       },
+      // Specific Cape Town suburb redirects (before wildcard)
+      {
+        source: '/locations/monte-vista',
+        destination: '/location/cape-town/northern-suburbs',
+        permanent: true,
+      },
+      {
+        source: '/locations/plumstead',
+        destination: '/location/cape-town/plumstead',
+        permanent: true,
+      },
+      {
+        source: '/locations/wynberg',
+        destination: '/location/cape-town/wynberg',
+        permanent: true,
+      },
+      {
+        source: '/locations/bloubergstrand',
+        destination: '/location/cape-town/bloubergstrand',
+        permanent: true,
+      },
+      {
+        source: '/locations/claremont',
+        destination: '/location/cape-town/claremont',
+        permanent: true,
+      },
+      {
+        source: '/locations/newlands',
+        destination: '/location/cape-town/newlands',
+        permanent: true,
+      },
+      {
+        source: '/locations/tokai',
+        destination: '/location/cape-town/tokai',
+        permanent: true,
+      },
+      {
+        source: '/locations/kenilworth',
+        destination: '/location/cape-town/kenilworth',
+        permanent: true,
+      },
+      {
+        source: '/locations/milnerton',
+        destination: '/location/cape-town/milnerton',
+        permanent: true,
+      },
+      {
+        source: '/locations/camps-bay',
+        destination: '/location/cape-town/camps-bay',
+        permanent: true,
+      },
+      {
+        source: '/locations/city-bowl',
+        destination: '/location/cape-town/city-bowl',
+        permanent: true,
+      },
+      {
+        source: '/locations/simons-town',
+        destination: '/location/cape-town/simons-town',
+        permanent: true,
+      },
+      {
+        source: '/locations/brackenfell',
+        destination: '/location/cape-town/brackenfell',
+        permanent: true,
+      },
+      // Suburbs that don't have dedicated pages - redirect to area or city
+      {
+        source: '/locations/athlone',
+        destination: '/location/cape-town/northern-suburbs',
+        permanent: true,
+      },
+      {
+        source: '/locations/edgemead',
+        destination: '/location/cape-town/northern-suburbs',
+        permanent: true,
+      },
+      {
+        source: '/locations/retreat',
+        destination: '/location/cape-town/southern-suburbs',
+        permanent: true,
+      },
+      {
+        source: '/locations/clovelly',
+        destination: '/location/cape-town/false-bay',
+        permanent: true,
+      },
+      {
+        source: '/locations/loevenstein',
+        destination: '/location/cape-town/northern-suburbs',
+        permanent: true,
+      },
+      {
+        source: '/locations/foreshore',
+        destination: '/location/cape-town/city-bowl',
+        permanent: true,
+      },
+      {
+        source: '/locations/old-oak',
+        destination: '/location/cape-town/northern-suburbs',
+        permanent: true,
+      },
+      {
+        source: '/locations/llandudno',
+        destination: '/location/cape-town/atlantic-seaboard',
+        permanent: true,
+      },
+      {
+        source: '/locations/macassar',
+        destination: '/location/cape-town/false-bay',
+        permanent: true,
+      },
+      {
+        source: '/locations/van-riebeeckshof',
+        destination: '/location/cape-town/northern-suburbs',
+        permanent: true,
+      },
+      {
+        source: '/locations/thornton',
+        destination: '/location/cape-town/northern-suburbs',
+        permanent: true,
+      },
+      {
+        source: '/locations/oudtshoorn',
+        destination: '/location/cape-town/garden-route',
+        permanent: true,
+      },
+      {
+        source: '/locations/higgovale',
+        destination: '/location/cape-town/city-bowl',
+        permanent: true,
+      },
+      {
+        source: '/locations/parow-east',
+        destination: '/location/cape-town/northern-suburbs',
+        permanent: true,
+      },
+      {
+        source: '/locations/brooklyn',
+        destination: '/location/pretoria/brooklyn',
+        permanent: true,
+      },
+      {
+        source: '/locations/sunset-beach',
+        destination: '/location/cape-town/west-coast',
+        permanent: true,
+      },
+      {
+        source: '/locations/plattekloof',
+        destination: '/location/cape-town/northern-suburbs',
+        permanent: true,
+      },
+      {
+        source: '/locations/strandfontein',
+        destination: '/location/cape-town/false-bay',
+        permanent: true,
+      },
+      {
+        source: '/locations/university-estate',
+        destination: '/location/cape-town/city-bowl',
+        permanent: true,
+      },
+      {
+        source: '/locations/mutual-park',
+        destination: '/location/cape-town/northern-suburbs',
+        permanent: true,
+      },
+      {
+        source: '/locations/meadowridge',
+        destination: '/location/cape-town/southern-suburbs',
+        permanent: true,
+      },
+      {
+        source: '/locations/groote-schuur',
+        destination: '/location/cape-town/southern-suburbs',
+        permanent: true,
+      },
+      {
+        source: '/locations/three-anchor-bay',
+        destination: '/location/cape-town/atlantic-seaboard',
+        permanent: true,
+      },
+      {
+        source: '/locations/glosderry',
+        destination: '/location/cape-town/northern-suburbs',
+        permanent: true,
+      },
       {
         source: '/locations/:slug',
         destination: '/location/cape-town/:slug',
@@ -277,12 +464,12 @@ const nextConfig = {
       },
       {
         source: '/services/carpet',
-        destination: '/services/deep-specialty',
+        destination: '/services/deep-cleaning',
         permanent: true,
       },
       {
         source: '/services/carpet-cleaning',
-        destination: '/services/deep-specialty',
+        destination: '/services/deep-cleaning',
         permanent: true,
       },
       {

@@ -6,7 +6,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://shalean.co.za'
   
   // Get all published blog posts (only published posts are included)
-  const blogPosts = await getPublishedPosts()
+  // Wrap in try-catch to handle database errors gracefully
+  let blogPosts: Awaited<ReturnType<typeof getPublishedPosts>> = []
+  try {
+    blogPosts = await getPublishedPosts()
+  } catch (error) {
+    console.error('Error fetching blog posts for sitemap:', error)
+    // Continue with empty array if blog posts fail to load
+  }
   
   // Generate blog post entries - filter out any null/undefined posts
   const blogEntries: MetadataRoute.Sitemap = blogPosts

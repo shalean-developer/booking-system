@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
       statusCode = 503;
     } else if (errorMessage.includes('permission denied') || errorMessage.includes('RLS')) {
       errorMessage = 'Database access denied. Please check Row Level Security (RLS) policies.';
-      statusCode = 403;
+      statusCode = 503; // Service Unavailable - this is a configuration issue, not authorization
     }
     
     // Return error response with helpful message
