@@ -1,11 +1,11 @@
 import { Fragment } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MarketingHeader } from "@/components/marketing-header";
-import { SuburbMap } from "@/components/location/suburb-map";
 import { stringifyStructuredData } from "@/lib/structured-data-validator";
 import { getCitySlug, getRelatedSuburbs, slugifyLocation } from "@/lib/location-data";
 import {
@@ -56,6 +56,32 @@ interface SuburbPageProps {
   heroImageAlt?: string;
   showStickyCta?: boolean;
 }
+
+// Dynamic imports for below-the-fold sections (code splitting for performance)
+const ContactMapSection = dynamic(() => import("@/components/location/contact-map-section").then(mod => ({ default: mod.ContactMapSection })), {
+  ssr: true,
+  loading: () => <div className="py-20"><div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><div className="animate-pulse bg-gray-200 h-[28rem] rounded-3xl"></div></div></div>
+});
+
+const AboutSuburbSection = dynamic(() => import("@/components/location/about-suburb-section").then(mod => ({ default: mod.AboutSuburbSection })), {
+  ssr: true,
+  loading: () => <div className="py-20 bg-white"><div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><div className="animate-pulse bg-gray-200 h-96 rounded-xl"></div></div></div>
+});
+
+const TestimonialsSection = dynamic(() => import("@/components/location/testimonials-section").then(mod => ({ default: mod.TestimonialsSection })), {
+  ssr: true,
+  loading: () => <div className="py-20 bg-gray-50"><div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><div className="animate-pulse bg-gray-200 h-64 rounded-xl"></div></div></div>
+});
+
+const FAQSection = dynamic(() => import("@/components/location/faq-section").then(mod => ({ default: mod.FAQSection })), {
+  ssr: true,
+  loading: () => <div className="py-20"><div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8"><div className="animate-pulse bg-gray-200 h-96 rounded-xl"></div></div></div>
+});
+
+const NearbyAreasSection = dynamic(() => import("@/components/location/nearby-areas-section").then(mod => ({ default: mod.NearbyAreasSection })), {
+  ssr: true,
+  loading: () => <div className="py-20 bg-gray-50"><div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><div className="animate-pulse bg-gray-200 h-64 rounded-xl"></div></div></div>
+});
 
 export function SuburbPageTemplate({
   suburb,
@@ -676,177 +702,26 @@ export function SuburbPageTemplate({
       )}
 
       {/* Contact & Map Section */}
-      <section id="contact" className="py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid gap-10 lg:grid-cols-2">
-            <div className="rounded-3xl border border-gray-200 bg-white p-10 shadow-xl">
-              <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
-                {businessNameValue}
-              </Badge>
-              <h2 className="text-4xl font-bold text-gray-900 mb-4">
-                Local Cleaning Experts in {suburb}
-              </h2>
-              <p className="text-lg text-gray-600 mb-8">
-                Connect with our friendly support team to book vetted cleaners in {suburb}. We serve homes and offices across the {area}, delivering reliable service backed by a satisfaction guarantee.
-              </p>
-              <div className="space-y-6">
-                <div className="flex items-start gap-3">
-                  <MapPin className="h-5 w-5 text-primary mt-1" />
-                  <div>
-                    <p className="text-sm uppercase tracking-wide text-gray-500 font-semibold">Service Area</p>
-                    <p className="text-lg text-gray-800">{addressValue}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Phone className="h-5 w-5 text-primary mt-1" />
-                  <div>
-                    <p className="text-sm uppercase tracking-wide text-gray-500 font-semibold">Call Us</p>
-                    <a href={`tel:${phoneNumber.replace(/\s+/g, "")}`} className="text-lg text-gray-800 hover:text-primary transition-colors">
-                      {phoneNumber}
-                    </a>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Mail className="h-5 w-5 text-primary mt-1" />
-                  <div>
-                    <p className="text-sm uppercase tracking-wide text-gray-500 font-semibold">Email</p>
-                    <a href={`mailto:${emailAddress}`} className="text-lg text-gray-800 hover:text-primary transition-colors">
-                      {emailAddress}
-                    </a>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Clock className="h-5 w-5 text-primary mt-1" />
-                  <div>
-                    <p className="text-sm uppercase tracking-wide text-gray-500 font-semibold">Operating Hours</p>
-                    <p className="text-lg text-gray-800">{serviceHoursValue}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-8 flex flex-wrap gap-4">
-                <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-6" asChild>
-                  <Link href="/booking/service/select">
-                    Book Online
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Link>
-                </Button>
-                <Button size="lg" variant="outline" className="border-primary text-primary hover:bg-primary/10 px-6" asChild>
-                  <Link href="/contact">
-                    Talk to Our Team
-                  </Link>
-                </Button>
-              </div>
-            </div>
-            <SuburbMap
+      <ContactMapSection
+        suburb={suburb}
+        city={city}
+        area={area}
+        businessName={businessNameValue}
+        phoneNumber={phoneNumber}
+        emailAddress={emailAddress}
+        addressValue={addressValue}
+        serviceHours={serviceHoursValue}
               mapUrl={mapUrl}
-              title={`Map of ${suburb}, ${city}`}
-              loadingText={`Loading ${suburb} map...`}
             />
-          </div>
-        </div>
-      </section>
 
       {/* About Suburb Section - Unique Content */}
-      <section className="py-20 bg-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
-            <div>
-              <h2 className="text-4xl font-bold text-gray-900 mb-6">
-                Professional Cleaning Services in {suburb}, {city}
-              </h2>
-              <div className="prose prose-lg max-w-none text-gray-600 space-y-4">
-                <p>
-                  {suburb} is a vibrant neighborhood in the {area} region of {city}, known for its 
-                  {suburb.toLowerCase().includes('sea point') ? ' stunning ocean views, cosmopolitan atmosphere, and proximity to the Sea Point Promenade' : 
-                   suburb.toLowerCase().includes('claremont') ? ' excellent schools, family-friendly environment, and vibrant shopping district along Main Road' :
-                   suburb.toLowerCase().includes('constantia') ? ' prestigious wine estates, luxury properties, and historic Constantia Valley charm' :
-                   suburb.toLowerCase().includes('camps bay') ? ' beautiful beaches, luxury properties, and iconic Camps Bay Beach with Table Mountain backdrop' :
-                   suburb.toLowerCase().includes('green point') ? ' proximity to the V&A Waterfront, Green Point Park, and vibrant city center lifestyle' :
-                   suburb.toLowerCase().includes('city bowl') ? ' central location, historic architecture, and proximity to Company Gardens and Parliament' :
-                   suburb.toLowerCase().includes('newlands') ? ' leafy streets, Newlands Cricket Ground, and family-oriented community atmosphere' :
-                   suburb.toLowerCase().includes('rondebosch') ? ' university proximity, historic charm, and Rondebosch Common nearby' :
-                   ' unique character and community feel'}. 
-                  Residents and businesses in {suburb} trust Shalean Cleaning Services for reliable, 
-                  professional cleaning that fits their busy lifestyles.
-                </p>
-                <p>
-                  Our experienced cleaners understand the specific needs of {suburb} properties, from 
-                  {suburb.toLowerCase().includes('sea point') || suburb.toLowerCase().includes('camps bay') ? ' beachfront apartments and holiday rentals that require frequent turnover cleaning' :
-                   suburb.toLowerCase().includes('claremont') || suburb.toLowerCase().includes('constantia') ? ' family homes and large estates that need comprehensive maintenance' :
-                   suburb.toLowerCase().includes('green point') || suburb.toLowerCase().includes('city bowl') ? ' modern apartments and commercial spaces in the urban core' :
-                   ' residential properties and commercial spaces'}. 
-                  We offer flexible scheduling, same-day availability, and eco-friendly cleaning options 
-                  to keep your {suburb} property spotless. Whether you're near 
-                  {suburb.toLowerCase().includes('sea point') ? ' the Sea Point Promenade or Beach Road' :
-                   suburb.toLowerCase().includes('claremont') ? ' Claremont Main Road or the Southern Suburbs' :
-                   suburb.toLowerCase().includes('constantia') ? ' the Constantia Wine Route or historic estates' :
-                   suburb.toLowerCase().includes('camps bay') ? ' Camps Bay Beach or the Atlantic Seaboard' :
-                   suburb.toLowerCase().includes('green point') ? ' the V&A Waterfront or Green Point Common' :
-                   ' the local area'}, our team knows the unique cleaning challenges of {suburb} properties.
-                </p>
-                <p>
-                  Whether you need regular maintenance cleaning, a deep clean before hosting guests, 
-                  or move-in/out cleaning services, Shalean's vetted professionals deliver consistent, 
-                  high-quality results. Our cleaners are fully insured, background-checked, and trained 
-                  to meet the highest standards of cleanliness. We regularly serve {suburb} residents 
-                  with personalized cleaning plans that accommodate everything from high-rise apartment 
-                  living to spacious family homes.
-                </p>
-              </div>
-              <div className="mt-8 flex flex-wrap gap-4">
-                <Link href="/services/regular-cleaning" className="text-primary hover:text-primary/80 font-semibold underline underline-offset-4">
-                  Regular Cleaning Services →
-                </Link>
-                <Link href="/services/deep-cleaning" className="text-primary hover:text-primary/80 font-semibold underline underline-offset-4">
-                  Deep Cleaning Services →
-                </Link>
-                <Link href="/services/move-turnover" className="text-primary hover:text-primary/80 font-semibold underline underline-offset-4">
-                  Move-In/Out Cleaning →
-                </Link>
-              </div>
-            </div>
-            <div className="space-y-6">
-              <Card className="border border-primary/10 shadow-lg p-6">
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">Why {suburb} Residents Choose Shalean</h3>
-                <ul className="space-y-3 text-gray-600">
-                  <li className="flex items-start gap-3">
-                    <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                    <span>Local knowledge of {suburb} properties and common cleaning challenges</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                    <span>Flexible scheduling that works around your {suburb} lifestyle</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                    <span>Same-day and next-day availability for urgent cleaning needs</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                    <span>Eco-friendly cleaning products safe for families and pets</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                    <span>100% satisfaction guarantee - we'll return if something's missed</span>
-                  </li>
-                </ul>
-              </Card>
-              <Card className="border border-primary/10 shadow-lg p-6 bg-primary/5">
-                <h3 className="text-xl font-bold text-gray-900 mb-3">Serving {suburb} and Nearby Areas</h3>
-                <p className="text-gray-600 mb-4">
-                  We also provide cleaning services in nearby suburbs including {renderLinkedSuburbs(inlineRelatedLinks)}.
-                </p>
-                <Button variant="outline" className="w-full" asChild>
-                  <Link href={`/location/${citySlug}`}>
-                    View All {city} Service Areas
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </section>
+      <AboutSuburbSection
+        suburb={suburb}
+        city={city}
+        area={area}
+        citySlug={citySlug}
+        inlineRelatedLinks={inlineRelatedLinks}
+      />
 
       {/* Features Section */}
       <section id="why-shalean" className="py-20 bg-gray-50">
@@ -982,41 +857,11 @@ export function SuburbPageTemplate({
       </section>
 
       {/* Testimonials Section */}
-      <section id="testimonials" className="py-20 bg-gray-50">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-14">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              What {suburb} Customers Say
-            </h2>
-            <p className="text-xl text-gray-600">
-              Recent feedback from homeowners and businesses in the {area}
-            </p>
-          </div>
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {testimonialItems.map((testimonial, index) => {
-              const ratingValue = Math.min(Math.max(testimonial.rating ?? 5, 1), 5);
-              return (
-                <Card key={`${testimonial.name}-${index}`} className="border border-primary/10 shadow-lg transition-all hover:-translate-y-1 hover:shadow-2xl h-full">
-                  <CardContent className="p-8 flex h-full flex-col gap-4">
-                    <div className="flex items-center gap-1 text-amber-500">
-                      {Array.from({ length: ratingValue }).map((_, starIdx) => (
-                        <Star key={starIdx} className="h-4 w-4 text-amber-500 fill-amber-400" />
-                      ))}
-                    </div>
-                    <p className="text-gray-700 leading-relaxed">{testimonial.content}</p>
-                    <div className="mt-auto">
-                      <p className="font-semibold text-gray-900">{testimonial.name}</p>
-                      {testimonial.location && (
-                        <p className="text-sm text-gray-500">{testimonial.location}</p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+      <TestimonialsSection
+        suburb={suburb}
+        area={area}
+        testimonialItems={testimonialItems}
+      />
 
       {/* Related Services Section */}
       <section id="popular-services" className="py-20">
@@ -1080,30 +925,10 @@ export function SuburbPageTemplate({
       </section>
 
       {/* FAQ Section */}
-      <section id="faqs" className="py-20">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              {suburb} Cleaning FAQs
-            </h2>
-            <p className="text-lg text-gray-600">
-              Answers to common questions about booking vetted cleaners in {suburb}
-            </p>
-          </div>
-          <div className="space-y-6">
-            {faqItems.map((faq, index) => (
-              <div key={`${faq.question}-${index}`} className="rounded-2xl border border-primary/10 bg-white p-6 shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-2xl">
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  {faq.question}
-                </h3>
-                <p className="text-gray-600">
-                  {faq.answer}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <FAQSection
+        suburb={suburb}
+        faqItems={faqItems}
+      />
 
       {/* About Section */}
       <section className="py-20">
@@ -1136,71 +961,11 @@ export function SuburbPageTemplate({
       </section>
 
       {/* Nearby Areas Section */}
-      <section className="py-20 bg-gray-50">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              We Also Serve Nearby Areas
-            </h2>
-            <p className="text-xl text-gray-600">
-              Professional cleaning services in surrounding neighborhoods across {city}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {baseRelatedSuburbs
-              .slice(0, 8)
-              .map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="flex items-center gap-2 p-4 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all group"
-              >
-                <MapPin className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
-                <span className="text-gray-700 group-hover:text-primary font-medium">
-                  {item.name}
-                </span>
-              </Link>
-            ))}
-            <Link
-              href={`/location/${citySlug}`}
-              className="flex items-center gap-2 p-4 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all group"
-            >
-              <MapPin className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
-              <span className="text-gray-700 group-hover:text-primary font-medium">
-                All {city} Areas
-              </span>
-            </Link>
-            <Link
-              href="/location"
-              className="flex items-center gap-2 p-4 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all group"
-            >
-              <MapPin className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
-              <span className="text-gray-700 group-hover:text-primary font-medium">
-                All Locations
-              </span>
-            </Link>
-            <Link
-              href="/services"
-              className="flex items-center gap-2 p-4 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all group"
-            >
-              <Home className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
-              <span className="text-gray-700 group-hover:text-primary font-medium">
-                All Services
-              </span>
-            </Link>
-            <Link
-              href="/booking/service/select"
-              className="flex items-center gap-2 p-4 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all group"
-            >
-              <ArrowRight className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
-              <span className="text-gray-700 group-hover:text-primary font-medium">
-                Book Now
-              </span>
-            </Link>
-          </div>
-        </div>
-      </section>
+      <NearbyAreasSection
+        city={city}
+        citySlug={citySlug}
+        baseRelatedSuburbs={baseRelatedSuburbs}
+      />
 
       {/* CTA Section */}
       <section id="cta" className="py-20 bg-gradient-to-br from-primary/5 to-primary/10">

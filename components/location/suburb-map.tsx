@@ -29,7 +29,7 @@ export function SuburbMap({ mapUrl, title, className, loadingText = "Loading loc
             }
           });
         },
-        { rootMargin: "200px" }
+        { rootMargin: "500px" }
       );
 
       observer.observe(element);

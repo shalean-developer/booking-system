@@ -107,7 +107,7 @@ export default function LocationPage() {
       ]
     },
     "sameAs": [
-      "https://instagram.com/shaleancleaning"
+      "https://www.instagram.com/shalean_cleaning_services"
     ],
     "foundingDate": "2020",
     "numberOfEmployees": "50+"
