@@ -216,6 +216,75 @@ export function Header({ variant = 'default' }: HeaderProps) {
             {/* Logo */}
             <Logo />
 
+            {/* Stepper - Between logo and navlinks, only visible in booking flow */}
+            {isBookingFlow && (
+              <div className="hidden md:flex items-center justify-center flex-1 px-8">
+                {(() => {
+                  const current = bookingState.currentStep;
+                  const currentGroup = current === 1 ? 1 : current === 2 ? 2 : 3;
+                  
+                  return (
+                    <div className="flex items-center justify-center gap-1.5">
+                      {[
+                        { number: 1, label: 'Service & Details' },
+                        { number: 2, label: 'Schedule & Cleaner' },
+                        { number: 3, label: 'Contact & Review' }
+                      ].map((group, idx) => {
+                        const isCompleted = group.number < currentGroup;
+                        const isCurrent = group.number === currentGroup;
+                        const isUpcoming = group.number > currentGroup;
+                        
+                        return (
+                          <div key={group.number} className="flex items-center gap-1.5">
+                            <div className="flex flex-col items-center">
+                              <motion.div
+                                className={cn(
+                                  'flex h-7 w-7 items-center justify-center rounded-full font-semibold transition-all',
+                                  isCompleted && 'bg-primary text-white ring-1 ring-primary/20',
+                                  isCurrent && 'bg-primary text-white shadow-md ring-1 ring-primary/30',
+                                  isUpcoming && 'bg-gray-50 text-gray-400 border border-gray-200'
+                                )}
+                                initial={false}
+                                animate={{ scale: isCurrent ? 1.05 : 1 }}
+                                transition={{ duration: 0.2 }}
+                              >
+                                {isCompleted ? (
+                                  <Check className="h-3.5 w-3.5" />
+                                ) : (
+                                  <span className={isCurrent ? 'text-xs font-bold' : 'text-[10px]'}>
+                                    {group.number}
+                                  </span>
+                                )}
+                              </motion.div>
+                              <span
+                                className={cn(
+                                  'mt-1 text-[9px] font-medium whitespace-nowrap text-center max-w-[70px] leading-tight',
+                                  !isUpcoming ? 'text-slate-900' : 'text-slate-400'
+                                )}
+                              >
+                                {group.label}
+                              </span>
+                            </div>
+                            {idx < 2 && (
+                              <div className="relative w-10 lg:w-12 h-0.5 bg-gray-200 mt-[-14px]">
+                                <motion.div
+                                  className="absolute inset-0 bg-primary"
+                                  initial={{ scaleX: 0 }}
+                                  animate={{ scaleX: isCompleted ? 1 : 0 }}
+                                  transition={{ duration: 0.3, ease: 'easeOut' }}
+                                  style={{ transformOrigin: 'left' }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
             {/* Desktop Navigation - Hidden in booking flow */}
             {!isBookingFlow && (
               <nav className="hidden md:flex items-center bg-gray-100 rounded-full gap-0" aria-label="Main navigation">
@@ -335,78 +404,6 @@ export function Header({ variant = 'default' }: HeaderProps) {
                   Blog
                 </Link>
               </nav>
-            )}
-
-            {/* Stepper - Centered horizontally, only visible in booking flow */}
-            {isBookingFlow && (
-              <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                {/* Desktop Stepper - Only desktop version, no mobile duplicate */}
-                <div className="hidden md:flex items-center justify-center gap-1.5">
-                  {(() => {
-                    const current = bookingState.currentStep;
-                    const currentGroup = current === 1 ? 1 : current === 2 ? 2 : 3;
-                    
-                    return (
-                      <div className="flex items-center justify-center gap-1.5">
-                        {[
-                          { number: 1, label: 'Service & Details' },
-                          { number: 2, label: 'Schedule & Cleaner' },
-                          { number: 3, label: 'Contact & Review' }
-                        ].map((group, idx) => {
-                          const isCompleted = group.number < currentGroup;
-                          const isCurrent = group.number === currentGroup;
-                          const isUpcoming = group.number > currentGroup;
-                          
-                          return (
-                            <div key={group.number} className="flex items-center gap-1.5">
-                              <div className="flex flex-col items-center">
-                                <motion.div
-                                  className={cn(
-                                    'flex h-8 w-8 items-center justify-center rounded-full font-semibold transition-all',
-                                    isCompleted && 'bg-primary text-white ring-1 ring-primary/20',
-                                    isCurrent && 'bg-primary text-white shadow-md ring-1 ring-primary/30',
-                                    isUpcoming && 'bg-gray-50 text-gray-400 border border-gray-200'
-                                  )}
-                                  initial={false}
-                                  animate={{ scale: isCurrent ? 1.05 : 1 }}
-                                  transition={{ duration: 0.2 }}
-                                >
-                                  {isCompleted ? (
-                                    <Check className="h-4 w-4" />
-                                  ) : (
-                                    <span className={isCurrent ? 'text-sm font-bold' : 'text-xs'}>
-                                      {group.number}
-                                    </span>
-                                  )}
-                                </motion.div>
-                                <span
-                                  className={cn(
-                                    'mt-1 text-[10px] font-medium whitespace-nowrap text-center max-w-[80px] leading-tight',
-                                    !isUpcoming ? 'text-slate-900' : 'text-slate-400'
-                                  )}
-                                >
-                                  {group.label}
-                                </span>
-                              </div>
-                              {idx < 2 && (
-                                <div className="relative w-12 lg:w-14 h-0.5 bg-gray-200 mt-[-16px]">
-                                  <motion.div
-                                    className="absolute inset-0 bg-primary"
-                                    initial={{ scaleX: 0 }}
-                                    animate={{ scaleX: isCompleted ? 1 : 0 }}
-                                    transition={{ duration: 0.3, ease: 'easeOut' }}
-                                    style={{ transformOrigin: 'left' }}
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
-                </div>
-              </div>
             )}
 
           {/* Right Section: Cart and Book Now */}

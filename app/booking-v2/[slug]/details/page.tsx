@@ -40,7 +40,9 @@ export default function DetailsPage() {
     );
   }, [state.service, state.bedrooms, state.bathrooms, state.extras, state.extrasQuantities, state.frequency]);
 
+  const discountAmount = state.discountAmount || 0;
   const total = pricingDetails.total || 0;
+  const finalTotal = Math.max(0, total + (state.tipAmount || 0) - discountAmount);
 
   // Format total consistently to avoid hydration mismatch
   const formatTotal = (value: number) => {
@@ -79,7 +81,7 @@ export default function DetailsPage() {
           <div className="flex flex-col">
             <span className="text-xs text-gray-600">Total</span>
             <span className="text-xl font-bold text-gray-900">
-              R{formatTotal(total)}
+              R{formatTotal(finalTotal)}
             </span>
           </div>
           <button

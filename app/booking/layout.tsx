@@ -1,4 +1,3 @@
-import { Header } from '@/components/header';
 import type { Metadata } from 'next';
 import { createMetadata, generateCanonical } from '@/lib/metadata';
 
@@ -15,7 +14,6 @@ export default function BookingLayout({
 }) {
   return (
     <>
-      <Header />
       {children}
     </>
   );

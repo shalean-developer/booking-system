@@ -75,6 +75,29 @@
     font-size: inherit;
     font-weight: inherit;
   }
+
+  /* Remove the blue segment highlight in native date/time inputs (Chromium) */
+  .booking-native-datetime::-webkit-datetime-edit,
+  .booking-native-datetime::-webkit-datetime-edit-fields-wrapper,
+  .booking-native-datetime::-webkit-datetime-edit-text,
+  .booking-native-datetime::-webkit-datetime-edit-month-field,
+  .booking-native-datetime::-webkit-datetime-edit-day-field,
+  .booking-native-datetime::-webkit-datetime-edit-year-field,
+  .booking-native-datetime::-webkit-datetime-edit-hour-field,
+  .booking-native-datetime::-webkit-datetime-edit-minute-field,
+  .booking-native-datetime::-webkit-datetime-edit-ampm-field {
+    background-color: transparent;
+  }
+
+  .booking-native-datetime::-webkit-datetime-edit-month-field:focus,
+  .booking-native-datetime::-webkit-datetime-edit-day-field:focus,
+  .booking-native-datetime::-webkit-datetime-edit-year-field:focus,
+  .booking-native-datetime::-webkit-datetime-edit-hour-field:focus,
+  .booking-native-datetime::-webkit-datetime-edit-minute-field:focus,
+  .booking-native-datetime::-webkit-datetime-edit-ampm-field:focus {
+    background-color: transparent;
+    color: inherit;
+  }
 }
 
 @layer components {

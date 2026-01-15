@@ -103,6 +103,7 @@ export function StepServiceDetails() {
     updateField('time', value);
   }, [updateField]);
 
+
   // Initialize carpet details when Carpet service is selected
   const handleCarpetDetailsChange = useCallback((details: CarpetDetails) => {
     updateField('carpetDetails', details);
@@ -161,7 +162,7 @@ export function StepServiceDetails() {
       : '';
 
   return (
-    <div className="space-y-8 w-full md:max-w-[586px] md:mx-auto">
+    <div className="space-y-8 w-full md:max-w-full md:mx-auto">
       <ServiceSelector
         selectedService={state.service}
         onSelect={handleServiceSelect}

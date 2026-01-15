@@ -116,7 +116,8 @@ export function StepReview() {
   }, [extrasDisplay]);
 
   const tipAmount = state.tipAmount || 0;
-  const discount = discountAmount || 0;
+  // Prefer persisted discount values (for consistency across summary + reloads)
+  const discount = (state.discountAmount || 0) || (discountAmount || 0);
 
   const total = pricingDetails.total + tipAmount - discount;
 
@@ -230,7 +231,7 @@ export function StepReview() {
         serviceFee: pricingDetails.serviceFee,
         frequencyDiscount: pricingDetails.frequencyDiscount,
         tipAmount: tipAmount,
-        discountCode: appliedDiscount?.code || null,
+        discountCode: state.discountCode || null,
         discountAmount: discount || 0,
       };
 
@@ -297,27 +298,39 @@ export function StepReview() {
           amount: data.discount.discount_amount,
           description: data.discount.description,
         });
+        updateField('discountCode', data.discount.code);
+        updateField('discountAmount', data.discount.discount_amount);
+        updateField('discountDescription', data.discount.description || null);
         setDiscountError(null);
       } else {
         setDiscountError(data.error || 'Invalid discount code');
         setDiscountAmount(0);
         setAppliedDiscount(null);
+        updateField('discountCode', null);
+        updateField('discountAmount', 0);
+        updateField('discountDescription', null);
       }
     } catch (error: any) {
       setDiscountError(error?.message || 'Network error. Please check your connection and try again.');
       setDiscountAmount(0);
       setAppliedDiscount(null);
+      updateField('discountCode', null);
+      updateField('discountAmount', 0);
+      updateField('discountDescription', null);
     } finally {
       setIsValidatingDiscount(false);
     }
-  }, [discountCode, state.service, pricingDetails.total]);
+  }, [discountCode, state.service, pricingDetails.total, updateField]);
 
   const handleRemoveDiscount = useCallback(() => {
     setDiscountCode('');
     setDiscountAmount(0);
     setAppliedDiscount(null);
     setDiscountError(null);
-  }, []);
+    updateField('discountCode', null);
+    updateField('discountAmount', 0);
+    updateField('discountDescription', null);
+  }, [updateField]);
 
   // Handle payment close (user closed popup)
   const handlePaymentClose = useCallback(() => {

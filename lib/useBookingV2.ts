@@ -55,6 +55,11 @@ export interface BookingStateV2 {
   selected_team: TeamName | null;
   requires_team: boolean;
   tipAmount: number; // Tip amount for cleaner
+
+  // Promo / discount (applied in review, but persisted for summary display)
+  discountCode: string | null;
+  discountAmount: number; // In rands
+  discountDescription: string | null;
   
   // Step 6 (handled in review)
   paymentReference: string | null;
@@ -90,6 +95,9 @@ const initial: BookingStateV2 = {
   selected_team: null,
   requires_team: false,
   tipAmount: 0,
+  discountCode: null,
+  discountAmount: 0,
+  discountDescription: null,
   paymentReference: null,
   currentStep: 1,
 };
@@ -188,6 +196,9 @@ export function useBookingV2() {
             carpetDetails: loadedState.carpetDetails || null,
             provideEquipment: loadedState.provideEquipment || false,
             selectedCleaner: loadedState.selectedCleaner || null, // Handle new field
+            discountCode: loadedState.discountCode ?? globalState.discountCode,
+            discountAmount: typeof loadedState.discountAmount === 'number' ? loadedState.discountAmount : globalState.discountAmount,
+            discountDescription: loadedState.discountDescription ?? globalState.discountDescription,
           };
         } catch (e) {
           console.error('Failed to parse booking state:', e);

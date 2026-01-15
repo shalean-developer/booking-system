@@ -611,16 +611,18 @@ const nextConfig = {
   },
   // Internal rewrites for booking flow migration
   // Old booking URLs internally serve new booking-v2 content without changing browser URL
+  // NOTE: /booking/service/:slug/details rewrite removed to use new booking form
   async rewrites() {
     return [
       {
         source: '/booking/service/select',
         destination: '/booking-v2/select',
       },
-      {
-        source: '/booking/service/:slug/details',
-        destination: '/booking-v2/:slug/details',
-      },
+      // Removed: details page now uses new booking form
+      // {
+      //   source: '/booking/service/:slug/details',
+      //   destination: '/booking-v2/:slug/details',
+      // },
       {
         source: '/booking/service/:slug/schedule',
         destination: '/booking-v2/:slug/schedule',
