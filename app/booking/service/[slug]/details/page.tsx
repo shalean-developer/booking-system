@@ -862,49 +862,70 @@ export const BookingDetails = () => {
               <h2 className="text-2xl font-bold text-slate-900 mb-8">Booking Summary</h2>
               
               <div className="space-y-6">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500">Service</span>
-                  <span className="font-bold text-slate-900">{selectedService ? SERVICES.find(s => s.id === selectedService)?.name : 'Not selected'}</span>
-                </div>
+                {/* Minimal summary */}
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500">Service</span>
+                    <span className="font-bold text-slate-900">
+                      {selectedService ? SERVICES.find((s) => s.id === selectedService)?.name : 'Not selected'}
+                    </span>
+                  </div>
 
-                <div className="border-t border-dashed border-gray-100 pt-6">
-                  <h3 className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-4">Price Breakdown</h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-500">Base Price</span>
-                      <span className="font-medium">
-                        {serviceRatesLoading ? 'Loading…' : `R${basePrice.toFixed(2)}`}
-                      </span>
-                    </div>
-                    {roomTotal > 0 && <div className="flex justify-between text-sm">
-                        <span className="text-slate-500">
-                          {selectedService === 'carpet'
-                            ? `Fitted Carpets, Loose Carpets/Rugs & Room Status (${safeBedrooms} fitted, ${safeBathrooms} loose, ${carpetRoomStatus === 'hasProperty' ? 'has property' : 'empty'})`
-                            : `Bedrooms, Bathrooms & Offices (${safeBedrooms} bed, ${safeBathrooms} bath, ${safeOfficeCount} office)`}
-                        </span>
-                        <span className="font-medium">R{roomTotal.toFixed(2)}</span>
-                      </div>}
-                    {selectedExtras.map(name => {
-                    const unitPrice = extrasPrices[name] ?? (PRICING.extras as any)[name] ?? 0;
-                    return <div key={name} className="flex justify-between text-sm">
-                          <span className="text-slate-500">{name}</span>
-                          <span className="font-medium">R{Number(unitPrice).toFixed(2)}</span>
-                        </div>;
-                  })}
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500">Schedule</span>
+                    <span className="font-medium text-slate-900 text-right">
+                      {bookingDate && bookingTime ? `${bookingDate} @ ${bookingTime}` : 'Not scheduled'}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500">Add-ons</span>
+                    <span className="font-medium text-slate-900 text-right">
+                      {selectedExtras.length > 0 ? `${selectedExtras.length} item(s) — R${extrasTotal.toFixed(2)}` : 'None'}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500">Estimated duration</span>
+                    <span className="font-medium text-slate-900 text-right">
+                      {selectedService
+                        ? (() => {
+                            let hours =
+                              selectedService === 'standard'
+                                ? 2.0
+                                : selectedService === 'airbnb'
+                                ? 2.5
+                                : selectedService === 'deep'
+                                ? 4.0
+                                : selectedService === 'move'
+                                ? 4.5
+                                : selectedService === 'carpet'
+                                ? 2.0
+                                : 2.5;
+
+                            if (selectedService === 'carpet') {
+                              hours += safeBedrooms * 0.5; // fitted carpets proxy
+                              hours += safeBathrooms * 0.25; // loose carpets proxy
+                              if (carpetRoomStatus === 'hasProperty') hours += 0.5;
+                            } else {
+                              hours += safeBedrooms * 0.5;
+                              hours += safeBathrooms * 0.75;
+                              hours += safeOfficeCount * 0.25;
+                            }
+
+                            hours += selectedExtras.length * 0.25;
+                            const roundHalf = (v: number) => Math.round(v * 2) / 2;
+                            const base = Math.min(12, Math.max(1.5, roundHalf(hours)));
+                            const min = Math.max(1, roundHalf(base * 0.9));
+                            const max = Math.max(min, roundHalf(base * 1.1));
+                            return `Est. ${min}–${max} hrs`;
+                          })()
+                        : '—'}
+                    </span>
                   </div>
                 </div>
 
-                <div className="border-t border-gray-100 pt-6 space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500 font-medium">Subtotal</span>
-                    <span className="font-bold">R{subtotal.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500 font-medium">Service Fee</span>
-                    <span className="font-medium">R{serviceFee.toFixed(2)}</span>
-                  </div>
-                </div>
-
+                {/* Total */}
                 <div className="pt-6 border-t border-gray-100 flex justify-between items-end">
                   <div>
                     <span className="block text-3xl font-black text-blue-600">R{total.toFixed(2)}</span>
@@ -917,6 +938,57 @@ export const BookingDetails = () => {
                     </span>
                   </div>
                 </div>
+
+                {/* View details (collapsed) */}
+                <details className="border-t border-dashed border-gray-100 pt-4">
+                  <summary className="cursor-pointer text-sm font-semibold text-slate-700 select-none">
+                    View details
+                  </summary>
+
+                  <div className="mt-4 space-y-6">
+                    <div>
+                      <h3 className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-4">Price Breakdown</h3>
+                      <div className="space-y-3">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-slate-500">Base Price</span>
+                          <span className="font-medium">{serviceRatesLoading ? 'Loading…' : `R${basePrice.toFixed(2)}`}</span>
+                        </div>
+                        {roomTotal > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-slate-500">
+                              {selectedService === 'carpet'
+                                ? `Fitted Carpets, Loose Carpets/Rugs & Room Status (${safeBedrooms} fitted, ${safeBathrooms} loose, ${
+                                    carpetRoomStatus === 'hasProperty' ? 'has property' : 'empty'
+                                  })`
+                                : `Bedrooms, Bathrooms & Offices (${safeBedrooms} bed, ${safeBathrooms} bath, ${safeOfficeCount} office)`}
+                            </span>
+                            <span className="font-medium">R{roomTotal.toFixed(2)}</span>
+                          </div>
+                        )}
+                        {selectedExtras.map((name) => {
+                          const unitPrice = extrasPrices[name] ?? (PRICING.extras as any)[name] ?? 0;
+                          return (
+                            <div key={name} className="flex justify-between text-sm">
+                              <span className="text-slate-500">{name}</span>
+                              <span className="font-medium">R{Number(unitPrice).toFixed(2)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="border-t border-gray-100 pt-6 space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-500 font-medium">Subtotal</span>
+                        <span className="font-bold">R{subtotal.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-500 font-medium">Service Fee</span>
+                        <span className="font-medium">R{serviceFee.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </details>
 
                 {/* Primary continue action now lives in Special Instructions */}
               </div>
