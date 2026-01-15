@@ -235,6 +235,31 @@ export function BookingSummaryV2() {
     return extrasDisplay.reduce((sum, item) => sum + item.total, 0);
   }, [extrasDisplay]);
 
+  const equipmentCharge = useMemo(() => {
+    return formData?.equipment?.charge || PRICING.equipmentCharge || 500;
+  }, [formData?.equipment?.charge]);
+
+  const basePrice = useMemo(() => {
+    return servicePricing?.base ?? 0;
+  }, [servicePricing]);
+
+  const roomsPrice = useMemo(() => {
+    if (!servicePricing || !state.service) return 0;
+
+    if (state.service === 'Carpet' && state.carpetDetails) {
+      const fitted = state.carpetDetails.hasFittedCarpets ? (state.carpetDetails.numberOfRooms || 0) * 300 : 0;
+      const loose = state.carpetDetails.hasLooseCarpets ? (state.carpetDetails.numberOfLooseCarpets || 0) * 200 : 0;
+      const moveFee = state.carpetDetails.roomStatus === 'hasProperty' ? 250 : 0;
+      return fitted + loose + moveFee;
+    }
+
+    return (state.bedrooms || 0) * servicePricing.bedroom + (state.bathrooms || 0) * servicePricing.bathroom;
+  }, [servicePricing, state.service, state.bedrooms, state.bathrooms, state.carpetDetails]);
+
+  const serviceTotal = useMemo(() => {
+    return basePrice + roomsPrice;
+  }, [basePrice, roomsPrice]);
+
   const estimatedDurationHours = useMemo(() => {
     if (!state.service) return null;
 
@@ -291,6 +316,12 @@ export function BookingSummaryV2() {
   ]);
 
   const showPromo = !!state.discountCode && (state.discountAmount || 0) > 0;
+  const showEquipment = state.service === 'Standard' || state.service === 'Airbnb';
+  const cleanersLabel = state.requires_team
+    ? state.selected_team
+      ? `Team booking (${state.selected_team})`
+      : 'Team booking'
+    : '1 cleaner';
 
   return (
     <Card className="border border-slate-200 shadow-lg bg-white">
@@ -310,6 +341,24 @@ export function BookingSummaryV2() {
                   {state.service}
                 </Badge>
               </div>
+
+                {/* Cleaners */}
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-900 mb-2">Cleaners</h3>
+                  <p className="text-sm text-slate-600">{cleanersLabel}</p>
+                </div>
+
+                {/* Equipment */}
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-900 mb-2">Equipment</h3>
+                  <p className="text-sm text-slate-600">
+                    {showEquipment
+                      ? state.provideEquipment
+                        ? `Provided by us — R${equipmentCharge.toFixed(2)}`
+                        : 'Customer provides'
+                      : 'Not applicable'}
+                  </p>
+                </div>
 
               {/* Date & Time */}
               {(state.date || state.time) && (
@@ -333,6 +382,32 @@ export function BookingSummaryV2() {
                   </p>
                 </div>
               )}
+
+                {/* Base + Rooms + Service total */}
+                {servicePricing && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900 mb-2">Service pricing</h3>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-600">Base</span>
+                        <span className="font-medium text-slate-900">R{basePrice.toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-600">
+                          Rooms
+                          {state.service === 'Carpet'
+                            ? ''
+                            : ` (${state.bedrooms || 0} bed, ${state.bathrooms || 0} bath)`}
+                        </span>
+                        <span className="font-medium text-slate-900">R{roomsPrice.toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm border-t pt-2">
+                        <span className="text-slate-700 font-semibold">Service total</span>
+                        <span className="font-semibold text-slate-900">R{serviceTotal.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
               {/* Extras (Add-ons) */}
               {extrasDisplay.length > 0 && (

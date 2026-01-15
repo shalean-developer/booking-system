@@ -872,9 +872,42 @@ export const BookingDetails = () => {
                   </div>
 
                   <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500">Cleaners</span>
+                    <span className="font-medium text-slate-900 text-right">
+                      {numCleaners != null ? `${numCleaners} cleaner(s)` : 'Not selected'}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500">Equipment</span>
+                    <span className="font-medium text-slate-900 text-right">
+                      {equipmentSupplied == null ? 'Not selected' : equipmentSupplied ? 'Provided by us' : 'Customer provides'}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center text-sm">
                     <span className="text-slate-500">Schedule</span>
                     <span className="font-medium text-slate-900 text-right">
                       {bookingDate && bookingTime ? `${bookingDate} @ ${bookingTime}` : 'Not scheduled'}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500">Base</span>
+                    <span className="font-medium text-slate-900 text-right">
+                      {serviceRatesLoading ? 'Loading…' : `R${basePrice.toFixed(2)}`}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500">Rooms</span>
+                    <span className="font-medium text-slate-900 text-right">R{roomTotal.toFixed(2)}</span>
+                  </div>
+
+                  <div className="flex justify-between items-center text-sm border-t border-dashed border-gray-100 pt-3">
+                    <span className="text-slate-700 font-semibold">Service total</span>
+                    <span className="font-semibold text-slate-900">
+                      {serviceRatesLoading ? 'Loading…' : `R${(basePrice + roomTotal).toFixed(2)}`}
                     </span>
                   </div>
 
