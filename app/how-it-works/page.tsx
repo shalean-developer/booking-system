@@ -224,7 +224,7 @@ export default function HowItWorksPage() {
             Book your cleaning service in just a few minutes.
           </p>
           <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-8 py-4 text-lg" asChild>
-            <Link href="/booking/service/select">
+            <Link href="/booking/service/standard/details">
               Book Now
               <ArrowRight className="ml-2 h-5 w-5" />
             </Link>

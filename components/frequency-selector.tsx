@@ -66,7 +66,7 @@ export function FrequencySelector({
   return (
     <div className={cn('space-y-3', className)}>
       <div>
-        <h3 className="text-base font-semibold text-gray-900">
+        <h3 className="text-xl font-bold text-gray-900">
           How often do you need cleaning?
         </h3>
       </div>

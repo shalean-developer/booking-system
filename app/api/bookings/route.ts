@@ -247,6 +247,8 @@ export async function POST(req: Request) {
     console.log('Cleaner ID:', body.cleaner_id);
     console.log('Customer ID:', customerId);
     console.log('Booking ID:', bookingId);
+
+    const numberOfCleaners = Math.max(1, Math.round((body as any).numberOfCleaners ?? 1));
     
     if (body.cleaner_id === 'manual') {
       console.log('⚠️ MANUAL CLEANER ASSIGNMENT REQUESTED');
@@ -276,6 +278,7 @@ export async function POST(req: Request) {
           type: body.service,
           bedrooms: body.bedrooms,
           bathrooms: body.bathrooms,
+          numberOfCleaners,
         },
         extras: body.extras || [],
         frequency: frequencyForSnapshot, // One-time bookings stored as NULL
@@ -358,7 +361,10 @@ export async function POST(req: Request) {
       }
 
       // Check if this is a team-based booking
-      const requiresTeam = body.service === 'Deep' || body.service === 'Move In/Out';
+      const requiresTeam =
+        body.service === 'Deep' ||
+        body.service === 'Move In/Out' ||
+        ((body.service === 'Standard' || body.service === 'Airbnb') && numberOfCleaners > 1);
       
       // Calculate cleaner earnings based on experience (only for non-team bookings)
       let cleanerHireDate = null;

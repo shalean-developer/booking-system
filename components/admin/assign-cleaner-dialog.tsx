@@ -33,6 +33,7 @@ interface AssignCleanerDialogProps {
   bookingTime: string;
   bookingCity: string;
   serviceType?: string;
+  bookingRequiresTeam?: boolean;
   onSuccess?: () => void;
 }
 
@@ -43,6 +44,7 @@ export function AssignCleanerDialog({
   bookingDate,
   bookingCity,
   serviceType,
+  bookingRequiresTeam,
   onSuccess,
 }: AssignCleanerDialogProps) {
   const [cleaners, setCleaners] = useState<Cleaner[]>([]);
@@ -59,7 +61,7 @@ export function AssignCleanerDialog({
   useEffect(() => {
     if (open && bookingDate) {
       // Check if service requires team
-      const needsTeam = serviceType === 'Deep' || serviceType === 'Move In/Out';
+      const needsTeam = !!bookingRequiresTeam || serviceType === 'Deep' || serviceType === 'Move In/Out';
       setRequiresTeam(needsTeam);
       if (needsTeam) {
         // For teams, only fetch cleaners after team is selected

@@ -144,7 +144,7 @@ function RescheduleContent() {
 
         // Convert service type to slug and redirect to schedule page with rescheduleId
         const slug = serviceTypeToSlug(serviceType);
-        router.replace(`/booking/service/${slug}/schedule?rescheduleId=${encodeURIComponent(bookingId)}`);
+        router.replace(`/booking/service/${slug}/worker?rescheduleId=${encodeURIComponent(bookingId)}`);
       } catch (err) {
         console.error('Error fetching booking:', err);
         setError('Failed to load booking details');

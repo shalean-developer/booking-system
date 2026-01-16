@@ -7,6 +7,8 @@ export interface BookingState {
   service: ServiceType | null;
   bedrooms: number;
   bathrooms: number;
+  // For Standard/Airbnb multi-cleaner bookings (default 1)
+  numberOfCleaners?: number;
   extras: string[];
   extrasQuantities: Record<string, number>;
   notes: string;
@@ -48,6 +50,7 @@ export interface Cleaner {
   phone: string | null;
   email: string | null;
   is_active: boolean;
+  completion_rate: number | null; // Reliability score (0-100)
   created_at: string;
   updated_at: string;
 }

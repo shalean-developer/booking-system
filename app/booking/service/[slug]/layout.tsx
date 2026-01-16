@@ -3,7 +3,7 @@ import { generateCanonical } from '@/lib/metadata';
 
 export const metadata: Metadata = {
   alternates: {
-    canonical: generateCanonical('/booking/service/select'),
+    canonical: generateCanonical('/booking/service/standard/details'),
   },
   robots: {
     index: false,

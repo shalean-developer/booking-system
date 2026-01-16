@@ -761,7 +761,7 @@ export default function DashboardPage() {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                   <Button asChild className="bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-sm sm:text-base h-10 sm:h-11">
-                    <a href="/booking/service/select">Book Your First Service</a>
+                    <a href="/booking/service/standard/details">Book Your First Service</a>
                   </Button>
                   <Button variant="outline" asChild className="text-sm sm:text-base h-10 sm:h-11">
                     <a href="/contact">Contact Support</a>

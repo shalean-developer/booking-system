@@ -57,10 +57,19 @@ export function GBPWidget({
   const defaultPlaceId = process.env.NEXT_PUBLIC_GOOGLE_PLACE_ID || placeId;
 
   // Generate Google Maps embed URL
+  // DISABLED: Google Maps API requires billing to be enabled
   const getMapsEmbedUrl = () => {
+    const enableGooglePlaces = process.env.NEXT_PUBLIC_ENABLE_GOOGLE_PLACES === 'true';
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY;
+    
+    // Return null if Google Places is disabled or no API key
+    if (!enableGooglePlaces || !apiKey) {
+      return null;
+    }
+    
     // If we have a Place ID, use it for the embed
     if (defaultPlaceId) {
-      return `https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY || ''}&q=place_id:${defaultPlaceId}`;
+      return `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=place_id:${defaultPlaceId}`;
     }
     
     // Try to extract place ID from GBP URL
@@ -68,12 +77,12 @@ export function GBPWidget({
     if (placeIdMatch && placeIdMatch[1]) {
       const extractedPlaceId = placeIdMatch[1].split('@')[0];
       if (extractedPlaceId && extractedPlaceId !== 'Shalean+Cleaning+Services') {
-        return `https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY || ''}&q=place_id:${extractedPlaceId}`;
+        return `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=place_id:${extractedPlaceId}`;
       }
     }
 
     // Fallback: Use search query based on business name
-    return `https://www.google.com/maps/embed/v1/search?key=${process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY || ''}&q=Shalean+Cleaning+Services+Cape+Town`;
+    return `https://www.google.com/maps/embed/v1/search?key=${apiKey}&q=Shalean+Cleaning+Services+Cape+Town`;
   };
 
   if (compact) {
@@ -199,17 +208,23 @@ export function GBPWidget({
 
           {/* Right: Google Maps Embed */}
           <div className="relative h-full min-h-[400px]">
-            <iframe
-              src={getMapsEmbedUrl()}
-              width="100%"
-              height="100%"
-              style={{ border: 0, borderRadius: "8px" }}
-              allowFullScreen
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              className="absolute inset-0 w-full h-full rounded-lg"
-              title="Shalean Cleaning Services Location"
-            />
+            {getMapsEmbedUrl() ? (
+              <iframe
+                src={getMapsEmbedUrl()!}
+                width="100%"
+                height="100%"
+                style={{ border: 0, borderRadius: "8px" }}
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                className="absolute inset-0 w-full h-full rounded-lg"
+                title="Shalean Cleaning Services Location"
+              />
+            ) : (
+              <div className="absolute inset-0 w-full h-full rounded-lg bg-gray-100 flex items-center justify-center">
+                <p className="text-gray-500 text-sm">Map unavailable</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

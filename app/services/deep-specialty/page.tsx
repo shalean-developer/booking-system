@@ -127,7 +127,7 @@ export default function DeepSpecialtyPage() {
             Book your deep & specialty cleaning service today for an intensive, professional clean.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/booking/service/select">
+            <Link href="/booking/service/standard/details">
               <Button size="lg" className="bg-primary hover:bg-primary/90 text-white">
                 Book Now
               </Button>

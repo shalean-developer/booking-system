@@ -117,7 +117,7 @@ export function StepDetails() {
 
   const handleBack = useCallback(() => {
     // Navigate immediately - step will be updated by the target page's useEffect
-    router.push('/booking/service/select');
+    router.push('/booking/service/standard/details');
   }, [router]);
 
   const handleNext = useCallback(() => {

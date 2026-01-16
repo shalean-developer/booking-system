@@ -22,6 +22,7 @@ export async function POST(req: Request) {
     const body: BookingState & { paymentReference: string; totalAmount: number; serviceFee?: number; frequencyDiscount?: number } = await req.json();
     
     const { paymentReference, totalAmount } = body;
+    const numberOfCleaners = Math.max(1, Math.round((body as any).numberOfCleaners ?? 1));
     
     if (!paymentReference) {
       return NextResponse.json(
@@ -152,7 +153,10 @@ export async function POST(req: Request) {
     }
 
     // STEP 3: Prepare booking data
-    const requiresTeam = body.service === 'Deep' || body.service === 'Move In/Out';
+    const requiresTeam =
+      body.service === 'Deep' ||
+      body.service === 'Move In/Out' ||
+      ((body.service === 'Standard' || body.service === 'Airbnb') && numberOfCleaners > 1);
     
     let cleanerEarnings = 0;
     if (!requiresTeam && body.cleaner_id && body.cleaner_id !== 'manual') {
@@ -178,6 +182,7 @@ export async function POST(req: Request) {
         type: body.service,
         bedrooms: body.bedrooms,
         bathrooms: body.bathrooms,
+        numberOfCleaners,
       },
       extras: body.extras || [],
       frequency: frequencyForDb,

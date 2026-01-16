@@ -92,7 +92,7 @@ export default function UpgradePlanPage({ params }: { params: Promise<{ id: stri
               </p>
               <div className="space-y-3">
                 <Button asChild className="w-full bg-gradient-to-r from-teal-500 to-green-500">
-                  <Link href="/booking/service/select?recurring=true">Create New Plan</Link>
+                  <Link href="/booking/service/standard/details?recurring=true">Create New Plan</Link>
                 </Button>
                 <Button variant="outline" className="w-full" onClick={() => router.push('/dashboard/plans')}>
                   Back to Plans

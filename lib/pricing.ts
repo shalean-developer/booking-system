@@ -129,6 +129,8 @@ export function calcTotalSync(
     } | null;
     provideEquipment?: boolean;
     equipmentCharge?: number;
+    // For Standard/Airbnb only (default 1)
+    numberOfCleaners?: number;
   },
   frequency: 'one-time' | 'weekly' | 'bi-weekly' | 'monthly' = 'one-time'
 ): {
@@ -215,7 +217,13 @@ export function calcTotalSync(
     ? (input.equipmentCharge ?? PRICING.equipmentCharge)
     : 0;
 
-  const subtotal = base + beds + baths + extrasTotal + equipmentCharge;
+  // Base pricing (labor-driven). Equipment is treated as a per-booking charge (not per cleaner).
+  const laborSubtotalOneCleaner = base + beds + baths + extrasTotal;
+  const numberOfCleaners = Math.max(1, Math.round(input.numberOfCleaners ?? 1));
+  const subtotal =
+    (input.service === 'Standard' || input.service === 'Airbnb')
+      ? (laborSubtotalOneCleaner * numberOfCleaners) + equipmentCharge
+      : laborSubtotalOneCleaner + equipmentCharge;
 
   // Add service fee
   const serviceFee = PRICING.serviceFee;
@@ -260,6 +268,8 @@ export async function calcTotalAsync(
     } | null;
     provideEquipment?: boolean;
     equipmentCharge?: number;
+    // For Standard/Airbnb only (default 1)
+    numberOfCleaners?: number;
   },
   frequency: 'one-time' | 'weekly' | 'bi-weekly' | 'monthly' = 'one-time'
 ): Promise<{
@@ -470,7 +480,13 @@ export async function calcTotalAsync(
       }
     }
 
-    const subtotal = base + beds + baths + extrasTotal + equipmentCharge;
+    // Base pricing (labor-driven). Equipment is treated as a per-booking charge (not per cleaner).
+    const laborSubtotalOneCleaner = base + beds + baths + extrasTotal;
+    const numberOfCleaners = Math.max(1, Math.round(input.numberOfCleaners ?? 1));
+    const subtotal =
+      (input.service === 'Standard' || input.service === 'Airbnb')
+        ? (laborSubtotalOneCleaner * numberOfCleaners) + equipmentCharge
+        : laborSubtotalOneCleaner + equipmentCharge;
 
     // Validate and use fallback service fee if invalid
     let serviceFee = pricing.serviceFee ?? PRICING.serviceFee ?? 0;
@@ -524,6 +540,7 @@ export async function calcTotalAsync(
         extrasBreakdown,
         extrasTotal,
         subtotal,
+        numberOfCleaners: (input.service === 'Standard' || input.service === 'Airbnb') ? numberOfCleaners : 1,
         serviceFee,
         frequencyDiscount,
         discountPercent,

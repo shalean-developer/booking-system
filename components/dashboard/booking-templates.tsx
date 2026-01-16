@@ -235,7 +235,7 @@ export function BookingTemplates() {
     sessionStorage.setItem('booking_template', JSON.stringify(template));
     toast.success('Template loaded! Start a new booking to use it.');
     // Optionally redirect to booking flow
-    window.location.href = '/booking/service/select';
+    window.location.href = '/booking/service/standard/details';
   };
 
   if (isLoading) {

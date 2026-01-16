@@ -67,7 +67,7 @@ export async function GET(request: Request) {
           fullName: key,
           icon: mapping.icon,
           type: 'extra' as const,
-          href: `/booking/service/select?extras=${urlSlug}`,
+          href: `/booking/service/standard/details?extras=${urlSlug}`,
         };
       });
 

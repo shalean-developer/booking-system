@@ -67,7 +67,7 @@ export function ScheduleSelector({
 
   return (
     <section className="space-y-4" aria-labelledby="schedule-selection">
-      <h3 id="schedule-selection" className="text-base font-semibold text-gray-900">
+      <h3 id="schedule-selection" className="text-xl font-bold text-gray-900">
         Schedule
       </h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -488,7 +488,7 @@ export default function BookingsPage() {
                 <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900 mb-2">No bookings yet</h2>
                 <p className="text-xs sm:text-sm lg:text-base text-gray-600 mb-6">Book your first service to get started!</p>
                 <Button asChild className="bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-sm sm:text-base h-10 sm:h-11">
-                  <Link href="/booking/service/select">Book a Service</Link>
+                  <Link href="/booking/service/standard/details">Book a Service</Link>
                 </Button>
               </CardContent>
             </Card>

@@ -1,73 +1,59 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
 import { useMemo } from 'react';
 import { serviceTypeToSlug } from './booking-utils';
 
 /**
- * Hook to determine the correct booking path prefix based on current URL.
- * If user is on old booking URL (/booking/service/*), returns old pattern.
- * Otherwise returns new booking-v2 pattern.
+ * Centralized booking URLs.
+ *
+ * We no longer generate `/booking-v2/*` links. All booking navigation uses
+ * the canonical `/booking/service/*` routes.
  */
 export function useBookingPath() {
-  const pathname = usePathname();
-  
-  const isOldBookingPath = useMemo(() => {
-    return pathname.startsWith('/booking/service/');
-  }, [pathname]);
+  const isOldBookingPath = true;
 
   const getSelectPath = useMemo(() => {
-    return isOldBookingPath ? '/booking/service/select' : '/booking-v2/select';
-  }, [isOldBookingPath]);
+    // Redirect to new unified booking flow (details page has service selection built in)
+    return '/booking/service/standard/details';
+  }, []);
 
   const getDetailsPath = useMemo(() => {
     return (serviceType: string) => {
       const slug = serviceTypeToSlug(serviceType as any);
-      return isOldBookingPath 
-        ? `/booking/service/${slug}/details`
-        : `/booking-v2/${slug}/details`;
+      return `/booking/service/${slug}/details`;
     };
-  }, [isOldBookingPath]);
+  }, []);
 
   const getSchedulePath = useMemo(() => {
     return (serviceType: string) => {
       const slug = serviceTypeToSlug(serviceType as any);
-      return isOldBookingPath 
-        ? `/booking/service/${slug}/schedule`
-        : `/booking-v2/${slug}/schedule`;
+      return `/booking/service/${slug}/worker`;
     };
-  }, [isOldBookingPath]);
+  }, []);
 
   const getContactPath = useMemo(() => {
     return (serviceType: string) => {
       const slug = serviceTypeToSlug(serviceType as any);
-      return isOldBookingPath 
-        ? `/booking/service/${slug}/contact`
-        : `/booking-v2/${slug}/contact`;
+      return `/booking/service/${slug}/contact`;
     };
-  }, [isOldBookingPath]);
+  }, []);
 
   const getCleanerPath = useMemo(() => {
     return (serviceType: string) => {
       const slug = serviceTypeToSlug(serviceType as any);
-      return isOldBookingPath 
-        ? `/booking/service/${slug}/select-cleaner`
-        : `/booking-v2/${slug}/cleaner`;
+      return `/booking/service/${slug}/worker`;
     };
-  }, [isOldBookingPath]);
+  }, []);
 
   const getReviewPath = useMemo(() => {
     return (serviceType: string) => {
       const slug = serviceTypeToSlug(serviceType as any);
-      return isOldBookingPath 
-        ? `/booking/service/${slug}/review`
-        : `/booking-v2/${slug}/review`;
+      return `/booking/service/${slug}/review`;
     };
-  }, [isOldBookingPath]);
+  }, []);
 
   const getConfirmationPath = useMemo(() => {
     return (ref?: string) => {
-      // Always use old confirmation URL to maintain consistency
       const basePath = '/booking/confirmation';
       return ref ? `${basePath}?ref=${ref}` : basePath;
     };

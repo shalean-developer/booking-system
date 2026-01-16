@@ -652,6 +652,7 @@ export default function AdminBookingsPage() {
             bookingTime={selectedBooking.booking_time}
             bookingCity={selectedBooking.address_city || ''}
             serviceType={selectedBooking.service_type}
+            bookingRequiresTeam={!!selectedBooking.requires_team}
             onSuccess={() => {
               fetchBookings();
             }}

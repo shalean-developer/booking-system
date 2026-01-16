@@ -66,7 +66,7 @@ export default function PretoriaPage() {
               Book your trusted cleaner today!
             </p>
             <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-8 py-4 text-lg" asChild>
-              <Link href="/booking/service/select">
+              <Link href="/booking/service/standard/details">
                 Book Now
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>

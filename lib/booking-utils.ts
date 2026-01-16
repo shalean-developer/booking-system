@@ -31,6 +31,7 @@ export function slugToServiceType(slug: string): ServiceType | null {
     'move-inout': 'Move In/Out',
     'move-in-out': 'Move In/Out',
     'airbnb': 'Airbnb',
+    'carpet': 'Carpet',
   };
   
   return serviceMap[slug] || null;

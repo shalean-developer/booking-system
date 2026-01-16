@@ -20,6 +20,8 @@ export interface BookingStateV2 {
   // Step 2
   bedrooms: number;
   bathrooms: number;
+  // Standard/Airbnb only (default 1)
+  numberOfCleaners: number;
   extras: string[];
   extrasQuantities: Record<string, number>;
   notes: string;
@@ -72,6 +74,7 @@ const initial: BookingStateV2 = {
   service: null,
   bedrooms: 2,
   bathrooms: 1,
+  numberOfCleaners: 1,
   extras: [],
   extrasQuantities: {},
   notes: '',
@@ -196,6 +199,10 @@ export function useBookingV2() {
             carpetDetails: loadedState.carpetDetails || null,
             provideEquipment: loadedState.provideEquipment || false,
             selectedCleaner: loadedState.selectedCleaner || null, // Handle new field
+            numberOfCleaners:
+              typeof loadedState.numberOfCleaners === 'number' && loadedState.numberOfCleaners >= 1
+                ? Math.round(loadedState.numberOfCleaners)
+                : globalState.numberOfCleaners,
             discountCode: loadedState.discountCode ?? globalState.discountCode,
             discountAmount: typeof loadedState.discountAmount === 'number' ? loadedState.discountAmount : globalState.discountAmount,
             discountDescription: loadedState.discountDescription ?? globalState.discountDescription,

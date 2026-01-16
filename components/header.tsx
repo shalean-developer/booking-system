@@ -65,7 +65,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
   const lastScrollY = useRef(0);
   
   // Check if we're in booking flow
-  const isBookingFlow = pathname?.startsWith('/booking') || pathname?.startsWith('/booking-v2');
+  const isBookingFlow = pathname?.startsWith('/booking');
   
   // Handle scroll direction detection
   useEffect(() => {

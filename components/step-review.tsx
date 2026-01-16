@@ -36,14 +36,14 @@ export function StepReview() {
   const displayAmount = useCallback((value: number) => value.toLocaleString('en-ZA', { minimumFractionDigits: 0, maximumFractionDigits: 2 }), []);
 
   const handleEditService = useCallback(() => {
-    router.push('/booking/service/select');
+    router.push('/booking/service/standard/details');
   }, [router]);
 
   const handleEditHome = useCallback(() => {
     if (serviceSlug) {
       router.push(`/booking/service/${serviceSlug}/details`);
     } else {
-      router.push('/booking/service/select');
+      router.push('/booking/service/standard/details');
     }
   }, [router, serviceSlug]);
 
@@ -51,7 +51,7 @@ export function StepReview() {
     if (serviceSlug) {
       router.push(`/booking/service/${serviceSlug}/schedule`);
     } else {
-      router.push('/booking/service/select');
+      router.push('/booking/service/standard/details');
     }
   }, [router, serviceSlug]);
 
@@ -59,7 +59,7 @@ export function StepReview() {
     if (serviceSlug) {
       router.push(`/booking/service/${serviceSlug}/contact`);
     } else {
-      router.push('/booking/service/select');
+      router.push('/booking/service/standard/details');
     }
   }, [router, serviceSlug]);
 
@@ -67,7 +67,7 @@ export function StepReview() {
     if (serviceSlug) {
       router.push(`/booking/service/${serviceSlug}/select-cleaner`);
     } else {
-      router.push('/booking/service/select');
+      router.push('/booking/service/standard/details');
     }
   }, [router, serviceSlug]);
   

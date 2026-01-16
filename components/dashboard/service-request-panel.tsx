@@ -110,7 +110,7 @@ export const ServiceRequestPanel = memo(function ServiceRequestPanel({ onBookSer
           onClick={handleBookService}
           asChild
         >
-          <Link href="/booking/service/select" className="flex items-center justify-center gap-1.5">
+          <Link href="/booking/service/standard/details" className="flex items-center justify-center gap-1.5">
             <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
             <span>Book a New Cleaning</span>
           </Link>

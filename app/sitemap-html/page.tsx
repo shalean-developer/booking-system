@@ -90,7 +90,7 @@ export default function SitemapPage() {
   ];
 
   const bookingPages = [
-    { name: "Book Now", href: "/booking/service/select" },
+    { name: "Book Now", href: "/booking/service/standard/details" },
     { name: "Get Quote", href: "/booking/quote" },
     { name: "Booking Calculator", href: "/booking/calculator" }
   ];
@@ -111,7 +111,7 @@ export default function SitemapPage() {
               Site <span className="text-primary">Map</span>
             </h1>
             <p className="mx-auto mb-8 max-w-3xl text-xl text-gray-600">
-              Find all our pages and services organized by category for easy navigation. Browse our <Link href="/services" className="text-primary hover:underline">cleaning services</Link> including <Link href="/services/regular-cleaning" className="text-primary hover:underline">regular cleaning</Link>, <Link href="/services/deep-cleaning" className="text-primary hover:underline">deep cleaning</Link>, <Link href="/services/one-time-cleaning" className="text-primary hover:underline">one-time cleaning</Link>, and <Link href="/services/post-construction-cleaning" className="text-primary hover:underline">post-construction cleaning</Link>. Explore <Link href="/location" className="text-primary hover:underline">service locations</Link> in <Link href="/location/cape-town" className="text-primary hover:underline">Cape Town</Link>, <Link href="/location/johannesburg" className="text-primary hover:underline">Johannesburg</Link>, <Link href="/location/pretoria" className="text-primary hover:underline">Pretoria</Link>, <Link href="/location/durban" className="text-primary hover:underline">Durban</Link>, <Link href="/location/east-london" className="text-primary hover:underline">East London</Link>, <Link href="/location/port-elizabeth" className="text-primary hover:underline">Port Elizabeth</Link>, <Link href="/location/jeffreys-bay" className="text-primary hover:underline">Jeffreys Bay</Link>, and <Link href="/location/grahamstown" className="text-primary hover:underline">Grahamstown</Link>. <Link href="/booking/service/select" className="text-primary hover:underline">Book a cleaning</Link> today or check our <Link href="/pricing" className="text-primary hover:underline">pricing</Link> and <Link href="/how-it-works" className="text-primary hover:underline">how it works</Link>.
+              Find all our pages and services organized by category for easy navigation. Browse our <Link href="/services" className="text-primary hover:underline">cleaning services</Link> including <Link href="/services/regular-cleaning" className="text-primary hover:underline">regular cleaning</Link>, <Link href="/services/deep-cleaning" className="text-primary hover:underline">deep cleaning</Link>, <Link href="/services/one-time-cleaning" className="text-primary hover:underline">one-time cleaning</Link>, and <Link href="/services/post-construction-cleaning" className="text-primary hover:underline">post-construction cleaning</Link>. Explore <Link href="/location" className="text-primary hover:underline">service locations</Link> in <Link href="/location/cape-town" className="text-primary hover:underline">Cape Town</Link>, <Link href="/location/johannesburg" className="text-primary hover:underline">Johannesburg</Link>, <Link href="/location/pretoria" className="text-primary hover:underline">Pretoria</Link>, <Link href="/location/durban" className="text-primary hover:underline">Durban</Link>, <Link href="/location/east-london" className="text-primary hover:underline">East London</Link>, <Link href="/location/port-elizabeth" className="text-primary hover:underline">Port Elizabeth</Link>, <Link href="/location/jeffreys-bay" className="text-primary hover:underline">Jeffreys Bay</Link>, and <Link href="/location/grahamstown" className="text-primary hover:underline">Grahamstown</Link>. <Link href="/booking/service/standard/details" className="text-primary hover:underline">Book a cleaning</Link> today or check our <Link href="/pricing" className="text-primary hover:underline">pricing</Link> and <Link href="/how-it-works" className="text-primary hover:underline">how it works</Link>.
             </p>
           </div>
         </div>
@@ -309,7 +309,7 @@ export default function SitemapPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-8 py-4 text-lg" asChild>
-              <Link href="/booking/service/select">
+              <Link href="/booking/service/standard/details">
                 Book Now
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>

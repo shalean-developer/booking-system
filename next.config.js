@@ -42,6 +42,47 @@ const nextConfig = {
   // Permanent redirects (301) for SEO
   async redirects() {
     return [
+      // Remove booking-v2 URLs (redirect to canonical booking/service)
+      {
+        source: '/booking-v2/select',
+        destination: '/booking/service/standard/details',
+        permanent: true,
+      },
+      {
+        source: '/booking-v2/confirmation',
+        destination: '/booking/confirmation',
+        permanent: true,
+      },
+      {
+        source: '/booking-v2/:slug/details',
+        destination: '/booking/service/:slug/details',
+        permanent: true,
+      },
+      {
+        source: '/booking-v2/:slug/schedule',
+        destination: '/booking/service/:slug/schedule',
+        permanent: true,
+      },
+      {
+        source: '/booking-v2/:slug/contact',
+        destination: '/booking/service/:slug/contact',
+        permanent: true,
+      },
+      {
+        source: '/booking-v2/:slug/review',
+        destination: '/booking/service/:slug/review',
+        permanent: true,
+      },
+      {
+        source: '/booking-v2/:slug/cleaner',
+        destination: '/booking/service/:slug/select-cleaner',
+        permanent: true,
+      },
+      {
+        source: '/booking-v2/:path*',
+        destination: '/booking/service/standard/details',
+        permanent: true,
+      },
       // Force apex domain
       {
         source: '/:path*',
@@ -62,7 +103,7 @@ const nextConfig = {
       },
       {
         source: '/blog/shalean.co.za/booking/service/select',
-        destination: '/booking/service/select',
+        destination: '/booking/service/standard/details',
         permanent: true,
       },
       // Wildcard redirect for old blog URLs with domain prefix
@@ -116,12 +157,12 @@ const nextConfig = {
       // Old booking URLs
       {
         source: '/booking',
-        destination: '/booking/service/select',
+        destination: '/booking/service/standard/details',
         permanent: true,
       },
       {
         source: '/booking/service',
-        destination: '/booking/service/select',
+        destination: '/booking/service/standard/details',
         permanent: true,
       },
       // Old booking IDs redirect to confirmation page (format: numbersxnumbers)
@@ -158,17 +199,17 @@ const nextConfig = {
       },
       {
         source: '/cleaning/first-step',
-        destination: '/booking/service/select',
+        destination: '/booking/service/standard/details',
         permanent: true,
       },
       {
         source: '/cleaning0/:path*',
-        destination: '/booking/service/select',
+        destination: '/booking/service/standard/details',
         permanent: true,
       },
       {
         source: '/cleaning1',
-        destination: '/booking/service/select',
+        destination: '/booking/service/standard/details',
         permanent: true,
       },
       // Old location paths
@@ -610,40 +651,9 @@ const nextConfig = {
     ];
   },
   // Internal rewrites for booking flow migration
-  // Old booking URLs internally serve new booking-v2 content without changing browser URL
-  // NOTE: /booking/service/:slug/details rewrite removed to use new booking form
+  // No booking rewrites: allow old and new booking flows separately.
   async rewrites() {
-    return [
-      {
-        source: '/booking/service/select',
-        destination: '/booking-v2/select',
-      },
-      // Removed: details page now uses new booking form
-      // {
-      //   source: '/booking/service/:slug/details',
-      //   destination: '/booking-v2/:slug/details',
-      // },
-      {
-        source: '/booking/service/:slug/schedule',
-        destination: '/booking-v2/:slug/schedule',
-      },
-      {
-        source: '/booking/service/:slug/contact',
-        destination: '/booking-v2/:slug/contact',
-      },
-      {
-        source: '/booking/service/:slug/select-cleaner',
-        destination: '/booking-v2/:slug/cleaner',
-      },
-      {
-        source: '/booking/service/:slug/review',
-        destination: '/booking-v2/:slug/review',
-      },
-      {
-        source: '/booking/confirmation',
-        destination: '/booking-v2/confirmation',
-      },
-    ];
+    return [];
   },
   // Experimental optimizations
   experimental: {

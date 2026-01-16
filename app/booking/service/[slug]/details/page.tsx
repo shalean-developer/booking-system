@@ -1,13 +1,19 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Home, Sparkles, Key, ArrowRightLeft, Trash2, Box, Layers, Wind, Calendar as CalendarIcon, Users, Info, ChevronRight, CheckCircle2, Clock, Facebook, Twitter, Instagram, Linkedin, Mail, Phone, MapPin, Calendar, Waves, Building, Bed, Droplet } from 'lucide-react';
+import { useRouter, useParams } from 'next/navigation';
+import { Home, Sparkles, Key, ArrowRightLeft, Trash2, Box, Layers, Wind, Users, Info, ChevronRight, CheckCircle2, Clock, Facebook, Twitter, Instagram, Linkedin, Mail, Phone, MapPin, Calendar, Waves, Building, Bed, Droplet } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { supabase as supabaseClient } from '@/lib/supabase-client';
 import { PRICING } from '@/lib/pricing';
 import type { ServiceType as DbServiceType } from '@/types/booking';
 import { EXTRA_ICONS } from '@/components/extra-service-icons';
+import { PopoverSelect } from '@/components/ui/popover-select';
+import { PopoverDatePicker } from '@/components/ui/popover-date-picker';
+import { PopoverTimeSelect } from '@/components/ui/popover-time-select';
+import { useBookingV2 } from '@/lib/useBookingV2';
+import { slugToServiceType } from '@/lib/booking-utils';
 
 // Types
 type ServiceType = 'standard' | 'deep' | 'airbnb' | 'move' | 'carpet';
@@ -127,22 +133,45 @@ const Footer = () => <footer className="bg-slate-900 text-white mt-20 h-20 flex 
 
 
 // Section IDs in order
-type SectionId = 'service' | 'house-details' | 'additional-services' | 'equipment' | 'cleaners' | 'schedule' | 'instructions';
-const SECTION_ORDER: SectionId[] = ['service', 'house-details', 'additional-services', 'equipment', 'cleaners', 'schedule', 'instructions'];
+type SectionId = 'service' | 'house-details' | 'additional-services' | 'equipment' | 'cleaners' | 'instructions';
+const SECTION_ORDER: SectionId[] = ['service', 'house-details', 'additional-services', 'equipment', 'cleaners', 'instructions'];
 
 // @component: BookingDetails
-export const BookingDetails = () => {
+const BookingDetails = () => {
+  const router = useRouter();
+  const params = useParams();
+  const slug = params.slug as string;
+  const { state: bookingState, updateField, isLoaded: isBookingStateLoaded } = useBookingV2();
+  
+  // Convert booking state service to URL format
+  const serviceFromBooking = bookingState.service ? (() => {
+    const dbToUrl: Record<DbServiceType, ServiceType> = {
+      'Standard': 'standard',
+      'Deep': 'deep',
+      'Airbnb': 'airbnb',
+      'Move In/Out': 'move',
+      'Carpet': 'carpet',
+    };
+    return dbToUrl[bookingState.service] || null;
+  })() : null;
+  
+  // Track if user has explicitly selected a service (via click)
+  // This ensures service selection always shows first, even if service exists in booking state
+  const [userSelectedService, setUserSelectedService] = useState<boolean>(false);
+  
+  // Only initialize from booking state if user has already selected (not on initial load)
+  // Always start with null to show service selection first
   const [selectedService, setSelectedService] = useState<ServiceType | null>(null);
-  const [bedrooms, setBedrooms] = useState<number | null>(null);
-  const [bathrooms, setBathrooms] = useState<number | null>(null);
+  const [bedrooms, setBedrooms] = useState<number | null>(bookingState.bedrooms || null);
+  const [bathrooms, setBathrooms] = useState<number | null>(bookingState.bathrooms || null);
   const [officeCount, setOfficeCount] = useState<number | null>(null);
-  const [carpetRoomStatus, setCarpetRoomStatus] = useState<'empty' | 'hasProperty' | null>(null);
-  const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
-  const [equipmentSupplied, setEquipmentSupplied] = useState<boolean | null>(null);
-  const [numCleaners, setNumCleaners] = useState<number | null>(null);
-  const [bookingDate, setBookingDate] = useState<string>('');
-  const [bookingTime, setBookingTime] = useState<string>('');
-  const [specialInstructions, setSpecialInstructions] = useState<string>('');
+  const [carpetRoomStatus, setCarpetRoomStatus] = useState<'empty' | 'hasProperty' | null>(
+    bookingState.carpetDetails?.roomStatus || null
+  );
+  const [selectedExtras, setSelectedExtras] = useState<string[]>(bookingState.extras || []);
+  const [equipmentSupplied, setEquipmentSupplied] = useState<boolean | null>(bookingState.provideEquipment ?? null);
+  const [numCleaners, setNumCleaners] = useState<number>(bookingState.numberOfCleaners || 1);
+  const [specialInstructions, setSpecialInstructions] = useState<string>(bookingState.notes || '');
   
   // Progressive disclosure state
   const [completedSections, setCompletedSections] = useState<Set<SectionId>>(new Set());
@@ -227,7 +256,6 @@ export const BookingDetails = () => {
         .select('price_type, price, effective_date')
         .eq('is_active', true)
         .eq('service_type', serviceKey)
-        // @ts-expect-error supabase-js typing for `in()` can be strict
         .in('price_type', ['base', 'bedroom', 'bathroom'])
         .lte('effective_date', today)
         .or(`end_date.is.null,end_date.gt.${today}`)
@@ -288,8 +316,6 @@ export const BookingDetails = () => {
         return equipmentSupplied !== null && equipmentSupplied !== undefined;
       case 'cleaners':
         return numCleaners !== null;
-      case 'schedule':
-        return bookingDate !== '' && bookingTime !== '';
       case 'instructions':
         return completedSections.has('instructions'); // Manual completion
       default:
@@ -338,11 +364,6 @@ export const BookingDetails = () => {
       return 'cleaners';
     }
     
-    // Check schedule
-    if (!completedSections.has('schedule')) {
-      return 'schedule';
-    }
-    
     // Check instructions (manual completion)
     if (!completedSections.has('instructions')) {
       return 'instructions';
@@ -362,9 +383,55 @@ export const BookingDetails = () => {
     });
   }, []);
   
+  // Save all form data to booking state
+  const saveToBookingState = useCallback(() => {
+    if (selectedService) {
+      const dbServiceType = SERVICE_ID_TO_DB[selectedService];
+      if (dbServiceType) {
+        updateField('service', dbServiceType);
+      }
+    }
+    
+    if (bedrooms !== null) {
+      updateField('bedrooms', bedrooms);
+    }
+    
+    if (bathrooms !== null) {
+      updateField('bathrooms', bathrooms);
+    }
+    
+    updateField('extras', selectedExtras);
+    updateField('numberOfCleaners', numCleaners);
+    updateField('notes', specialInstructions);
+    
+    if (equipmentSupplied !== null) {
+      updateField('provideEquipment', equipmentSupplied);
+    }
+    
+    // Handle carpet details
+    if (selectedService === 'carpet') {
+      updateField('carpetDetails', {
+        hasFittedCarpets: (bedrooms || 0) > 0,
+        hasLooseCarpets: (bathrooms || 0) > 0,
+        numberOfRooms: bedrooms || 0,
+        numberOfLooseCarpets: bathrooms || 0,
+        roomStatus: carpetRoomStatus || 'empty',
+      });
+    } else {
+      updateField('carpetDetails', null);
+    }
+  }, [selectedService, bedrooms, bathrooms, selectedExtras, numCleaners, specialInstructions, equipmentSupplied, carpetRoomStatus, updateField]);
+  
   // Handle manual completion (for sections with Continue buttons)
   const handleContinue = (sectionId: SectionId) => {
     handleSectionComplete(sectionId);
+    
+    // Navigate to worker selection after completing instructions
+    if (sectionId === 'instructions') {
+      // Save all data to booking state before navigating
+      saveToBookingState();
+      router.push(`/booking/service/${slug}/worker`);
+    }
   };
   
   // Convert Set to string for dependency tracking - use stable string representation
@@ -372,6 +439,53 @@ export const BookingDetails = () => {
     const sections = Array.from(completedSections);
     return sections.length > 0 ? sections.sort().join(',') : '';
   }, [completedSections.size]);
+  
+  // Initialize from booking state when it's loaded (but don't mark as user-selected)
+  // This allows us to pre-fill data but still show service selection first
+  useEffect(() => {
+    if (!isBookingStateLoaded) return;
+    
+    // Don't auto-set service from booking state - always show service selection first
+    // Only load other form data
+    
+    if (bookingState.bedrooms !== undefined && bedrooms === null) {
+      setBedrooms(bookingState.bedrooms);
+    }
+    
+    if (bookingState.bathrooms !== undefined && bathrooms === null) {
+      setBathrooms(bookingState.bathrooms);
+    }
+    
+    if (bookingState.extras && bookingState.extras.length > 0 && selectedExtras.length === 0) {
+      setSelectedExtras(bookingState.extras);
+    }
+    
+    if (bookingState.numberOfCleaners !== undefined && numCleaners === 1) {
+      setNumCleaners(bookingState.numberOfCleaners);
+    }
+    
+    if (bookingState.notes && !specialInstructions) {
+      setSpecialInstructions(bookingState.notes);
+    }
+    
+    if (bookingState.provideEquipment !== undefined && equipmentSupplied === null) {
+      setEquipmentSupplied(bookingState.provideEquipment);
+    }
+    
+    if (bookingState.carpetDetails && carpetRoomStatus === null) {
+      setCarpetRoomStatus(bookingState.carpetDetails.roomStatus);
+    }
+  }, [isBookingStateLoaded]); // Run when booking state is loaded
+  
+  // Sync service selection to booking state
+  useEffect(() => {
+    if (selectedService) {
+      const dbServiceType = SERVICE_ID_TO_DB[selectedService];
+      if (dbServiceType && dbServiceType !== bookingState.service) {
+        updateField('service', dbServiceType);
+      }
+    }
+  }, [selectedService, bookingState.service, updateField]);
   
   // Auto-complete sections based on form state
   useEffect(() => {
@@ -422,41 +536,26 @@ export const BookingDetails = () => {
     }
   }, [numCleaners, completedSectionsKey]);
   
-  useEffect(() => {
-    const cleanersCompleted = completedSectionsKey.includes('cleaners');
-    const scheduleCompleted = completedSectionsKey.includes('schedule');
-    if (cleanersCompleted && isSectionComplete('schedule') && !scheduleCompleted) {
-      handleSectionComplete('schedule');
-    }
-  }, [bookingDate, bookingTime, completedSectionsKey]);
   
   // Determine which sections should be visible
   // Flow:
-  // - Before service: show service
-  // - After service: hide service; show house-details + additional-services together
-  // - After "Continue" on additional-services: hide house-details + additional-services; show equipment + cleaners together
-  // - Then schedule + instructions together
+  // - First: show service selection only
+  // - After user selects service: hide service, show house-details + additional-services together
+  // - After "Continue" on additional-services: show cleaning setup + schedule + instructions together
   const visibleSections = useMemo(() => {
-    if (!selectedService) return ['service'];
+    // Always show service selection first until user explicitly selects one
+    if (!userSelectedService) {
+      return ['service'];
+    }
 
-    // After service is selected, show house-details + additional-services until additional-services is continued.
+    // After user selects service, hide service and show house-details + additional-services until additional-services is continued.
     if (!completedSections.has('additional-services')) {
       return ['house-details', 'additional-services'];
     }
 
-    // After additional-services continue, show equipment + cleaners together.
-    if (!completedSections.has('equipment') || !completedSections.has('cleaners')) {
-      return ['equipment', 'cleaners'];
-    }
-
-    // Show schedule + special instructions together until both are completed
-    if (!completedSections.has('schedule') || !completedSections.has('instructions')) {
-      return ['schedule', 'instructions'];
-    }
-
-    // Done
-    return ['instructions'];
-  }, [selectedService, completedSectionsArray.join(',')]);
+    // After additional-services continue, show the rest of the flow together.
+    return ['equipment', 'cleaners', 'instructions'];
+  }, [userSelectedService, completedSectionsArray.join(',')]);
 
   const allowedExtraNames = useMemo(() => {
     if (!selectedService) return [] as string[];
@@ -521,8 +620,18 @@ export const BookingDetails = () => {
   const roomTotal = selectedServiceKey === 'Carpet'
     ? (safeBedrooms * bedroomRate + safeBathrooms * bathroomRate + carpetPropertyMoveFee)
     : (safeBedrooms * bedroomRate + safeBathrooms * bathroomRate + safeOfficeCount * bedroomRate);
-  const subtotal = basePrice + roomTotal + extrasTotal;
-  const serviceFee = subtotal * 0.1176; // Calculated from R318.52 - R285.00 roughly
+  // Multi-cleaner pricing only for Standard/Airbnb (default 1 cleaner)
+  const isStandardOrAirbnb = selectedService === 'standard' || selectedService === 'airbnb';
+  const cleanersCount = Math.max(1, Math.round(numCleaners || 1));
+
+  // Equipment charge (once per booking) if equipment is provided for Standard/Airbnb
+  const equipmentCharge = isStandardOrAirbnb && equipmentSupplied ? (PRICING.equipmentCharge ?? 500) : 0;
+
+  const laborSubtotalOneCleaner = basePrice + roomTotal + extrasTotal;
+  const subtotal = (isStandardOrAirbnb ? laborSubtotalOneCleaner * cleanersCount : laborSubtotalOneCleaner) + equipmentCharge;
+
+  // Keep this page's existing service fee logic (percentage) but apply it once per booking
+  const serviceFee = subtotal * 0.1176; // TODO: replace with flat fee if desired
   const total = subtotal + serviceFee;
 
   // @return
@@ -586,7 +695,19 @@ export const BookingDetails = () => {
                     <motion.button
                       key={service.id}
                       type="button"
-                      onClick={() => setSelectedService(service.id)}
+                      onClick={() => {
+                        // Mark that user has explicitly selected a service
+                        setUserSelectedService(true);
+                        // Set the selected service
+                        setSelectedService(service.id);
+                        // Save to booking state immediately
+                        const dbServiceType = SERVICE_ID_TO_DB[service.id];
+                        if (dbServiceType) {
+                          updateField('service', dbServiceType);
+                        }
+                        // Navigate to the selected service's details page
+                        router.push(`/booking/service/${service.id}/details`);
+                      }}
                       className={cn(
                         'w-full bg-white rounded-xl shadow-md p-4',
                         'transition-all duration-200',
@@ -648,27 +769,41 @@ export const BookingDetails = () => {
                     <Bed className="w-4 h-4 text-blue-500" />
                     {selectedService === 'carpet' ? 'Fitted Carpets' : 'Bedrooms'}
                   </label>
-                  <select
-                    value={bedrooms ?? ''}
-                    onChange={e => setBedrooms(e.target.value === '' ? null : Number(e.target.value))}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all appearance-none"
-                  >
-                    <option value="">Select...</option>
-                    {[0, 1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n} {n === 1 ? 'Bedroom' : 'Bedrooms'}</option>)}
-                  </select>
+                  <PopoverSelect
+                    value={bedrooms === null ? '' : String(bedrooms)}
+                    onValueChange={(v) => setBedrooms(v === '' ? null : Number(v))}
+                    className="appearance-none"
+                    items={[
+                      { value: '', label: 'Select...' },
+                      ...[0, 1, 2, 3, 4, 5].map((n) => ({
+                        value: String(n),
+                        label: `${n} ${n === 1 ? 'Bedroom' : 'Bedrooms'}`,
+                      })),
+                    ]}
+                  />
                 </div>
                 <div className="bg-white rounded-xl p-4">
                   <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                     <Droplet className="w-4 h-4 text-blue-500" />
                     {selectedService === 'carpet' ? 'Loose Carpets/Rugs' : 'Bathrooms'}
                   </label>
-                  <select value={bathrooms ?? ''} onChange={e => setBathrooms(e.target.value === '' ? null : Number(e.target.value))} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all appearance-none">
-                    <option value="">Select...</option>
-                    {selectedService === 'carpet'
-                      ? [0, 1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n} {n === 1 ? 'Item' : 'Items'}</option>)
-                      : [1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n} {n === 1 ? 'Bathroom' : 'Bathrooms'}</option>)
-                    }
-                  </select>
+                  <PopoverSelect
+                    value={bathrooms === null ? '' : String(bathrooms)}
+                    onValueChange={(v) => setBathrooms(v === '' ? null : Number(v))}
+                    className="appearance-none"
+                    items={[
+                      { value: '', label: 'Select...' },
+                      ...(selectedService === 'carpet'
+                        ? [0, 1, 2, 3, 4, 5].map((n) => ({
+                            value: String(n),
+                            label: `${n} ${n === 1 ? 'Item' : 'Items'}`,
+                          }))
+                        : [1, 2, 3, 4, 5].map((n) => ({
+                            value: String(n),
+                            label: `${n} ${n === 1 ? 'Bathroom' : 'Bathrooms'}`,
+                          }))),
+                    ]}
+                  />
                 </div>
                 <div className="bg-white rounded-xl p-4">
                   <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
@@ -676,20 +811,29 @@ export const BookingDetails = () => {
                     {selectedService === 'carpet' ? 'Room Status' : 'Office'}
                   </label>
                   {selectedService === 'carpet' ? (
-                    <select
+                    <PopoverSelect
                       value={carpetRoomStatus ?? ''}
-                      onChange={e => setCarpetRoomStatus(e.target.value === '' ? null : (e.target.value as any))}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all appearance-none"
-                    >
-                      <option value="">Select...</option>
-                      <option value="empty">Empty</option>
-                      <option value="hasProperty">Has Property</option>
-                    </select>
+                      onValueChange={(v) => setCarpetRoomStatus(v === '' ? null : (v as any))}
+                      className="appearance-none"
+                      items={[
+                        { value: '', label: 'Select...' },
+                        { value: 'empty', label: 'Empty' },
+                        { value: 'hasProperty', label: 'Has Property' },
+                      ]}
+                    />
                   ) : (
-                    <select value={officeCount ?? ''} onChange={e => setOfficeCount(e.target.value === '' ? null : Number(e.target.value))} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all appearance-none">
-                      <option value="">Select...</option>
-                      {[0, 1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n} {n === 1 ? 'Office' : 'Offices'}</option>)}
-                    </select>
+                    <PopoverSelect
+                      value={officeCount === null ? '' : String(officeCount)}
+                      onValueChange={(v) => setOfficeCount(v === '' ? null : Number(v))}
+                      className="appearance-none"
+                      items={[
+                        { value: '', label: 'Select...' },
+                        ...[0, 1, 2, 3, 4, 5].map((n) => ({
+                          value: String(n),
+                          label: `${n} ${n === 1 ? 'Office' : 'Offices'}`,
+                        })),
+                      ]}
+                    />
                   )}
                 </div>
               </div>
@@ -743,7 +887,7 @@ export const BookingDetails = () => {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.3 }}
-                  className="p-8 -ml-4 sm:-ml-6 lg:-ml-8"
+                  className="pt-1 px-8 pb-8 -ml-4 sm:-ml-6 lg:-ml-8"
                 >
                   <h2 className="text-xl font-bold mb-6">Cleaning Setup</h2>
 
@@ -753,18 +897,16 @@ export const BookingDetails = () => {
                         <Info className="w-4 h-4 text-blue-500" />
                         Cleaning Equipment
                       </label>
-                      <select
+                      <PopoverSelect
                         value={equipmentSupplied === null ? '' : equipmentSupplied ? 'yes' : 'no'}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setEquipmentSupplied(v === '' ? null : v === 'yes');
-                        }}
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all appearance-none"
-                      >
-                        <option value="">Select...</option>
-                        <option value="yes">Yes</option>
-                        <option value="no">No</option>
-                      </select>
+                        onValueChange={(v) => setEquipmentSupplied(v === '' ? null : v === 'yes')}
+                        className="appearance-none"
+                        items={[
+                          { value: '', label: 'Select...' },
+                          { value: 'yes', label: 'Yes' },
+                          { value: 'no', label: 'No' },
+                        ]}
+                      />
                     </div>
 
                     <div className="bg-white rounded-xl p-4 border border-gray-200">
@@ -772,53 +914,20 @@ export const BookingDetails = () => {
                         <Users className="w-4 h-4 text-blue-500" />
                         Number of Cleaners
                       </label>
-                      <select
-                        value={numCleaners ?? ''}
-                        onChange={(e) => setNumCleaners(e.target.value === '' ? null : Number(e.target.value))}
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all appearance-none"
-                      >
-                        <option value="">Select...</option>
-                        {[1, 2, 3, 4, 5].map((n) => (
-                          <option key={n} value={n}>
-                            {n} {n === 1 ? 'cleaner' : 'cleaners'}
-                          </option>
-                        ))}
-                      </select>
+                      <PopoverSelect
+                        value={String(numCleaners)}
+                        onValueChange={(v) => setNumCleaners(Math.max(1, Number(v) || 1))}
+                        className="appearance-none"
+                        items={[
+                          { value: '', label: 'Select...' },
+                          ...[1, 2, 3, 4, 5].map((n) => ({
+                            value: String(n),
+                            label: `${n} ${n === 1 ? 'cleaner' : 'cleaners'}`,
+                          })),
+                        ]}
+                      />
                     </div>
                   </div>
-                </motion.section>
-              )}
-
-              {/* Schedule */}
-              {visibleSections.includes('schedule') && (
-                <motion.section
-                  key="schedule"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.3 }}
-                  className="p-8 -ml-4 sm:-ml-6 lg:-ml-8"
-                >
-              <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-                <CalendarIcon className="w-5 h-5 text-blue-500" />
-                Schedule
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Pick a date</label>
-                  <div className="relative">
-                    <input type="date" value={bookingDate} onChange={e => setBookingDate(e.target.value)} className="booking-native-datetime w-full bg-gray-50 border border-gray-200 rounded-xl px-10 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all appearance-none" />
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Select time</label>
-                  <div className="relative">
-                    <input type="time" value={bookingTime} onChange={e => setBookingTime(e.target.value)} className="booking-native-datetime w-full bg-gray-50 border border-gray-200 rounded-xl px-10 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all appearance-none" />
-                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  </div>
-                </div>
-              </div>
                 </motion.section>
               )}
 
@@ -830,10 +939,17 @@ export const BookingDetails = () => {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.3 }}
-                  className="p-8 -ml-4 sm:-ml-6 lg:-ml-8"
+                  className="pt-1 px-8 pb-8 -ml-4 sm:-ml-6 lg:-ml-8"
                 >
               <h2 className="text-xl font-bold mb-4">Special Instructions</h2>
-              <textarea placeholder="Add your notes here... (e.g. key location, pets, focus areas)" value={specialInstructions} onChange={e => setSpecialInstructions(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px] resize-none appearance-none" />
+              <div className="bg-white rounded-xl p-4 border border-gray-200">
+                <textarea
+                  placeholder="Add your notes here... (e.g. key location, pets, focus areas)"
+                  value={specialInstructions}
+                  onChange={(e) => setSpecialInstructions(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px] resize-none appearance-none"
+                />
+              </div>
               
               {/* Continue Button for Special Instructions */}
               <div className="mt-6 flex justify-end">
@@ -871,37 +987,38 @@ export const BookingDetails = () => {
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-500">Cleaners</span>
-                    <span className="font-medium text-slate-900 text-right">
-                      {numCleaners != null ? `${numCleaners} cleaner(s)` : 'Not selected'}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-500">Equipment</span>
-                    <span className="font-medium text-slate-900 text-right">
-                      {equipmentSupplied == null ? 'Not selected' : equipmentSupplied ? 'Provided by us' : 'Customer provides'}
-                    </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4 text-center">
+                    <div className="min-w-0 flex flex-col items-center">
+                      <span className="text-slate-500 text-sm">Cleaners</span>
+                      <div className="font-medium text-slate-900 truncate w-full">{numCleaners}</div>
+                    </div>
+                    <div className="min-w-0 flex flex-col items-center">
+                      <span className="text-slate-500 text-sm">Equipment</span>
+                      <div className="font-medium text-slate-900 truncate w-full">
+                        {equipmentSupplied == null
+                          ? 'No'
+                          : equipmentSupplied
+                            ? 'Yes'
+                            : 'No'}
+                      </div>
+                    </div>
+                    <div className="min-w-0 flex flex-col items-center">
+                      <span className="text-slate-500 text-sm">Base</span>
+                      <div className="font-medium text-slate-900 truncate w-full">
+                        {serviceRatesLoading ? 'Loading…' : `R${basePrice.toFixed(2)}`}
+                      </div>
+                    </div>
+                    <div className="min-w-0 flex flex-col items-center">
+                      <span className="text-slate-500 text-sm">Rooms</span>
+                      <div className="font-medium text-slate-900 truncate w-full">R{roomTotal.toFixed(2)}</div>
+                    </div>
                   </div>
 
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-slate-500">Schedule</span>
                     <span className="font-medium text-slate-900 text-right">
-                      {bookingDate && bookingTime ? `${bookingDate} @ ${bookingTime}` : 'Not scheduled'}
+                      Not scheduled
                     </span>
-                  </div>
-
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-500">Base</span>
-                    <span className="font-medium text-slate-900 text-right">
-                      {serviceRatesLoading ? 'Loading…' : `R${basePrice.toFixed(2)}`}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-500">Rooms</span>
-                    <span className="font-medium text-slate-900 text-right">R{roomTotal.toFixed(2)}</span>
                   </div>
 
                   <div className="flex justify-between items-center text-sm border-t border-dashed border-gray-100 pt-3">

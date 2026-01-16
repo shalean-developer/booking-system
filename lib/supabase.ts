@@ -30,6 +30,7 @@ export interface Database {
           last_location_lat: number | null
           last_location_lng: number | null
           last_location_updated: string | null
+          completion_rate: number | null
           otp_code: string | null
           otp_expires_at: string | null
           otp_attempts: number
@@ -55,6 +56,7 @@ export interface Database {
           last_location_lat?: number | null
           last_location_lng?: number | null
           last_location_updated?: string | null
+          completion_rate?: number | null
           otp_code?: string | null
           otp_expires_at?: string | null
           otp_attempts?: number
@@ -80,6 +82,7 @@ export interface Database {
           last_location_lat?: number | null
           last_location_lng?: number | null
           last_location_updated?: string | null
+          completion_rate?: number | null
           otp_code?: string | null
           otp_expires_at?: string | null
           otp_attempts?: number
@@ -349,13 +352,48 @@ export async function getAvailableCleaners(date: string, city: string) {
     console.log(`🚫 Found ${bookedCleanerIds.size} cleaners with bookings on ${date}`);
 
     // Filter out cleaners who have bookings on this date
-    const availableCleaners = cleaners?.filter(
+    let availableCleaners = cleaners?.filter(
       cleaner => !bookedCleanerIds.has(cleaner.id)
     ) || [];
 
-    console.log(`📋 Returning ${availableCleaners.length} available cleaners (filtered out ${(cleaners?.length || 0) - availableCleaners.length} booked cleaners)`);
+    console.log(`📋 Found ${availableCleaners.length} available cleaners (filtered out ${(cleaners?.length || 0) - availableCleaners.length} booked cleaners)`);
 
-    return availableCleaners;
+    // Filter by rating (>= 4.0 and not null)
+    availableCleaners = availableCleaners.filter(
+      cleaner => cleaner.rating !== null && cleaner.rating !== undefined && cleaner.rating >= 4.0
+    );
+
+    console.log(`⭐ Found ${availableCleaners.length} cleaners with rating >= 4.0`);
+
+    // Filter by reliability (>= 70%) using stored completion_rate
+    // completion_rate is automatically maintained by database triggers
+    availableCleaners = availableCleaners.filter(cleaner => {
+      const completionRate = cleaner.completion_rate ?? 0;
+      return completionRate >= 70;
+    });
+
+    console.log(`✅ Found ${availableCleaners.length} cleaners with reliability >= 70%`);
+
+    // Sort by recommended: rating (descending) then years_experience (descending)
+    availableCleaners.sort((a, b) => {
+      // First sort by rating (descending)
+      const ratingA = a.rating ?? 0;
+      const ratingB = b.rating ?? 0;
+      if (ratingB !== ratingA) {
+        return ratingB - ratingA;
+      }
+      // Then sort by years_experience (descending)
+      const expA = a.years_experience ?? 0;
+      const expB = b.years_experience ?? 0;
+      return expB - expA;
+    });
+
+    // Limit to first 4 cleaners
+    const topCleaners = availableCleaners.slice(0, 4);
+
+    console.log(`📋 Returning top ${topCleaners.length} cleaners (filtered and sorted by recommended)`);
+
+    return topCleaners;
   } catch (error) {
     console.error('Error in getAvailableCleaners:', error);
     return [];

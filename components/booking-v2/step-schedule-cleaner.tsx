@@ -6,6 +6,7 @@ import { useBookingV2 } from '@/lib/useBookingV2';
 import { useBookingPath } from '@/lib/useBookingPath';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Check, Loader2, UserX, AlertCircle, Sparkles, CheckCircle, User, MapPin, Heart } from 'lucide-react';
@@ -23,7 +24,7 @@ export function StepScheduleCleaner() {
   const searchParams = useSearchParams();
   const rescheduleId = searchParams.get('rescheduleId');
   const { state, updateField } = useBookingV2();
-  const { getDetailsPath, getContactPath } = useBookingPath();
+  const { getDetailsPath, getReviewPath } = useBookingPath();
   
   // Schedule state
   const [discounts, setDiscounts] = useState<{ [key: string]: number }>({});
@@ -49,8 +50,15 @@ export function StepScheduleCleaner() {
   const [selectedTeam, setSelectedTeam] = useState<TeamName | null>(initialTeam);
   const [cleanerError, setCleanerError] = useState<string | null>(null);
   const [sortOption, setSortOption] = useState<'recommended' | 'rating' | 'experience'>('recommended');
+  
+  // Team availability state
+  const [bookedTeams, setBookedTeams] = useState<Set<TeamName>>(new Set());
+  const [isLoadingTeamAvailability, setIsLoadingTeamAvailability] = useState(false);
 
-  const needsTeam = requiresTeam(state.service);
+  const needsTeamByService = requiresTeam(state.service);
+  const multiCleanerStandardAirbnb =
+    (state.service === 'Standard' || state.service === 'Airbnb') &&
+    Math.max(1, Math.round(state.numberOfCleaners ?? 1)) > 1;
 
   // Load user favorites immediately on mount (non-blocking)
   useEffect(() => {
@@ -124,7 +132,7 @@ export function StepScheduleCleaner() {
     const abortController = new AbortController();
 
     const fetchCleaners = async () => {
-      if (needsTeam) {
+      if (needsTeamByService || multiCleanerStandardAirbnb) {
         setIsLoadingCleaners(false);
         return;
       }
@@ -194,7 +202,116 @@ export function StepScheduleCleaner() {
       clearTimeout(timeoutId);
       abortController.abort();
     };
-  }, [state.date, state.address.suburb, state.address.city, needsTeam]);
+  }, [state.date, state.address.suburb, state.address.city, needsTeamByService, multiCleanerStandardAirbnb]);
+
+  // Fetch team availability when date changes for Deep/Move In/Out services
+  useEffect(() => {
+    const abortController = new AbortController();
+
+    const fetchTeamAvailability = async () => {
+      if (!needsTeamByService || !state.date || !state.service) {
+        setBookedTeams(new Set());
+        setIsLoadingTeamAvailability(false);
+        return;
+      }
+
+      try {
+        setIsLoadingTeamAvailability(true);
+        setBookedTeams(new Set());
+
+        const params = new URLSearchParams({
+          date: state.date,
+          service: state.service,
+        });
+
+        const response = await fetch(`/api/teams/availability?${params}`, {
+          signal: abortController.signal,
+        });
+
+        if (abortController.signal.aborted) {
+          return;
+        }
+
+        const data = await response.json();
+
+        if (abortController.signal.aborted) {
+          return;
+        }
+
+        if (data.ok && data.bookedTeams) {
+          const bookedSet = new Set<TeamName>(data.bookedTeams);
+          setBookedTeams(bookedSet);
+        }
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          return;
+        }
+        if (!abortController.signal.aborted) {
+          console.error('Error fetching team availability:', err);
+        }
+      } finally {
+        if (!abortController.signal.aborted) {
+          setIsLoadingTeamAvailability(false);
+        }
+      }
+    };
+
+    // Debounce the fetch
+    const timeoutId = setTimeout(() => {
+      fetchTeamAvailability();
+    }, 300);
+
+    return () => {
+      clearTimeout(timeoutId);
+      abortController.abort();
+    };
+  }, [state.date, state.service, needsTeamByService]);
+
+  // Reset number of cleaners when service is not Standard/Airbnb
+  useEffect(() => {
+    if (state.service && state.service !== 'Standard' && state.service !== 'Airbnb') {
+      if (state.numberOfCleaners !== 1) {
+        updateField('numberOfCleaners', 1);
+      }
+    }
+  }, [state.service, state.numberOfCleaners, updateField]);
+
+  // Ensure multi-cleaner Standard/Airbnb bookings are treated as team bookings (admin assigns multiple cleaners)
+  useEffect(() => {
+    if (!state.service) return;
+    const isStandardAirbnb = state.service === 'Standard' || state.service === 'Airbnb';
+    const cleanersCount = Math.max(1, Math.round(state.numberOfCleaners ?? 1));
+    if (!isStandardAirbnb) return;
+
+    if (cleanersCount > 1) {
+      if (!state.requires_team) {
+        updateField('requires_team', true);
+      }
+      // Clear any single-cleaner selections
+      if (state.cleaner_id) {
+        updateField('cleaner_id', null);
+        updateField('selectedCleaner', null);
+        setSelectedCleanerId(null);
+      }
+      if (state.selected_team) {
+        updateField('selected_team', null);
+        setSelectedTeam(null);
+      }
+    } else {
+      // Back to single-cleaner mode
+      if (state.requires_team && !needsTeamByService) {
+        updateField('requires_team', false);
+      }
+    }
+  }, [
+    state.service,
+    state.numberOfCleaners,
+    state.requires_team,
+    state.cleaner_id,
+    state.selected_team,
+    needsTeamByService,
+    updateField,
+  ]);
 
 
   useEffect(() => {
@@ -364,8 +481,8 @@ export function StepScheduleCleaner() {
       return; // Do not proceed to contact during reschedule flow
     }
     
-    router.push(getContactPath(state.service));
-  }, [state.service, state.date, state.time, rescheduleId, router, getContactPath]);
+    router.push(getReviewPath(state.service));
+  }, [state.service, state.date, state.time, rescheduleId, router, getReviewPath]);
 
   return (
     <motion.div
@@ -382,7 +499,7 @@ export function StepScheduleCleaner() {
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
               <MapPin className="h-4 w-4 text-primary" />
             </div>
-            <h3 id="street-address" className="text-base font-bold text-gray-900">Service Address</h3>
+            <h3 id="street-address" className="text-xl font-bold text-gray-900">Service Address</h3>
           </div>
 
           <div className="space-y-2">
@@ -417,52 +534,148 @@ export function StepScheduleCleaner() {
           </div>
         </section>
 
+        {/* Number of Cleaners (Standard/Airbnb only) */}
+        {(state.service === 'Standard' || state.service === 'Airbnb') && (
+          <section className="space-y-3 border-t pt-10" aria-labelledby="number-of-cleaners">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <User className="h-4 w-4 text-primary" />
+              </div>
+              <h3 id="number-of-cleaners" className="text-base font-bold text-gray-900">
+                Number of cleaners
+              </h3>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="numberOfCleaners" className="text-sm font-semibold text-gray-900">
+                Cleaners
+              </Label>
+              <Select
+                value={String(Math.max(1, Math.round(state.numberOfCleaners ?? 1)))}
+                onValueChange={(value) => {
+                  const next = Math.max(1, parseInt(value, 10) || 1);
+                  updateField('numberOfCleaners', next);
+                }}
+              >
+                <SelectTrigger id="numberOfCleaners" className="h-11 rounded-xl border-2">
+                  <SelectValue placeholder="Select cleaners" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 cleaner</SelectItem>
+                  <SelectItem value="2">2 cleaners</SelectItem>
+                  <SelectItem value="3">3 cleaners</SelectItem>
+                  <SelectItem value="4">4 cleaners</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-slate-600">
+                Default is 1 cleaner. If you choose 2+ cleaners, we’ll assign a team for you.
+              </p>
+            </div>
+          </section>
+        )}
+
         {/* Cleaner Selection Section */}
         <section className="space-y-4 border-t pt-10" aria-labelledby="cleaner-selection">
-          <h3 id="cleaner-selection" className="text-base font-semibold text-gray-900">
-            Select your preferred cleaner
+          <h3 id="cleaner-selection" className="text-xl font-bold text-gray-900">
+            {needsTeamByService
+              ? 'Select your preferred team'
+              : multiCleanerStandardAirbnb
+                ? 'Cleaner team'
+                : 'Select your preferred cleaner'}
           </h3>
           
-          {needsTeam ? (
+          {needsTeamByService ? (
             <div className="space-y-4">
-              <div className="flex gap-3 overflow-x-auto pb-2 -mx-2 px-2">
-                {(['Team A', 'Team B', 'Team C'] as TeamName[]).map((teamName) => {
-                  const isSelected = selectedTeam === teamName;
-                  return (
-                    <motion.button
-                      key={teamName}
-                      onClick={() => handleSelectTeam(teamName)}
-                      className={cn(
-                        'flex-shrink-0 relative rounded-xl border-2 p-4 min-w-[120px] text-center transition-all',
-                        'focus:outline-none focus:ring-2 focus:ring-primary/30',
-                        isSelected
-                          ? 'border-primary bg-primary/5 shadow-lg'
-                          : 'border-gray-200 bg-white hover:border-primary/40 hover:shadow-md'
-                      )}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <div className="flex flex-col items-center gap-2">
-                        <h4 className="font-semibold text-gray-900">{teamName}</h4>
-                        {isSelected && (
-                          <CheckCircle className="h-5 w-5 text-primary" />
-                        )}
-                      </div>
-                    </motion.button>
-                  );
-                })}
+              {isLoadingTeamAvailability ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : bookedTeams.size === 3 ? (
+                <div className="flex flex-col items-center justify-center py-8 space-y-4">
+                  <AlertCircle className="h-12 w-12 text-orange-500" />
+                  <p className="text-gray-600 text-center font-medium">
+                    All teams are booked for this date. Please select the next available date.
+                  </p>
+                  <motion.button
+                    onClick={handleLetUsChoose}
+                    className={cn(
+                      'w-full rounded-xl border-2 border-dashed border-gray-300 p-4 text-center transition-all',
+                      'hover:border-primary/40 hover:bg-primary/5',
+                      'focus:outline-none focus:ring-2 focus:ring-primary/30'
+                    )}
+                  >
+                    <Sparkles className="h-5 w-5 mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm font-semibold text-gray-700">No preference / Best available</p>
+                  </motion.button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex gap-3 overflow-x-auto pb-2 -mx-2 px-2">
+                    {(['Team A', 'Team B', 'Team C'] as TeamName[]).map((teamName) => {
+                      const isSelected = selectedTeam === teamName;
+                      const isBooked = bookedTeams.has(teamName);
+                      return (
+                        <motion.button
+                          key={teamName}
+                          onClick={() => !isBooked && handleSelectTeam(teamName)}
+                          disabled={isBooked}
+                          className={cn(
+                            'flex-shrink-0 relative rounded-xl border-2 p-4 min-w-[120px] text-center transition-all',
+                            'focus:outline-none focus:ring-2 focus:ring-primary/30',
+                            isBooked
+                              ? 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
+                              : isSelected
+                              ? 'border-primary bg-primary/5 shadow-lg'
+                              : 'border-gray-200 bg-white hover:border-primary/40 hover:shadow-md'
+                          )}
+                          whileHover={!isBooked ? { scale: 1.02 } : {}}
+                          whileTap={!isBooked ? { scale: 0.98 } : {}}
+                        >
+                          <div className="flex flex-col items-center gap-2">
+                            <h4 className={cn(
+                              'font-semibold',
+                              isBooked ? 'text-gray-400' : 'text-gray-900'
+                            )}>
+                              {teamName}
+                            </h4>
+                            {isBooked && (
+                              <span className="text-xs text-gray-500">Booked</span>
+                            )}
+                            {isSelected && !isBooked && (
+                              <CheckCircle className="h-5 w-5 text-primary" />
+                            )}
+                          </div>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                  <motion.button
+                    onClick={handleLetUsChoose}
+                    className={cn(
+                      'w-full rounded-xl border-2 border-dashed border-gray-300 p-4 text-center transition-all',
+                      'hover:border-primary/40 hover:bg-primary/5',
+                      'focus:outline-none focus:ring-2 focus:ring-primary/30'
+                    )}
+                  >
+                    <Sparkles className="h-5 w-5 mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm font-semibold text-gray-700">No preference / Best available</p>
+                  </motion.button>
+                </>
+              )}
+            </div>
+          ) : multiCleanerStandardAirbnb ? (
+            <div className="space-y-3">
+              <div className="rounded-xl bg-blue-50 border border-blue-200 p-4">
+                <p className="text-sm font-semibold text-blue-900 mb-1">
+                  {Math.max(1, Math.round(state.numberOfCleaners ?? 1))} cleaners requested
+                </p>
+                <p className="text-xs text-blue-700">
+                  We’ll assign a suitable team for your booking.
+                </p>
               </div>
-              <motion.button
-                onClick={handleLetUsChoose}
-                className={cn(
-                  'w-full rounded-xl border-2 border-dashed border-gray-300 p-4 text-center transition-all',
-                  'hover:border-primary/40 hover:bg-primary/5',
-                  'focus:outline-none focus:ring-2 focus:ring-primary/30'
-                )}
-              >
-                <Sparkles className="h-5 w-5 mx-auto mb-2 text-gray-400" />
-                <p className="text-sm font-semibold text-gray-700">No preference / Best available</p>
-              </motion.button>
+              <Button onClick={handleLetUsChoose} variant="outline" className="w-full">
+                No preference / Best available
+              </Button>
             </div>
           ) : (
             <div className="space-y-4">

@@ -67,7 +67,7 @@ export function NearbyAreasSection({
             </span>
           </Link>
           <Link
-            href="/booking/service/select"
+            href="/booking/service/standard/details"
             className="flex items-center gap-2 p-4 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all group"
           >
             <ArrowRight className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />

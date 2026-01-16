@@ -1,34 +1,138 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { User, MapPin, Calendar, Clock, CheckCircle2, ArrowLeft, ShieldCheck, Edit2, Mail, Phone, Home, PlusCircle, LucideIcon, Loader2, AlertCircle, Waves } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useBookingV2 } from '@/lib/useBookingV2';
 import { useBookingPath } from '@/lib/useBookingPath';
 import { calcTotalSync, PRICING } from '@/lib/pricing';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { motion } from 'framer-motion';
-import { Calendar, Clock, Home, User, Mail, Phone, Loader2, CreditCard, AlertCircle, Shield, Star, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { Cleaner } from '@/types/booking';
-import Image from 'next/image';
 import { usePaystackPayment } from 'react-paystack';
 import { generateUniqueBookingId } from '@/lib/booking-id';
+import { AddressAutocomplete } from '@/components/address-autocomplete';
 
+// --- Types ---
+
+type TipOption = 'R0' | 'R25' | 'R50' | 'R75' | 'R100' | 'Custom';
+
+interface FormState {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  address: string;
+  suburb: string;
+  city: string;
+  tip: TipOption;
+  customTip: string;
+  discountCode: string;
+}
+
+// --- Helpers ---
+
+const StepIndicator = ({
+  currentStep
+}: {
+  currentStep: number;
+}) => {
+  const steps = [{
+    id: 1,
+    label: 'Details'
+  }, {
+    id: 2,
+    label: 'Worker'
+  }, {
+    id: 3,
+    label: 'Submit'
+  }];
+  return <div className="flex items-center justify-center space-x-3">
+      {steps.map((step, idx) => <React.Fragment key={step.id}>
+          <div className="flex flex-col items-center">
+            <div className={cn("w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors", currentStep >= step.id ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-500")}>
+              {currentStep > step.id ? <CheckCircle2 className="w-4 h-4" /> : step.id}
+            </div>
+            <span className={cn("text-[10px] mt-1.5 font-medium uppercase tracking-wider", currentStep >= step.id ? "text-blue-600" : "text-gray-400")}>
+              {step.label}
+            </span>
+          </div>
+          {idx < steps.length - 1 && <div className={cn("h-px w-12", currentStep > step.id ? "bg-blue-600" : "bg-gray-200")} />}
+        </React.Fragment>)}
+    </div>;
+};
+
+const Footer = () => <footer className="bg-slate-900 text-white mt-20 h-20 flex items-center">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+      <div className="flex flex-col md:flex-row justify-between items-center text-slate-500 text-xs">
+        <p>© 2026 Shalean Cleaning Services. All rights reserved.</p>
+        <div className="flex space-x-6 mt-4 md:mt-0">
+          <a href="#" className="hover:text-slate-300">Privacy Policy</a>
+          <a href="#" className="hover:text-slate-300">Terms of Service</a>
+        </div>
+      </div>
+    </div>
+  </footer>;
+
+const SectionHeader = ({
+  title,
+  onEdit
+}: {
+  title: string;
+  onEdit?: () => void;
+}) => <div className="flex items-center justify-between mb-6">
+    <h2 className="text-xl font-bold text-gray-800">{title}</h2>
+    {onEdit && <button onClick={onEdit} className="text-blue-500 hover:text-blue-700 transition-colors p-1">
+        <Edit2 size={18} />
+      </button>}
+  </div>;
+
+const InputWrapper = ({
+  label,
+  icon: Icon,
+  required,
+  children
+}: {
+  label: string;
+  icon: LucideIcon;
+  required?: boolean;
+  children: React.ReactNode;
+}) => <div className="space-y-2">
+    <label className="text-sm font-semibold text-gray-700 block">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    <div className="relative">
+      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10">
+        <Icon size={18} />
+      </div>
+      {children}
+    </div>
+  </div>;
+
+// @component: StepReview (formerly BookingReviewForm)
 export function StepReview() {
   const router = useRouter();
-  const { state, updateField } = useBookingV2();
-  const { getSelectPath, getDetailsPath, getSchedulePath, getContactPath, getConfirmationPath } = useBookingPath();
-  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const { state, setState, updateField } = useBookingV2();
+  const { getSelectPath, getDetailsPath, getSchedulePath, getConfirmationPath } = useBookingPath();
+  
+  const [form, setForm] = useState<FormState>({
+    firstName: state.firstName || '',
+    lastName: state.lastName || '',
+    email: state.email || '',
+    phone: state.phone || '',
+    address: state.address?.line1 || '',
+    suburb: state.address?.suburb || '',
+    city: state.address?.city || 'Cape Town',
+    tip: 'R0',
+    customTip: '',
+    discountCode: ''
+  });
+
   const [selectedCleaner, setSelectedCleaner] = useState<Cleaner | null>(null);
   const [isLoadingCleaner, setIsLoadingCleaner] = useState(false);
-  const [showCustomTip, setShowCustomTip] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  const [paymentReference, setPaymentReference] = useState<string | null>(null);
-  const [discountCode, setDiscountCode] = useState('');
+  const [paymentError, setPaymentError] = useState<string | null>(null);
   const [discountAmount, setDiscountAmount] = useState(0);
   const [discountError, setDiscountError] = useState<string | null>(null);
   const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
@@ -38,136 +142,9 @@ export function StepReview() {
     description?: string;
   } | null>(null);
 
-  const editButtonClass = 'h-auto px-3 py-1 text-sm font-semibold text-primary hover:text-primary/80 hover:bg-primary/5';
+  const tipOptions: TipOption[] = ['R0', 'R25', 'R50', 'R75', 'R100', 'Custom'];
 
-  const displayAmount = useCallback((value: number) => value.toLocaleString('en-ZA', { minimumFractionDigits: 0, maximumFractionDigits: 2 }), []);
-
-  const handleEditService = useCallback(() => {
-    router.push(getSelectPath);
-  }, [router, getSelectPath]);
-
-  const handleEditHome = useCallback(() => {
-    if (state.service) {
-      router.push(getDetailsPath(state.service));
-    } else {
-      router.push(getSelectPath);
-    }
-  }, [router, state.service, getDetailsPath, getSelectPath]);
-
-  const handleEditSchedule = useCallback(() => {
-    if (state.service) {
-      router.push(getSchedulePath(state.service));
-    } else {
-      router.push(getSelectPath);
-    }
-  }, [router, state.service, getSchedulePath, getSelectPath]);
-
-  const handleEditContact = useCallback(() => {
-    if (state.service) {
-      router.push(getContactPath(state.service));
-    } else {
-      router.push(getSelectPath);
-    }
-  }, [router, state.service, getContactPath, getSelectPath]);
-
-  const handleEditCleaner = useCallback(() => {
-    if (state.service) {
-      router.push(getSchedulePath(state.service));
-    } else {
-      router.push(getSelectPath);
-    }
-  }, [router, state.service, getSchedulePath, getSelectPath]);
-
-  const pricingDetails = useMemo(() => {
-    return calcTotalSync(
-      {
-        service: state.service,
-        bedrooms: state.bedrooms,
-        bathrooms: state.bathrooms,
-        extras: state.extras || [],
-        extrasQuantities: state.extrasQuantities,
-        carpetDetails: state.carpetDetails,
-      },
-      state.frequency || 'one-time'
-    );
-  }, [state.service, state.bedrooms, state.bathrooms, state.extras, state.extrasQuantities, state.frequency, state.carpetDetails]);
-
-  const extrasDisplay = useMemo(() => {
-    return state.extras.map((extra) => {
-      const quantity = state.extrasQuantities[extra] || 1;
-      const unitPrice = PRICING.extras[extra as keyof typeof PRICING.extras] || 0;
-      const total = unitPrice * quantity;
-      return { name: extra, quantity, total };
-    });
-  }, [state.extras, state.extrasQuantities]);
-
-  const baseAndRoomsTotal = useMemo(() => {
-    if (!state.service) return 0;
-    const servicePricing = PRICING.services[state.service];
-    if (!servicePricing) return 0;
-    const base = servicePricing.base;
-    const beds = (state.bedrooms || 0) * servicePricing.bedroom;
-    const baths = (state.bathrooms || 0) * servicePricing.bathroom;
-    return base + beds + baths;
-  }, [state.service, state.bedrooms, state.bathrooms]);
-
-  const extrasTotal = useMemo(() => {
-    return extrasDisplay.reduce((sum, extra) => sum + extra.total, 0);
-  }, [extrasDisplay]);
-
-  const tipAmount = state.tipAmount || 0;
-  // Prefer persisted discount values (for consistency across summary + reloads)
-  const discount = (state.discountAmount || 0) || (discountAmount || 0);
-
-  const total = pricingDetails.total + tipAmount - discount;
-
-  // Paystack payment configuration
-  const paystackPublicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '';
-  const isPaystackConfigured = !!paystackPublicKey;
-
-  // Generate payment reference
-  const paymentRef = useMemo(() => {
-    return generateUniqueBookingId([]);
-  }, []);
-
-  // Paystack payment configuration
-  const paystackConfig = useMemo(() => ({
-    reference: paymentRef,
-    email: state.email || '',
-    amount: Math.round(total * 100), // Convert to kobo (cents)
-    publicKey: paystackPublicKey,
-    currency: 'ZAR',
-    metadata: {
-      custom_fields: [
-        {
-          display_name: 'Booking Service',
-          variable_name: 'booking_service',
-          value: state.service || '',
-        },
-        {
-          display_name: 'Customer Name',
-          variable_name: 'customer_name',
-          value: `${state.firstName || ''} ${state.lastName || ''}`.trim(),
-        },
-        {
-          display_name: 'Customer Phone',
-          variable_name: 'customer_phone',
-          value: state.phone || '',
-        },
-      ],
-    },
-  }), [paymentRef, state.email, total, paystackPublicKey, state.service, state.firstName, state.lastName, state.phone]);
-
-  // Initialize Paystack payment hook
-  const initializePayment = usePaystackPayment(paystackConfig);
-
-  // Show custom tip input if amount doesn't match predefined values
-  useEffect(() => {
-    if (tipAmount > 0 && ![0, 25, 50, 75, 100].includes(tipAmount)) {
-      setShowCustomTip(true);
-    }
-  }, [tipAmount]);
-
+  // Load cleaner info
   useEffect(() => {
     if (state.cleaner_id && !state.requires_team && state.cleaner_id !== 'manual') {
       setIsLoadingCleaner(true);
@@ -176,11 +153,8 @@ export function StepReview() {
       fetch(`/api/cleaners?id=${state.cleaner_id}`)
         .then(async (res) => {
           const data = await res.json();
-          
           if (res.ok && data.ok && data.cleaner) {
             setSelectedCleaner(data.cleaner);
-          } else {
-            setSelectedCleaner(null);
           }
         })
         .catch(() => {
@@ -195,20 +169,131 @@ export function StepReview() {
     }
   }, [state.cleaner_id, state.requires_team]);
 
-  const handleBack = useCallback(() => {
-    if (state.service) {
-      router.push(getContactPath(state.service));
+  // Sync form with state
+  useEffect(() => {
+    setForm(prev => ({
+      ...prev,
+      firstName: state.firstName || prev.firstName,
+      lastName: state.lastName || prev.lastName,
+      email: state.email || prev.email,
+      phone: state.phone || prev.phone,
+      address: state.address?.line1 || prev.address,
+      suburb: state.address?.suburb || prev.suburb,
+      city: state.address?.city || prev.city,
+    }));
+  }, [state.firstName, state.lastName, state.email, state.phone, state.address]);
+
+  // Calculate pricing
+  const pricingDetails = useMemo(() => {
+    if (!state.service) {
+      return {
+        subtotal: 0,
+        serviceFee: 0,
+        frequencyDiscount: 0,
+        frequencyDiscountPercent: 0,
+        total: 0,
+      };
     }
-  }, [router, state.service, getContactPath]);
+    try {
+      return calcTotalSync(
+        {
+          service: state.service,
+          bedrooms: state.bedrooms,
+          bathrooms: state.bathrooms,
+          extras: state.extras || [],
+          extrasQuantities: state.extrasQuantities,
+          carpetDetails: state.carpetDetails,
+          numberOfCleaners: state.numberOfCleaners,
+        },
+        state.frequency || 'one-time'
+      );
+    } catch (error) {
+      console.error('Error calculating pricing:', error);
+      return {
+        subtotal: 0,
+        serviceFee: 0,
+        frequencyDiscount: 0,
+        frequencyDiscountPercent: 0,
+        total: 0,
+      };
+    }
+  }, [
+    state.service,
+    state.bedrooms,
+    state.bathrooms,
+    state.extras,
+    state.extrasQuantities,
+    state.frequency,
+    state.carpetDetails,
+    state.numberOfCleaners,
+  ]);
+
+  const tipAmount = useMemo(() => {
+    if (form.tip === 'Custom') {
+      return parseFloat(form.customTip.replace(/[^0-9.]/g, '')) || 0;
+    }
+    return parseFloat(form.tip.replace(/[^0-9.]/g, '')) || 0;
+  }, [form.tip, form.customTip]);
+
+  const discount = (state.discountAmount || 0) || discountAmount;
+  const total = (pricingDetails?.total || 0) + tipAmount - discount;
+
+  // Paystack payment configuration
+  const paystackPublicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '';
+  const isPaystackConfigured = !!paystackPublicKey;
+  const paymentRef = useMemo(() => generateUniqueBookingId([]), []);
+
+  const paystackConfig = useMemo(() => ({
+    reference: paymentRef,
+    email: form.email || state.email || '',
+    amount: Math.max(0, Math.round(total * 100)),
+    publicKey: paystackPublicKey,
+    currency: 'ZAR',
+    metadata: {
+      custom_fields: [
+        {
+          display_name: 'Booking Service',
+          variable_name: 'booking_service',
+          value: state.service || '',
+        },
+        {
+          display_name: 'Customer Name',
+          variable_name: 'customer_name',
+          value: `${form.firstName || ''} ${form.lastName || ''}`.trim(),
+        },
+        {
+          display_name: 'Customer Phone',
+          variable_name: 'customer_phone',
+          value: form.phone || state.phone || '',
+        },
+      ],
+    },
+  }), [paymentRef, form.email, state.email, total, paystackPublicKey, state.service, form.firstName, form.lastName, form.phone, state.phone]);
+
+  const initializePayment = usePaystackPayment(paystackConfig);
 
   // Handle payment success
   const handlePaymentSuccess = useCallback(async (reference: string) => {
     setIsProcessingPayment(true);
-    setPaymentReference(reference);
     setPaymentError(null);
 
+    // Save contact info to state
+    setState((prevState) => ({
+      ...prevState,
+      firstName: form.firstName,
+      lastName: form.lastName,
+      email: form.email,
+      phone: form.phone,
+      address: {
+        ...prevState.address,
+        line1: form.address,
+        suburb: form.suburb,
+        city: form.city,
+      },
+      tipAmount: tipAmount,
+    }));
+
     try {
-      // Verify payment with backend
       const verifyResponse = await fetch('/api/payment/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -223,15 +308,24 @@ export function StepReview() {
         return;
       }
 
-      // Create booking with payment reference
       const bookingPayload = {
         ...state,
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        phone: form.phone,
+        address: {
+          ...(state.address || {}),
+          line1: form.address,
+          suburb: form.suburb,
+          city: form.city,
+        },
         paymentReference: reference,
-        totalAmount: total, // Includes tip, excludes discount
-        serviceFee: pricingDetails.serviceFee,
-        frequencyDiscount: pricingDetails.frequencyDiscount,
+        totalAmount: total,
+        serviceFee: pricingDetails?.serviceFee || 0,
+        frequencyDiscount: pricingDetails?.frequencyDiscount || 0,
         tipAmount: tipAmount,
-        discountCode: state.discountCode || null,
+        discountCode: form.discountCode || null,
         discountAmount: discount || 0,
       };
 
@@ -244,14 +338,9 @@ export function StepReview() {
       const bookingData = await bookingResponse.json();
 
       if (bookingResponse.ok && bookingData.ok) {
-        // Redirect to confirmation page
         const confirmationUrl = getConfirmationPath(bookingData.bookingId);
-        
-        // Store booking reference before redirect
         sessionStorage.setItem('last_booking_ref', bookingData.bookingId);
         sessionStorage.setItem('payment_complete', 'true');
-        
-        // Redirect to confirmation page
         window.location.href = confirmationUrl;
       } else {
         setPaymentError(bookingData.error || 'Failed to create booking. Please contact support.');
@@ -261,11 +350,11 @@ export function StepReview() {
       setPaymentError('An error occurred while processing your booking. Please contact support if you were charged.');
       setIsProcessingPayment(false);
     }
-  }, [state, pricingDetails, total, tipAmount, discount, appliedDiscount, getConfirmationPath]);
+  }, [state, form, pricingDetails, total, tipAmount, discount, getConfirmationPath, setState]);
 
   // Handle discount code validation
   const handleApplyDiscount = useCallback(async () => {
-    if (!discountCode.trim()) return;
+    if (!form.discountCode.trim()) return;
 
     setIsValidatingDiscount(true);
     setDiscountError(null);
@@ -275,9 +364,9 @@ export function StepReview() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          code: discountCode.trim(),
+          code: form.discountCode.trim(),
           service_type: state.service,
-          subtotal: pricingDetails.total,
+          subtotal: pricingDetails?.total || 0,
         }),
       });
 
@@ -300,48 +389,25 @@ export function StepReview() {
         });
         updateField('discountCode', data.discount.code);
         updateField('discountAmount', data.discount.discount_amount);
-        updateField('discountDescription', data.discount.description || null);
         setDiscountError(null);
       } else {
         setDiscountError(data.error || 'Invalid discount code');
         setDiscountAmount(0);
         setAppliedDiscount(null);
-        updateField('discountCode', null);
-        updateField('discountAmount', 0);
-        updateField('discountDescription', null);
       }
     } catch (error: any) {
       setDiscountError(error?.message || 'Network error. Please check your connection and try again.');
       setDiscountAmount(0);
       setAppliedDiscount(null);
-      updateField('discountCode', null);
-      updateField('discountAmount', 0);
-      updateField('discountDescription', null);
     } finally {
       setIsValidatingDiscount(false);
     }
-  }, [discountCode, state.service, pricingDetails.total, updateField]);
+  }, [form.discountCode, state.service, pricingDetails?.total, updateField]);
 
-  const handleRemoveDiscount = useCallback(() => {
-    setDiscountCode('');
-    setDiscountAmount(0);
-    setAppliedDiscount(null);
-    setDiscountError(null);
-    updateField('discountCode', null);
-    updateField('discountAmount', 0);
-    updateField('discountDescription', null);
-  }, [updateField]);
-
-  // Handle payment close (user closed popup)
-  const handlePaymentClose = useCallback(() => {
-    setIsProcessingPayment(false);
-    // Don't show error if user just closed the popup
-  }, []);
-
-  // Initialize payment when button is clicked
+  // Handle payment submission
   const handleSubmit = useCallback(() => {
-    if (!state.service || !state.date || !state.time || !state.email || !state.firstName || !state.lastName) {
-      setPaymentError('Please complete all required fields');
+    if (!form.firstName || !form.lastName || !form.email || !form.phone || !form.address) {
+      setPaymentError('Please complete all required contact fields');
       return;
     }
 
@@ -350,617 +416,443 @@ export function StepReview() {
       return;
     }
 
-    if (!state.email) {
-      setPaymentError('Email is required for payment');
-      return;
-    }
-
     setPaymentError(null);
     setIsProcessingPayment(true);
 
-    // Initialize Paystack payment
-    initializePayment({
-      onSuccess: (reference) => {
-        handlePaymentSuccess(reference.reference);
-      },
-      onClose: handlePaymentClose,
-    });
-  }, [state, isPaystackConfigured, initializePayment, handlePaymentSuccess, handlePaymentClose]);
+    if (!isPaystackConfigured || total <= 0) {
+      setPaymentError('Payment service is not available. Please contact support.');
+      setIsProcessingPayment(false);
+      return;
+    }
 
-  return (
-    <div className="space-y-6">
-      <motion.div
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
-        className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100 max-w-[576px] mx-auto"
-      >
-        <div className="mb-8 space-y-3">
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
-            Review your booking
-          </h2>
-          <p className="text-sm md:text-base text-gray-600">
-            Please review all details before confirming your booking.
-          </p>
+    try {
+      initializePayment({
+        onSuccess: (reference) => {
+          handlePaymentSuccess(reference.reference);
+        },
+        onClose: () => {
+          setIsProcessingPayment(false);
+        },
+      });
+    } catch (error) {
+      console.error('Payment initialization error:', error);
+      setPaymentError('Failed to initialize payment. Please try again.');
+      setIsProcessingPayment(false);
+    }
+  }, [form, isPaystackConfigured, initializePayment, handlePaymentSuccess, total]);
+
+  const displayAmount = useCallback((value: number) => value.toLocaleString('en-ZA', { minimumFractionDigits: 0, maximumFractionDigits: 2 }), []);
+
+  const handleBack = useCallback(() => {
+    if (state.service) {
+      router.push(getSchedulePath(state.service));
+    }
+  }, [router, state.service, getSchedulePath]);
+
+  const handleEditService = useCallback(() => {
+    if (state.service) {
+      router.push(getDetailsPath(state.service));
+    } else {
+      router.push(getSelectPath);
+    }
+  }, [router, state.service, getDetailsPath, getSelectPath]);
+
+  const handleEditSchedule = useCallback(() => {
+    if (state.service) {
+      router.push(getSchedulePath(state.service));
+    } else {
+      router.push(getSelectPath);
+    }
+  }, [router, state.service, getSchedulePath, getSelectPath]);
+
+  // Calculate estimated duration
+  const estimatedDuration = useMemo(() => {
+    if (!state.service) return '—';
+    let hours = state.service === 'Standard' ? 2.0 : state.service === 'Airbnb' ? 2.5 : state.service === 'Deep' ? 4.0 : state.service === 'Move In/Out' ? 4.5 : 2.0;
+    hours += (state.bedrooms || 0) * 0.5;
+    hours += (state.bathrooms || 0) * 0.75;
+    hours += (state.extras?.length || 0) * 0.25;
+    const roundHalf = (v: number) => Math.round(v * 2) / 2;
+    const base = Math.min(12, Math.max(1.5, roundHalf(hours)));
+    const min = Math.max(1, roundHalf(base * 0.9));
+    const max = Math.max(min, roundHalf(base * 1.1));
+    return `${min}–${max} hours`;
+  }, [state.service, state.bedrooms, state.bathrooms, state.extras]);
+
+  // @return
+  return <div className="min-h-screen bg-[#F9FAFB] font-sans text-slate-900">
+      {/* Navbar */}
+      <nav className="bg-white border-b border-gray-100 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <div className="bg-blue-600 p-1.5 rounded-lg">
+              <Waves className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-xl font-bold tracking-tight text-slate-900">Shalean</span>
+          </div>
+
+          {/* Stepper - Between logo and navlinks */}
+          <div className="hidden md:flex items-center justify-center flex-1 px-8">
+            <StepIndicator currentStep={3} />
+          </div>
+
+          <div className="hidden md:flex items-center space-x-8 text-sm font-medium text-slate-600">
+            <a href="#" className="hover:text-blue-600">Services</a>
+            <a href="#" className="hover:text-blue-600">Pricing</a>
+            <a href="#" className="hover:text-blue-600">Help Center</a>
+            <button className="bg-blue-600 text-white px-4 py-2 rounded-full hover:bg-blue-700 transition-colors">
+              Book Now
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="max-w-3xl mx-auto">
+
+        <div className="space-y-4 mb-8">
+          <h1 className="text-3xl font-extrabold text-gray-900">Review Your Booking</h1>
+          <p className="text-gray-500">Please review your booking details before confirming.</p>
         </div>
 
-        <div className="space-y-6">
+        {paymentError && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-red-600" />
+              <p className="text-sm text-red-800">{paymentError}</p>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-8">
+          {/* Cleaner Section */}
           {(state.cleaner_id || state.selected_team) && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className="rounded-xl bg-slate-50/70 p-5 md:p-6 border border-slate-200/60 shadow-sm"
-            >
-              <div className="flex items-center justify-between gap-2 mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <User className="h-4 w-4 text-primary" />
-                  </div>
-                  <h3 className="text-base font-bold text-gray-900">
-                    {state.requires_team ? 'Team' : 'Cleaner'}
-                  </h3>
+            <section className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
+              <SectionHeader title="Cleaner" onEdit={handleEditSchedule} />
+              {isLoadingCleaner ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
                 </div>
-                <Button type="button" variant="ghost" className={editButtonClass} onClick={handleEditCleaner}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {state.requires_team ? (
-                  <div className="space-y-3">
-                    <div className="rounded-lg bg-blue-50 border border-blue-200 p-3">
-                      <p className="text-xs font-semibold text-blue-900 mb-1">
-                        {state.selected_team} Selected
-                      </p>
-                      <p className="text-xs text-blue-700">
-                        Our admin team will assign specific cleaners.
-                      </p>
-                      {tipAmount > 0 && (
-                        <div className="mt-2 pt-2 border-t border-blue-300">
-                          <p className="text-xs text-blue-800">
-                            <span className="font-semibold">Tip:</span> R{tipAmount.toFixed(2)}
-                          </p>
-                        </div>
-                      )}
+              ) : selectedCleaner ? (
+                <>
+                  <div className="bg-blue-600 text-white rounded-xl p-6 mb-6">
+                    <p className="text-sm opacity-90 mb-1">An upfront tip for</p>
+                    <h3 className="text-xl font-bold">{selectedCleaner.name || 'Cleaner'}</h3>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <label className="text-sm font-semibold text-gray-700">Tip amount</label>
+                    <div className="flex flex-wrap gap-3">
+                      {tipOptions.map(opt => <button 
+                        key={opt} 
+                        type="button"
+                        onClick={() => setForm({
+                          ...form,
+                          tip: opt
+                        })} 
+                        className={`px-5 py-2 rounded-full border text-sm font-medium transition-all duration-200 ${form.tip === opt ? 'bg-blue-600 border-blue-600 text-white shadow-md' : 'bg-white border-gray-200 text-gray-600 hover:border-blue-300'}`}>
+                          {opt}
+                        </button>)}
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="tipAmount" className="text-xs font-semibold text-gray-900">
-                        Add a tip (optional)
-                      </Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">R</span>
-                        <Input
-                          id="tipAmount"
-                          type="number"
-                          min="0"
-                          step="10"
-                          placeholder="0"
-                          value={tipAmount || ''}
-                          onChange={(e) => {
-                            const value = parseFloat(e.target.value) || 0;
-                            updateField('tipAmount', value);
-                          }}
-                          className={cn(
-                            'h-10 rounded-lg border-2 pl-8 transition-all',
-                            'focus:ring-2 focus:ring-primary/30 focus:border-primary',
-                            'hover:border-gray-300'
-                          )}
+                    {form.tip === 'Custom' && <motion.div 
+                      initial={{ opacity: 0, y: -10 }} 
+                      animate={{ opacity: 1, y: 0 }} 
+                      className="mt-4">
+                        <input 
+                          type="text" 
+                          placeholder="Enter custom amount" 
+                          className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none" 
+                          value={form.customTip} 
+                          onChange={e => setForm({
+                            ...form,
+                            customTip: e.target.value
+                          })} 
                         />
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        Show your appreciation with a tip
-                      </p>
-                    </div>
+                      </motion.div>}
                   </div>
-                ) : isLoadingCleaner ? (
-                  <div className="rounded-lg bg-green-50 border border-green-200 p-3">
-                    <div className="flex items-center justify-center gap-2">
-                      <Loader2 className="h-3 w-3 animate-spin text-green-700" />
-                      <p className="text-xs text-green-700">Loading...</p>
-                    </div>
-                  </div>
-                ) : selectedCleaner ? (
-                  <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm">
-                    {/* Black Header Section */}
-                    <div className="bg-gray-900 px-4 py-4 flex items-center gap-3">
-                      <div className="flex-shrink-0">
-                        {selectedCleaner.photo_url ? (
-                          <Image
-                            src={selectedCleaner.photo_url}
-                            alt={selectedCleaner.name || 'Cleaner'}
-                            width={56}
-                            height={56}
-                            className="w-14 h-14 rounded-full object-cover border-2 border-white/20"
-                          />
-                        ) : (
-                          <div className="w-14 h-14 rounded-full bg-gray-700 flex items-center justify-center border-2 border-white/20">
-                            <User className="h-7 w-7 text-white" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-white/80 mb-1">An upfront tip for</p>
-                        <p className="text-lg font-bold text-white truncate">
-                          {selectedCleaner.name || 'Cleaner'}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    {/* White Tip Section */}
-                    <div className="bg-white p-4">
-                      <Label className="text-sm font-medium text-gray-700 mb-3 block">
-                        Tip amount
-                      </Label>
-                      
-                      {/* Predefined Tip Amounts */}
-                      <div className="flex items-center gap-2 mb-3 flex-wrap">
-                        {[0, 25, 50, 75, 100].map((amount) => (
-                          <button
-                            key={amount}
-                            type="button"
-                            onClick={() => {
-                              updateField('tipAmount', amount);
-                              setShowCustomTip(false);
-                            }}
-                            className={cn(
-                              'w-14 h-14 rounded-full border-2 transition-all flex items-center justify-center text-sm font-medium',
-                              tipAmount === amount && !showCustomTip
-                                ? 'border-primary bg-primary/5 text-primary'
-                                : 'border-gray-300 text-gray-700 hover:border-gray-400'
-                            )}
-                          >
-                            R{amount}
-                          </button>
-                        ))}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowCustomTip(true);
-                            if (!tipAmount || [0, 25, 50, 75, 100].includes(tipAmount)) {
-                              updateField('tipAmount', 0);
-                            }
-                          }}
-                          className={cn(
-                            'text-sm font-medium transition-colors px-2',
-                            showCustomTip
-                              ? 'text-primary'
-                              : 'text-primary hover:text-primary/80'
-                          )}
-                        >
-                          Custom
-                          <br />
-                          amount
-                        </button>
-                      </div>
-                      
-                      {/* Custom Amount Input - Always visible at bottom */}
-                      <div className="mt-3">
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">R</span>
-                          <Input
-                            id="tipAmount"
-                            type="number"
-                            min="0"
-                            step="10"
-                            placeholder="0"
-                            value={tipAmount || ''}
-                            onChange={(e) => {
-                              const value = parseFloat(e.target.value) || 0;
-                              updateField('tipAmount', value);
-                              if (value > 0 && ![0, 25, 50, 75, 100].includes(value)) {
-                                setShowCustomTip(true);
-                              }
-                            }}
-                            className={cn(
-                              'h-10 rounded-lg border-2 pl-8 transition-all bg-gray-50',
-                              'focus:ring-2 focus:ring-primary/30 focus:border-primary focus:bg-white',
-                              'hover:border-gray-300'
-                            )}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : state.cleaner_id === 'manual' ? (
-                  <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
-                    <p className="text-xs font-semibold text-amber-900 mb-1">
-                      Manual Assignment
-                    </p>
-                    <p className="text-xs text-amber-700">
-                      Best available cleaner will be assigned.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
-                    <p className="text-xs font-semibold text-slate-900 mb-1">
-                      Cleaner Selected
-                    </p>
-                    <p className="text-xs text-slate-600">
-                      Professional cleaner assigned
-                    </p>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          )}
-
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="rounded-xl bg-slate-50/70 p-5 md:p-6 border border-slate-200/60 shadow-sm"
-          >
-            <div className="flex items-center justify-between gap-2 mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Home className="h-4 w-4 text-primary" />
+                </>
+              ) : state.requires_team ? (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+                  <p className="text-sm font-semibold text-blue-900 mb-1">{state.selected_team} Selected</p>
+                  <p className="text-xs text-blue-700">Our admin team will assign specific cleaners.</p>
                 </div>
-                <h3 className="text-base font-bold text-gray-900">Service & Property</h3>
-              </div>
-              <Button type="button" variant="ghost" className={editButtonClass} onClick={handleEditService}>
-                <Pencil className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between py-2 px-3 bg-white/60 rounded-lg">
-                <span className="text-sm text-slate-700 font-medium">Service Type</span>
-                <Badge variant="secondary" className="font-semibold">{state.service}</Badge>
-              </div>
-              <div className="flex items-center justify-between py-2 px-3 bg-white/60 rounded-lg">
-                <span className="text-sm text-slate-700 font-medium">Bedrooms</span>
-                <span className="text-sm font-semibold text-gray-900">{state.bedrooms}</span>
-              </div>
-              <div className="flex items-center justify-between py-2 px-3 bg-white/60 rounded-lg">
-                <span className="text-sm text-slate-700 font-medium">Bathrooms</span>
-                <span className="text-sm font-semibold text-gray-900">{state.bathrooms}</span>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.1 }}
-            className="rounded-xl bg-slate-50/70 p-5 md:p-6 border border-slate-200/60 shadow-sm"
-          >
-            <div className="flex items-center justify-between gap-2 mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Calendar className="h-4 w-4 text-primary" />
-                </div>
-                <h3 className="text-base font-bold text-gray-900">Schedule</h3>
-              </div>
-              <Button type="button" variant="ghost" className={editButtonClass} onClick={handleEditSchedule}>
-                <Pencil className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center gap-4 py-3 px-4 bg-white/80 rounded-xl shadow-sm">
-                <Calendar className="h-5 w-5 text-indigo-600 flex-shrink-0" />
-                <div>
-                  <span className="text-xs text-slate-600 font-medium block mb-1">Date</span>
-                  <span className="text-sm font-bold text-gray-900">
-                    {state.date && format(new Date(state.date), 'EEE, MMM d, yyyy')}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-4 py-3 px-4 bg-white/80 rounded-xl shadow-sm">
-                <Clock className="h-5 w-5 text-indigo-600 flex-shrink-0" />
-                <div>
-                  <span className="text-xs text-slate-600 font-medium block mb-1">Time</span>
-                  <span className="text-sm font-bold text-gray-900">{state.time}</span>
-                </div>
-              </div>
-              {state.frequency !== 'one-time' && (
-                <div className="flex items-center gap-4 py-3 px-4 bg-white/80 rounded-xl shadow-sm">
-                  <Badge variant="outline" className="font-semibold">
-                    {state.frequency.replace('-', ' ')}
-                  </Badge>
+              ) : (
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-6">
+                  <p className="text-sm font-semibold text-gray-900">Cleaner will be assigned</p>
                 </div>
               )}
-            </div>
-          </motion.div>
+            </section>
+          )}
 
-          {(extrasDisplay.length > 0 || state.notes) && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.15 }}
-              className="rounded-xl bg-slate-50/70 p-5 md:p-6 border border-slate-200/60 shadow-sm"
-            >
-              <div className="flex items-center justify-between gap-2 mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Star className="h-4 w-4 text-primary" />
-                  </div>
-                  <h3 className="text-base font-bold text-gray-900">Extras & Notes</h3>
-                </div>
-                <Button type="button" variant="ghost" className={editButtonClass} onClick={handleEditHome}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
+          {/* Contact & Address Section */}
+          <section className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
+            <SectionHeader title="Contact & Address" />
+            <div className="grid md:grid-cols-2 gap-6">
+              <InputWrapper label="First Name" icon={User} required>
+                <input 
+                  type="text" 
+                  placeholder="e.g., Thabo" 
+                  className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none" 
+                  value={form.firstName} 
+                  onChange={e => setForm({
+                    ...form,
+                    firstName: e.target.value
+                  })} 
+                />
+              </InputWrapper>
+              <InputWrapper label="Last Name" icon={User} required>
+                <input 
+                  type="text" 
+                  placeholder="e.g., Mokoena" 
+                  className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none" 
+                  value={form.lastName} 
+                  onChange={e => setForm({
+                    ...form,
+                    lastName: e.target.value
+                  })} 
+                />
+              </InputWrapper>
+              <InputWrapper label="Email Address" icon={Mail} required>
+                <input 
+                  type="email" 
+                  placeholder="e.g., thabo@example.com" 
+                  className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none" 
+                  value={form.email} 
+                  onChange={e => setForm({
+                    ...form,
+                    email: e.target.value
+                  })} 
+                />
+              </InputWrapper>
+              <InputWrapper label="Phone Number" icon={Phone} required>
+                <input 
+                  type="tel" 
+                  placeholder="0821234567 or +27821234567" 
+                  className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none" 
+                  value={form.phone} 
+                  onChange={e => setForm({
+                    ...form,
+                    phone: e.target.value
+                  })} 
+                />
+              </InputWrapper>
+              <div className="md:col-span-2">
+                <InputWrapper label="Address" icon={MapPin} required>
+                  <AddressAutocomplete
+                    value={form.address}
+                    onChange={(address) => {
+                      setForm({
+                        ...form,
+                        address: address.line1,
+                        suburb: address.suburb || form.suburb,
+                        city: address.city || form.city,
+                      });
+                    }}
+                    onInputChange={(value) => {
+                      setForm({
+                        ...form,
+                        address: value,
+                      });
+                    }}
+                    placeholder="Search for address"
+                    className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </InputWrapper>
               </div>
-              <div className="space-y-2">
-                {extrasDisplay.length > 0 && (
-                  <div className="space-y-1.5">
-                    {extrasDisplay.map(({ name, quantity, total }) => (
-                      <div key={name} className="flex items-center justify-between text-xs py-1.5 px-2 bg-white/60 rounded-lg">
-                        <span className="text-slate-700 font-medium">
-                          {name}
-                          {quantity > 1 ? ` ×${quantity}` : ''}
-                        </span>
-                        <span className="font-semibold text-gray-900">
-                          +R{total.toFixed(2)}
-                        </span>
+            </div>
+          </section>
+
+          {/* What You're Booking Section */}
+          <section className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
+            <SectionHeader title="What You're Booking" onEdit={handleEditService} />
+            
+            <div className="space-y-8">
+              {/* Service */}
+              <div>
+                <div className="flex items-center gap-2 text-blue-600 mb-2">
+                  <div className="bg-blue-50 p-1.5 rounded-lg">
+                    <CheckCircle2 size={16} />
+                  </div>
+                  <span className="text-sm font-semibold uppercase tracking-wider">Service</span>
+                </div>
+                <p className="text-lg font-bold text-gray-800">{state.service || 'Not selected'}</p>
+              </div>
+
+              {/* Property Details */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                   <div className="flex items-center gap-2 text-blue-600 mb-2">
+                    <div className="bg-blue-50 p-1.5 rounded-lg">
+                      <Home size={16} />
+                    </div>
+                    <span className="text-sm font-semibold uppercase tracking-wider">Property Details</span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">Bedrooms:</p>
+                  <p className="text-gray-800 font-bold">{state.bedrooms || 0}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">Bathrooms:</p>
+                  <p className="text-gray-800 font-bold">{state.bathrooms || 1}</p>
+                </div>
+              </div>
+
+              {/* Additional Services */}
+              {state.extras && state.extras.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 text-blue-600 mb-3">
+                    <div className="bg-blue-50 p-1.5 rounded-lg">
+                      <PlusCircle size={16} />
+                    </div>
+                    <span className="text-sm font-semibold uppercase tracking-wider">Additional Services</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {state.extras.map((extra, idx) => (
+                      <div key={idx} className="inline-block px-4 py-1.5 rounded-full bg-blue-50 text-blue-600 text-sm font-medium border border-blue-100">
+                        {extra}
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Service Options */}
+              <div>
+                <div className="flex items-center gap-2 text-blue-600 mb-2">
+                  <div className="bg-blue-50 p-1.5 rounded-lg">
+                    <Clock size={16} />
+                  </div>
+                  <span className="text-sm font-semibold uppercase tracking-wider">Service Options</span>
+                </div>
+                <p className="text-gray-600 text-sm flex items-center gap-2">
+                   Estimated duration: <span className="font-bold text-gray-800">{estimatedDuration}</span>
+                </p>
+              </div>
+
+              {/* Schedule */}
+              {state.date && state.time && (
+                <div>
+                  <div className="flex items-center gap-2 text-blue-600 mb-3">
+                    <div className="bg-blue-50 p-1.5 rounded-lg">
+                      <Calendar size={16} />
+                    </div>
+                    <span className="text-sm font-semibold uppercase tracking-wider">Schedule</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100 col-span-2 md:col-span-1">
+                      <span className="text-sm text-gray-500">Date</span>
+                      <span className="text-sm font-bold text-gray-800">{format(new Date(state.date), 'EEE, MMM d, yyyy')}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100 col-span-2 md:col-span-1">
+                      <span className="text-sm text-gray-500">Time</span>
+                      <span className="text-sm font-bold text-gray-800">{state.time}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Payment Section */}
+          <section className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+            <div className="p-8 space-y-6">
+              <div className="flex justify-between items-end">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Total Amount</h3>
+                  <p className="text-xs text-gray-400">All fees included</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-3xl font-black text-blue-600">R{displayAmount(total)}</p>
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-4 border-t border-gray-50">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Service & rooms</span>
+                  <span className="font-bold text-gray-800">R{displayAmount((pricingDetails?.total || 0) - (pricingDetails?.serviceFee || 0))}</span>
+                </div>
+                {(pricingDetails?.serviceFee || 0) > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Service fee</span>
+                    <span className="font-bold text-gray-800">+R{displayAmount(pricingDetails?.serviceFee || 0)}</span>
+                  </div>
                 )}
-                {state.notes && (
-                  <div className="text-xs text-slate-700 leading-relaxed bg-white/60 rounded-lg p-3">
-                    {state.notes}
+                {tipAmount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Tip</span>
+                    <span className="font-bold text-gray-800">+R{displayAmount(tipAmount)}</span>
+                  </div>
+                )}
+                {discount > 0 && (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Discount {appliedDiscount?.code && `(${appliedDiscount.code})`}</span>
+                    <span className="font-bold">-R{displayAmount(discount)}</span>
                   </div>
                 )}
               </div>
-            </motion.div>
-          )}
 
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.2 }}
-            className="rounded-xl bg-slate-50/70 p-5 md:p-6 border border-slate-200/60 shadow-sm"
-          >
-            <div className="flex items-center justify-between gap-2 mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <User className="h-4 w-4 text-primary" />
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-800">Have a discount code?</label>
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    placeholder="Enter discount code" 
+                    className="flex-1 px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50" 
+                    value={form.discountCode} 
+                    onChange={e => setForm({
+                      ...form,
+                      discountCode: e.target.value
+                    })} 
+                  />
+                  <button 
+                    onClick={handleApplyDiscount}
+                    disabled={isValidatingDiscount || !!appliedDiscount}
+                    className="px-6 py-2 bg-gray-100 text-gray-600 font-bold rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    {isValidatingDiscount ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Apply'}
+                  </button>
                 </div>
-                <h3 className="text-base font-bold text-gray-900">Contact & Address</h3>
-              </div>
-              <Button type="button" variant="ghost" className={editButtonClass} onClick={handleEditContact}>
-                <Pencil className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="space-y-2">
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2 py-1.5 px-2 bg-white/60 rounded-lg">
-                  <User className="h-3 w-3 text-primary flex-shrink-0" />
-                  <span className="text-xs text-slate-700 font-medium">
-                    {state.firstName} {state.lastName}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 py-1.5 px-2 bg-white/60 rounded-lg">
-                  <Mail className="h-3 w-3 text-primary flex-shrink-0" />
-                  <span className="text-xs text-slate-700 font-medium">{state.email}</span>
-                </div>
-                <div className="flex items-center gap-2 py-1.5 px-2 bg-white/60 rounded-lg">
-                  <Phone className="h-3 w-3 text-primary flex-shrink-0" />
-                  <span className="text-xs text-slate-700 font-medium">{state.phone}</span>
-                </div>
-              </div>
-              <div className="text-xs text-slate-700 bg-white/60 rounded-lg p-2.5">
-                <p className="font-medium">{state.address.line1}</p>
-                <p className="text-slate-600">{state.address.suburb}, {state.address.city}</p>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.3 }}
-          className="rounded-2xl border-2 border-primary/40 bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 p-6 md:p-8 shadow-xl mt-6"
-        >
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <span className="text-xl md:text-2xl font-bold text-gray-900 block mb-2">Total Amount</span>
-              <div className="flex items-center gap-2 text-sm text-slate-700">
-                <Shield className="h-5 w-5 text-primary" />
-                <span className="font-medium">Secure booking</span>
-              </div>
-            </div>
-            <div className="text-right">
-              <span className="text-4xl md:text-5xl font-bold text-primary block leading-tight">R{displayAmount(total)}</span>
-              <span className="text-sm text-slate-600 mt-2 block font-medium">All fees included</span>
-            </div>
-          </div>
-          <div className="space-y-2 text-sm text-slate-700 mb-4 pb-4 border-b border-primary/20">
-            <div className="flex items-center justify-between">
-              <span>Service & rooms</span>
-              <span className="font-semibold">R{displayAmount(baseAndRoomsTotal)}</span>
-            </div>
-            {extrasTotal > 0 && (
-              <div className="flex items-center justify-between">
-                <span>Extras</span>
-                <span className="font-semibold">+R{displayAmount(extrasTotal)}</span>
-              </div>
-            )}
-            {pricingDetails.serviceFee > 0 && (
-              <div className="flex items-center justify-between">
-                <span>Service fee</span>
-                <span className="font-semibold">+R{displayAmount(pricingDetails.serviceFee)}</span>
-              </div>
-            )}
-            {pricingDetails.frequencyDiscount > 0 && (
-              <div className="flex items-center justify-between text-green-600 font-semibold">
-                <span>
-                  {state.frequency !== 'one-time' 
-                    ? `${state.frequency?.replace('-', ' ')} discount${pricingDetails.frequencyDiscountPercent ? ` (${pricingDetails.frequencyDiscountPercent}%)` : ''}`
-                    : `Discount${pricingDetails.frequencyDiscountPercent ? ` (${pricingDetails.frequencyDiscountPercent}%)` : ''}`
-                  }
-                </span>
-                <span>-R{displayAmount(pricingDetails.frequencyDiscount)}</span>
-              </div>
-            )}
-            {discount > 0 && (
-              <div className="flex items-center justify-between text-green-600 font-semibold">
-                <span>
-                  Discount {appliedDiscount?.code && `(${appliedDiscount.code})`}
-                </span>
-                <span>-R{displayAmount(discount)}</span>
-              </div>
-            )}
-            {tipAmount > 0 && (
-              <div className="flex items-center justify-between text-purple-600 font-semibold">
-                <span>Tip for cleaner</span>
-                <span>+R{displayAmount(tipAmount)}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Discount Code Input */}
-          <div className="mt-4 pt-4 border-t border-primary/20">
-            <div className="space-y-2">
-              <Label htmlFor="discount-code" className="text-sm font-medium text-slate-700">
-                Have a discount code?
-              </Label>
-              <div className="flex gap-2">
-                <Input
-                  id="discount-code"
-                  type="text"
-                  placeholder="Enter discount code"
-                  value={discountCode}
-                  onChange={(e) => {
-                    setDiscountCode(e.target.value.toUpperCase());
-                    setDiscountError(null);
-                    if (appliedDiscount) {
-                      setAppliedDiscount(null);
-                      setDiscountAmount(0);
-                    }
-                  }}
-                  className="flex-1"
-                  disabled={isValidatingDiscount || isProcessingPayment}
-                />
-                <Button
-                  onClick={handleApplyDiscount}
-                  disabled={!discountCode || isValidatingDiscount || isProcessingPayment || !!appliedDiscount}
-                  variant="outline"
-                  size="sm"
-                >
-                  {isValidatingDiscount ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    'Apply'
-                  )}
-                </Button>
+                {discountError && (
+                  <p className="text-xs text-red-600">{discountError}</p>
+                )}
                 {appliedDiscount && (
-                  <Button
-                    onClick={handleRemoveDiscount}
-                    variant="ghost"
-                    size="sm"
-                    disabled={isProcessingPayment}
-                  >
-                    Remove
-                  </Button>
+                  <p className="text-xs text-green-600">✓ Discount applied: {appliedDiscount.description || appliedDiscount.code}</p>
                 )}
               </div>
-              {discountError && (
-                <p className="text-red-600 text-xs mt-1">{discountError}</p>
+
+              {isPaystackConfigured && (
+                <div className="flex items-center justify-center gap-2 py-2">
+                  <ShieldCheck size={16} className="text-gray-400" />
+                  <span className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">Secure payment powered by Paystack</span>
+                </div>
               )}
-              {appliedDiscount && (
-                <p className="text-green-600 text-xs mt-1">
-                  ✓ Discount applied: {appliedDiscount.description || appliedDiscount.code}
-                </p>
-              )}
+
+              <button 
+                onClick={handleSubmit}
+                disabled={isProcessingPayment || !isPaystackConfigured || !form.firstName || !form.lastName || !form.email || !form.phone || !form.address}
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-200 transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0">
+                {isProcessingPayment ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin inline-block mr-2" />
+                    Processing payment...
+                  </>
+                ) : (
+                  'Confirm & Pay'
+                )}
+              </button>
             </div>
-          </div>
+          </section>
 
-          <div className="flex items-center justify-between text-base font-bold text-slate-900 mt-4 pt-4 border-t border-primary/20">
-            <span>Amount due today</span>
-            <span>R{displayAmount(total)}</span>
-          </div>
-        </motion.div>
-
-        {paymentError && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl bg-red-50 border-2 border-red-200 p-5 md:p-6"
-          >
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <h3 className="text-base font-bold text-red-900 mb-2">Error</h3>
-                <p className="text-sm text-red-800">{paymentError}</p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {!isPaystackConfigured && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl bg-amber-50 border-2 border-amber-200 p-5 md:p-6"
-          >
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <h3 className="text-base font-bold text-amber-900 mb-2">Payment Service Not Available</h3>
-                <p className="text-sm text-amber-800">Payment processing is currently unavailable. Please contact support to complete your booking.</p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {isPaystackConfigured && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex items-center justify-center gap-2 text-xs text-slate-500 mt-4"
-          >
-            <Shield className="h-4 w-4" />
-            <span>Secure payment powered by Paystack</span>
-          </motion.div>
-        )}
-
-        <div className="flex flex-col sm:flex-row justify-between gap-4 mt-8 pt-6 border-t border-slate-200">
-          <Button 
-            variant="outline" 
-            onClick={handleBack} 
-            size="lg" 
-            disabled={isProcessingPayment} 
-            className={cn(
-              "rounded-full px-6 py-3 font-semibold h-auto",
-              "border-2 border-slate-300 hover:border-slate-400 hover:bg-slate-50",
-              "focus:ring-2 focus:ring-primary/30 focus:outline-none",
-              "transition-all duration-200",
-              "w-full sm:w-auto"
-            )}
-            type="button"
-          >
+          <button 
+            onClick={handleBack}
+            className="flex items-center gap-2 text-gray-500 font-bold hover:text-gray-700 transition-colors mb-12">
+            <ArrowLeft size={18} />
             Back
-          </Button>
-          <Button 
-            onClick={handleSubmit} 
-            disabled={isProcessingPayment || !state.service || !state.date || !state.time || !isPaystackConfigured} 
-            size="lg" 
-            className={cn(
-              "rounded-full px-8 py-3 font-semibold shadow-lg w-full sm:w-auto justify-center",
-              "bg-primary hover:bg-primary/90 text-white",
-              "focus:ring-2 focus:ring-primary/30 focus:outline-none",
-              "transition-all duration-200",
-              "disabled:opacity-50 disabled:cursor-not-allowed"
-            )}
-            type="button"
-          >
-            {isProcessingPayment ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                <span className="sm:hidden">Processing...</span>
-                <span className="hidden sm:inline">Processing payment...</span>
-              </>
-            ) : (
-              <>
-                <CreditCard className="mr-2 h-4 w-4" />
-                <span className="sm:hidden">Pay R{displayAmount(total)}</span>
-                <span className="hidden sm:inline">Confirm & Pay R{displayAmount(total)}</span>
-              </>
-            )}
-          </Button>
+          </button>
         </div>
-      </motion.div>
-    </div>
-  );
-}
+        </div>
+      </main>
+
+      <Footer />
+    </div>;
+};

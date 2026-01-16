@@ -57,7 +57,7 @@ export default function QuoteConfirmationPage() {
                   <span className="hidden sm:inline">Back to Home</span>
                 </Button>
               </Link>
-              <Link href="/booking/service/select" className="w-full sm:w-auto">
+              <Link href="/booking/service/standard/details" className="w-full sm:w-auto">
                 <Button variant="outline" size="lg" className="w-full sm:w-auto">
                   <span className="sm:hidden">Book Now</span>
                   <span className="hidden sm:inline">Start Full Booking</span>

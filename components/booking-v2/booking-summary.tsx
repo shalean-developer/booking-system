@@ -102,6 +102,7 @@ export function BookingSummaryV2() {
           carpetDetails: state.carpetDetails,
           provideEquipment: state.provideEquipment,
           equipmentCharge: equipmentCharge,
+          numberOfCleaners: state.numberOfCleaners,
         },
         state.frequency || 'one-time'
       );
@@ -140,6 +141,7 @@ export function BookingSummaryV2() {
               carpetDetails: state.carpetDetails,
               provideEquipment: state.provideEquipment,
               equipmentCharge: equipmentCharge,
+              numberOfCleaners: state.numberOfCleaners,
             },
             state.frequency || 'one-time'
           );
@@ -153,7 +155,17 @@ export function BookingSummaryV2() {
     };
 
     fetchPricing();
-  }, [state.service, state.bedrooms, state.bathrooms, extrasKey, state.frequency, state.extrasQuantities, state.provideEquipment, formData?.equipment?.charge]);
+  }, [
+    state.service,
+    state.bedrooms,
+    state.bathrooms,
+    extrasKey,
+    state.frequency,
+    state.extrasQuantities,
+    state.provideEquipment,
+    state.numberOfCleaners,
+    formData?.equipment?.charge,
+  ]);
 
   // Use stored cleaner data if available, otherwise fetch
   useEffect(() => {
@@ -172,6 +184,7 @@ export function BookingSummaryV2() {
           phone: null,
           email: null,
           is_active: true,
+          completion_rate: null, // Not stored in state.selectedCleaner
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         });
@@ -197,6 +210,7 @@ export function BookingSummaryV2() {
               phone: null,
               email: null,
               is_active: true,
+              completion_rate: data.cleaner.completion_rate ?? null,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             });
@@ -260,6 +274,37 @@ export function BookingSummaryV2() {
     return basePrice + roomsPrice;
   }, [basePrice, roomsPrice]);
 
+  // Calculate cleaner cost (for Standard/Airbnb services)
+  const cleanerCost = useMemo(() => {
+    if (!state.service || (state.service !== 'Standard' && state.service !== 'Airbnb')) {
+      return 0;
+    }
+    if (!servicePricing) {
+      return 0;
+    }
+    const cleanersCount = Math.max(1, Math.round(state.numberOfCleaners ?? 1));
+    const laborSubtotalOneCleaner = basePrice + roomsPrice + extrasTotal;
+    const cost = laborSubtotalOneCleaner * cleanersCount;
+    return cost;
+  }, [basePrice, roomsPrice, extrasTotal, state.service, state.numberOfCleaners, servicePricing]);
+
+  // Calculate extra cleaner cost (for cleaners beyond the first one)
+  const extraCleanerCost = useMemo(() => {
+    if (!state.service || (state.service !== 'Standard' && state.service !== 'Airbnb')) {
+      return 0;
+    }
+    if (!servicePricing) {
+      return 0;
+    }
+    const cleanersCount = Math.max(1, Math.round(state.numberOfCleaners ?? 1));
+    if (cleanersCount <= 1) {
+      return 0;
+    }
+    const laborSubtotalOneCleaner = basePrice + roomsPrice + extrasTotal;
+    const extraCleaners = cleanersCount - 1;
+    return laborSubtotalOneCleaner * extraCleaners;
+  }, [basePrice, roomsPrice, extrasTotal, state.service, state.numberOfCleaners, servicePricing]);
+
   const estimatedDurationHours = useMemo(() => {
     if (!state.service) return null;
 
@@ -303,6 +348,12 @@ export function BookingSummaryV2() {
       hours += 0.25;
     }
 
+    // More cleaners generally reduces on-site duration (simple linear estimate)
+    const cleanersCount = Math.max(1, Math.round(state.numberOfCleaners ?? 1));
+    if ((state.service === 'Standard' || state.service === 'Airbnb') && cleanersCount > 1) {
+      hours = hours / cleanersCount;
+    }
+
     // Clamp to a reasonable range
     return Math.min(12, Math.max(1.5, roundToHalfHour(hours)));
   }, [
@@ -313,15 +364,20 @@ export function BookingSummaryV2() {
     state.extrasQuantities,
     state.carpetDetails,
     state.provideEquipment,
+    state.numberOfCleaners,
   ]);
 
   const showPromo = !!state.discountCode && (state.discountAmount || 0) > 0;
   const showEquipment = state.service === 'Standard' || state.service === 'Airbnb';
-  const cleanersLabel = state.requires_team
-    ? state.selected_team
-      ? `Team booking (${state.selected_team})`
-      : 'Team booking'
-    : '1 cleaner';
+  const cleanersCount = Math.max(1, Math.round(state.numberOfCleaners ?? 1));
+  const cleanersLabel =
+    state.service === 'Standard' || state.service === 'Airbnb'
+      ? `${cleanersCount} ${cleanersCount === 1 ? 'cleaner' : 'cleaners'}`
+      : state.requires_team
+        ? state.selected_team
+          ? `Team booking (${state.selected_team})`
+          : 'Team booking'
+        : '1 cleaner';
 
   return (
     <Card className="border border-slate-200 shadow-lg bg-white">
@@ -342,23 +398,29 @@ export function BookingSummaryV2() {
                 </Badge>
               </div>
 
-                {/* Cleaners */}
-                <div>
+              {/* Cleaners + Equipment (side-by-side) */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="min-w-0">
                   <h3 className="text-sm font-semibold text-slate-900 mb-2">Cleaners</h3>
-                  <p className="text-sm text-slate-600">{cleanersLabel}</p>
+                  <p className="text-sm text-slate-600 truncate">{cleanersCount}</p>
+                  {(state.service === 'Standard' || state.service === 'Airbnb') && extraCleanerCost > 0 && (
+                    <p className="text-xs text-slate-500 mt-1">
+                      Extra cleaner cost: R{extraCleanerCost.toFixed(2)}
+                    </p>
+                  )}
                 </div>
 
-                {/* Equipment */}
-                <div>
+                <div className="min-w-0">
                   <h3 className="text-sm font-semibold text-slate-900 mb-2">Equipment</h3>
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-slate-600 truncate">
                     {showEquipment
                       ? state.provideEquipment
-                        ? `Provided by us — R${equipmentCharge.toFixed(2)}`
-                        : 'Customer provides'
-                      : 'Not applicable'}
+                        ? 'Yes'
+                        : 'No'
+                      : 'N/A'}
                   </p>
                 </div>
+              </div>
 
               {/* Date & Time */}
               {(state.date || state.time) && (
@@ -388,19 +450,30 @@ export function BookingSummaryV2() {
                   <div>
                     <h3 className="text-sm font-semibold text-slate-900 mb-2">Service pricing</h3>
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600">Base</span>
-                        <span className="font-medium text-slate-900">R{basePrice.toFixed(2)}</span>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="flex items-center justify-between text-sm min-w-0">
+                          <span className="text-slate-600">Base</span>
+                          <span className="font-medium text-slate-900 truncate">R{basePrice.toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm min-w-0">
+                          <span className="text-slate-600 truncate">
+                            Rooms
+                            {state.service === 'Carpet'
+                              ? ''
+                              : ` (${state.bedrooms || 0} bed, ${state.bathrooms || 0} bath)`}
+                          </span>
+                          <span className="font-medium text-slate-900 truncate">R{roomsPrice.toFixed(2)}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600">
-                          Rooms
-                          {state.service === 'Carpet'
-                            ? ''
-                            : ` (${state.bedrooms || 0} bed, ${state.bathrooms || 0} bath)`}
-                        </span>
-                        <span className="font-medium text-slate-900">R{roomsPrice.toFixed(2)}</span>
-                      </div>
+                      {/* Cleaner Cost (Standard/Airbnb only) */}
+                      {(state.service === 'Standard' || state.service === 'Airbnb') && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-slate-600">
+                            Cleaner cost ({cleanersCount} {cleanersCount === 1 ? 'cleaner' : 'cleaners'})
+                          </span>
+                          <span className="font-medium text-slate-900">R{cleanerCost.toFixed(2)}</span>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between text-sm border-t pt-2">
                         <span className="text-slate-700 font-semibold">Service total</span>
                         <span className="font-semibold text-slate-900">R{serviceTotal.toFixed(2)}</span>
@@ -578,6 +651,15 @@ export function BookingSummaryV2() {
                                 </div>
                               )}
                             </>
+                          )}
+                          {/* Cleaner Cost (Standard/Airbnb only) */}
+                          {(state.service === 'Standard' || state.service === 'Airbnb') && cleanerCost > 0 && (
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-slate-600">
+                                Cleaner Cost ({cleanersCount} {cleanersCount === 1 ? 'cleaner' : 'cleaners'})
+                              </span>
+                              <span className="font-medium text-slate-900">R{cleanerCost.toFixed(2)}</span>
+                            </div>
                           )}
                         </div>
                       </div>

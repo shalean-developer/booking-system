@@ -118,6 +118,7 @@ export interface Database {
           last_location_lat: number | null;
           last_location_lng: number | null;
           last_location_updated: string | null;
+          completion_rate: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -142,6 +143,7 @@ export interface Database {
           last_location_lat?: number | null;
           last_location_lng?: number | null;
           last_location_updated?: string | null;
+          completion_rate?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -166,6 +168,7 @@ export interface Database {
           last_location_lat?: number | null;
           last_location_lng?: number | null;
           last_location_updated?: string | null;
+          completion_rate?: number | null;
           created_at?: string;
           updated_at?: string;
         };

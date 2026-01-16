@@ -319,7 +319,7 @@ export default function LocationPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-8 py-4 text-lg" asChild>
-              <Link href="/booking/service/select" aria-label="Book a cleaning service online">
+              <Link href="/booking/service/standard/details" aria-label="Book a cleaning service online">
                 Book Now
                 <ArrowRight className="ml-2 h-5 w-5" aria-hidden="true" />
               </Link>

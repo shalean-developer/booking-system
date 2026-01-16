@@ -222,7 +222,7 @@ export function MobileDrawer({ isOpen, onClose, user, customer, onEditProfile }:
                   <h3 className="text-lg font-semibold text-gray-900 mb-3">Quick Actions</h3>
                   <div className="space-y-2">
                     <Button className="w-full bg-primary hover:bg-primary/90" asChild>
-                      <Link href="/booking/service/select">
+                      <Link href="/booking/service/standard/details">
                         Book a Service
                       </Link>
                     </Button>

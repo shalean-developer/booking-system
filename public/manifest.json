@@ -32,7 +32,7 @@
       "name": "Book a Service",
       "short_name": "Book",
       "description": "Book a cleaning service",
-      "url": "/booking/service/select",
+      "url": "/booking/service/standard/details",
       "icons": [
         {
           "src": "/icon-192.png",

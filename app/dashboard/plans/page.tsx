@@ -133,7 +133,7 @@ export default function PlansPage() {
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Cleaning Plans</h1>
             </div>
             <Button asChild className="bg-gradient-to-r from-teal-500 to-green-500">
-              <Link href="/booking/service/select?recurring=true">
+              <Link href="/booking/service/standard/details?recurring=true">
                 <Plus className="h-4 w-4 mr-2" />
                 Add New Plan
               </Link>
@@ -240,7 +240,7 @@ export default function PlansPage() {
                 <h2 className="text-xl font-semibold text-gray-900 mb-2">No cleaning plans yet</h2>
                 <p className="text-gray-600 mb-6">Set up a recurring cleaning plan for regular service!</p>
                 <Button asChild className="bg-gradient-to-r from-teal-500 to-green-500">
-                  <Link href="/booking/service/select?recurring=true">Create a Plan</Link>
+                  <Link href="/booking/service/standard/details?recurring=true">Create a Plan</Link>
                 </Button>
               </CardContent>
             </Card>

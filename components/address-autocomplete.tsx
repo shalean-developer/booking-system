@@ -58,11 +58,19 @@ export function AddressAutocomplete({
   const [inputValue, setInputValue] = useState(value || '');
 
   // Load Google Maps script (only once globally)
+  // DISABLED: Google Maps Places API requires billing to be enabled
+  // Set NEXT_PUBLIC_ENABLE_GOOGLE_PLACES=true to enable (default: disabled)
   useEffect(() => {
+    const enableGooglePlaces = process.env.NEXT_PUBLIC_ENABLE_GOOGLE_PLACES === 'true';
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY;
     
-    if (!apiKey) {
-      console.warn('Google Places API key not found');
+    // Disable Google Places API by default (requires explicit enable flag and API key)
+    if (!enableGooglePlaces || !apiKey) {
+      if (!enableGooglePlaces) {
+        console.log('Google Places API is disabled. Set NEXT_PUBLIC_ENABLE_GOOGLE_PLACES=true to enable.');
+      } else {
+        console.warn('Google Places API key not found');
+      }
       return;
     }
 
@@ -118,7 +126,11 @@ export function AddressAutocomplete({
 
   // Initialize autocomplete when script loads
   const initializeAutocomplete = () => {
+    // Check if Google Places is enabled
+    const enableGooglePlaces = process.env.NEXT_PUBLIC_ENABLE_GOOGLE_PLACES === 'true';
+    
     if (
+      !enableGooglePlaces ||
       !inputRef.current ||
       typeof window === 'undefined' ||
       !window.google?.maps?.places ||
