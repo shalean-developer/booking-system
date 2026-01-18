@@ -157,7 +157,7 @@ export function decodeBookingStateFromUrl(params: URLSearchParams): Partial<{
       const timesStr = params.get('rt') || '';
       const times = timesStr.split(',').filter(Boolean);
       state.recurringTimesByDay = {};
-      state.recurringDays.forEach((day, index) => {
+      state.recurringDays.forEach((day: number, index: number) => {
         if (times[index]) {
           state.recurringTimesByDay[day] = times[index];
         }
