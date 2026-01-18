@@ -246,7 +246,7 @@ function ConfirmationContent() {
               <Link href="/">Return to Home</Link>
             </Button>
             <Button asChild>
-              <Link href="/booking/service/standard/details">Book Another Service</Link>
+              <Link href="/booking/standard/details">Book Another Service</Link>
             </Button>
           </div>
         </div>

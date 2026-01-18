@@ -129,7 +129,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
   // Generate service URL from service type
   const getServiceUrl = (serviceType: string) => {
     const slug = serviceType.toLowerCase().replace(/\s+/g, '-').replace(/\//g, '-');
-    return `/booking/service/${slug}/details`;
+    return `/booking/${slug}`;
   };
 
   // Group services by category
@@ -434,7 +434,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
                   className="hidden md:flex bg-primary hover:bg-primary/90 text-white rounded-full pl-6 pr-2 py-2.5 text-sm font-medium transition-colors gap-3" 
                   asChild
                 >
-                  <Link href="/booking/service/standard/details" className="flex items-center gap-3">
+                  <Link href="/booking/standard" className="flex items-center gap-3">
                     Book a service
                     <span className="bg-white rounded-full flex items-center justify-center p-1.5 w-7 h-7 flex-shrink-0">
                       <ArrowUpRight className="h-4 w-4 text-primary" />
@@ -557,7 +557,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
                     className="bg-primary hover:bg-primary/90 text-white rounded-full pl-6 pr-2 py-2.5 text-sm font-medium transition-colors w-full justify-center gap-3" 
                     asChild
                   >
-                    <Link href="/booking/service/standard/details" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3">
+                    <Link href="/booking/standard" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3">
                       Book a service
                       <span className="bg-white rounded-full flex items-center justify-center p-1.5 w-7 h-7 flex-shrink-0">
                         <ArrowUpRight className="h-3.5 w-3.5 text-primary" />

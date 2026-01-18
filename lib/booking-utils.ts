@@ -125,19 +125,24 @@ export function isValidStep(step: string): boolean {
 }
 
 /**
- * Generate booking URL
+ * Generate booking URL with optional step
+ * If step is not provided, defaults to 'details' for backward compatibility
  */
-export function getBookingUrl(slug: string, step: BookingStepName): string {
-  return `/booking/service/${slug}/${step}`;
+export function getBookingUrl(slug: string, step?: BookingStepName | number): string {
+  const stepName = step !== undefined 
+    ? (typeof step === 'number' ? getStepName(step) : step)
+    : 'details';
+  return `/booking/${slug}/${stepName}`;
 }
 
 /**
  * Generate booking URL with session ID and optional state parameters
+ * Includes step in URL path
  */
 export function getBookingUrlWithSession(
   slug: string,
-  step: BookingStepName,
   sessionId?: string | null,
+  step?: BookingStepName | number,
   state?: {
     bedrooms?: number;
     bathrooms?: number;
@@ -153,7 +158,10 @@ export function getBookingUrlWithSession(
     selectedCleanerId?: string | null;
   }
 ): string {
-  const baseUrl = `/booking/service/${slug}/${step}`;
+  const stepName = step !== undefined 
+    ? (typeof step === 'number' ? getStepName(step) : step)
+    : 'details';
+  const baseUrl = `/booking/${slug}/${stepName}`;
   
   if (!sessionId && !state) {
     return baseUrl;

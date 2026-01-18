@@ -53,6 +53,21 @@ export async function POST(
       // Convert total_amount from cents to rands for email
       const totalAmountRands = booking.total_amount ? booking.total_amount / 100 : undefined;
       
+      // Fetch cleaner name if cleaner_id exists
+      let cleanerName: string | undefined;
+      if (booking.cleaner_id && booking.cleaner_id !== 'manual') {
+        try {
+          const { data: cleaner } = await supabase
+            .from('cleaners')
+            .select('name')
+            .eq('id', booking.cleaner_id)
+            .maybeSingle();
+          cleanerName = cleaner?.name;
+        } catch (error) {
+          console.error('Failed to fetch cleaner name:', error);
+        }
+      }
+      
       const emailData = generateBookingConfirmationEmail({
         service: booking.service_type as any,
         bedrooms,
@@ -76,6 +91,7 @@ export async function POST(
         frequency: (booking.frequency as any) || 'one-time',
         bookingId: booking.id,
         totalAmount: totalAmountRands, // Pass actual total amount from database (converted from cents to rands)
+        cleanerName
       });
 
       await sendEmail(emailData);

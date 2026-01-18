@@ -264,11 +264,27 @@ export async function POST(req: Request) {
             return { ok: false, error: 'Email service not configured' };
           }
 
+          // Fetch cleaner name if cleaner_id exists
+          let cleanerName: string | undefined;
+          if (body.cleaner_id && body.cleaner_id !== 'manual' && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+            try {
+              const { data: cleaner } = await supabase
+                .from('cleaners')
+                .select('name')
+                .eq('id', body.cleaner_id)
+                .maybeSingle();
+              cleanerName = cleaner?.name;
+            } catch (error) {
+              console.error('Failed to fetch cleaner name:', error);
+            }
+          }
+
           const [customerEmailResult, adminEmailResult] = await Promise.all([
             sendEmail(generateBookingConfirmationEmail({
               ...body,
               bookingId,
-              totalAmount: body.totalAmount // Pass actual total amount paid (in rands)
+              totalAmount: body.totalAmount, // Pass actual total amount paid (in rands)
+              cleanerName
             })),
             sendEmail(generateAdminBookingNotificationEmail({
               ...body,

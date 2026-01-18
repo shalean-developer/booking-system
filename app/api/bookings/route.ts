@@ -634,12 +634,28 @@ export async function POST(req: Request) {
         console.log('Admin email:', process.env.ADMIN_EMAIL || 'admin@shalean.co.za');
         console.log('Booking ID:', bookingId);
 
+        // Fetch cleaner name if cleaner_id exists
+        let cleanerName: string | undefined;
+        if (body.cleaner_id && body.cleaner_id !== 'manual' && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+          try {
+            const { data: cleaner } = await supabase
+              .from('cleaners')
+              .select('name')
+              .eq('id', body.cleaner_id)
+              .maybeSingle();
+            cleanerName = cleaner?.name;
+          } catch (error) {
+            console.error('Failed to fetch cleaner name:', error);
+          }
+        }
+
         // Generate emails
         console.log('📧 Generating emails...');
         const customerEmailData = generateBookingConfirmationEmail({
           ...body,
           bookingId,
-          totalAmount: body.totalAmount // Pass actual total amount paid (in rands)
+          totalAmount: body.totalAmount, // Pass actual total amount paid (in rands)
+          cleanerName
         });
         const adminEmailData = generateAdminBookingNotificationEmail({
           ...body,

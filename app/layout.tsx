@@ -170,14 +170,6 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
         <link rel="dns-prefetch" href="https://utfvbtcszzafuoyytlpf.supabase.co" />
         
-        {/* Preload critical images for LCP optimization */}
-        <link 
-          rel="preload" 
-          href="/images/office-cleaning-team.jpg" 
-          as="image" 
-          fetchPriority="high"
-        />
-        
         {/* Critical CSS - Minimal styles for above-the-fold content */}
         <style dangerouslySetInnerHTML={{
           __html: `

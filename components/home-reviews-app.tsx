@@ -32,7 +32,7 @@ export function HomeReviewsApp() {
 
           {/* Our Services Button - Far Right */}
           <Link
-            href="/booking/service/standard/details"
+            href="/booking/standard"
             className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-blue-100 hover:bg-blue-200 transition-colors text-base font-medium"
             aria-label="View and book our cleaning services"
           >

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Home, Calendar, User, CheckCircle2, ArrowLeft, ArrowRight, Plus, Minus, Info, Star, Clock, ShieldCheck, CreditCard, MapPin, Mail, Phone, Tag, Gift, HelpCircle, X, Check, Building, Sparkles, BedDouble, Droplet, Users, Box, Loader2, AlertCircle, Repeat } from 'lucide-react';
 import Image from 'next/image';
@@ -39,6 +39,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 
 /**
  * TYPES & INTERFACES
@@ -317,7 +319,15 @@ const BookingSummary = ({
             <div>
               <div className="font-bold text-gray-900 capitalize">{selectedService?.name}</div>
               <div className="text-xs text-gray-500">
-                {state.bedrooms} Bed, {state.bathrooms} Bath, {state.offices} Office{state.offices === 1 ? '' : 's'}
+                {state.serviceType === 'carpet' ? (
+                  <>
+                    {state.bedrooms} Fitted, {state.bathrooms} Loose, {state.offices === 1 ? 'Has Property' : 'Empty'}
+                  </>
+                ) : (
+                  <>
+                    {state.bedrooms} Bed, {state.bathrooms} Bath, {state.offices} Office{state.offices === 1 ? '' : 's'}
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -365,8 +375,8 @@ const BookingSummary = ({
           </div>
         )}
 
-        {state.extras.filter(e => e.quantity > 0).map(extra => (
-          <div key={extra.id} className="flex justify-between items-center text-sm">
+        {state.extras && Array.isArray(state.extras) && state.extras.filter(e => e && e.quantity > 0).map(extra => (
+          <div key={extra.id || extra.name} className="flex justify-between items-center text-sm">
             <span className="text-gray-600">{extra.quantity} {extra.name}</span>
             <span className="font-bold">R{extra.price * extra.quantity}</span>
           </div>
@@ -425,10 +435,9 @@ const BookingSummary = ({
 interface BookingFlowProps {
   /**
    * Optional URL-derived values for SEO-friendly routes:
-   * `/booking/service/:slug/:step`
+   * `/booking/:slug`
    */
   initialServiceSlug?: string;
-  initialStep?: string;
 }
 
 function BookingFlow(props: BookingFlowProps = {}) {
@@ -439,12 +448,10 @@ function BookingFlow(props: BookingFlowProps = {}) {
   // Make URL override computation reactive to prop changes
   const hasValidUrlOverride = useMemo(() => {
     const urlServiceSlug = typeof props.initialServiceSlug === 'string' ? props.initialServiceSlug : null;
-    const urlStep = typeof props.initialStep === 'string' ? props.initialStep : null;
     const hasValidUrlService =
       !!urlServiceSlug && Object.prototype.hasOwnProperty.call(serviceSlugToType, urlServiceSlug);
-    const hasValidUrlStep = !!urlStep && isValidStep(urlStep);
-    return hasValidUrlService && hasValidUrlStep;
-  }, [props.initialServiceSlug, props.initialStep]);
+    return hasValidUrlService;
+  }, [props.initialServiceSlug]);
 
   // Initialize state WITHOUT reading sessionStorage to avoid hydration mismatches.
   // If we're on the SEO URL route, URL params can define the initial service + step.
@@ -504,6 +511,13 @@ function BookingFlow(props: BookingFlowProps = {}) {
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [bookingId, setBookingId] = useState<string | null>(null);
   const [paystackLoaded, setPaystackLoaded] = useState(false);
+  const [forceRefreshCleaners, setForceRefreshCleaners] = useState(0);
+  
+  // Track previous step to detect step changes and restore state accordingly
+  const previousStepRef = useRef<number | null>(null);
+  
+  // Track if state has been restored from sessionStorage to prevent extras reset
+  const stateRestoredRef = useRef(false);
   
   // Session ID state - get from URL or generate new one
   const searchParams = useSearchParams();
@@ -514,23 +528,77 @@ function BookingFlow(props: BookingFlowProps = {}) {
 
   // Restore state from sessionStorage AFTER hydration to avoid mismatch.
   // Uses session-based storage with fallback to legacy storage.
+  // Always restores state when step changes to ensure data persists across navigation.
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     // Get session ID from URL or use existing one
     const urlSessionId = getSessionIdFromUrl();
-    if (urlSessionId && urlSessionId !== sessionId) {
-      setSessionId(urlSessionId);
-    }
+    const sessionChanged = urlSessionId && urlSessionId !== sessionId;
     
     // Determine which session ID to use
     const activeSessionId = urlSessionId || sessionId || getOrCreateSessionId();
     
     // Load state from sessionStorage
     const savedState = loadSessionState(activeSessionId);
-    if (!savedState) return;
+    
+    // Get current state values safely (read from state but don't include in deps to avoid loops)
+    const currentStep = state?.step;
+    const currentServiceType = state?.serviceType;
+    
+    // Check if step has changed in saved state
+    const savedStepChanged = savedState && savedState.step !== undefined && savedState.step !== previousStepRef.current;
+    
+    // Only restore if:
+    // 1. Session ID changed (different session) - force restore
+    // 2. State hasn't been restored yet AND we have saved state (initial load)
+    // 3. Step changed in saved state (navigation to different step)
+    // Don't restore if state was already restored unless session changed
+    const shouldRestore = sessionChanged ||
+                         (!stateRestoredRef.current && savedState && previousStepRef.current === null) ||
+                         (!stateRestoredRef.current && savedState && !currentServiceType) ||
+                         (savedStepChanged && !stateRestoredRef.current);
+    
+    if (!shouldRestore) {
+      // Update previous step ref even if not restoring
+      if (currentStep !== undefined) {
+        previousStepRef.current = currentStep;
+      }
+      // Update session ID if changed but don't restore
+      if (sessionChanged) {
+        setSessionId(urlSessionId);
+      }
+      return;
+    }
+    
+    if (!savedState) {
+      // No saved state - just update step tracking and session ID
+      if (currentStep !== undefined) {
+        previousStepRef.current = currentStep;
+      }
+      if (sessionChanged) {
+        setSessionId(urlSessionId);
+      }
+      // Mark as attempted even if no saved state
+      stateRestoredRef.current = true;
+      return;
+    }
 
     try {
+      // Log what we're restoring for debugging
+      console.log('[Booking] Restoring state from sessionStorage:', {
+        step: savedState.step,
+        serviceType: savedState.serviceType,
+        bedrooms: savedState.bedrooms,
+        bathrooms: savedState.bathrooms,
+        offices: savedState.offices,
+        extrasCount: savedState.extras?.length || 0,
+        extrasSelected: savedState.extras?.filter((e: any) => e.quantity > 0).length || 0,
+        frequency: savedState.frequency,
+        provideEquipment: savedState.provideEquipment,
+        numberOfCleaners: savedState.numberOfCleaners,
+      });
+      
       // Clean up extras - remove any icon objects that can't be serialized
       if (savedState.extras && Array.isArray(savedState.extras)) {
         savedState.extras = savedState.extras.map((extra: any) => {
@@ -551,33 +619,67 @@ function BookingFlow(props: BookingFlowProps = {}) {
 
       // Compute URL values inside effect to ensure they're fresh
       const urlServiceSlug = typeof props.initialServiceSlug === 'string' ? props.initialServiceSlug : null;
-      const urlStep = typeof props.initialStep === 'string' ? props.initialStep : null;
       const hasValidUrlService =
         !!urlServiceSlug && Object.prototype.hasOwnProperty.call(serviceSlugToType, urlServiceSlug);
-      const hasValidUrlStep = !!urlStep && isValidStep(urlStep);
-      const hasValidUrlOverride = hasValidUrlService && hasValidUrlStep;
 
       // Merge saved state with current state so newly-added fields keep defaults.
       // URL params act as initial values, sessionStorage is source of truth.
-      // Then, if URL params are present, force only `serviceType` + `step` to match the URL.
+      // Then, if URL params are present, force only `serviceType` to match the URL.
       setState((prev) => {
-        // Merge URL params (initial values) with saved state (source of truth)
+        // savedState is the absolute source of truth - use it directly
+        // Only merge with URL params for fields that aren't in savedState
+        // Start with savedState as base, not prev (prev has defaults that shouldn't override)
         const merged = { 
-          ...prev, 
-          ...urlState,  // URL params as initial/backup values
-          ...savedState, // SessionStorage as source of truth (overrides URL params)
+          ...savedState, // SessionStorage as absolute source of truth
+          ...urlState,   // URL params as backup only if not in savedState
         };
 
-        if (hasValidUrlOverride) {
-          return {
-            ...merged,
-            serviceType: urlServiceSlug as ServiceTypeSlug,
-            step: getStepNumber(urlStep as any),
-          };
+        // Explicitly preserve ALL fields from savedState using !== undefined checks
+        // This ensures nothing is lost during merge (including empty arrays/falsy values)
+        if (savedState.extras !== undefined) {
+          merged.extras = savedState.extras;
+          console.log('[Booking] Restored extras from sessionStorage:', {
+            count: savedState.extras?.length || 0,
+            withQuantities: savedState.extras?.filter((e: any) => e.quantity > 0).length || 0,
+            extras: savedState.extras?.map((e: any) => ({ name: e.name, quantity: e.quantity }))
+          });
+        }
+        if (savedState.frequency !== undefined) merged.frequency = savedState.frequency;
+        if (savedState.provideEquipment !== undefined) merged.provideEquipment = savedState.provideEquipment;
+        if (savedState.numberOfCleaners !== undefined) merged.numberOfCleaners = savedState.numberOfCleaners;
+        if (savedState.bedrooms !== undefined) merged.bedrooms = savedState.bedrooms;
+        if (savedState.bathrooms !== undefined) merged.bathrooms = savedState.bathrooms;
+        if (savedState.offices !== undefined) merged.offices = savedState.offices;
+        if (savedState.notes !== undefined) merged.notes = savedState.notes;
+        if (savedState.recurringFrequency !== undefined) merged.recurringFrequency = savedState.recurringFrequency;
+        if (savedState.recurringDays !== undefined) merged.recurringDays = savedState.recurringDays;
+        if (savedState.recurringTimesByDay !== undefined) merged.recurringTimesByDay = savedState.recurringTimesByDay;
+        if (savedState.contactInfo !== undefined) merged.contactInfo = savedState.contactInfo;
+        if (savedState.selectedCleanerId !== undefined) merged.selectedCleanerId = savedState.selectedCleanerId;
+        if (savedState.tipAmount !== undefined) merged.tipAmount = savedState.tipAmount;
+        if (savedState.discountCode !== undefined) merged.discountCode = savedState.discountCode;
+        if (savedState.date !== undefined) merged.date = savedState.date;
+        if (savedState.timeSlot !== undefined) merged.timeSlot = savedState.timeSlot;
+        if (savedState.step !== undefined) merged.step = savedState.step;
+        
+        // Always reset isConfirmed to false when restoring state for a new booking session
+        // Confirmed bookings should be viewed at /booking/confirmation, not in the booking flow
+        merged.isConfirmed = false;
+
+        if (hasValidUrlService) {
+          merged.serviceType = urlServiceSlug as ServiceTypeSlug;
+        }
+        
+        // Update previous step ref
+        if (merged.step !== undefined) {
+          previousStepRef.current = merged.step;
         }
 
         return merged;
       });
+      
+      // Mark state as restored to prevent extras reset
+      stateRestoredRef.current = true;
       
       // Update session ID if we loaded from URL
       if (urlSessionId && urlSessionId !== sessionId) {
@@ -585,24 +687,22 @@ function BookingFlow(props: BookingFlowProps = {}) {
       }
     } catch (error) {
       console.error('Failed to restore booking state:', error);
-    }
-  }, [searchParams, props.initialServiceSlug, props.initialStep, sessionId]);
-
-  // Sync state step with URL when props change (but don't override user data)
-  useEffect(() => {
-    if (!hasValidUrlOverride) return;
-    
-    const urlStepNum = getStepNumber(props.initialStep as any);
-    setState((prev) => {
-      // Only update step if it's different and we're on a service route
-      if (prev.step !== urlStepNum && prev.serviceType === props.initialServiceSlug) {
-        return { ...prev, step: urlStepNum };
+      // Update previous step ref even on error to prevent infinite loops
+      const currentStep = state?.step;
+      if (currentStep !== undefined) {
+        previousStepRef.current = currentStep;
       }
-      return prev;
-    });
-  }, [hasValidUrlOverride, props.initialStep, props.initialServiceSlug]);
+      // Mark as attempted even on error
+      stateRestoredRef.current = true;
+      // Update session ID if changed even on error
+      if (sessionChanged) {
+        setSessionId(urlSessionId);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, props.initialServiceSlug, sessionId]);
 
-  const isServiceRoute = pathname.startsWith('/booking/service/');
+  const isServiceRoute = pathname.startsWith('/booking/') && pathname !== '/booking' && pathname !== '/booking/';
 
   // Listen for route changes (including browser back/forward) to restore state
   useEffect(() => {
@@ -611,49 +711,65 @@ function BookingFlow(props: BookingFlowProps = {}) {
 
     // Get session ID from current URL
     const urlSessionId = getSessionIdFromUrl();
+    const activeSessionId = urlSessionId || sessionId || getOrCreateSessionId();
     
-    // If URL has a session ID and it's different from current, restore state
-    if (urlSessionId && urlSessionId !== sessionId) {
-      const savedState = loadSessionState(urlSessionId);
-      if (savedState) {
-        try {
-          setState((prev) => {
-            const merged = { ...prev, ...savedState };
-            
-            // Override step from URL if valid
-            const urlStep = typeof props.initialStep === 'string' ? props.initialStep : null;
-            if (urlStep && isValidStep(urlStep)) {
-              merged.step = getStepNumber(urlStep as any);
-            }
-            
-            return merged;
-          });
-          setSessionId(urlSessionId);
-        } catch (error) {
-          console.error('Failed to restore state from URL session:', error);
-        }
-      } else {
-        // No saved state for this session ID - start fresh but keep the session ID
+    // Get current state values safely
+    const currentServiceType = state?.serviceType;
+    
+    // Load saved state
+    const savedState = loadSessionState(activeSessionId);
+    
+    // Restore state if session ID changed
+    if (urlSessionId && urlSessionId !== sessionId && savedState) {
+      try {
+        setState((prev) => {
+          // Always restore full state from sessionStorage
+          // savedState is the absolute source of truth - use it directly
+          const merged = { 
+            ...savedState,
+          };
+          
+          // Explicitly preserve ALL fields from savedState
+          if (savedState.extras !== undefined) {
+            merged.extras = savedState.extras;
+          }
+          if (savedState.frequency !== undefined) merged.frequency = savedState.frequency;
+          if (savedState.provideEquipment !== undefined) merged.provideEquipment = savedState.provideEquipment;
+          if (savedState.numberOfCleaners !== undefined) merged.numberOfCleaners = savedState.numberOfCleaners;
+          if (savedState.bedrooms !== undefined) merged.bedrooms = savedState.bedrooms;
+          if (savedState.bathrooms !== undefined) merged.bathrooms = savedState.bathrooms;
+          if (savedState.offices !== undefined) merged.offices = savedState.offices;
+          if (savedState.notes !== undefined) merged.notes = savedState.notes;
+          if (savedState.recurringFrequency !== undefined) merged.recurringFrequency = savedState.recurringFrequency;
+          if (savedState.recurringDays !== undefined) merged.recurringDays = savedState.recurringDays;
+          if (savedState.recurringTimesByDay !== undefined) merged.recurringTimesByDay = savedState.recurringTimesByDay;
+          if (savedState.contactInfo !== undefined) merged.contactInfo = savedState.contactInfo;
+          if (savedState.selectedCleanerId !== undefined) merged.selectedCleanerId = savedState.selectedCleanerId;
+          if (savedState.tipAmount !== undefined) merged.tipAmount = savedState.tipAmount;
+          if (savedState.discountCode !== undefined) merged.discountCode = savedState.discountCode;
+          if (savedState.date !== undefined) merged.date = savedState.date;
+          if (savedState.timeSlot !== undefined) merged.timeSlot = savedState.timeSlot;
+          if (savedState.step !== undefined) {
+            merged.step = savedState.step;
+            previousStepRef.current = savedState.step;
+          }
+          
+          return merged;
+        });
+        
+        // Mark state as restored
+        stateRestoredRef.current = true;
+        
+        // Update session ID
         setSessionId(urlSessionId);
+      } catch (error) {
+        console.error('Failed to restore state from URL session:', error);
       }
-    } else if (!urlSessionId && sessionId && state.serviceType) {
-      // URL doesn't have session ID but we have one - add it to URL silently
-      // Only do this if we're on a service route and have a service selected
-      const currentUrl = window.location.pathname + window.location.search;
-      const expectedUrl = getBookingUrlWithSession(
-        state.serviceType,
-        getStepName(state.step),
-        sessionId,
-        state
-      );
-      
-      // Only update URL if it's different (avoid loops)
-      if (currentUrl !== expectedUrl) {
-        // Use replace to avoid adding to history
-        router.replace(expectedUrl);
-      }
+    } else if (urlSessionId && urlSessionId !== sessionId) {
+      // No saved state for this session ID - start fresh but keep the session ID
+      setSessionId(urlSessionId);
     }
-  }, [pathname, searchParams, isServiceRoute, sessionId, state.serviceType, state.step, props.initialStep]);
+  }, [pathname, searchParams, isServiceRoute, sessionId]);
 
   const persistBookingState = (nextState: BookingState) => {
     if (typeof window === 'undefined') return;
@@ -661,26 +777,46 @@ function BookingFlow(props: BookingFlowProps = {}) {
     saveSessionState(activeSessionId, nextState);
   };
 
+  // Sync URL with step slug for backward compatibility (handle /booking/[slug] without step)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!isServiceRoute) return;
+    if (!state?.serviceType) return;
+
+    // Check if current pathname has a step slug
+    const pathParts = pathname.split('/').filter(Boolean);
+    const hasStepSlug = pathParts.length >= 3 && pathParts[0] === 'booking' && isValidStep(pathParts[2]);
+
+    // If no step slug in URL, add one based on current state
+    if (!hasStepSlug && state.serviceType) {
+      const stepName = getStepName(state.step);
+      const expectedUrl = `/booking/${state.serviceType}/${stepName}`;
+      
+      // Only update if URL doesn't match expected URL (avoid unnecessary updates)
+      if (pathname !== expectedUrl) {
+        router.replace(expectedUrl);
+      }
+    }
+  }, [pathname, state?.serviceType, state?.step, isServiceRoute, router]);
+
   const goToStep = (nextStep: number) => {
     // Use functional state update to avoid stale closures
     setState((prev) => {
       const newState = { ...prev, step: nextStep };
-      // Save state before navigating
+      // Save state
       persistBookingState(newState);
+      
+      // Update URL with step slug if service is selected
+      if (newState.serviceType) {
+        const stepName = getStepName(nextStep);
+        const serviceSlug = newState.serviceType;
+        const newUrl = `/booking/${serviceSlug}/${stepName}`;
+        // Use replace to avoid adding to history (smoother navigation)
+        router.replace(newUrl);
+      }
+      
       return newState;
     });
-    
-    // Navigate after state update with session ID
-    if (state.serviceType) {
-      const activeSessionId = sessionId || getOrCreateSessionId();
-      const url = getBookingUrlWithSession(
-        state.serviceType,
-        getStepName(nextStep),
-        activeSessionId,
-        state
-      );
-      router.push(url);
-    }
   };
 
   // Persist state to sessionStorage using session-based storage
@@ -731,65 +867,259 @@ function BookingFlow(props: BookingFlowProps = {}) {
   }, []);
 
   // Initialize extras from database when formData loads or service type changes
+  // But only if extras don't already exist (preserve selections from sessionStorage)
   useEffect(() => {
-    if (formData && formData.extras) {
-      const serviceType = state.serviceType ? serviceSlugToType[state.serviceType] : null;
-      let relevantExtras: string[] = [];
-      
-      if (!serviceType) {
-        relevantExtras = formData.extras.all;
-      } else if (serviceType === 'Standard' || serviceType === 'Airbnb') {
-        relevantExtras = formData.extras.standardAndAirbnb;
-      } else if (serviceType === 'Deep' || serviceType === 'Move In/Out') {
-        relevantExtras = formData.extras.deepAndMove;
-      } else {
-        relevantExtras = formData.extras.all;
+    if (!formData || !formData.extras) return;
+    
+    // If state was restored from sessionStorage, NEVER reset extras
+    // They are already loaded from sessionStorage and should be preserved
+    if (stateRestoredRef.current) {
+      // State was restored, but we might need to merge if service type changed
+      // Only merge if we have existing extras and need to add new ones
+      if (state.extras && state.extras.length > 0) {
+        // Service type might have changed - merge to add any new extras for the new service type
+        // But preserve all existing quantities
+        const serviceType = state.serviceType ? serviceSlugToType[state.serviceType] : null;
+        let relevantExtras: string[] = [];
+        
+        if (!serviceType) {
+          relevantExtras = formData.extras.all;
+        } else if (serviceType === 'Carpet') {
+          // For Carpet service, only show Mattress Cleaning and Couch Cleaning
+          const allExtras = formData.extras.all || [];
+          relevantExtras = allExtras.filter(extra => 
+            extra === 'Mattress Cleaning' || extra === 'Couch Cleaning'
+          );
+        } else if (serviceType === 'Standard' || serviceType === 'Airbnb') {
+          relevantExtras = formData.extras.standardAndAirbnb;
+        } else if (serviceType === 'Deep' || serviceType === 'Move In/Out') {
+          relevantExtras = formData.extras.deepAndMove;
+        } else {
+          relevantExtras = formData.extras.all;
+        }
+
+        // Merge existing extras with new extras, preserving quantities
+        const existingExtrasMap = new Map(
+          state.extras.map(extra => [extra.name.toLowerCase(), extra])
+        );
+
+        const mergedExtras: Extra[] = relevantExtras.map((extraName) => {
+          const existing = existingExtrasMap.get(extraName.toLowerCase());
+          if (existing) {
+            // Preserve existing extra with its quantity
+            return {
+              ...existing,
+              price: formData.extras.prices[extraName] || existing.price,
+              iconName: extraName,
+            };
+          }
+          // New extra, initialize with quantity 0
+          return {
+            id: extraName.toLowerCase().replace(/\s+/g, '-'),
+            name: extraName,
+            price: formData.extras.prices[extraName] || 0,
+            quantity: 0,
+            iconName: extraName,
+          };
+        });
+
+        // Only update if extras actually changed (new extras added for different service type)
+        // But preserve all quantities - don't reset any quantities that exist
+        const extrasChanged = JSON.stringify(mergedExtras) !== JSON.stringify(state.extras);
+        if (extrasChanged) {
+          console.log('[Booking] Merging extras after service type change, preserving quantities');
+          setState(prev => ({
+            ...prev,
+            extras: mergedExtras
+          }));
+        } else {
+          console.log('[Booking] Extras unchanged, keeping existing extras with quantities');
+        }
       }
+      // If state was restored but extras are empty, that's fine - don't reset
+      return;
+    }
+    
+    // Initial load (state not restored yet): initialize extras only if they don't exist
+    if (state.extras && state.extras.length > 0) {
+      return; // Don't overwrite existing extras
+    }
 
-      const initialExtras: Extra[] = relevantExtras.map((extraName) => {
-        return {
-          id: extraName.toLowerCase().replace(/\s+/g, '-'),
-          name: extraName,
-          price: formData.extras.prices[extraName] || 0,
-          quantity: 0,
-          iconName: extraName // Store name for serialization
-        };
-      });
+    const serviceType = state.serviceType ? serviceSlugToType[state.serviceType] : null;
+    let relevantExtras: string[] = [];
+    
+    if (!serviceType) {
+      relevantExtras = formData.extras.all;
+    } else if (serviceType === 'Carpet') {
+      // For Carpet service, only show Mattress Cleaning and Couch Cleaning
+      const allExtras = formData.extras.all || [];
+      relevantExtras = allExtras.filter(extra => 
+        extra === 'Mattress Cleaning' || extra === 'Couch Cleaning'
+      );
+    } else if (serviceType === 'Standard' || serviceType === 'Airbnb') {
+      relevantExtras = formData.extras.standardAndAirbnb;
+    } else if (serviceType === 'Deep' || serviceType === 'Move In/Out') {
+      relevantExtras = formData.extras.deepAndMove;
+    } else {
+      relevantExtras = formData.extras.all;
+    }
 
+    const initialExtras: Extra[] = relevantExtras.map((extraName) => {
+      return {
+        id: extraName.toLowerCase().replace(/\s+/g, '-'),
+        name: extraName,
+        price: formData.extras.prices[extraName] || 0,
+        quantity: 0,
+        iconName: extraName // Store name for serialization
+      };
+    });
+
+    setState(prev => ({
+      ...prev,
+      extras: initialExtras
+    }));
+  }, [formData, state.serviceType, state.extras]);
+
+  // Reset frequency to 'one-time' when Carpet, Deep, or Move In/Out service is selected
+  useEffect(() => {
+    const shouldReset = 
+      (state.serviceType === 'carpet' || 
+       state.serviceType === 'deep' || 
+       state.serviceType === 'move-in-out') && 
+      state.frequency !== 'one-time';
+    
+    if (shouldReset) {
       setState(prev => ({
         ...prev,
-        extras: initialExtras
+        frequency: 'one-time',
+        recurringFrequency: null,
+        recurringDays: [],
+        recurringTimesByDay: {},
+        tipAmount: prev.tipAmount, // Preserve tip amount
       }));
     }
-  }, [formData, state.serviceType]);
+  }, [state.serviceType, state.frequency]);
 
-  // Fetch cleaners when date and city are available (step 3)
-  useEffect(() => {
-    if (state.step === 3 && state.date && state.contactInfo.city) {
-      fetchCleaners(state.date, state.contactInfo.city);
+  // Track last fetched combination to prevent duplicate fetches
+  const lastFetchKeyRef = useRef<string | null>(null);
+  
+  // Fetch cleaners function - can be called from useEffect or manually
+  const fetchCleanersData = useCallback(async (force = false) => {
+    // Only fetch when on step 3
+    if (state.step !== 3) {
+      return;
     }
-  }, [state.step, state.date, state.contactInfo.city]);
-
-  const fetchCleaners = async (date: string, city: string) => {
+    
+    // Validate location
+    const suburb = (state.contactInfo.suburb || '').trim();
+    const city = (state.contactInfo.city || '').trim();
+    const location = suburb || city;
+    
+    // Check if we have required data
+    if (!state.date || !location) {
+      console.log('[Cleaner Fetch] Missing date or location, cannot fetch cleaners', {
+        date: state.date,
+        location: location || '(none)'
+      });
+      return;
+    }
+    
+    // Create a unique key for this fetch combination
+    const fetchKey = `${state.step}-${state.date}-${location}-${suburb || ''}`;
+    
+    // Skip if we've already fetched for this exact combination (unless forced)
+    if (!force && lastFetchKeyRef.current === fetchKey) {
+      console.log('[Cleaner Fetch] Already fetched for this combination, skipping');
+      return;
+    }
+    
+    console.log('[Cleaner Fetch] Starting fetch:', {
+      date: state.date,
+      city: location,
+      suburb: suburb || undefined,
+      force
+    });
+    
+    // Mark this combination as being fetched
+    lastFetchKeyRef.current = fetchKey;
     setCleanersLoading(true);
     setCleanersError(null);
+    
     try {
-      const response = await fetch(`/api/cleaners/available?date=${date}&city=${encodeURIComponent(city)}`);
+      const params = new URLSearchParams({
+        date: state.date!,
+        city: location,
+      });
+      
+      // Add suburb if provided
+      if (suburb) {
+        params.append('suburb', suburb);
+      }
+      
+      console.log('[Cleaner Fetch] Fetching from:', `/api/cleaners/available?${params.toString()}`);
+      
+      const response = await fetch(`/api/cleaners/available?${params}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
-      if (data.ok && data.cleaners) {
+      
+      console.log('[Cleaner Fetch] API response:', {
+        ok: data.ok,
+        cleanersCount: data.cleaners?.length || 0,
+        cleanersIsArray: Array.isArray(data.cleaners),
+        error: data.error || null
+      });
+      
+      if (data.ok && Array.isArray(data.cleaners)) {
+        console.log('[Cleaner Fetch] Setting cleaners:', data.cleaners.length);
         setCleaners(data.cleaners);
+        setCleanersError(null);
       } else {
+        console.log('[Cleaner Fetch] No cleaners found or invalid response');
         setCleaners([]);
         setCleanersError(data.error || 'No cleaners available');
       }
     } catch (error) {
-      console.error('Error fetching cleaners:', error);
+      console.error('[Cleaner Fetch] Error:', error);
       setCleaners([]);
       setCleanersError('Failed to load cleaners. Please try again.');
+      // Reset fetch key on error so we can retry
+      lastFetchKeyRef.current = null;
     } finally {
       setCleanersLoading(false);
     }
-  };
+  }, [state.step, state.date, state.contactInfo.city, state.contactInfo.suburb]);
+  
+  // Fetch cleaners when date and location (city or suburb) are available (step 3)
+  useEffect(() => {
+    // Only fetch when on step 3
+    if (state.step !== 3) {
+      // Only clear cleaners when actually leaving step 3 (not on initial render or other steps)
+      if (previousStepRef.current === 3 && state.step !== 3) {
+        console.log('[Cleaner Fetch] Leaving step 3, clearing cleaners');
+        setCleaners([]);
+        setCleanersLoading(false);
+        lastFetchKeyRef.current = null; // Reset fetch key when leaving step 3
+      }
+      previousStepRef.current = state.step;
+      return;
+    }
+    
+    // Reset fetch key when entering step 3 to ensure fetch happens
+    const isEnteringStep3 = previousStepRef.current !== 3;
+    if (isEnteringStep3) {
+      console.log('[Cleaner Fetch] Entering step 3, resetting fetch key');
+      lastFetchKeyRef.current = null;
+    }
+    
+    // Fetch cleaners
+    fetchCleanersData(false);
+    previousStepRef.current = state.step;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.step, state.date, state.contactInfo.city, state.contactInfo.suburb, forceRefreshCleaners]);
 
   // Transform services from database
   const services = useMemo(() => {
@@ -834,38 +1164,107 @@ function BookingFlow(props: BookingFlowProps = {}) {
 
   // Get available extras for current service type
   const availableExtras = useMemo(() => {
-    if (!formData || !formData.extras) return state.extras;
+    if (!formData || !formData.extras) return state.extras || [];
     
     const serviceType = state.serviceType ? serviceSlugToType[state.serviceType] : null;
     let relevantExtras: string[] = [];
     
     if (!serviceType) {
-      relevantExtras = formData.extras.all;
+      relevantExtras = formData.extras.all || [];
+    } else if (serviceType === 'Carpet') {
+      // For Carpet service, only show Mattress Cleaning and Couch Cleaning
+      const allExtras = formData.extras.all || [];
+      relevantExtras = allExtras.filter(extra => 
+        extra === 'Mattress Cleaning' || extra === 'Couch Cleaning'
+      );
     } else if (serviceType === 'Standard' || serviceType === 'Airbnb') {
-      relevantExtras = formData.extras.standardAndAirbnb;
+      relevantExtras = formData.extras.standardAndAirbnb || [];
     } else if (serviceType === 'Deep' || serviceType === 'Move In/Out') {
-      relevantExtras = formData.extras.deepAndMove;
+      relevantExtras = formData.extras.deepAndMove || [];
     } else {
-      relevantExtras = formData.extras.all;
+      relevantExtras = formData.extras.all || [];
     }
     
-    // Filter and update extras based on what's available
-    return state.extras.filter(extra => 
-      relevantExtras.includes(extra.name)
-    ).map(extra => ({
-      ...extra,
-      price: formData.extras.prices[extra.name] || extra.price
-    }));
+    // Build available extras from relevantExtras, merging with state.extras to preserve quantities
+    const existingExtrasMap = new Map(
+      (state.extras || []).map(extra => [extra.name.toLowerCase(), extra])
+    );
+    
+    return relevantExtras.map((extraName) => {
+      const existing = existingExtrasMap.get(extraName.toLowerCase());
+      if (existing) {
+        // Preserve existing extra with its quantity
+        return {
+          ...existing,
+          price: formData.extras.prices[extraName] || existing.price,
+          iconName: extraName,
+        };
+      }
+      // New extra, initialize with quantity 0
+      return {
+        id: extraName.toLowerCase().replace(/\s+/g, '-'),
+        name: extraName,
+        price: formData.extras.prices[extraName] || 0,
+        quantity: 0,
+        iconName: extraName,
+      };
+    });
   }, [formData, state.serviceType, state.extras]);
 
   const pricing = useMemo(() => {
+    const serviceType = state.serviceType ? serviceSlugToType[state.serviceType] : null;
+    if (!serviceType) {
+      return { base: 0, subtotal: 0, discount: 0, total: 0, equipmentFee: 0, extrasTotal: 0, extraCleanersCharge: 0 };
+    }
+
+    // Special handling for Carpet service
+    if (serviceType === 'Carpet') {
+      const extrasArray = state.extras.filter(e => e.quantity > 0).map(e => e.name);
+      const extrasQuantities: Record<string, number> = {};
+      state.extras.forEach(e => {
+        if (e.quantity > 0) {
+          extrasQuantities[e.name] = e.quantity;
+        }
+      });
+
+      const carpetDetails = {
+        hasFittedCarpets: state.bedrooms > 0,
+        hasLooseCarpets: state.bathrooms > 0,
+        numberOfRooms: state.bedrooms,
+        numberOfLooseCarpets: state.bathrooms,
+        roomStatus: state.offices === 1 ? 'hasProperty' as const : 'empty' as const,
+      };
+
+      const carpetPricing = calcTotalSync(
+        {
+          service: 'Carpet',
+          bedrooms: 0,
+          bathrooms: 0,
+          extras: extrasArray,
+          extrasQuantities,
+          carpetDetails,
+        },
+        state.frequency
+      );
+
+      const extrasTotal = state.extras.reduce((acc, curr) => acc + curr.price * curr.quantity, 0);
+      const tip = state.frequency === 'one-time' ? state.tipAmount : 0;
+      const total = carpetPricing.total + tip;
+
+      return {
+        subtotal: carpetPricing.subtotal,
+        discount: carpetPricing.frequencyDiscount,
+        total,
+        equipmentFee: 0,
+        extrasTotal,
+        base: carpetPricing.subtotal - carpetPricing.serviceFee - carpetPricing.frequencyDiscount,
+        extraCleanersCharge: 0,
+        serviceFee: carpetPricing.serviceFee,
+      };
+    }
+
     if (!formData?.pricing) {
       // Fallback to hardcoded pricing
-      const serviceType = state.serviceType ? serviceSlugToType[state.serviceType] : null;
-      if (!serviceType) {
-        return { base: 0, subtotal: 0, discount: 0, total: 0, equipmentFee: 0, extrasTotal: 0, extraCleanersCharge: 0 };
-      }
-
       const servicePricing = PRICING.services[serviceType];
       
       if (!servicePricing) {
@@ -892,11 +1291,6 @@ function BookingFlow(props: BookingFlowProps = {}) {
       const total = subtotal - discount + tip;
       
       return { subtotal, discount, total, equipmentFee, extrasTotal, base, extraCleanersCharge };
-    }
-
-    const serviceType = state.serviceType ? serviceSlugToType[state.serviceType] : null;
-    if (!serviceType) {
-      return { base: 0, subtotal: 0, discount: 0, total: 0, equipmentFee: 0, extrasTotal: 0, extraCleanersCharge: 0 };
     }
 
     const servicePricing = formData.pricing.services[serviceType];
@@ -985,26 +1379,49 @@ function BookingFlow(props: BookingFlowProps = {}) {
       const nextStep = state.step + 1;
       const activeSessionId = sessionId || getOrCreateSessionId();
       
-      // Use functional state update to avoid stale closures
-      setState((prev) => {
-        const newState = { ...prev, step: nextStep };
-        // Save state before navigating
-        saveSessionState(activeSessionId, newState);
-        if (activeSessionId !== sessionId) {
-          setSessionId(activeSessionId);
-        }
-        return newState;
+      // Build newState before setState to use it for saving and URL building
+      // Spread all state fields to ensure complete state is saved
+      const newState = { 
+        ...state, 
+        step: nextStep 
+      };
+      
+      // Log state before saving for debugging (remove in production if needed)
+      console.log('[Booking] Saving state before navigation:', {
+        step: newState.step,
+        serviceType: newState.serviceType,
+        bedrooms: newState.bedrooms,
+        bathrooms: newState.bathrooms,
+        offices: newState.offices,
+        extrasCount: newState.extras?.length || 0,
+        extrasSelected: newState.extras?.filter(e => e.quantity > 0).length || 0,
+        frequency: newState.frequency,
+        provideEquipment: newState.provideEquipment,
+        numberOfCleaners: newState.numberOfCleaners,
       });
       
-      // Navigate after state update with session ID and state in URL
-      if (state.serviceType) {
-        const url = getBookingUrlWithSession(
-          state.serviceType,
-          getStepName(nextStep),
-          activeSessionId,
-          state
-        );
-        router.replace(url);
+      // Update previous step ref before saving
+      previousStepRef.current = state.step;
+      
+      // Save state synchronously to ensure it's persisted
+      // This saves ALL state fields including extras, frequency, provideEquipment, etc.
+      saveSessionState(activeSessionId, newState);
+      
+      // Update session ID if needed
+      if (activeSessionId !== sessionId) {
+        setSessionId(activeSessionId);
+      }
+      
+      // Use functional state update to avoid stale closures
+      setState(newState);
+      
+      // Update URL with step slug if service is selected
+      if (newState.serviceType) {
+        const stepName = getStepName(nextStep);
+        const serviceSlug = newState.serviceType;
+        const newUrl = `/booking/${serviceSlug}/${stepName}`;
+        // Use replace to avoid adding to history (smoother navigation)
+        router.replace(newUrl);
       }
     }
     // Final step (4) - submit booking (handled by payment)
@@ -1016,32 +1433,37 @@ function BookingFlow(props: BookingFlowProps = {}) {
       const prevStep = state.step - 1;
       const activeSessionId = sessionId || getOrCreateSessionId();
       
+      // Update previous step ref before loading state
+      previousStepRef.current = state.step;
+      
       // Load state from sessionStorage to preserve all selections
       const savedState = loadSessionState(activeSessionId);
       
+      // Calculate merged state before setState
+      const mergedState = {
+        ...state,
+        step: prevStep,
+        // Merge with saved state to restore any previously entered values
+        ...(savedState || {}),
+      };
+      // Ensure step is set to previous step
+      mergedState.step = prevStep;
+      
+      // Update URL with step slug if service is selected (before setState to avoid render-time navigation)
+      if (mergedState.serviceType) {
+        const stepName = getStepName(prevStep);
+        const serviceSlug = mergedState.serviceType;
+        const newUrl = `/booking/${serviceSlug}/${stepName}`;
+        // Use replace to avoid adding to history (smoother navigation)
+        router.replace(newUrl);
+      }
+      
       // Update state, preserving all existing values
-      setState((prev) => {
-        const mergedState = {
-          ...prev,
-          step: prevStep,
-          // Merge with saved state to restore any previously entered values
-          ...(savedState || {}),
-        };
-        // Ensure step is set to previous step
-        mergedState.step = prevStep;
+      setState(() => {
         // Save updated state
         saveSessionState(activeSessionId, mergedState);
-        
-        // Navigate with merged state (not stale state)
-        if (mergedState.serviceType) {
-          const url = getBookingUrlWithSession(
-            mergedState.serviceType,
-            getStepName(prevStep),
-            activeSessionId,
-            mergedState
-          );
-          router.replace(url);
-        }
+        // Update previous step ref to new step
+        previousStepRef.current = prevStep;
         
         return mergedState;
       });
@@ -1062,6 +1484,15 @@ function BookingFlow(props: BookingFlowProps = {}) {
   };
 
   const handleFrequencyChange = (next: FrequencyType) => {
+    // Prevent changing frequency for Carpet service (only one-time allowed)
+    if (state.serviceType === 'carpet' && next !== 'one-time') {
+      return;
+    }
+    // Prevent changing frequency for Deep and Move In/Out services (only one-time allowed)
+    if ((state.serviceType === 'deep' || state.serviceType === 'move-in-out') && next !== 'one-time') {
+      return;
+    }
+    
     setState(prev => {
       // If the pricing frequency changes away from weekly/bi-weekly, disable custom multi-day recurrence.
       const supportsCustom = next === 'weekly' || next === 'bi-weekly';
@@ -1148,13 +1579,99 @@ function BookingFlow(props: BookingFlowProps = {}) {
     }));
   };
 
-  const toggleExtra = (id: string, delta: number) => {
-    setState(prev => ({
-      ...prev,
-      extras: prev.extras.map(e =>
-        e.id === id ? { ...e, quantity: Math.max(0, e.quantity + delta) } : e
-      )
-    }));
+  const toggleExtra = (idOrName: string, delta: number) => {
+    setState(prev => {
+      // Normalize the identifier for comparison
+      const normalizedId = idOrName.toLowerCase().replace(/\s+/g, '-');
+      
+      // Try to find by exact id match first
+      let extraIndex = prev.extras.findIndex(e => 
+        e.id === idOrName || 
+        e.id?.toLowerCase() === normalizedId ||
+        e.name?.toLowerCase() === idOrName.toLowerCase()
+      );
+      
+      let extraToUpdate: Extra;
+      
+      if (extraIndex === -1) {
+        // Extra doesn't exist in state, we need to create it from availableExtras or formData
+        // Find it in availableExtras (which is computed from formData)
+        const serviceType = prev.serviceType ? serviceSlugToType[prev.serviceType] : null;
+        let relevantExtras: string[] = [];
+        
+        if (!formData?.extras) {
+          console.warn('FormData not available, cannot create extra:', idOrName);
+          return prev;
+        }
+        
+        if (!serviceType) {
+          relevantExtras = formData.extras.all || [];
+        } else if (serviceType === 'Carpet') {
+          // For Carpet service, only show Mattress Cleaning and Couch Cleaning
+          const allExtras = formData.extras.all || [];
+          relevantExtras = allExtras.filter(extra => 
+            extra === 'Mattress Cleaning' || extra === 'Couch Cleaning'
+          );
+        } else if (serviceType === 'Standard' || serviceType === 'Airbnb') {
+          relevantExtras = formData.extras.standardAndAirbnb || [];
+        } else if (serviceType === 'Deep' || serviceType === 'Move In/Out') {
+          relevantExtras = formData.extras.deepAndMove || [];
+        } else {
+          relevantExtras = formData.extras.all || [];
+        }
+        
+        // Find the extra name from relevantExtras
+        const extraName = relevantExtras.find(name => 
+          name.toLowerCase() === idOrName.toLowerCase() ||
+          name.toLowerCase().replace(/\s+/g, '-') === normalizedId
+        );
+        
+        if (!extraName) {
+          console.warn('Extra not found in relevant extras:', idOrName);
+          return prev;
+        }
+        
+        // Create new extra object
+        extraToUpdate = {
+          id: extraName.toLowerCase().replace(/\s+/g, '-'),
+          name: extraName,
+          price: formData.extras.prices[extraName] || 0,
+          quantity: 0,
+          iconName: extraName,
+        };
+        
+        // Add it to the state extras array
+        const updatedExtras = [...prev.extras, extraToUpdate];
+        extraIndex = updatedExtras.length - 1;
+        
+        // Now update the quantity
+        const newQuantity = Math.max(0, extraToUpdate.quantity + delta);
+        updatedExtras[extraIndex] = {
+          ...extraToUpdate,
+          quantity: newQuantity
+        };
+        
+        return {
+          ...prev,
+          extras: updatedExtras
+        };
+      }
+      
+      // Extra exists in state, update it
+      const updatedExtras = [...prev.extras];
+      extraToUpdate = updatedExtras[extraIndex];
+      const newQuantity = Math.max(0, extraToUpdate.quantity + delta);
+      
+      updatedExtras[extraIndex] = {
+        ...extraToUpdate,
+        quantity: newQuantity
+      };
+      
+      return {
+        ...prev,
+        extras: updatedExtras
+      };
+    });
   };
 
   const recurringOccurrencesCount = useMemo(() => {
@@ -1230,6 +1747,14 @@ function BookingFlow(props: BookingFlowProps = {}) {
         }
       });
 
+      const carpetDetails = serviceType === 'Carpet' ? {
+        hasFittedCarpets: state.bedrooms > 0,
+        hasLooseCarpets: state.bathrooms > 0,
+        numberOfRooms: state.bedrooms,
+        numberOfLooseCarpets: state.bathrooms,
+        roomStatus: state.offices === 1 ? 'hasProperty' as const : 'empty' as const,
+      } : undefined;
+
       const isRecurring = state.frequency !== 'one-time';
 
       const response = await fetch(isRecurring ? '/api/recurring/checkout' : '/api/bookings', {
@@ -1255,6 +1780,7 @@ function BookingFlow(props: BookingFlowProps = {}) {
                   frequency: state.frequency,
                   occurrencesCount: recurringOccurrencesCount,
                   snapshot_date: new Date().toISOString(),
+                  ...(carpetDetails && { carpetDetails }),
                 },
                 firstName: state.contactInfo.firstName,
                 lastName: state.contactInfo.lastName,
@@ -1278,6 +1804,7 @@ function BookingFlow(props: BookingFlowProps = {}) {
                 start_date: state.date,
                 preferred_time: state.timeSlot,
                 cleaner_id: state.selectedCleanerId || null,
+                ...(carpetDetails && { carpetDetails }),
               }
             : {
                 service: serviceType,
@@ -1306,6 +1833,7 @@ function BookingFlow(props: BookingFlowProps = {}) {
                 tipAmount: state.frequency === 'one-time' ? state.tipAmount : 0,
                 discountCode: state.discountCode || undefined,
                 notes: state.notes || undefined,
+                ...(carpetDetails && { carpetDetails }),
               }
         ),
       });
@@ -1316,8 +1844,11 @@ function BookingFlow(props: BookingFlowProps = {}) {
         throw new Error(result.error || 'Failed to submit booking');
       }
 
-      setBookingId(result.bookingId || paymentReference);
-      setState(prev => ({ ...prev, isConfirmed: true }));
+      const bookingRef = result.bookingId || paymentReference;
+      setBookingId(bookingRef);
+      
+      // Redirect to confirmation page instead of showing inline confirmation
+      router.push(`/booking/confirmation?ref=${encodeURIComponent(bookingRef)}`);
     } catch (error) {
       console.error('Booking submission error:', error);
       setBookingError(error instanceof Error ? error.message : 'Failed to submit booking. Please contact support.');
@@ -1476,17 +2007,31 @@ function BookingFlow(props: BookingFlowProps = {}) {
               return (
                 <button
                   key={service.id}
-                  onClick={() => {
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     const activeSessionId = sessionId || generateSessionId();
                     if (!sessionId) {
                       setSessionId(activeSessionId);
                     }
-                    updateField('serviceType', service.id);
+                    // service.id is already a slug ('standard', 'deep', etc.)
+                    const serviceSlug = service.id;
+                    
+                    // Update state first
+                    updateField('serviceType', serviceSlug);
                     updateField('step', 0);
-                    router.push(getBookingUrlWithSession(service.id, 'details', activeSessionId));
+                    
+                    // Only navigate if we're not already on this service's page
+                    const currentPath = pathname;
+                    const targetPath = `/booking/${serviceSlug}/details`;
+                    if (!currentPath.startsWith(`/booking/${serviceSlug}`)) {
+                      const url = `${targetPath}${activeSessionId ? `?sid=${activeSessionId}` : ''}`;
+                      router.push(url);
+                    }
                   }}
                   className={cn(
-                    "p-4 rounded-xl border-2 text-left transition-all bg-white",
+                    "p-4 rounded-xl border-2 text-left transition-all bg-white cursor-pointer relative z-10",
                     isSelected
                       ? "border-blue-600 ring-1 ring-blue-600"
                       : "border-gray-100 hover:border-blue-200"
@@ -1563,132 +2108,177 @@ function BookingFlow(props: BookingFlowProps = {}) {
                 <h3 className="text-lg font-bold text-gray-900">House Details</h3>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {/* Bedrooms Card */}
+                {/* Bedrooms Card / Fitted Carpets Card */}
                 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
                   <div className="flex items-center gap-2 mb-3">
                     <BedDouble className="w-5 h-5 text-blue-600" />
-                    <label className="text-sm font-bold text-gray-900">Bedrooms</label>
+                    <label className="text-sm font-bold text-gray-900">
+                      {state.serviceType === 'carpet' ? 'Fitted Carpets' : 'Bedrooms'}
+                    </label>
                   </div>
                   <Select
                     value={state.bedrooms.toString()}
                     onValueChange={(value) => updateField('bedrooms', parseInt(value))}
                   >
                     <SelectTrigger className="w-full border-gray-200 bg-gray-50">
-                      <SelectValue placeholder="Select bedrooms" />
+                      <SelectValue placeholder={state.serviceType === 'carpet' ? "Select rooms" : "Select bedrooms"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {[0, 1, 2, 3, 4, 5].map((num) => (
-                        <SelectItem key={num} value={num.toString()}>
-                          {num === 5 ? '5+ Bedrooms' : `${num} ${num === 1 ? 'Bedroom' : 'Bedrooms'}`}
-                        </SelectItem>
-                      ))}
+                      {state.serviceType === 'carpet' ? (
+                        Array.from({ length: 11 }).map((_, i) => (
+                          <SelectItem key={i} value={i.toString()}>
+                            {i} {i === 1 ? 'Room' : 'Rooms'}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        [0, 1, 2, 3, 4, 5].map((num) => (
+                          <SelectItem key={num} value={num.toString()}>
+                            {num === 5 ? '5+ Bedrooms' : `${num} ${num === 1 ? 'Bedroom' : 'Bedrooms'}`}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
 
-                {/* Bathrooms Card */}
+                {/* Bathrooms Card / Loose Carpets/Rugs Card */}
                 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
                   <div className="flex items-center gap-2 mb-3">
                     <Droplet className="w-5 h-5 text-blue-600" />
-                    <label className="text-sm font-bold text-gray-900">Bathrooms</label>
+                    <label className="text-sm font-bold text-gray-900">
+                      {state.serviceType === 'carpet' ? 'Loose Carpets/Rugs' : 'Bathrooms'}
+                    </label>
                   </div>
                   <Select
                     value={state.bathrooms.toString()}
                     onValueChange={(value) => updateField('bathrooms', parseInt(value))}
                   >
                     <SelectTrigger className="w-full border-gray-200 bg-gray-50">
-                      <SelectValue placeholder="Select bathrooms" />
+                      <SelectValue placeholder={state.serviceType === 'carpet' ? "Select number" : "Select bathrooms"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {[1, 2, 3, 4, 5].map((num) => (
-                        <SelectItem key={num} value={num.toString()}>
-                          {num === 5 ? '5+ Bathrooms' : `${num} ${num === 1 ? 'Bathroom' : 'Bathrooms'}`}
-                        </SelectItem>
-                      ))}
+                      {state.serviceType === 'carpet' ? (
+                        Array.from({ length: 21 }).map((_, i) => (
+                          <SelectItem key={i} value={i.toString()}>
+                            {i} {i === 1 ? 'Carpet/Rug' : 'Carpets/Rugs'}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        [1, 2, 3, 4, 5].map((num) => (
+                          <SelectItem key={num} value={num.toString()}>
+                            {num === 5 ? '5+ Bathrooms' : `${num} ${num === 1 ? 'Bathroom' : 'Bathrooms'}`}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
 
-                {/* Office Card */}
+                {/* Office Card / Room Status Card */}
                 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
                   <div className="flex items-center gap-2 mb-3">
                     <Building className="w-5 h-5 text-blue-600" />
-                    <label className="text-sm font-bold text-gray-900">Office</label>
+                    <label className="text-sm font-bold text-gray-900">
+                      {state.serviceType === 'carpet' ? 'Room Status' : 'Office'}
+                    </label>
                   </div>
-                  <Select
-                    value={state.offices.toString()}
-                    onValueChange={(value) => updateField('offices', parseInt(value))}
-                  >
-                    <SelectTrigger className="w-full border-gray-200 bg-gray-50">
-                      <SelectValue placeholder="Select..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[0, 1, 2, 3, 4, 5].map((num) => (
-                        <SelectItem key={num} value={num.toString()}>
-                          {num === 0 ? 'None' : num === 5 ? '5+ Offices' : num === 1 ? '1 Office' : `${num} Offices`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </section>
-
-            <section className="space-y-6">
-              <h3 className="text-lg font-bold text-gray-900">Cleaning Setup</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Cleaning Equipment Card */}
-                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                  <div className="flex items-center gap-2 mb-3">
-                    <button
-                      onClick={() => setShowEquipmentModal(true)}
-                      className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors"
-                      aria-label="View equipment checklist"
+                  {state.serviceType === 'carpet' ? (
+                    <RadioGroup
+                      value={state.offices === 1 ? 'hasProperty' : 'empty'}
+                      onValueChange={(value) => updateField('offices', value === 'hasProperty' ? 1 : 0)}
+                      className="flex gap-6"
                     >
-                      <Info className="w-4 h-4" />
-                    </button>
-                    <label className="text-sm font-bold text-gray-900">Cleaning Equipment</label>
-                  </div>
-                  <Select
-                    value={state.provideEquipment ? 'yes' : 'no'}
-                    onValueChange={(value) => updateField('provideEquipment', value === 'yes')}
-                  >
-                    <SelectTrigger className="w-full border-gray-200 bg-gray-50">
-                      <SelectValue placeholder="Select..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="yes">Yes</SelectItem>
-                      <SelectItem value="no">No</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Number of Cleaners Card - Only show for standard or airbnb */}
-                {(state.serviceType === 'standard' || state.serviceType === 'airbnb') && (
-                  <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Users className="w-5 h-5 text-blue-600" />
-                      <label className="text-sm font-bold text-gray-900">Number of Cleaners</label>
-                    </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="empty" id="booking-empty" />
+                        <Label htmlFor="booking-empty" className="text-sm font-normal cursor-pointer">
+                          Room is Empty
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="hasProperty" id="booking-hasProperty" />
+                        <Label htmlFor="booking-hasProperty" className="text-sm font-normal cursor-pointer">
+                          Has Property
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                  ) : (
                     <Select
-                      value={state.numberOfCleaners.toString()}
-                      onValueChange={(value) => updateField('numberOfCleaners', parseInt(value))}
+                      value={state.offices.toString()}
+                      onValueChange={(value) => updateField('offices', parseInt(value))}
                     >
-                    <SelectTrigger className="w-full border-2 border-blue-600 bg-gray-50 focus:border-blue-600 focus:ring-blue-600">
-                      <SelectValue placeholder="Select..." />
-                    </SelectTrigger>
+                      <SelectTrigger className="w-full border-gray-200 bg-gray-50">
+                        <SelectValue placeholder="Select..." />
+                      </SelectTrigger>
                       <SelectContent>
-                        {Array.from({ length: 5 }, (_, i) => i + 1).map((num) => (
+                        {[0, 1, 2, 3, 4, 5].map((num) => (
                           <SelectItem key={num} value={num.toString()}>
-                            {num} {num === 1 ? 'cleaner' : 'cleaners'}
+                            {num === 0 ? 'None' : num === 5 ? '5+ Offices' : num === 1 ? '1 Office' : `${num} Offices`}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </section>
+
+            {(state.serviceType === 'standard' || state.serviceType === 'airbnb') && (
+              <section className="space-y-6">
+                <h3 className="text-lg font-bold text-gray-900">Cleaning Setup</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Cleaning Equipment Card */}
+                  <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                    <div className="flex items-center gap-2 mb-3">
+                      <button
+                        onClick={() => setShowEquipmentModal(true)}
+                        className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors"
+                        aria-label="View equipment checklist"
+                      >
+                        <Info className="w-4 h-4" />
+                      </button>
+                      <label className="text-sm font-bold text-gray-900">Cleaning Equipment</label>
+                    </div>
+                    <Select
+                      value={state.provideEquipment ? 'yes' : 'no'}
+                      onValueChange={(value) => updateField('provideEquipment', value === 'yes')}
+                    >
+                      <SelectTrigger className="w-full border-gray-200 bg-gray-50">
+                        <SelectValue placeholder="Select..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="yes">Yes</SelectItem>
+                        <SelectItem value="no">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Number of Cleaners Card - Only show for standard or airbnb */}
+                  {(state.serviceType === 'standard' || state.serviceType === 'airbnb') && (
+                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Users className="w-5 h-5 text-blue-600" />
+                        <label className="text-sm font-bold text-gray-900">Number of Cleaners</label>
+                      </div>
+                      <Select
+                        value={state.numberOfCleaners.toString()}
+                        onValueChange={(value) => updateField('numberOfCleaners', parseInt(value))}
+                      >
+                      <SelectTrigger className="w-full border-2 border-blue-600 bg-gray-50 focus:border-blue-600 focus:ring-blue-600">
+                        <SelectValue placeholder="Select..." />
+                      </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 5 }, (_, i) => i + 1).map((num) => (
+                            <SelectItem key={num} value={num.toString()}>
+                              {num} {num === 1 ? 'cleaner' : 'cleaners'}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
 
             <section>
               <div className="flex items-center gap-2 mb-4">
@@ -1701,11 +2291,19 @@ function BookingFlow(props: BookingFlowProps = {}) {
                   <div
                     key={extra.id}
                     className={cn(
-                      "p-4 rounded-xl border transition-all flex flex-col items-center text-center bg-white",
+                      "p-4 rounded-xl border transition-all flex flex-col items-center text-center bg-white relative z-10",
                       extra.quantity > 0 
                         ? "border-gray-200 border-l-4 border-l-blue-500" 
-                        : "border-gray-200"
+                        : "border-gray-200 hover:border-blue-300 hover:shadow-md cursor-pointer"
                     )}
+                    onClick={(e) => {
+                      // If clicking on the card but not on buttons, add the service
+                      if ((e.target as HTMLElement).closest('button') === null) {
+                        if (extra.quantity === 0) {
+                          toggleExtra(extra.id, 1);
+                        }
+                      }
+                    }}
                   >
                     <div className="mb-3 flex items-center justify-center text-gray-700">
                       {React.createElement(getIconComponent(extra.iconName || extra.name), { className: "w-6 h-6" })}
@@ -1714,17 +2312,33 @@ function BookingFlow(props: BookingFlowProps = {}) {
                       {extra.name}
                     </div>
                     <div className="text-sm font-semibold text-gray-900 mb-3">R{extra.price}</div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                       <button
-                        onClick={() => toggleExtra(extra.id, -1)}
-                        className="w-6 h-6 rounded-full bg-white border border-gray-200 flex items-center justify-center text-xs hover:bg-gray-50 transition-colors"
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          toggleExtra(extra.id, -1);
+                        }}
+                        disabled={extra.quantity === 0}
+                        className="w-6 h-6 rounded-full bg-white border border-gray-200 flex items-center justify-center text-xs hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed relative z-20"
                       >
                         -
                       </button>
                       <span className="text-sm font-bold text-gray-900 min-w-[20px]">{extra.quantity}</span>
                       <button
-                        onClick={() => toggleExtra(extra.id, 1)}
-                        className="w-6 h-6 rounded-full bg-white border border-gray-200 flex items-center justify-center text-xs hover:bg-gray-50 transition-colors"
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          // Try using the id first, fallback to name if needed
+                          const identifier = extra.id || extra.name;
+                          console.log('Plus button clicked for extra:', { id: extra.id, name: extra.name, identifier });
+                          toggleExtra(identifier, 1);
+                        }}
+                        className="w-6 h-6 rounded-full bg-white border-2 border-gray-300 flex items-center justify-center text-xs hover:bg-blue-50 hover:border-blue-400 active:bg-blue-100 active:scale-95 transition-all cursor-pointer relative z-20 touch-manipulation"
+                        aria-label={`Add ${extra.name}`}
+                        style={{ pointerEvents: 'auto' }}
                       >
                         +
                       </button>
@@ -1741,20 +2355,29 @@ function BookingFlow(props: BookingFlowProps = {}) {
                   <p className="text-blue-100 text-sm">Save up to {Math.max(...frequencies.map(f => f.discount))}% on recurring bookings</p>
                 </div>
                 <div className="flex bg-blue-700/50 p-1 rounded-xl">
-                  {frequencies.map(f => (
-                    <button
-                      key={f.id}
-                      onClick={() => handleFrequencyChange(f.id)}
-                      className={cn(
-                        "px-4 py-2 rounded-lg text-sm font-bold transition-all",
-                        state.frequency === f.id
-                          ? "bg-white text-blue-600 shadow-md"
-                          : "text-white/70 hover:text-white"
-                      )}
-                    >
-                      {f.name}
-                    </button>
-                  ))}
+                  {frequencies.map(f => {
+                    const isCarpetService = state.serviceType === 'carpet';
+                    const isDeepOrMoveInOut = state.serviceType === 'deep' || state.serviceType === 'move-in-out';
+                    const isDisabled = 
+                      (isCarpetService && f.id !== 'one-time') ||
+                      (isDeepOrMoveInOut && f.id !== 'one-time');
+                    return (
+                      <button
+                        key={f.id}
+                        onClick={() => handleFrequencyChange(f.id)}
+                        disabled={isDisabled}
+                        className={cn(
+                          "px-4 py-2 rounded-lg text-sm font-bold transition-all",
+                          state.frequency === f.id
+                            ? "bg-white text-blue-600 shadow-md"
+                            : "text-white/70 hover:text-white",
+                          isDisabled && "opacity-50 cursor-not-allowed hover:text-white/70"
+                        )}
+                      >
+                        {f.name}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </section>
@@ -1869,7 +2492,7 @@ function BookingFlow(props: BookingFlowProps = {}) {
               </div>
             )}
 
-            {!state.recurringFrequency && (
+            {!(state.frequency === 'weekly' || state.frequency === 'bi-weekly') && (
               <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-4">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900">Select Date</h3>
@@ -2137,12 +2760,16 @@ function BookingFlow(props: BookingFlowProps = {}) {
               </button>
             </div>
             
-            {cleanersLoading ? (
+            {/* Show loading state */}
+            {cleanersLoading && (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
                 <span className="ml-3 text-gray-600">Loading available cleaners...</span>
               </div>
-            ) : cleanersError ? (
+            )}
+            
+            {/* Show error state - but don't block cleaner display if we have cleaners */}
+            {!cleanersLoading && cleanersError && cleaners.length === 0 && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
                 <div className="flex items-center gap-2 text-yellow-800">
                   <AlertCircle className="w-5 h-5" />
@@ -2151,14 +2778,22 @@ function BookingFlow(props: BookingFlowProps = {}) {
                 <p className="text-sm text-yellow-700 mt-2">
                   You can proceed with auto-assignment, and we'll assign the best available cleaner for your booking.
                 </p>
+                <button
+                  onClick={() => {
+                    // Reset fetch key to allow retry
+                    lastFetchKeyRef.current = null;
+                    // Force re-fetch
+                    fetchCleanersData(true);
+                  }}
+                  className="mt-3 px-4 py-2 bg-yellow-600 text-white rounded-lg text-sm font-semibold hover:bg-yellow-700 transition-colors"
+                >
+                  Retry Loading Cleaners
+                </button>
               </div>
-            ) : cleaners.length === 0 ? (
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                <p className="text-blue-800">
-                  No cleaners available for the selected date and location. We'll auto-assign the best available cleaner.
-                </p>
-              </div>
-            ) : (
+            )}
+            
+            {/* Show cleaners if available */}
+            {!cleanersLoading && cleaners.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {cleaners.map(cleaner => (
                   <div
@@ -2201,6 +2836,24 @@ function BookingFlow(props: BookingFlowProps = {}) {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+            
+            {/* Show no cleaners message only when not loading and no cleaners available */}
+            {!cleanersLoading && cleaners.length === 0 && !cleanersError && state.date && (state.contactInfo.suburb || state.contactInfo.city) && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <p className="text-blue-800">
+                  No cleaners available for the selected date and location. We'll auto-assign the best available cleaner.
+                </p>
+              </div>
+            )}
+            
+            {/* Show placeholder when date/location not selected yet */}
+            {!cleanersLoading && cleaners.length === 0 && !cleanersError && (!state.date || (!state.contactInfo.suburb && !state.contactInfo.city)) && (
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                <p className="text-gray-600">
+                  Please select a date and provide your location to see available cleaners.
+                </p>
               </div>
             )}
           </div>
@@ -2298,7 +2951,15 @@ function BookingFlow(props: BookingFlowProps = {}) {
                     <div>
                       <div className="font-bold text-gray-900">{services.find(s => s.id === state.serviceType)?.name || `${state.serviceType} Service`}</div>
                       <div className="text-xs text-gray-500">
-                        {state.bedrooms} Bed, {state.bathrooms} Bath, {state.offices} Office{state.offices === 1 ? '' : 's'}
+                        {state.serviceType === 'carpet' ? (
+                          <>
+                            {state.bedrooms} Fitted, {state.bathrooms} Loose, {state.offices === 1 ? 'Has Property' : 'Empty'}
+                          </>
+                        ) : (
+                          <>
+                            {state.bedrooms} Bed, {state.bathrooms} Bath, {state.offices} Office{state.offices === 1 ? '' : 's'}
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -2409,77 +3070,31 @@ function BookingFlow(props: BookingFlowProps = {}) {
     }
   };
 
-  // Success screen
-  if (state.isConfirmed) {
-    return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center">
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.5, type: 'spring' }}
-          className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-8"
-        >
-          <CheckCircle2 className="w-12 h-12" />
-        </motion.div>
-        <motion.h2
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="text-4xl font-black text-gray-900 mb-4"
-        >
-          Booking Confirmed!
-        </motion.h2>
-        <motion.p
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="text-gray-500 max-w-md mx-auto mb-10"
-        >
-          Your professional cleaner has been scheduled. You'll receive a confirmation email with all the details shortly.
-        </motion.p>
-        <div className="bg-gray-50 rounded-3xl p-8 max-w-md w-full mb-10 space-y-4">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-400 uppercase font-bold tracking-widest">Reference</span>
-            <span className="font-black text-gray-900">
-              {bookingId || `#MP-${Math.floor(Math.random() * 900000) + 100000}`}
-            </span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-400 uppercase font-bold tracking-widest">Date</span>
-            <span className="font-black text-gray-900">{state.date || 'Not specified'}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-400 uppercase font-bold tracking-widest">Time</span>
-            <span className="font-black text-gray-900">{state.timeSlot || 'Not specified'}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-400 uppercase font-bold tracking-widest">Cleaner</span>
-            <span className="font-black text-gray-900">
-              {state.selectedCleanerId
-                ? cleaners.find(c => c.id === state.selectedCleanerId)?.name || 'TBA'
-                : 'Auto-assigned'}
-            </span>
-          </div>
-        </div>
-        <div className="flex gap-4">
-          {bookingId && (
-            <button 
-              onClick={() => router.push(`/dashboard`)}
-              className="px-8 py-4 bg-gray-900 text-white rounded-2xl font-black hover:bg-black transition-all"
-            >
-              Manage Booking
-            </button>
-          )}
-          <button 
-            onClick={() => router.push('/')}
-            className="px-8 py-4 bg-white border-2 border-gray-100 text-gray-900 rounded-2xl font-black hover:bg-gray-50 transition-all"
-          >
-            Back to Home
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // Helper function to format booking ID to 8 digits for display
+  const formatBookingIdForDisplay = (id: string | null): string => {
+    if (!id) return '';
+    
+    // SCS format: SCS-12345678 -> 12345678
+    if (id.startsWith('SCS-')) {
+      return id.substring(4);
+    }
+    
+    // BK format: BK-1234567890-abc -> extract numbers, take last 8
+    if (id.startsWith('BK-')) {
+      const numericPart = id.replace(/\D/g, ''); // Extract all digits
+      return numericPart.slice(-8).padStart(8, '0'); // Take last 8, pad if needed
+    }
+    
+    // Fallback: extract last 8 digits from any format
+    const digits = id.replace(/\D/g, '');
+    if (digits.length >= 8) {
+      return digits.slice(-8);
+    }
+    return digits.padStart(8, '0');
+  };
+
+  // Note: Confirmation is now handled by the dedicated /booking/confirmation page
+  // After successful booking submission, we redirect to that page instead of showing inline confirmation
 
   const getCurrentStepFromPathname = (value: string | null | undefined): number => {
     if (!value) return 0;
@@ -2547,7 +3162,7 @@ function BookingFlow(props: BookingFlowProps = {}) {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto py-8 md:py-12">
+      <div className={cn("max-w-7xl mx-auto py-8 md:py-12", state.step < 4 && "pb-20")}>
 
         <main className="relative">
           <div
@@ -2571,53 +3186,6 @@ function BookingFlow(props: BookingFlowProps = {}) {
                     const content = renderStepContent();
                     return content || <div>Loading...</div>;
                   })()}
-
-                  <div className="mt-12 pt-8 border-t border-gray-100 flex items-center justify-between">
-                    {state.step > 0 ? (
-                      <button
-                        onClick={handleBack}
-                        className="flex items-center gap-2 font-bold text-gray-500 hover:text-gray-900 transition-all"
-                      >
-                        <ArrowLeft className="w-5 h-5" />
-                        Back
-                      </button>
-                    ) : (
-                      <div />
-                    )}
-
-                    {state.step < 4 ? (
-                      // Disable "Next Step" when required fields for the current step are missing.
-                      // This prevents users from skipping schedule/contact fields and also ensures
-                      // recurring day/time rules are set when enabled.
-                      <button
-                        onClick={handleNext}
-                        disabled={
-                          (state.step === 0 && !state.serviceType) ||
-                          (state.step === 1 &&
-                            (state.recurringFrequency
-                              ? (state.recurringDays.length === 0 ||
-                                 state.recurringDays.some((d) => !state.recurringTimesByDay[d]))
-                              : (!state.date || !state.timeSlot))) ||
-                          (state.step === 2 &&
-                            (!state.contactInfo.firstName?.trim() ||
-                              !state.contactInfo.lastName?.trim() ||
-                              !state.contactInfo.email?.trim() ||
-                              !state.contactInfo.phone?.trim() ||
-                              !state.contactInfo.address?.trim() ||
-                              !state.contactInfo.suburb?.trim() ||
-                              !state.contactInfo.city?.trim()))
-                        }
-                        className={cn(
-                          "px-10 py-4 bg-blue-600 text-white rounded-2xl font-black flex items-center gap-3 transition-all shadow-xl shadow-blue-200",
-                          "hover:bg-blue-700",
-                          "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
-                        )}
-                      >
-                        Next Step
-                        <ArrowRight className="w-5 h-5" />
-                      </button>
-                    ) : null}
-                  </div>
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -2637,6 +3205,55 @@ function BookingFlow(props: BookingFlowProps = {}) {
           </div>
         </main>
       </div>
+
+      {/* Sticky Footer with Navigation - Only show on steps 0-3 */}
+      {state.step < 4 && (
+        <footer className="fixed bottom-0 left-0 right-0 z-40 h-20 bg-white border-t border-gray-200 shadow-lg">
+          <div className="max-w-7xl mx-auto h-full px-4 sm:px-6 lg:px-8">
+            <div className="h-full flex items-center justify-between">
+              {state.step > 0 ? (
+                <button
+                  onClick={handleBack}
+                  className="flex items-center gap-2 font-bold text-gray-500 hover:text-gray-900 transition-all"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                  Back
+                </button>
+              ) : (
+                <div />
+              )}
+
+              <button
+                onClick={handleNext}
+                disabled={
+                  (state.step === 0 && !state.serviceType) ||
+                  (state.step === 1 &&
+                    (state.recurringFrequency
+                      ? (state.recurringDays.length === 0 ||
+                         state.recurringDays.some((d) => !state.recurringTimesByDay[d]))
+                      : (!state.date || !state.timeSlot))) ||
+                  (state.step === 2 &&
+                    (!state.contactInfo.firstName?.trim() ||
+                      !state.contactInfo.lastName?.trim() ||
+                      !state.contactInfo.email?.trim() ||
+                      !state.contactInfo.phone?.trim() ||
+                      !state.contactInfo.address?.trim() ||
+                      !state.contactInfo.suburb?.trim() ||
+                      !state.contactInfo.city?.trim()))
+                }
+                className={cn(
+                  "px-10 py-4 bg-blue-600 text-white rounded-2xl font-black flex items-center gap-3 transition-all shadow-xl shadow-blue-200",
+                  "hover:bg-blue-700",
+                  "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
+                )}
+              >
+                Next Step
+                <ArrowRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </footer>
+      )}
 
       {/* Equipment Modal */}
       {showEquipmentModal && (

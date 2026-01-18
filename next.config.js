@@ -72,7 +72,7 @@ const nextConfig = {
       },
       {
         source: '/blog/shalean.co.za/booking/service/select',
-        destination: '/booking/service/standard/details',
+        destination: '/booking/standard',
         permanent: true,
       },
       // Wildcard redirect for old blog URLs with domain prefix
@@ -123,10 +123,42 @@ const nextConfig = {
         destination: '/services/deep-cleaning',
         permanent: true,
       },
-      // Old booking URLs - redirect all /booking/service/* to /booking (state-based navigation)
-      // NOTE: Do not redirect /booking/service/* anymore.
-      // These routes are now used for SEO-friendly booking URLs:
-      // /booking/service/:serviceSlug/:step
+      // Old booking URLs - redirect all /booking/service/[slug]/[step] to /booking/[slug] (flat URL structure)
+      {
+        source: '/booking/service/:slug/details',
+        destination: '/booking/:slug',
+        permanent: true,
+      },
+      {
+        source: '/booking/service/:slug/schedule',
+        destination: '/booking/:slug',
+        permanent: true,
+      },
+      {
+        source: '/booking/service/:slug/worker',
+        destination: '/booking/:slug',
+        permanent: true,
+      },
+      {
+        source: '/booking/service/:slug/contact',
+        destination: '/booking/:slug',
+        permanent: true,
+      },
+      {
+        source: '/booking/service/:slug/review',
+        destination: '/booking/:slug',
+        permanent: true,
+      },
+      {
+        source: '/booking/service/:slug/:step',
+        destination: '/booking/:slug',
+        permanent: true,
+      },
+      {
+        source: '/booking/service/select',
+        destination: '/booking/standard',
+        permanent: true,
+      },
       // Old booking IDs redirect to confirmation page (format: numbersxnumbers)
       {
         source: '/booking/:id([0-9]+x[0-9]+)',
@@ -698,13 +730,6 @@ const nextConfig = {
               test: /[\\/]node_modules[\\/]@radix-ui[\\/]/,
               name: 'radix-ui',
               priority: 15,
-              reuseExistingChunk: true,
-              enforce: true,
-            },
-            sonner: {
-              test: /[\\/]node_modules[\\/]sonner[\\/]/,
-              name: 'sonner',
-              priority: 20,
               reuseExistingChunk: true,
               enforce: true,
             },

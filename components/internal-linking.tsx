@@ -47,25 +47,23 @@ export function InternalLinking({
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {relatedLinks.map((link, idx) => (
-            <Card key={idx} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-              <CardContent className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-3">
-                  <Link href={link.href} className="hover:text-primary transition-colors">
+            <Link key={idx} href={link.href} className="block h-full">
+              <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow cursor-pointer h-full">
+                <CardContent className="p-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-3 hover:text-primary transition-colors">
                     {link.title}
-                  </Link>
-                </h3>
-                {link.description && (
-                  <p className="text-gray-600 mb-4">
-                    {link.description}
-                  </p>
-                )}
-                <Link href={link.href}>
-                  <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0">
+                  </h3>
+                  {link.description && (
+                    <p className="text-gray-600 mb-4">
+                      {link.description}
+                    </p>
+                  )}
+                  <Button variant="ghost" className="text-primary hover:bg-primary/10 p-0 pointer-events-none">
                     Learn More <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
-                </Link>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
       </div>

@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { Suspense } from 'react';
 
-import { BookingFlowContent } from './booking-flow-content';
-import { getBookingUrl, isValidStep, type BookingStepName } from '@/lib/booking-utils';
+import { BookingFlowContent } from '../booking-flow-content';
 import { createMetadata, generateCanonical } from '@/lib/metadata';
+import { isValidStep } from '@/lib/booking-utils';
 
 const ALLOWED_SERVICE_SLUGS = [
   'standard',
@@ -38,12 +38,11 @@ function getServiceTitle(slug: AllowedServiceSlug): string {
 export async function generateMetadata({
   params,
 }: {
-  // Next.js 16+ provides `params` as a Promise in dynamic routes.
   params: Promise<{ slug: string; step: string }>;
 }): Promise<Metadata> {
   const { slug, step } = await params;
 
-  if (!isValidServiceSlug(slug) || !isValidStep(step)) {
+  if (!isValidServiceSlug(slug)) {
     return createMetadata({
       title: 'Book Cleaning Service | Shalean',
       description:
@@ -53,16 +52,25 @@ export async function generateMetadata({
     });
   }
 
-  const stepName = step as BookingStepName;
-  const canonicalPath =
-    stepName === 'details' ? getBookingUrl(slug, 'details') : getBookingUrl(slug, 'details');
+  // Validate step - redirect invalid steps
+  if (!isValidStep(step)) {
+    return createMetadata({
+      title: `Book ${getServiceTitle(slug)} | Shalean`,
+      description:
+        'Book professional cleaning services in Cape Town with transparent pricing and flexible scheduling. Choose your service, add extras, and confirm in minutes.',
+      canonical: generateCanonical(`/booking/${slug}/details`),
+      robots: 'index,follow',
+    });
+  }
+
+  const canonicalPath = `/booking/${slug}/${step}`;
 
   return createMetadata({
     title: `Book ${getServiceTitle(slug)} | Shalean`,
     description:
       'Book professional cleaning services in Cape Town with transparent pricing and flexible scheduling. Choose your service, add extras, and confirm in minutes.',
     canonical: generateCanonical(canonicalPath),
-    robots: stepName === 'details' ? 'index,follow' : 'noindex,follow',
+    robots: 'index,follow',
   });
 }
 
@@ -73,8 +81,13 @@ export default async function BookingServiceStepPage({
 }) {
   const { slug, step } = await params;
 
-  if (!isValidServiceSlug(slug) || !isValidStep(step)) {
+  if (!isValidServiceSlug(slug)) {
     notFound();
+  }
+
+  // Redirect invalid steps to details
+  if (!isValidStep(step)) {
+    redirect(`/booking/${slug}/details`);
   }
 
   return (
@@ -90,4 +103,3 @@ export default async function BookingServiceStepPage({
     </Suspense>
   );
 }
-

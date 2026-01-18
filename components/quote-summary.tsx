@@ -190,7 +190,7 @@ export function QuoteSummary({ contact, serviceId, bedrooms, bathrooms, extras, 
               )}
             </Button>
 
-            <Link href="/booking/service/standard/details" className="block">
+            <Link href="/booking/standard" className="block">
               <Button variant="outline" size="lg" className="w-full">
                 <span className="hidden sm:inline">Skip to Full Booking</span>
                 <span className="sm:hidden">Full Booking</span>

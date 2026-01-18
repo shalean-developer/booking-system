@@ -215,6 +215,21 @@ export async function POST(req: Request) {
     let emailSent = false;
     if (process.env.RESEND_API_KEY) {
       try {
+        // Fetch cleaner name if cleaner_id exists
+        let cleanerName: string | undefined;
+        if (body.cleaner_id && body.cleaner_id !== 'manual' && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+          try {
+            const { data: cleaner } = await supabase
+              .from('cleaners')
+              .select('name')
+              .eq('id', body.cleaner_id)
+              .maybeSingle();
+            cleanerName = cleaner?.name;
+          } catch (error) {
+            console.error('Failed to fetch cleaner name:', error);
+          }
+        }
+
         const customerEmailData = generateBookingConfirmationEmail({
           step: 6,
           service: body.service,
@@ -236,6 +251,7 @@ export async function POST(req: Request) {
           requires_team: body.requires_team || false,
           bookingId,
           totalAmount: body.totalAmount, // Pass actual total amount paid (in rands)
+          cleanerName
         });
         
         const adminEmailData = generateAdminBookingNotificationEmail({

@@ -210,10 +210,15 @@ function ServiceGrid({ selected, setSelected, services }: ServiceGridProps) {
               return (
                 <button
                   key={s.id}
+                  type="button"
                   role="radio"
                   aria-checked={isSelected}
-                  onClick={() => setSelected(s.id)}
-                  className={`rounded-xl p-4 sm:p-5 text-center cursor-pointer transform transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setSelected(s.id);
+                  }}
+                  className={`rounded-xl p-4 sm:p-5 text-center cursor-pointer transform transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/30 relative z-10 ${
                     isSelected
                       ? 'ring-2 ring-primary/60 bg-primary/5 border-2 border-primary'
                       : 'border-2 border-gray-100 bg-white hover:border-gray-200'
@@ -456,7 +461,7 @@ function QuoteSummary({ contact, serviceId, bedrooms, bathrooms, extras, onSubmi
               )}
             </Button>
 
-            <Link href="/booking/service/standard/details" className="block">
+            <Link href="/booking/standard" className="block">
               <Button variant="outline" size="lg" className="w-full">
                 <span className="hidden sm:inline">Skip to Full Booking</span>
                 <span className="sm:hidden">Full Booking</span>

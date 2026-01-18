@@ -162,10 +162,12 @@ export function generateBookingConfirmationEmail(
   booking: BookingState & { bookingId: string; totalAmount?: number; cleanerName?: string }
 ): EmailData {
   // Use the actual totalAmount if provided (from database), otherwise recalculate
-  // totalAmount is in rands (not cents)
+  // totalAmount from database is in cents, so divide by 100 to get rands
   let totalPrice: number;
   if (booking.totalAmount !== undefined && booking.totalAmount > 0) {
-    totalPrice = booking.totalAmount;
+    // If totalAmount is > 1000, it's likely in cents (e.g., 150000 = R1500.00)
+    // Otherwise it might already be in rands
+    totalPrice = booking.totalAmount > 1000 ? booking.totalAmount / 100 : booking.totalAmount;
   } else {
     // Fallback to recalculating if totalAmount not provided
     const pricingDetails = calcTotalSync({
@@ -222,6 +224,9 @@ export function generateBookingConfirmationEmail(
   // Site URL for calendar links
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://shalean.co.za';
   
+  // Truncate booking ID to last 8 digits for display
+  const displayBookingId = booking.bookingId.slice(-8);
+  
   const html = `
     <!DOCTYPE html>
     <html>
@@ -234,488 +239,734 @@ export function generateBookingConfirmationEmail(
         body { 
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; 
           line-height: 1.6; 
-          color: #1f2937; 
-          background-color: #f3f4f6;
+          color: #1e293b; 
+          background-color: #f1f5f9;
           padding: 20px;
         }
         .email-container {
-          max-width: 600px;
+          max-width: 672px;
           margin: 0 auto;
           background-color: #ffffff;
-          border-radius: 12px;
+          border-radius: 16px;
           overflow: hidden;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+          border: 1px solid #e2e8f0;
         }
         .header {
-          background: linear-gradient(135deg, #0C53ED 0%, #0842c4 100%);
+          background-color: #0C53ED;
           color: white;
-          padding: 40px 30px;
+          padding: 32px;
           text-align: center;
         }
+        .header-icon-wrapper {
+          display: flex;
+          justify-content: center;
+          margin-bottom: 16px;
+        }
+        .header-icon-circle {
+          background-color: rgba(255, 255, 255, 0.2);
+          padding: 12px;
+          border-radius: 50%;
+          backdrop-filter: blur(4px);
+        }
         .header-icon {
-          font-size: 48px;
-          margin-bottom: 10px;
+          width: 48px;
+          height: 48px;
+          color: white;
         }
         .header h1 {
-          font-size: 28px;
+          font-size: 30px;
           font-weight: 700;
           margin-bottom: 8px;
         }
         .header p {
-          font-size: 16px;
-          opacity: 0.95;
-        }
-        .payment-badge {
-          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-          color: white;
-          padding: 12px 20px;
-          border-radius: 8px;
-          margin: 20px 30px;
-          text-align: center;
-          font-weight: 600;
-          font-size: 14px;
-          display: ${booking.paymentReference ? 'block' : 'none'};
-        }
-        .content {
-          padding: 30px;
-        }
-        .greeting {
+          color: rgba(255, 255, 255, 0.9);
           font-size: 18px;
-          margin-bottom: 20px;
-          color: #1f2937;
         }
-        .card {
-          background-color: #ffffff;
-          border: 1px solid #e5e7eb;
-          border-radius: 10px;
-          padding: 24px;
-          margin-bottom: 20px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        .status-banner {
+          background-color: #dbeafe;
+          padding: 16px 32px;
+          border-bottom: 1px solid #bfdbfe;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
         }
-        .card-title {
-          font-size: 18px;
-          font-weight: 700;
-          color: #111827;
-          margin-bottom: 16px;
+        .status-banner-content {
           display: flex;
           align-items: center;
           gap: 8px;
+          color: #1e40af;
+          font-weight: 600;
         }
-        .card-title-icon {
+        .status-badge {
+          font-size: 11px;
+          color: #1e40af;
+          background-color: white;
+          padding: 4px 8px;
+          border-radius: 9999px;
+          border: 1px solid #93c5fd;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          font-weight: 700;
+        }
+        .content {
+          padding: 32px;
+        }
+        .greeting {
+          margin-bottom: 32px;
+        }
+        .greeting h2 {
           font-size: 20px;
+          font-weight: 700;
+          color: #0f172a;
+          margin-bottom: 8px;
         }
-        .info-row {
+        .greeting p {
+          color: #475569;
+          line-height: 1.75;
+        }
+        .booking-summary-card {
+          background-color: #f8fafc;
+          border-radius: 12px;
+          padding: 24px;
+          margin-bottom: 32px;
+          border: 1px solid #e2e8f0;
+        }
+        .section-header {
           display: flex;
-          justify-content: space-between;
-          padding: 10px 0;
-          border-bottom: 1px solid #f3f4f6;
+          align-items: center;
+          gap: 8px;
+          color: #0C53ED;
+          font-weight: 700;
+          text-transform: uppercase;
+          font-size: 14px;
+          letter-spacing: 0.05em;
+          margin-bottom: 16px;
         }
-        .info-row:last-child {
-          border-bottom: none;
+        .info-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 24px;
+        }
+        .info-item {
+          display: flex;
+          flex-direction: column;
         }
         .info-label {
-          font-weight: 600;
-          color: #6b7280;
-          font-size: 14px;
+          font-size: 11px;
+          color: #64748b;
+          text-transform: uppercase;
+          font-weight: 700;
+          margin-bottom: 4px;
+          display: block;
         }
         .info-value {
-          color: #111827;
+          color: #0f172a;
           font-weight: 500;
-          text-align: right;
+          font-family: monospace;
         }
-        .address-block {
-          background-color: #f9fafb;
-          padding: 16px;
-          border-radius: 8px;
-          margin-top: 12px;
-          line-height: 1.8;
-          color: #374151;
+        .info-value-with-icon {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #0f172a;
+          font-weight: 500;
         }
-        .extras-list {
-          list-style: none;
-          padding: 0;
-          margin-top: 12px;
+        .icon {
+          width: 16px;
+          height: 16px;
+          color: #64748b;
         }
-        .extras-list li {
-          padding: 8px 0;
-          border-bottom: 1px solid #f3f4f6;
-          color: #374151;
+        .full-width {
+          grid-column: 1 / -1;
         }
-        .extras-list li:last-child {
-          border-bottom: none;
+        .details-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 32px;
+          margin-bottom: 32px;
         }
-        .extras-list li:before {
-          content: "✓";
-          color: #10b981;
-          font-weight: bold;
-          margin-right: 8px;
+        .service-details {
+          flex: 1;
         }
-        .cleaner-assignment {
-          background-color: #eff6ff;
-          border-left: 4px solid #0C53ED;
-          padding: 16px;
-          border-radius: 8px;
-          margin-top: 12px;
+        .section-title {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #0C53ED;
+          font-weight: 700;
+          text-transform: uppercase;
+          font-size: 14px;
+          letter-spacing: 0.05em;
+          margin-bottom: 16px;
         }
-        .cleaner-assignment.manual {
-          background-color: #fffbeb;
-          border-left-color: #f59e0b;
+        .address-text {
+          color: #0f172a;
+          line-height: 1.6;
+          margin-top: 4px;
         }
-        .cleaner-assignment.pending {
-          background-color: #f9fafb;
-          border-left-color: #9ca3af;
+        .details-row {
+          display: flex;
+          gap: 16px;
+          margin-top: 16px;
         }
-        .frequency-badge {
-          display: inline-block;
+        .details-item {
+          flex: 1;
+        }
+        .addon-badges {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 8px;
+        }
+        .addon-badge {
+          display: inline-flex;
+          align-items: center;
+          padding: 4px 10px;
+          border-radius: 9999px;
+          font-size: 12px;
+          font-weight: 500;
           background-color: #dbeafe;
           color: #1e40af;
-          padding: 6px 12px;
-          border-radius: 6px;
-          font-size: 13px;
-          font-weight: 600;
-          margin-top: 8px;
+          border: 1px solid #93c5fd;
         }
-        .next-dates {
-          margin-top: 12px;
-          padding-top: 12px;
-          border-top: 1px solid #e5e7eb;
+        .cleaner-assignment-card {
+          background-color: #fef3c7;
+          border-radius: 12px;
+          padding: 20px;
+          border: 1px solid #fde68a;
+          height: fit-content;
         }
-        .next-dates-list {
-          list-style: none;
-          padding: 0;
-          margin-top: 8px;
+        .cleaner-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #92400e;
+          font-weight: 700;
+          text-transform: uppercase;
+          font-size: 14px;
+          letter-spacing: 0.05em;
+          margin-bottom: 12px;
         }
-        .next-dates-list li {
-          padding: 6px 0;
-          color: #4b5563;
+        .cleaner-content {
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+        }
+        .cleaner-icon {
+          background-color: #fde68a;
+          padding: 8px;
+          border-radius: 8px;
+          color: #78350f;
+          margin-top: 4px;
+        }
+        .cleaner-text {
+          flex: 1;
+        }
+        .cleaner-title {
+          font-weight: 700;
+          color: #78350f;
           font-size: 14px;
         }
-        .next-dates-list li:before {
-          content: "📅";
-          margin-right: 8px;
+        .cleaner-description {
+          color: #92400e;
+          font-size: 12px;
+          line-height: 1.75;
+          margin-top: 4px;
         }
-        .payment-summary {
-          background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-          border: 2px solid #0C53ED;
+        .payment-section {
+          border-top: 1px solid #e2e8f0;
+          padding-top: 32px;
+          margin-bottom: 32px;
+        }
+        .payment-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 16px;
         }
         .total-amount {
           font-size: 24px;
           font-weight: 700;
-          color: #0C53ED;
-          text-align: center;
-          margin-top: 12px;
+          color: #0f172a;
+        }
+        .payment-info {
+          background-color: #f8fafc;
+          border-radius: 8px;
+          padding: 16px;
+          font-size: 12px;
+          color: #64748b;
         }
         .payment-reference {
-          font-size: 12px;
-          color: #6b7280;
-          margin-top: 8px;
-          text-align: center;
+          margin-bottom: 4px;
         }
-        .action-buttons {
+        .payment-ref-value {
+          font-family: monospace;
+          color: #334155;
+        }
+        .payment-status {
           display: flex;
-          flex-direction: column;
-          gap: 12px;
-          margin-top: 24px;
-        }
-        .btn {
-          display: inline-block;
-          padding: 14px 24px;
-          border-radius: 8px;
-          text-decoration: none;
+          align-items: center;
+          gap: 4px;
+          color: #0C53ED;
           font-weight: 600;
-          text-align: center;
-          font-size: 15px;
+          margin-top: 4px;
+        }
+        .actions-section {
+          margin-bottom: 32px;
+        }
+        .action-button {
+          width: 100%;
+          background-color: #0f172a;
+          color: white;
+          font-weight: 700;
+          padding: 16px;
+          border-radius: 12px;
+          text-decoration: none;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          margin-bottom: 16px;
           transition: all 0.2s;
         }
-        .btn-primary {
-          background-color: #0C53ED;
-          color: white;
+        .action-button:hover {
+          background-color: #1e293b;
         }
-        .btn-primary:hover {
-          background-color: #0842c4;
+        .calendar-section {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 16px;
+          font-size: 14px;
         }
-        .btn-secondary {
-          background-color: #ffffff;
-          color: #0C53ED;
-          border: 2px solid #0C53ED;
-        }
-        .btn-secondary:hover {
-          background-color: #eff6ff;
+        .calendar-label {
+          color: #64748b;
+          font-weight: 500;
         }
         .calendar-links {
           display: flex;
-          gap: 8px;
-          flex-wrap: wrap;
-          margin-top: 12px;
+          gap: 16px;
         }
         .calendar-link {
-          flex: 1;
-          min-width: 120px;
-          padding: 10px 16px;
-          background-color: #f9fafb;
-          border: 1px solid #e5e7eb;
-          border-radius: 6px;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          color: #2563eb;
           text-decoration: none;
-          color: #374151;
-          font-size: 13px;
-          text-align: center;
           font-weight: 500;
         }
         .calendar-link:hover {
-          background-color: #f3f4f6;
-          border-color: #d1d5db;
-        }
-        .contact-info {
-          background-color: #f9fafb;
-          padding: 20px;
-          border-radius: 8px;
-          margin-top: 24px;
-          text-align: center;
-        }
-        .contact-info p {
-          margin: 8px 0;
-          color: #4b5563;
-          font-size: 14px;
-        }
-        .contact-info a {
-          color: #0C53ED;
-          text-decoration: none;
-        }
-        .contact-info a:hover {
           text-decoration: underline;
         }
-        .footer {
-          background-color: #f9fafb;
-          padding: 24px 30px;
-          text-align: center;
-          border-top: 1px solid #e5e7eb;
+        .help-section {
+          background-color: #f8fafc;
+          border-radius: 12px;
+          padding: 24px;
+          border: 1px solid #cbd5e1;
         }
-        .footer p {
-          color: #6b7280;
-          font-size: 13px;
-          margin: 4px 0;
+        .help-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #334155;
+          font-weight: 700;
+          text-transform: uppercase;
+          font-size: 14px;
+          letter-spacing: 0.05em;
+          margin-bottom: 16px;
         }
-        .footer a {
+        .help-text {
+          font-size: 14px;
+          color: #475569;
+          line-height: 1.75;
+          margin-bottom: 16px;
+        }
+        .contact-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 16px;
+        }
+        .contact-card {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 12px;
+          background-color: white;
+          border: 1px solid #cbd5e1;
+          border-radius: 8px;
+          text-decoration: none;
+          transition: border-color 0.2s;
+        }
+        .contact-card:hover {
+          border-color: #0C53ED;
+        }
+        .contact-icon {
+          background-color: #dbeafe;
+          padding: 8px;
+          border-radius: 50%;
           color: #0C53ED;
+        }
+        .contact-info {
+          flex: 1;
+        }
+        .contact-label {
+          font-size: 11px;
+          color: #64748b;
+          text-transform: uppercase;
+          font-weight: 700;
+        }
+        .contact-value {
+          font-size: 14px;
+          color: #0f172a;
+          font-weight: 600;
+        }
+        .footer {
+          background-color: #0f172a;
+          padding: 32px;
+          text-align: center;
+          color: white;
+        }
+        .footer-brand {
+          font-weight: 700;
+          font-size: 20px;
+          margin-bottom: 8px;
+        }
+        .footer-text {
+          color: #94a3b8;
+          font-size: 14px;
+          line-height: 1.75;
+          margin-bottom: 24px;
+        }
+        .footer-links {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 24px;
+          font-size: 14px;
+          font-weight: 500;
+          margin-bottom: 24px;
+        }
+        .footer-link {
+          color: #60a5fa;
           text-decoration: none;
         }
+        .footer-link:hover {
+          color: #93c5fd;
+        }
+        .footer-separator {
+          color: #334155;
+        }
+        .footer-footer {
+          padding-top: 24px;
+          border-top: 1px solid #1e293b;
+        }
+        .footer-info {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          color: #64748b;
+          font-size: 12px;
+          margin-bottom: 8px;
+        }
+        .footer-booking-id {
+          color: #475569;
+          font-size: 10px;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          font-weight: 700;
+        }
+        .mobile-tip {
+          max-width: 672px;
+          margin: 24px auto 0;
+          padding: 0 16px;
+          text-align: center;
+        }
+        .mobile-tip-content {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          color: #64748b;
+          font-size: 12px;
+        }
         @media only screen and (max-width: 600px) {
-          .content {
-            padding: 20px;
+          body {
+            padding: 10px;
           }
           .header {
-            padding: 30px 20px;
+            padding: 24px 16px;
           }
           .header h1 {
             font-size: 24px;
           }
+          .header p {
+            font-size: 16px;
+          }
+          .status-banner {
+            padding: 12px 16px;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+          }
+          .content {
+            padding: 24px 16px;
+          }
+          .info-grid {
+            grid-template-columns: 1fr;
+            gap: 16px;
+          }
+          .details-grid {
+            grid-template-columns: 1fr;
+            gap: 24px;
+          }
+          .contact-grid {
+            grid-template-columns: 1fr;
+          }
           .calendar-links {
             flex-direction: column;
-          }
-          .calendar-link {
-            width: 100%;
+            gap: 8px;
           }
         }
       </style>
     </head>
     <body>
       <div class="email-container">
+        <!-- Header Section -->
         <div class="header">
-          <div class="header-icon">✅</div>
+          <div class="header-icon-wrapper">
+            <div class="header-icon-circle">
+              <div class="header-icon">✓</div>
+            </div>
+          </div>
           <h1>Booking Confirmed!</h1>
           <p>Thank you for choosing Shalean Cleaning Services</p>
         </div>
 
+        <!-- Status Banner -->
         ${booking.paymentReference ? `
-        <div class="payment-badge">
-          💳 Payment Confirmed
+        <div class="status-banner">
+          <div class="status-banner-content">
+            <span>💳</span>
+            <span>Payment Confirmed</span>
+          </div>
+          <span class="status-badge">Paid</span>
         </div>
         ` : ''}
 
+        <!-- Content Body -->
         <div class="content">
-          <p class="greeting">Hi ${booking.firstName} ${booking.lastName},</p>
-          
-          <p style="margin-bottom: 24px; color: #4b5563;">Your cleaning service has been successfully booked! Here are all the details:</p>
+          <div class="greeting">
+            <h2>Hi ${booking.firstName} ${booking.lastName},</h2>
+            <p>Your cleaning service has been successfully booked! We're excited to help you get your space sparkling clean. Here are all the details for your upcoming service:</p>
+          </div>
 
           <!-- Booking Summary Card -->
-          <div class="card">
-            <h3 class="card-title">
-              <span class="card-title-icon">📋</span>
-              Booking Summary
-            </h3>
-            <div class="info-row">
-              <span class="info-label">Booking ID</span>
-              <span class="info-value">${booking.bookingId}</span>
+          <div class="booking-summary-card">
+            <div class="section-header">
+              <span>📅</span>
+              <span>Booking Summary</span>
             </div>
-            <div class="info-row">
-              <span class="info-label">Service Type</span>
-              <span class="info-value">${booking.service || 'N/A'}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Date</span>
-              <span class="info-value">${formattedDate}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Time</span>
-              <span class="info-value">${formattedTime}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Frequency</span>
-              <span class="info-value">
-                <span class="frequency-badge">${frequencyText}</span>
-              </span>
+            
+            <div class="info-grid">
+              <div class="info-item">
+                <span class="info-label">Booking ID</span>
+                <span class="info-value">${displayBookingId}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Service Type</span>
+                <span class="info-value">${booking.service || 'N/A'}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Date</span>
+                <div class="info-value-with-icon">
+                  <span>📅</span>
+                  <span>${formattedDate}</span>
+                </div>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Time</span>
+                <div class="info-value-with-icon">
+                  <span>🕐</span>
+                  <span>${formattedTime}</span>
+                </div>
+              </div>
+              <div class="info-item full-width">
+                <span class="info-label">Frequency</span>
+                <span class="info-value">${frequencyText}</span>
+              </div>
             </div>
           </div>
 
-          <!-- Service Details Card -->
-          <div class="card">
-            <h3 class="card-title">
-              <span class="card-title-icon">🏠</span>
-              Service Details
-            </h3>
-            <div class="info-row">
-              <span class="info-label">Address</span>
+          <div class="details-grid">
+            <!-- Service Details -->
+            <div class="service-details">
+              <div class="section-title">
+                <span>📍</span>
+                <span>Service Details</span>
+              </div>
+              <div>
+                <span class="info-label">Address</span>
+                <div class="address-text">
+                  ${booking.address.line1}<br>
+                  ${booking.address.suburb}<br>
+                  ${booking.address.city}
+                </div>
+              </div>
+              <div class="details-row">
+                <div class="details-item">
+                  <span class="info-label">Bedrooms</span>
+                  <div class="info-value">${booking.bedrooms}</div>
+                </div>
+                <div class="details-item">
+                  <span class="info-label">Bathrooms</span>
+                  <div class="info-value">${booking.bathrooms}</div>
+                </div>
+              </div>
+              ${booking.extras.length > 0 ? `
+              <div style="margin-top: 16px;">
+                <span class="info-label">Additional Services</span>
+                <div class="addon-badges">
+                  ${booking.extras.map(extra => `
+                    <span class="addon-badge">
+                      ${extra === 'Inside Fridge' ? '❄️' : ''}
+                      ${extra === 'Inside Oven' ? '🔥' : ''}
+                      ${extra}
+                    </span>
+                  `).join('')}
+                </div>
+              </div>
+              ` : ''}
             </div>
-            <div class="address-block">
-              ${booking.address.line1}<br>
-              ${booking.address.suburb}<br>
-              ${booking.address.city}
+
+            <!-- Cleaner Assignment -->
+            <div class="cleaner-assignment-card">
+              <div class="cleaner-header">
+                <span>👤</span>
+                <span>Cleaner Assignment</span>
+              </div>
+              ${booking.cleanerName ? `
+              <div class="cleaner-content">
+                <div class="cleaner-icon">✓</div>
+                <div class="cleaner-text">
+                  <div class="cleaner-title">${booking.cleanerName}</div>
+                  <div class="cleaner-description">Professional cleaner assigned to your booking</div>
+                </div>
+              </div>
+              ` : booking.cleaner_id === 'manual' ? `
+              <div class="cleaner-content">
+                <div class="cleaner-icon">⚠️</div>
+                <div class="cleaner-text">
+                  <div class="cleaner-title">Manual Assignment Requested</div>
+                  <div class="cleaner-description">Our team will assign the best available cleaner for you and contact you within 24 hours to confirm.</div>
+                </div>
+              </div>
+              ` : `
+              <div class="cleaner-content">
+                <div class="cleaner-icon">🕐</div>
+                <div class="cleaner-text">
+                  <div class="cleaner-title">Assignment Pending</div>
+                  <div class="cleaner-description">A cleaner will be assigned to your booking shortly. You will receive a notification once confirmed.</div>
+                </div>
+              </div>
+              `}
             </div>
-            <div class="info-row" style="margin-top: 16px;">
-              <span class="info-label">Bedrooms</span>
-              <span class="info-value">${booking.bedrooms}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Bathrooms</span>
-              <span class="info-value">${booking.bathrooms}</span>
-            </div>
-            ${booking.extras.length > 0 ? `
-            <div style="margin-top: 16px;">
-              <div class="info-label" style="margin-bottom: 8px;">Additional Services</div>
-              <ul class="extras-list">
-                ${booking.extras.map(extra => `<li>${extra}</li>`).join('')}
-              </ul>
-            </div>
-            ` : ''}
-            ${booking.notes ? `
-            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
-              <div class="info-label" style="margin-bottom: 8px;">Special Instructions</div>
-              <p style="color: #374151; line-height: 1.6;">${booking.notes}</p>
-            </div>
-            ` : ''}
           </div>
 
-          <!-- Cleaner Assignment Card -->
-          <div class="card">
-            <h3 class="card-title">
-              <span class="card-title-icon">👤</span>
-              Cleaner Assignment
-            </h3>
-            ${booking.cleanerName ? `
-            <div class="cleaner-assignment">
-              <div style="font-weight: 600; color: #111827; margin-bottom: 4px;">✅ ${booking.cleanerName}</div>
-              <div style="font-size: 14px; color: #4b5563;">Professional cleaner assigned to your booking</div>
+          <!-- Payment Summary -->
+          <div class="payment-section">
+            <div class="payment-header">
+              <div class="section-title">
+                <span>💳</span>
+                <span>Payment Summary</span>
+              </div>
+              <p class="total-amount">R${totalPrice.toFixed(2)}</p>
             </div>
-            ` : booking.cleaner_id === 'manual' ? `
-            <div class="cleaner-assignment manual">
-              <div style="font-weight: 600; color: #92400e; margin-bottom: 4px;">⚠️ Manual Assignment Requested</div>
-              <div style="font-size: 14px; color: #78350f;">Our team will assign the best available cleaner for you and contact you within 24 hours to confirm.</div>
-            </div>
-            ` : booking.cleaner_id ? `
-            <div class="cleaner-assignment">
-              <div style="font-weight: 600; color: #111827; margin-bottom: 4px;">✅ Professional Cleaner Assigned</div>
-              <div style="font-size: 14px; color: #4b5563;">A professional cleaner has been assigned to your booking</div>
-            </div>
-            ` : `
-            <div class="cleaner-assignment pending">
-              <div style="font-weight: 600; color: #111827; margin-bottom: 4px;">⏳ Assignment Pending</div>
-              <div style="font-size: 14px; color: #4b5563;">A cleaner will be assigned to your booking shortly</div>
-            </div>
-            `}
-          </div>
-
-          <!-- Frequency Card (for recurring bookings) -->
-          ${booking.frequency && booking.frequency !== 'one-time' && nextBookingDates.length > 0 ? `
-          <div class="card">
-            <h3 class="card-title">
-              <span class="card-title-icon">🔄</span>
-              Recurring Schedule
-            </h3>
-            <p style="color: #4b5563; margin-bottom: 12px;">Your next scheduled cleanings:</p>
-            <div class="next-dates">
-              <ul class="next-dates-list">
-                ${nextBookingDates.map(date => {
-                  const formatted = new Date(date).toLocaleDateString('en-ZA', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  });
-                  return `<li>${formatted}</li>`;
-                }).join('')}
-              </ul>
+            <div class="payment-info">
+              ${booking.paymentReference ? `
+              <p class="payment-reference">Payment Reference: <span class="payment-ref-value">${booking.paymentReference}</span></p>
+              <div class="payment-status">
+                <span>✓</span>
+                <span>Payment Confirmed</span>
+              </div>
+              ` : `
+              <div class="payment-status" style="color: #f59e0b;">
+                Payment Pending
+              </div>
+              `}
             </div>
           </div>
-          ` : ''}
 
-          <!-- Payment Summary Card -->
-          <div class="card payment-summary">
-            <h3 class="card-title">
-              <span class="card-title-icon">💰</span>
-              Payment Summary
-            </h3>
-            <div class="total-amount">R${totalPrice.toFixed(2)}</div>
-            ${booking.paymentReference ? `
-            <div class="payment-reference">
-              Payment Reference: ${booking.paymentReference}<br>
-              <span style="color: #10b981; font-weight: 600;">✓ Payment Confirmed</span>
-            </div>
-            ` : `
-            <div class="payment-reference" style="color: #f59e0b;">
-              Payment pending
-            </div>
-            `}
-          </div>
-
-          <!-- Action Buttons -->
-          <div class="action-buttons">
-            <a href="${bookingDashboardUrl}" class="btn btn-primary">
-              View Booking in Dashboard
+          <!-- Actions -->
+          <div class="actions-section">
+            <a href="${bookingDashboardUrl}" class="action-button">
+              <span>🔗</span>
+              <span>View Booking in Dashboard</span>
             </a>
+            
             ${calendarLinks ? `
-            <div style="margin-top: 8px;">
-              <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px; text-align: center;">Add to Calendar:</div>
+            <div class="calendar-section">
+              <span class="calendar-label">Add to Calendar:</span>
               <div class="calendar-links">
-                <a href="${calendarLinks.google}" class="calendar-link" target="_blank">📅 Google</a>
-                <a href="${calendarLinks.outlook}" class="calendar-link" target="_blank">📧 Outlook</a>
-                <a href="${calendarLinks.ical}" class="calendar-link" download="booking.ics">📥 iCal</a>
+                <a href="${calendarLinks.google}" class="calendar-link">📅 Google</a>
+                <a href="${calendarLinks.outlook}" class="calendar-link">📧 Outlook</a>
+                <a href="${calendarLinks.ical}" class="calendar-link">📅 iCal</a>
               </div>
             </div>
             ` : ''}
           </div>
 
-          <!-- Contact Information -->
-          <div class="contact-info">
-            <p style="font-weight: 600; color: #111827; margin-bottom: 12px;">Need Help?</p>
-            <p>If you have any questions or need to make changes to your booking, please contact us:</p>
-            <p>
-              📞 <a href="tel:+27871535250">+27 87 153 5250</a><br>
-              ✉️ <a href="mailto:bookings@shalean.com">bookings@shalean.com</a>
-            </p>
+          <!-- Help Section -->
+          <div class="help-section">
+            <div class="help-header">
+              <span>❓</span>
+              <span>Need Help?</span>
+            </div>
+            <p class="help-text">If you have any questions or need to make changes to your booking, please contact us:</p>
+            <div class="contact-grid">
+              <a href="tel:+27871535250" class="contact-card">
+                <div class="contact-icon">📞</div>
+                <div class="contact-info">
+                  <div class="contact-label">Call Us</div>
+                  <div class="contact-value">+27 87 153 5250</div>
+                </div>
+              </a>
+              <a href="mailto:bookings@shalean.com" class="contact-card">
+                <div class="contact-icon">✉️</div>
+                <div class="contact-info">
+                  <div class="contact-label">Email Us</div>
+                  <div class="contact-value">bookings@shalean.com</div>
+                </div>
+              </a>
+            </div>
           </div>
         </div>
 
+        <!-- Footer -->
         <div class="footer">
-          <p><strong>Shalean Cleaning Services</strong></p>
-          <p>Thank you for choosing us for your cleaning needs!</p>
-          <p style="margin-top: 16px;">
-            <a href="${siteUrl}">Visit our website</a> | 
-            <a href="${siteUrl}/dashboard">My Dashboard</a>
-          </p>
-          <p style="margin-top: 16px; font-size: 12px; color: #9ca3af;">
-            This is an automated email. Please do not reply to this message.<br>
-            Booking ID: ${booking.bookingId}
-          </p>
+          <div class="footer-brand">Shalean Cleaning Services</div>
+          <p class="footer-text">Thank you for choosing us for your cleaning needs!<br>We pride ourselves on reliability and excellence.</p>
+          <div class="footer-links">
+            <a href="${siteUrl}" class="footer-link">Visit our website</a>
+            <span class="footer-separator">|</span>
+            <a href="${siteUrl}/dashboard" class="footer-link">My Dashboard</a>
+          </div>
+          <div class="footer-footer">
+            <div class="footer-info">
+              <span>ℹ️</span>
+              <span>This is an automated email. Please do not reply to this message.</span>
+            </div>
+            <p class="footer-booking-id">Booking ID: ${displayBookingId}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Responsive Tip for Mobile App Viewers -->
+      <div class="mobile-tip">
+        <div class="mobile-tip-content">
+          <span>📱</span>
+          <span>Optimized for all devices</span>
         </div>
       </div>
     </body>
@@ -724,7 +975,7 @@ export function generateBookingConfirmationEmail(
 
   return {
     to: booking.email,
-    subject: `Booking Confirmation - ${booking.bookingId} | Shalean Cleaning`,
+    subject: `Booking Confirmation - ${displayBookingId} | Shalean Cleaning`,
     html,
   };
 }
@@ -747,6 +998,24 @@ export function generateAdminBookingNotificationEmail(booking: BookingState & { 
     totalPrice = pricingDetails.total;
   }
   
+  // Format date and time for admin email
+  const formattedDate = booking.date 
+    ? new Date(booking.date).toLocaleDateString('en-ZA', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      })
+    : 'Not specified';
+  
+  const formattedTime = booking.time 
+    ? new Date(`2000-01-01T${booking.time}`).toLocaleTimeString('en-ZA', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true 
+      })
+    : 'Not specified';
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -755,96 +1024,451 @@ export function generateAdminBookingNotificationEmail(booking: BookingState & { 
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>New Booking Received - Shalean Cleaning</title>
       <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background-color: #0C53ED; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-        .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
-        .booking-details { background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
-        .contact-info { background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107; }
-        .order-summary { background-color: #e8f4fd; padding: 15px; border-radius: 8px; margin: 20px 0; }
-        .total { font-size: 18px; font-weight: bold; color: #0C53ED; }
-        .urgent { background-color: #ff4444; color: white; padding: 10px; border-radius: 4px; text-align: center; margin: 20px 0; }
-        .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; 
+          line-height: 1.6; 
+          color: #1e293b; 
+          background-color: #f1f5f9;
+          padding: 20px;
+        }
+        .email-container {
+          max-width: 672px;
+          margin: 0 auto;
+          background-color: #ffffff;
+          border-radius: 16px;
+          overflow: hidden;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+          border: 1px solid #e2e8f0;
+        }
+        .header {
+          background-color: #0C53ED;
+          color: white;
+          padding: 32px;
+          text-align: center;
+        }
+        .header-icon-wrapper {
+          display: flex;
+          justify-content: center;
+          margin-bottom: 16px;
+        }
+        .header-icon-circle {
+          background-color: rgba(255, 255, 255, 0.2);
+          padding: 12px;
+          border-radius: 50%;
+          backdrop-filter: blur(4px);
+        }
+        .header-icon {
+          width: 48px;
+          height: 48px;
+          color: white;
+        }
+        .header h1 {
+          font-size: 30px;
+          font-weight: 700;
+          margin-bottom: 8px;
+        }
+        .header p {
+          color: rgba(255, 255, 255, 0.9);
+          font-size: 18px;
+        }
+        .status-banner {
+          background-color: #fee2e2;
+          padding: 16px 32px;
+          border-bottom: 1px solid #fecaca;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .status-banner-content {
+          color: #991b1b;
+          font-weight: 700;
+          text-align: center;
+        }
+        .content {
+          padding: 32px;
+        }
+        .greeting {
+          margin-bottom: 32px;
+        }
+        .greeting p {
+          color: #475569;
+          line-height: 1.75;
+        }
+        .booking-summary-card {
+          background-color: #f8fafc;
+          border-radius: 12px;
+          padding: 24px;
+          margin-bottom: 32px;
+          border: 1px solid #e2e8f0;
+        }
+        .section-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #0C53ED;
+          font-weight: 700;
+          text-transform: uppercase;
+          font-size: 14px;
+          letter-spacing: 0.05em;
+          margin-bottom: 16px;
+        }
+        .info-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 24px;
+        }
+        .info-item {
+          display: flex;
+          flex-direction: column;
+        }
+        .info-label {
+          font-size: 11px;
+          color: #64748b;
+          text-transform: uppercase;
+          font-weight: 700;
+          margin-bottom: 4px;
+          display: block;
+        }
+        .info-value {
+          color: #0f172a;
+          font-weight: 500;
+          font-family: monospace;
+        }
+        .info-value-with-icon {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #0f172a;
+          font-weight: 500;
+        }
+        .full-width {
+          grid-column: 1 / -1;
+        }
+        .contact-card {
+          background-color: #fef3c7;
+          border-radius: 12px;
+          padding: 24px;
+          margin-bottom: 32px;
+          border: 1px solid #fde68a;
+        }
+        .section-title {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #0C53ED;
+          font-weight: 700;
+          text-transform: uppercase;
+          font-size: 14px;
+          letter-spacing: 0.05em;
+          margin-bottom: 16px;
+        }
+        .details-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 32px;
+          margin-bottom: 32px;
+        }
+        .service-details {
+          flex: 1;
+        }
+        .address-text {
+          color: #0f172a;
+          line-height: 1.6;
+          margin-top: 4px;
+        }
+        .details-row {
+          display: flex;
+          gap: 16px;
+          margin-top: 16px;
+        }
+        .details-item {
+          flex: 1;
+        }
+        .addon-badges {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 8px;
+        }
+        .addon-badge {
+          display: inline-flex;
+          align-items: center;
+          padding: 4px 10px;
+          border-radius: 9999px;
+          font-size: 12px;
+          font-weight: 500;
+          background-color: #dbeafe;
+          color: #1e40af;
+          border: 1px solid #93c5fd;
+        }
+        .cleaner-assignment-card {
+          background-color: #fee2e2;
+          border-radius: 12px;
+          padding: 20px;
+          border: 1px solid #fecaca;
+          border-left: 4px solid #ef4444;
+        }
+        .cleaner-assignment-card.assigned {
+          background-color: #dbeafe;
+          border: 1px solid #bfdbfe;
+          border-left: 4px solid #0C53ED;
+        }
+        .payment-section {
+          background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+          border-radius: 12px;
+          padding: 24px;
+          margin-bottom: 32px;
+          border: 2px solid #0C53ED;
+        }
+        .payment-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 16px;
+        }
+        .total-amount {
+          font-size: 24px;
+          font-weight: 700;
+          color: #0f172a;
+        }
+        .next-steps {
+          background-color: #fef3c7;
+          border-radius: 12px;
+          padding: 24px;
+          margin-bottom: 32px;
+          border: 1px solid #fde68a;
+          border-left: 4px solid #f59e0b;
+        }
+        .next-steps-title {
+          font-weight: 700;
+          color: #92400e;
+          margin-bottom: 12px;
+        }
+        .next-steps-list {
+          list-style: none;
+          padding: 0;
+        }
+        .next-steps-list li {
+          padding: 6px 0;
+          color: #78350f;
+        }
+        .footer {
+          background-color: #0f172a;
+          padding: 32px;
+          text-align: center;
+          color: white;
+        }
+        .footer-text {
+          color: #94a3b8;
+          font-size: 14px;
+          line-height: 1.75;
+          margin-bottom: 8px;
+        }
+        .footer-timestamp {
+          color: #64748b;
+          font-size: 12px;
+        }
+        @media only screen and (max-width: 600px) {
+          body {
+            padding: 10px;
+          }
+          .header {
+            padding: 24px 16px;
+          }
+          .header h1 {
+            font-size: 24px;
+          }
+          .header p {
+            font-size: 16px;
+          }
+          .status-banner {
+            padding: 12px 16px;
+          }
+          .content {
+            padding: 24px 16px;
+          }
+          .info-grid {
+            grid-template-columns: 1fr;
+            gap: 16px;
+          }
+          .details-grid {
+            grid-template-columns: 1fr;
+            gap: 24px;
+          }
+        }
       </style>
     </head>
     <body>
-      <div class="header">
-        <h1>🔔 New Booking Received!</h1>
-        <p>Shalean Cleaning Services - Admin Notification</p>
-      </div>
-      
-      <div class="content">
-        <div class="urgent">
-          <strong>⚠️ ACTION REQUIRED</strong> - New booking needs confirmation
-        </div>
-        
-        <p>A new cleaning service has been booked and requires your attention.</p>
-        
-        <div class="contact-info">
-          <h3>Customer Contact Information</h3>
-          <p><strong>Name:</strong> ${booking.firstName} ${booking.lastName}</p>
-          <p><strong>Email:</strong> <a href="mailto:${booking.email}">${booking.email}</a></p>
-          <p><strong>Phone:</strong> <a href="tel:${booking.phone}">${booking.phone}</a></p>
-        </div>
-        
-        <div class="booking-details">
-          <h3>Booking Details</h3>
-          <p><strong>Booking ID:</strong> ${booking.bookingId}</p>
-          <p><strong>Service Type:</strong> ${booking.service}</p>
-          <p><strong>Date:</strong> ${booking.date ? new Date(booking.date).toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'Not specified'}</p>
-          <p><strong>Time:</strong> ${booking.time || 'Not specified'}</p>
-          
-          <h4>Service Address</h4>
-          <p>
-            ${booking.address.line1}<br>
-            ${booking.address.suburb}<br>
-            ${booking.address.city}
-          </p>
-          
-          <h4>Home Details</h4>
-          <p><strong>Bedrooms:</strong> ${booking.bedrooms}</p>
-          <p><strong>Bathrooms:</strong> ${booking.bathrooms}</p>
-          
-          ${booking.extras.length > 0 ? `
-            <h4>Additional Services</h4>
-            <ul>
-              ${booking.extras.map(extra => `<li>${extra}</li>`).join('')}
-            </ul>
-          ` : ''}
-          
-          ${booking.notes ? `<h4>Special Instructions</h4><p>${booking.notes}</p>` : ''}
-
-          <h4>Cleaner Assignment</h4>
-          ${booking.cleaner_id === 'manual' ? `
-            <div style="background-color: #ffebee; padding: 10px; border-radius: 4px; border-left: 4px solid #f44336;">
-              <p style="margin: 0;"><strong>⚠️ MANUAL CLEANER ASSIGNMENT REQUIRED</strong></p>
-              <p style="margin: 5px 0 0 0; font-size: 14px;">Customer requested manual assignment. Please assign a cleaner for this booking.</p>
+      <div class="email-container">
+        <!-- Header Section -->
+        <div class="header">
+          <div class="header-icon-wrapper">
+            <div class="header-icon-circle">
+              <div class="header-icon">🔔</div>
             </div>
-          ` : booking.cleaner_id ? `
-            <p>✅ Cleaner ID: ${booking.cleaner_id}</p>
-          ` : `
-            <p>⚠️ No cleaner assigned yet</p>
-          `}
+          </div>
+          <h1>New Booking Received!</h1>
+          <p>Shalean Cleaning Services - Admin Notification</p>
         </div>
-        
-        <div class="order-summary">
-          <h3>Pricing Summary</h3>
-          <p><strong>Total Amount: R${totalPrice.toFixed(2)}</strong></p>
-          <div class="total">Customer will pay: R${totalPrice.toFixed(2)}</div>
+
+        <!-- Status Banner -->
+        <div class="status-banner">
+          <div class="status-banner-content">
+            <strong>⚠️ ACTION REQUIRED</strong> - New booking needs confirmation
+          </div>
         </div>
-        
-        <div class="urgent">
-          <strong>Next Steps:</strong><br>
-          ${booking.cleaner_id === 'manual' ? '⚠️ 1. ASSIGN CLEANER MANUALLY<br>' : ''}
-          ${booking.cleaner_id === 'manual' ? '2' : '1'}. Contact customer within 24 hours<br>
-          ${booking.cleaner_id === 'manual' ? '3' : '2'}. Confirm appointment and availability<br>
-          ${booking.cleaner_id === 'manual' ? '4' : '3'}. ${booking.paymentReference ? 'Payment already received' : 'Send payment link/details'}<br>
-          ${booking.cleaner_id === 'manual' ? '5' : '4'}. Schedule team assignment
+
+        <!-- Content Body -->
+        <div class="content">
+          <div class="greeting">
+            <p>A new cleaning service has been booked and requires your attention.</p>
+          </div>
+
+          <!-- Customer Contact Card -->
+          <div class="contact-card">
+            <div class="section-title">
+              <span>👤</span>
+              <span>Customer Contact Information</span>
+            </div>
+            <div class="info-grid">
+              <div class="info-item">
+                <span class="info-label">Name</span>
+                <span class="info-value">${booking.firstName} ${booking.lastName}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Email</span>
+                <span class="info-value"><a href="mailto:${booking.email}" style="color: #0C53ED;">${booking.email}</a></span>
+              </div>
+              <div class="info-item full-width">
+                <span class="info-label">Phone</span>
+                <span class="info-value"><a href="tel:${booking.phone}" style="color: #0C53ED;">${booking.phone}</a></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Booking Summary Card -->
+          <div class="booking-summary-card">
+            <div class="section-header">
+              <span>📋</span>
+              <span>Booking Details</span>
+            </div>
+            
+            <div class="info-grid">
+              <div class="info-item">
+                <span class="info-label">Booking ID</span>
+                <span class="info-value">${booking.bookingId}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Service Type</span>
+                <span class="info-value">${booking.service || 'N/A'}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Date</span>
+                <div class="info-value-with-icon">
+                  <span>📅</span>
+                  <span>${formattedDate}</span>
+                </div>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Time</span>
+                <div class="info-value-with-icon">
+                  <span>🕐</span>
+                  <span>${formattedTime}</span>
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-top: 24px;">
+              <div class="section-header" style="margin-bottom: 12px;">
+                <span>📍</span>
+                <span>Service Address</span>
+              </div>
+              <div class="address-text">
+                ${booking.address.line1}<br>
+                ${booking.address.suburb}<br>
+                ${booking.address.city}
+              </div>
+            </div>
+
+            <div class="details-row" style="margin-top: 24px;">
+              <div class="details-item">
+                <span class="info-label">Bedrooms</span>
+                <div class="info-value">${booking.bedrooms}</div>
+              </div>
+              <div class="details-item">
+                <span class="info-label">Bathrooms</span>
+                <div class="info-value">${booking.bathrooms}</div>
+              </div>
+            </div>
+
+            ${booking.extras.length > 0 ? `
+            <div style="margin-top: 24px;">
+              <span class="info-label">Additional Services</span>
+              <div class="addon-badges">
+                ${booking.extras.map(extra => `<span class="addon-badge">${extra}</span>`).join('')}
+              </div>
+            </div>
+            ` : ''}
+
+            ${booking.notes ? `
+            <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e2e8f0;">
+              <span class="info-label">Special Instructions</span>
+              <p style="color: #334155; line-height: 1.6; margin-top: 8px;">${booking.notes}</p>
+            </div>
+            ` : ''}
+
+            <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e2e8f0;">
+              <span class="info-label">Cleaner Assignment</span>
+              ${booking.cleaner_id === 'manual' ? `
+              <div class="cleaner-assignment-card">
+                <div style="font-weight: 700; color: #991b1b; margin-bottom: 4px;">⚠️ MANUAL CLEANER ASSIGNMENT REQUIRED</div>
+                <div style="font-size: 14px; color: #7f1d1d;">Customer requested manual assignment. Please assign a cleaner for this booking.</div>
+              </div>
+              ` : booking.cleaner_id ? `
+              <div class="cleaner-assignment-card assigned" style="margin-top: 12px;">
+                <div style="font-weight: 600; color: #1e40af; margin-bottom: 4px;">✅ Cleaner Assigned</div>
+                <div style="font-size: 14px; color: #1e3a8a;">Cleaner ID: ${booking.cleaner_id}</div>
+              </div>
+              ` : `
+              <div class="cleaner-assignment-card" style="margin-top: 12px;">
+                <div style="font-weight: 600; color: #991b1b; margin-bottom: 4px;">⚠️ No Cleaner Assigned Yet</div>
+                <div style="font-size: 14px; color: #7f1d1d;">Please assign a cleaner to this booking.</div>
+              </div>
+              `}
+            </div>
+          </div>
+
+          <!-- Payment Summary -->
+          <div class="payment-section">
+            <div class="payment-header">
+              <div class="section-title" style="color: #1e40af;">
+                <span>💰</span>
+                <span>Pricing Summary</span>
+              </div>
+              <p class="total-amount">R${totalPrice.toFixed(2)}</p>
+            </div>
+            <p style="text-align: center; color: #334155; font-weight: 600; margin-top: 8px;">Customer will pay: R${totalPrice.toFixed(2)}</p>
+          </div>
+
+          <!-- Next Steps -->
+          <div class="next-steps">
+            <div class="next-steps-title">Next Steps:</div>
+            <ul class="next-steps-list">
+              ${booking.cleaner_id === 'manual' ? '<li>⚠️ 1. ASSIGN CLEANER MANUALLY</li>' : ''}
+              <li>${booking.cleaner_id === 'manual' ? '2' : '1'}. Contact customer within 24 hours</li>
+              <li>${booking.cleaner_id === 'manual' ? '3' : '2'}. Confirm appointment and availability</li>
+              <li>${booking.cleaner_id === 'manual' ? '4' : '3'}. ${booking.paymentReference ? 'Payment already received' : 'Send payment link/details'}</li>
+              <li>${booking.cleaner_id === 'manual' ? '5' : '4'}. Schedule team assignment</li>
+            </ul>
+          </div>
         </div>
-      </div>
-      
-      <div class="footer">
-        <p>This is an automated notification from your Shalean Cleaning website.</p>
-        <p>Booking received at: ${new Date().toLocaleString('en-ZA')}</p>
+
+        <!-- Footer -->
+        <div class="footer">
+          <p class="footer-text">This is an automated notification from your Shalean Cleaning website.</p>
+          <p class="footer-timestamp">Booking received at: ${new Date().toLocaleString('en-ZA')}</p>
+        </div>
       </div>
     </body>
     </html>

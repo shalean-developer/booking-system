@@ -136,41 +136,41 @@ export default function ServicesPage() {
             {services.map((service) => {
               const Icon = service.icon;
               return (
-                <article key={service.title} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-                  <Card className="h-full">
-                    <CardContent className="p-8">
-                      <div className={`w-16 h-16 rounded-full ${service.color} flex items-center justify-center mb-6`} aria-hidden="true">
-                        <Icon className={`h-8 w-8 ${service.iconColor}`} />
-                      </div>
-                      <h2 className="text-2xl font-bold text-gray-900 mb-3">{service.title}</h2>
-                      <p className="text-gray-600 mb-6">{service.description}</p>
-                      
-                      <div className="mb-6">
-                        <h3 className="text-sm font-semibold text-gray-700 mb-3">What's Included:</h3>
-                        <ul className="space-y-2">
-                          {service.features.map((feature, index) => (
-                            <li key={index} className="flex items-center text-sm text-gray-600">
-                              <CheckCircle className="h-4 w-4 text-primary mr-2 flex-shrink-0" aria-hidden="true" />
-                              {feature}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-4 border-t">
-                        <div>
-                          <div className="text-sm text-gray-500">Starting at</div>
-                          <div className="text-2xl font-bold text-primary">{service.pricing}</div>
+                <article key={service.title}>
+                  <Link href={service.link} className="block h-full">
+                    <Card className="h-full border-0 shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
+                      <CardContent className="p-8">
+                        <div className={`w-16 h-16 rounded-full ${service.color} flex items-center justify-center mb-6`} aria-hidden="true">
+                          <Icon className={`h-8 w-8 ${service.iconColor}`} />
                         </div>
-                        <Button asChild className="bg-primary hover:bg-primary/90">
-                          <Link href={service.link}>
+                        <h2 className="text-2xl font-bold text-gray-900 mb-3">{service.title}</h2>
+                        <p className="text-gray-600 mb-6">{service.description}</p>
+                        
+                        <div className="mb-6">
+                          <h3 className="text-sm font-semibold text-gray-700 mb-3">What's Included:</h3>
+                          <ul className="space-y-2">
+                            {service.features.map((feature, index) => (
+                              <li key={index} className="flex items-center text-sm text-gray-600">
+                                <CheckCircle className="h-4 w-4 text-primary mr-2 flex-shrink-0" aria-hidden="true" />
+                                {feature}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-4 border-t">
+                          <div>
+                            <div className="text-sm text-gray-500">Starting at</div>
+                            <div className="text-2xl font-bold text-primary">{service.pricing}</div>
+                          </div>
+                          <Button className="bg-primary hover:bg-primary/90 pointer-events-none">
                             View {service.title} Details
                             <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
-                          </Link>
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
                 </article>
               );
             })}

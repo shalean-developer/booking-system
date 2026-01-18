@@ -1,14 +1,39 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, Calculator, Info } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { PRICING } from '@/lib/pricing';
+import { PRICING, getCurrentPricing } from '@/lib/pricing';
+import type { PricingData } from '@/lib/pricing';
 
 export function PricingContent() {
   const exampleBedrooms = 2;
   const exampleBathrooms = 2;
+  
+  // State for database pricing
+  const [pricingData, setPricingData] = useState<PricingData | null>(null);
+  const [isLoadingPricing, setIsLoadingPricing] = useState(true);
+
+  // Fetch pricing from database on mount
+  useEffect(() => {
+    const fetchPricing = async () => {
+      try {
+        setIsLoadingPricing(true);
+        const data = await getCurrentPricing();
+        setPricingData(data);
+      } catch (error) {
+        console.error('Failed to fetch pricing from database:', error);
+        // Fallback to static PRICING
+        setPricingData(PRICING as PricingData);
+      } finally {
+        setIsLoadingPricing(false);
+      }
+    };
+    
+    fetchPricing();
+  }, []);
 
   const services = [
     {
@@ -100,9 +125,13 @@ export function PricingContent() {
     }
   ];
 
-  const extras = Object.entries(PRICING.extras).map(([name, price]) => ({
+  // Use database pricing if available, otherwise fallback to static PRICING
+  const activePricing = pricingData || PRICING as PricingData;
+  
+  // Ensure extras is properly extracted from pricing (database or fallback)
+  const extras = Object.entries(activePricing.extras || {}).map(([name, price]) => ({
     name,
-    price
+    price: typeof price === 'number' ? price : 0
   }));
 
   return (
@@ -210,7 +239,7 @@ export function PricingContent() {
                 size="lg"
                 asChild
               >
-                <Link href={`/booking/service/standard/details?service=${service.type}`}>
+                <Link href={`/booking/standard?service=${service.type}`}>
                   Book {service.name}
                 </Link>
               </Button>
@@ -229,17 +258,23 @@ export function PricingContent() {
             Additional Services & Extras
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {extras.map((extra, index) => (
-              <div
-                key={extra.name}
-                className="bg-white rounded-lg shadow p-4 border border-gray-200"
-              >
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-900 font-medium">{extra.name}</span>
-                  <span className="text-primary font-bold">R{extra.price}</span>
+            {extras.length > 0 ? (
+              extras.map((extra, index) => (
+                <div
+                  key={extra.name || index}
+                  className="bg-white rounded-lg shadow p-4 border border-gray-200"
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-900 font-medium">{extra.name}</span>
+                    <span className="text-primary font-bold">R{extra.price}</span>
+                  </div>
                 </div>
+              ))
+            ) : (
+              <div className="col-span-full text-center text-gray-500 py-8">
+                No additional services available at this time.
               </div>
-            ))}
+            )}
           </div>
         </motion.div>
 
@@ -366,7 +401,7 @@ export function PricingContent() {
               className="bg-primary hover:bg-primary/90 text-white"
               asChild
             >
-              <Link href="/booking/service/standard/details">Get Instant Quote</Link>
+              <Link href="/booking/standard">Get Instant Quote</Link>
             </Button>
             <Button
               size="lg"
