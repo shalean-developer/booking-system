@@ -2,6 +2,25 @@
 
 import { RecurringSchedule, Frequency } from '@/types/recurring';
 
+export type RecurringScheduleRuleLike = {
+  day_of_week: number; // 0=Sunday..6=Saturday
+  preferred_time: string; // "HH:MM"
+};
+
+export type BookingOccurrence = {
+  date: Date;
+  time: string; // "HH:MM"
+  day_of_week: number; // 0=Sunday..6=Saturday
+};
+
+export type RollingWindowOptions = {
+  /**
+   * Number of days to include starting from `startDate`.
+   * Example: 30 means [startDate, startDate+30d) (end-exclusive).
+   */
+  days?: number;
+};
+
 /**
  * Calculate all booking dates for a given month based on recurring schedule
  */
@@ -33,6 +52,142 @@ export function calculateBookingDatesForMonth(
   }
 
   return dates.sort((a, b) => a.getTime() - b.getTime());
+}
+
+/**
+ * Calculate booking occurrences (date + time) for a month.
+ * - For non-custom schedules, time is `schedule.preferred_time`.
+ * - For custom schedules, if `rules` are provided, each weekday can have its own time.
+ *   If `rules` are not provided, fall back to `schedule.days_of_week` + `schedule.preferred_time`.
+ */
+export function calculateBookingOccurrencesForMonth(
+  schedule: RecurringSchedule,
+  year: number,
+  month: number,
+  rules?: RecurringScheduleRuleLike[]
+): BookingOccurrence[] {
+  const startDate = new Date(year, month - 1, 1); // First day of month
+  const endDate = new Date(year, month, 0); // Last day of month
+  const occurrences: BookingOccurrence[] = [];
+
+  // Helper: list all dates in [startDate..endDate] matching weekday
+  const datesForWeekdayInMonth = (weekday: number): Date[] => {
+    const dates: Date[] = [];
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      if (currentDate.getDay() === weekday) {
+        dates.push(new Date(currentDate));
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    return dates;
+  };
+
+  switch (schedule.frequency) {
+    case 'weekly': {
+      const dates = calculateWeeklyDates(schedule, startDate, endDate);
+      for (const d of dates) {
+        occurrences.push({ date: d, time: schedule.preferred_time, day_of_week: d.getDay() });
+      }
+      break;
+    }
+    case 'bi-weekly': {
+      const dates = calculateBiWeeklyDates(schedule, startDate, endDate);
+      for (const d of dates) {
+        occurrences.push({ date: d, time: schedule.preferred_time, day_of_week: d.getDay() });
+      }
+      break;
+    }
+    case 'monthly': {
+      const dates = calculateMonthlyDates(schedule, startDate, endDate);
+      for (const d of dates) {
+        occurrences.push({ date: d, time: schedule.preferred_time, day_of_week: d.getDay() });
+      }
+      break;
+    }
+    case 'custom-weekly': {
+      const usableRules =
+        (rules && rules.length > 0)
+          ? rules
+          : (schedule.days_of_week || []).map((day) => ({ day_of_week: day, preferred_time: schedule.preferred_time }));
+
+      for (const rule of usableRules) {
+        const dates = datesForWeekdayInMonth(rule.day_of_week);
+        for (const d of dates) {
+          occurrences.push({ date: d, time: rule.preferred_time, day_of_week: rule.day_of_week });
+        }
+      }
+      break;
+    }
+    case 'custom-bi-weekly': {
+      const usableRules =
+        (rules && rules.length > 0)
+          ? rules
+          : (schedule.days_of_week || []).map((day) => ({ day_of_week: day, preferred_time: schedule.preferred_time }));
+
+      const scheduleStartDate = new Date(schedule.start_date);
+      for (const rule of usableRules) {
+        // Find the first occurrence of this weekday after schedule start
+        const firstOccurrence = new Date(scheduleStartDate);
+        while (firstOccurrence.getDay() !== rule.day_of_week) {
+          firstOccurrence.setDate(firstOccurrence.getDate() + 1);
+        }
+
+        // Every 14 days from first occurrence
+        const currentDate = new Date(firstOccurrence);
+        while (currentDate <= endDate) {
+          if (currentDate >= startDate) {
+            occurrences.push({ date: new Date(currentDate), time: rule.preferred_time, day_of_week: rule.day_of_week });
+          }
+          currentDate.setDate(currentDate.getDate() + 14);
+        }
+      }
+      break;
+    }
+  }
+
+  return occurrences.sort((a, b) => a.date.getTime() - b.date.getTime());
+}
+
+/**
+ * Calculate booking occurrences for a rolling window starting at `startDate`.
+ * This is used for "pay once" recurring checkout where we create multiple bookings
+ * for the next N days (default: 30 days) and invoice the total up-front.
+ *
+ * Notes:
+ * - Uses end-exclusive range: [startDate, endDateExclusive)
+ * - Internally composes month-based calculations and filters to the rolling window.
+ */
+export function calculateBookingOccurrencesForRollingWindow(
+  schedule: RecurringSchedule,
+  startDate: Date,
+  rules?: RecurringScheduleRuleLike[],
+  options?: RollingWindowOptions
+): BookingOccurrence[] {
+  const days = Math.max(1, Math.floor(options?.days ?? 30));
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
+
+  const endExclusive = new Date(start);
+  endExclusive.setDate(endExclusive.getDate() + days);
+  endExclusive.setHours(0, 0, 0, 0);
+
+  // Iterate month-by-month from start..endExclusive (inclusive months)
+  const occurrences: BookingOccurrence[] = [];
+  const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+  const endMonthCursor = new Date(endExclusive.getFullYear(), endExclusive.getMonth(), 1);
+
+  while (cursor <= endMonthCursor) {
+    const year = cursor.getFullYear();
+    const month = cursor.getMonth() + 1; // 1-12
+    const monthOccurrences = calculateBookingOccurrencesForMonth(schedule, year, month, rules);
+    occurrences.push(...monthOccurrences);
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+
+  return occurrences
+    .filter((occ) => occ.date >= start && occ.date < endExclusive)
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
 }
 
 /**
