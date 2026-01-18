@@ -3,7 +3,7 @@
  * Provides offline support and caching for customer and cleaner dashboards
  */
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const CACHE_NAME = `shalean-app-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `shalean-runtime-${CACHE_VERSION}`;
 const DATA_CACHE = `shalean-data-${CACHE_VERSION}`;
@@ -112,6 +112,12 @@ self.addEventListener('fetch', (event) => {
   
   // Skip admin API routes entirely - let them go directly to network
   if (url.pathname.startsWith('/api/admin/')) {
+    return;
+  }
+
+  // Next.js JavaScript chunks and booking routes - Network first for fresh code
+  if (url.pathname.startsWith('/_next/static/') || url.pathname.startsWith('/booking')) {
+    event.respondWith(networkFirstStrategy(request, RUNTIME_CACHE));
     return;
   }
 
