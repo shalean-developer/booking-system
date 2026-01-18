@@ -1021,28 +1021,30 @@ function BookingFlow(props: BookingFlowProps = {}) {
       
       // Update state, preserving all existing values
       setState((prev) => {
-        const newState = {
+        const mergedState = {
           ...prev,
           step: prevStep,
           // Merge with saved state to restore any previously entered values
           ...(savedState || {}),
         };
         // Ensure step is set to previous step
-        newState.step = prevStep;
+        mergedState.step = prevStep;
         // Save updated state
-        saveSessionState(activeSessionId, newState);
-        return newState;
+        saveSessionState(activeSessionId, mergedState);
+        
+        // Navigate with merged state (not stale state)
+        if (mergedState.serviceType) {
+          const url = getBookingUrlWithSession(
+            mergedState.serviceType,
+            getStepName(prevStep),
+            activeSessionId,
+            mergedState
+          );
+          router.replace(url);
+        }
+        
+        return mergedState;
       });
-
-      if (state.serviceType) {
-        const url = getBookingUrlWithSession(
-          state.serviceType,
-          getStepName(prevStep),
-          activeSessionId,
-          state
-        );
-        router.replace(url);
-      }
     } else if (state.step === 0) {
       // First step - go back to service selection
       updateField('serviceType', null);
