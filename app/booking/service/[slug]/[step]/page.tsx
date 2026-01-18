@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 
-import BookingFlow from '@/components/booking-flow';
+import { BookingFlowContent } from './booking-flow-content';
 import { getBookingUrl, isValidStep, type BookingStepName } from '@/lib/booking-utils';
 import { createMetadata, generateCanonical } from '@/lib/metadata';
 
