@@ -66,10 +66,6 @@ export async function generateMetadata({
   });
 }
 
-function BookingFlowContent({ slug, step }: { slug: string; step: string }) {
-  return <BookingFlow initialServiceSlug={slug} initialStep={step} />;
-}
-
 export default async function BookingServiceStepPage({
   params,
 }: {
