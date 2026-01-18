@@ -489,7 +489,9 @@ function BookingFlow(props: BookingFlowProps = {}) {
 
     // URL params override defaults (direct-entry SEO URLs must be authoritative)
     const urlServiceSlug = typeof props.initialServiceSlug === 'string' ? props.initialServiceSlug : null;
-    const urlStep = typeof props.initialStep === 'string' ? props.initialStep : null;
+    // Extract step from pathname: /booking/[slug]/[step]
+    const pathParts = pathname ? pathname.split('/').filter(Boolean) : [];
+    const urlStep = pathParts.length >= 3 && pathParts[0] === 'booking' && isValidStep(pathParts[2]) ? pathParts[2] : null;
     const hasValidUrlService =
       !!urlServiceSlug && Object.prototype.hasOwnProperty.call(serviceSlugToType, urlServiceSlug);
     const hasValidUrlStep = !!urlStep && isValidStep(urlStep);
