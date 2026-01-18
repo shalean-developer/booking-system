@@ -70,3 +70,133 @@ export function requiresTeam(service: ServiceType | null): boolean {
   return service === 'Deep' || service === 'Move In/Out';
 }
 
+/**
+ * Booking step names and mappings
+ */
+export type BookingStepName = 'details' | 'schedule' | 'contact' | 'cleaner' | 'review';
+
+const STEP_NAMES: BookingStepName[] = ['details', 'schedule', 'contact', 'cleaner', 'review'];
+
+/**
+ * Convert step number to step name
+ */
+export function getStepName(stepNumber: number): BookingStepName {
+  if (stepNumber < 0 || stepNumber >= STEP_NAMES.length) {
+    return 'details';
+  }
+  return STEP_NAMES[stepNumber];
+}
+
+/**
+ * Convert step name to step number
+ */
+export function getStepNumber(stepName: string): number {
+  const index = STEP_NAMES.indexOf(stepName as BookingStepName);
+  return index >= 0 ? index : 0;
+}
+
+/**
+ * Get next step name
+ */
+export function getNextStep(currentStep: string): BookingStepName | null {
+  const currentIndex = STEP_NAMES.indexOf(currentStep as BookingStepName);
+  if (currentIndex < 0 || currentIndex >= STEP_NAMES.length - 1) {
+    return null;
+  }
+  return STEP_NAMES[currentIndex + 1];
+}
+
+/**
+ * Get previous step name
+ */
+export function getPreviousStep(currentStep: string): BookingStepName | null {
+  const currentIndex = STEP_NAMES.indexOf(currentStep as BookingStepName);
+  if (currentIndex <= 0) {
+    return null;
+  }
+  return STEP_NAMES[currentIndex - 1];
+}
+
+/**
+ * Validate step name
+ */
+export function isValidStep(step: string): boolean {
+  return STEP_NAMES.includes(step as BookingStepName);
+}
+
+/**
+ * Generate booking URL
+ */
+export function getBookingUrl(slug: string, step: BookingStepName): string {
+  return `/booking/service/${slug}/${step}`;
+}
+
+/**
+ * Generate booking URL with session ID and optional state parameters
+ */
+export function getBookingUrlWithSession(
+  slug: string,
+  step: BookingStepName,
+  sessionId?: string | null,
+  state?: {
+    bedrooms?: number;
+    bathrooms?: number;
+    offices?: number;
+    numberOfCleaners?: number;
+    provideEquipment?: boolean;
+    date?: string | null;
+    timeSlot?: string | null;
+    frequency?: string;
+    recurringFrequency?: string | null;
+    recurringDays?: number[];
+    recurringTimesByDay?: Record<number, string>;
+    selectedCleanerId?: string | null;
+  }
+): string {
+  const baseUrl = `/booking/service/${slug}/${step}`;
+  
+  if (!sessionId && !state) {
+    return baseUrl;
+  }
+  
+  // Build search params synchronously using URLSearchParams
+  const params = new URLSearchParams();
+  if (sessionId) {
+    params.set('sid', sessionId);
+  }
+  
+  if (state) {
+    if (state.bedrooms !== undefined && state.bedrooms !== 1) params.set('br', state.bedrooms.toString());
+    if (state.bathrooms !== undefined && state.bathrooms !== 1) params.set('bh', state.bathrooms.toString());
+    if (state.offices !== undefined && state.offices !== 0) params.set('of', state.offices.toString());
+    if (state.numberOfCleaners !== undefined && state.numberOfCleaners !== 1) params.set('cl', state.numberOfCleaners.toString());
+    if (state.provideEquipment) params.set('eq', '1');
+    if (state.date) params.set('d', state.date);
+    if (state.timeSlot) params.set('t', state.timeSlot);
+    if (state.frequency && state.frequency !== 'one-time') {
+      const freqMap: Record<string, string> = {
+        'one-time': 'ot',
+        'weekly': 'w',
+        'bi-weekly': 'bw',
+        'monthly': 'm',
+      };
+      params.set('f', freqMap[state.frequency] || state.frequency);
+    }
+    if (state.recurringDays && state.recurringDays.length > 0) {
+      params.set('rd', state.recurringDays.join(','));
+      if (state.recurringTimesByDay) {
+        const times = state.recurringDays
+          .map(day => state.recurringTimesByDay?.[day])
+          .filter(Boolean) as string[];
+        if (times.length > 0) {
+          params.set('rt', times.join(','));
+        }
+      }
+    }
+    if (state.selectedCleanerId) params.set('clid', state.selectedCleanerId);
+  }
+  
+  const searchString = params.toString();
+  return searchString ? `${baseUrl}?${searchString}` : baseUrl;
+}
+
