@@ -21,7 +21,7 @@ export function PricingContent() {
                    (exampleBedrooms * PRICING.services.Standard.bedroom) + 
                    (exampleBathrooms * PRICING.services.Standard.bathroom) + 
                    PRICING.serviceFee,
-      description: 'Regular home cleaning to keep your space fresh and organized',
+      description: 'Regular upkeep for your home',
       features: [
         'Dusting and vacuuming all surfaces',
         'Bathroom cleaning and sanitization',
@@ -42,7 +42,7 @@ export function PricingContent() {
                    (exampleBedrooms * PRICING.services.Deep.bedroom) + 
                    (exampleBathrooms * PRICING.services.Deep.bathroom) + 
                    PRICING.serviceFee,
-      description: 'Thorough, intensive cleaning that tackles every corner and surface',
+      description: 'Intensive cleaning for every corner',
       features: [
         'Inside all appliances (fridge, oven, microwave)',
         'Baseboards, window sills, and ledges',
@@ -64,7 +64,7 @@ export function PricingContent() {
                    (exampleBedrooms * PRICING.services['Move In/Out'].bedroom) + 
                    (exampleBathrooms * PRICING.services['Move In/Out'].bathroom) + 
                    PRICING.serviceFee,
-      description: 'Complete cleaning for property transitions',
+      description: 'Perfect for switching homes',
       features: [
         'Full deep cleaning service',
         'Inside all cabinets and closets',
@@ -86,7 +86,7 @@ export function PricingContent() {
                    (exampleBedrooms * PRICING.services.Airbnb.bedroom) + 
                    (exampleBathrooms * PRICING.services.Airbnb.bathroom) + 
                    PRICING.serviceFee,
-      description: 'Professional turnover cleaning for short-term rentals',
+      description: 'Professional rental preparation',
       features: [
         'Guest-ready standard cleaning',
         'Linen change and bed making',

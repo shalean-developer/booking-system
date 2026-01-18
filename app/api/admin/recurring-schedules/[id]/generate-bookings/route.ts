@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase-server';
 import { isAdmin } from '@/lib/supabase-server';
-import { calculateBookingDatesForMonth, getMonthYearString } from '@/lib/recurring-bookings';
+import { calculateBookingOccurrencesForMonth, getMonthYearString } from '@/lib/recurring-bookings';
 import { calcTotalAsync } from '@/lib/pricing';
 import { generateUniqueBookingId } from '@/lib/booking-id';
 import type { RecurringSchedule } from '@/types/recurring';
@@ -113,18 +113,33 @@ export async function POST(
       );
     }
 
-    // Calculate booking dates for target month
-    const bookingDates = calculateBookingDatesForMonth(schedule as RecurringSchedule, targetYear, targetMonth);
+    // Fetch per-day rules for custom schedules (optional, enables different times per weekday)
+    let rules: Array<{ day_of_week: number; preferred_time: string }> | undefined;
+    if (schedule.frequency === 'custom-weekly' || schedule.frequency === 'custom-bi-weekly') {
+      const { data: rulesData, error: rulesError } = await supabase
+        .from('recurring_schedule_rules')
+        .select('day_of_week, preferred_time')
+        .eq('schedule_id', id);
 
-    // Filter dates that fall within schedule's start_date and end_date
+      if (rulesError) {
+        console.error('Error fetching recurring schedule rules:', rulesError);
+      } else {
+        rules = (rulesData || []).map((r: any) => ({ day_of_week: r.day_of_week, preferred_time: r.preferred_time }));
+      }
+    }
+
+    // Calculate booking occurrences for target month (date + time)
+    const occurrences = calculateBookingOccurrencesForMonth(schedule as RecurringSchedule, targetYear, targetMonth, rules);
+
+    // Filter occurrences that fall within schedule's start_date and end_date
     const scheduleStartDate = new Date(schedule.start_date);
-    const validDates = bookingDates.filter((date) => {
-      if (date < scheduleStartDate) return false;
-      if (schedule.end_date && date > new Date(schedule.end_date)) return false;
+    const validOccurrences = occurrences.filter((occ) => {
+      if (occ.date < scheduleStartDate) return false;
+      if (schedule.end_date && occ.date > new Date(schedule.end_date)) return false;
       return true;
     });
 
-    if (validDates.length === 0) {
+    if (validOccurrences.length === 0) {
       return NextResponse.json({
         ok: true,
         message: `No valid booking dates for ${monthYear}`,
@@ -196,7 +211,7 @@ export async function POST(
     }
 
     // Check for existing bookings to avoid duplicates
-    const dateStrings = validDates.map((d) => d.toISOString().split('T')[0]);
+    const dateStrings = validOccurrences.map((o) => o.date.toISOString().split('T')[0]);
     const { data: existingBookings } = await supabase
       .from('bookings')
       .select('booking_date')
@@ -208,15 +223,15 @@ export async function POST(
     );
 
     // Create bookings for each valid date
-    const bookingsToCreate = validDates
-      .filter((date) => {
-        const dateStr = date.toISOString().split('T')[0];
+    const bookingsToCreate = validOccurrences
+      .filter((occ) => {
+        const dateStr = occ.date.toISOString().split('T')[0];
         return !existingDates.has(dateStr);
       })
-      .map((date) => {
+      .map((occ) => {
         const bookingId = generateUniqueBookingId();
-        const dateStr = date.toISOString().split('T')[0];
-        const timeStr = schedule.preferred_time;
+        const dateStr = occ.date.toISOString().split('T')[0];
+        const timeStr = occ.time;
 
         // Determine if team booking
         const requiresTeam = schedule.service_type === 'Deep' || schedule.service_type === 'Move In/Out';
@@ -256,7 +271,7 @@ export async function POST(
         ok: true,
         message: `All bookings for ${monthYear} already exist`,
         generatedCount: 0,
-        skippedCount: validDates.length,
+        skippedCount: validOccurrences.length,
       });
     }
 
@@ -283,7 +298,7 @@ export async function POST(
       ok: true,
       message: `Successfully generated ${bookingsToCreate.length} booking(s) for ${monthYear}`,
       generatedCount: bookingsToCreate.length,
-      skippedCount: validDates.length - bookingsToCreate.length,
+      skippedCount: validOccurrences.length - bookingsToCreate.length,
       monthYear,
     });
   } catch (error: any) {

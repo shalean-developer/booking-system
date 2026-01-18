@@ -39,7 +39,7 @@ const BookingsChart = dynamic(
               tick={{ fontSize: 12 }}
             />
             <Tooltip 
-              formatter={(value: number) => [value, 'Bookings']}
+              formatter={(value: number | undefined) => [value ?? 0, 'Bookings']}
               labelStyle={{ color: '#000' }}
             />
             <Legend />

@@ -23,10 +23,10 @@ CREATE INDEX IF NOT EXISTS idx_services_active ON services(is_active, display_or
 -- Insert default service configurations
 INSERT INTO services (service_type, display_name, icon, image_url, display_order, description, is_active)
 VALUES
-  ('Standard', 'Standard Cleaning', '🏠', 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&h=600&fit=crop', 1, 'Regular home cleaning to keep your space fresh and organized', true),
-  ('Deep', 'Deep Cleaning', '✨', 'https://images.unsplash.com/photo-1628177142898-93e36e4e3a50?w=800&h=600&fit=crop&auto=format', 2, 'Thorough, intensive cleaning that tackles every corner and surface', true),
-  ('Airbnb', 'Airbnb Cleaning', '🏢', 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=600&fit=crop', 3, 'Professional turnover cleaning for short-term rentals', true),
-  ('Move In/Out', 'Move In/Out Cleaning', '📦', 'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&h=600&fit=crop', 4, 'Complete cleaning for property transitions', true)
+  ('Standard', 'Standard Clean', '🏠', 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&h=600&fit=crop', 1, 'Regular upkeep for your home', true),
+  ('Deep', 'Deep Clean', '✨', 'https://images.unsplash.com/photo-1628177142898-93e36e4e3a50?w=800&h=600&fit=crop&auto=format', 2, 'Intensive cleaning for every corner', true),
+  ('Airbnb', 'Airbnb Turnaround', '🏢', 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=600&fit=crop', 3, 'Professional rental preparation', true),
+  ('Move In/Out', 'Move In/Out', '📦', 'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&h=600&fit=crop', 4, 'Perfect for switching homes', true)
 ON CONFLICT (service_type) DO UPDATE SET
   display_name = EXCLUDED.display_name,
   icon = EXCLUDED.icon,
@@ -37,6 +37,10 @@ ON CONFLICT (service_type) DO UPDATE SET
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE services ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Public can view active services" ON services;
+DROP POLICY IF EXISTS "Admins can manage services" ON services;
 
 -- Create policy for public read access to active services
 CREATE POLICY "Public can view active services" ON services
@@ -70,6 +74,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS services_updated_at_trigger ON services;
 CREATE TRIGGER services_updated_at_trigger
 BEFORE UPDATE ON services
 FOR EACH ROW

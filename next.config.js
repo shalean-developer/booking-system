@@ -12,8 +12,7 @@ const nextConfig = {
   // Note: --webpack flag is set in package.json dev script
   // Empty turbopack config to silence build error (builds will still use webpack)
   turbopack: {},
-  // Enable SWC minification for better performance (enabled by default in Next.js 13+)
-  swcMinify: true,
+  // SWC minification is enabled by default in Next.js 16+, no need to specify
   images: {
     // Remote patterns for external images
     remotePatterns: [
@@ -42,45 +41,15 @@ const nextConfig = {
   // Permanent redirects (301) for SEO
   async redirects() {
     return [
-      // Remove booking-v2 URLs (redirect to canonical booking/service)
-      {
-        source: '/booking-v2/select',
-        destination: '/booking/service/standard/details',
-        permanent: true,
-      },
+      // Remove booking-v2 URLs (redirect to canonical /booking with state-based navigation)
       {
         source: '/booking-v2/confirmation',
         destination: '/booking/confirmation',
         permanent: true,
       },
       {
-        source: '/booking-v2/:slug/details',
-        destination: '/booking/service/:slug/details',
-        permanent: true,
-      },
-      {
-        source: '/booking-v2/:slug/schedule',
-        destination: '/booking/service/:slug/schedule',
-        permanent: true,
-      },
-      {
-        source: '/booking-v2/:slug/contact',
-        destination: '/booking/service/:slug/contact',
-        permanent: true,
-      },
-      {
-        source: '/booking-v2/:slug/review',
-        destination: '/booking/service/:slug/review',
-        permanent: true,
-      },
-      {
-        source: '/booking-v2/:slug/cleaner',
-        destination: '/booking/service/:slug/select-cleaner',
-        permanent: true,
-      },
-      {
         source: '/booking-v2/:path*',
-        destination: '/booking/service/standard/details',
+        destination: '/booking',
         permanent: true,
       },
       // Force apex domain
@@ -154,17 +123,10 @@ const nextConfig = {
         destination: '/services/deep-cleaning',
         permanent: true,
       },
-      // Old booking URLs
-      {
-        source: '/booking',
-        destination: '/booking/service/standard/details',
-        permanent: true,
-      },
-      {
-        source: '/booking/service',
-        destination: '/booking/service/standard/details',
-        permanent: true,
-      },
+      // Old booking URLs - redirect all /booking/service/* to /booking (state-based navigation)
+      // NOTE: Do not redirect /booking/service/* anymore.
+      // These routes are now used for SEO-friendly booking URLs:
+      // /booking/service/:serviceSlug/:step
       // Old booking IDs redirect to confirmation page (format: numbersxnumbers)
       {
         source: '/booking/:id([0-9]+x[0-9]+)',

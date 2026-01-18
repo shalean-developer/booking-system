@@ -4,6 +4,15 @@ export type Frequency = 'weekly' | 'bi-weekly' | 'monthly' | 'custom-weekly' | '
 
 export type BookingType = 'one-time' | 'recurring';
 
+export interface RecurringScheduleRule {
+  id: string;
+  schedule_id: string;
+  day_of_week: number; // 0=Sunday, 1=Monday, etc.
+  preferred_time: string; // HH:MM
+  created_at: string;
+  updated_at: string;
+}
+
 export interface RecurringSchedule {
   id: string;
   customer_id: string;
@@ -13,6 +22,7 @@ export interface RecurringSchedule {
   day_of_month?: number; // 1-31 (for monthly)
   days_of_week?: number[]; // Array of days (0-6) for custom frequencies
   preferred_time: string; // HH:MM format
+  rules?: RecurringScheduleRule[]; // Optional joined rules (per-day preferred time)
   bedrooms: number;
   bathrooms: number;
   extras: string[];

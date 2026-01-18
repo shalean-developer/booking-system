@@ -264,9 +264,9 @@ function HomeDetailsCard({ bedrooms, setBedrooms, bathrooms, setBathrooms }: Hom
                   <SelectValue placeholder="Select bedrooms" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Array.from({ length: 7 }).map((_, i) => (
-                    <SelectItem key={i} value={i.toString()}>
-                      {i} {i === 1 ? 'Bedroom' : 'Bedrooms'}
+                  {[0, 1, 2, 3, 4, 5].map((num) => (
+                    <SelectItem key={num} value={num.toString()}>
+                      {num === 5 ? '5+ Bedrooms' : `${num} ${num === 1 ? 'Bedroom' : 'Bedrooms'}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -281,9 +281,9 @@ function HomeDetailsCard({ bedrooms, setBedrooms, bathrooms, setBathrooms }: Hom
                   <SelectValue placeholder="Select bathrooms" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <SelectItem key={i} value={i.toString()}>
-                      {i} {i === 1 ? 'Bathroom' : 'Bathrooms'}
+                  {[1, 2, 3, 4, 5].map((num) => (
+                    <SelectItem key={num} value={num.toString()}>
+                      {num === 5 ? '5+ Bathrooms' : `${num} ${num === 1 ? 'Bathroom' : 'Bathrooms'}`}
                     </SelectItem>
                   ))}
                 </SelectContent>

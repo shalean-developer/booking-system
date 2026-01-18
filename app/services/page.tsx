@@ -25,7 +25,7 @@ export default function ServicesPage() {
     {
       title: "Regular Cleaning",
       icon: Home,
-      description: "Regular home cleaning to keep your space fresh and organized. Perfect for ongoing maintenance.",
+      description: "Regular upkeep for your home. Perfect for ongoing maintenance.",
       features: ["Dusting & vacuuming", "Kitchen & bathroom cleaning", "Floor mopping", "Surface sanitization"],
       pricing: "From R250",
       link: "/services/regular-cleaning",
@@ -35,7 +35,7 @@ export default function ServicesPage() {
     {
       title: "Deep Cleaning",
       icon: Star,
-      description: "Thorough, intensive cleaning that tackles every corner and surface. Ideal for seasonal refreshes.",
+      description: "Intensive cleaning for every corner. Ideal for seasonal refreshes.",
       features: ["Detailed scrubbing", "Hard-to-reach areas", "Appliance deep clean", "Comprehensive sanitisation"],
       pricing: "From R450",
       link: "/services/deep-cleaning",
@@ -45,7 +45,7 @@ export default function ServicesPage() {
     {
       title: "Move In/Out Cleaning",
       icon: Building,
-      description: "Complete cleaning for property transitions. Make your space move-in ready or get your deposit back.",
+      description: "Perfect for switching homes. Make your space move-in ready or get your deposit back.",
       features: ["Empty space cleaning", "All surfaces detailed", "Appliances inside-out", "Windows & walls"],
       pricing: "From R980",
       link: "/services/move-turnover",
@@ -55,7 +55,7 @@ export default function ServicesPage() {
     {
       title: "Airbnb Cleaning",
       icon: Calendar,
-      description: "Professional turnover cleaning for short-term rentals. Fast, reliable service between guests.",
+      description: "Professional rental preparation. Fast, reliable service between guests.",
       features: ["Quick turnaround", "Linen change", "Guest-ready standards", "Quality inspection"],
       pricing: "From R230",
       link: "/services/airbnb-cleaning",

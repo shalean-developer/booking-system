@@ -40,7 +40,7 @@ const RevenueChart = dynamic(
               tickFormatter={(value) => `R${(value / 100).toFixed(0)}`}
             />
             <Tooltip 
-              formatter={(value: number) => [`R${(value / 100).toFixed(2)}`, 'Revenue']}
+              formatter={(value: number | undefined) => [`R${((value ?? 0) / 100).toFixed(2)}`, 'Revenue']}
               labelStyle={{ color: '#000' }}
             />
             <Legend />

@@ -77,12 +77,15 @@ export async function GET() {
       '✨': 'Star',
       '🏢': 'Building',
       '📅': 'Calendar',
-      '🧹': 'Home',
+      '🧹': 'Sparkles',
       'Home': 'Home',
       'Star': 'Star',
       'Building': 'Building',
       'Calendar': 'Calendar',
+      'Sparkles': 'Sparkles',
     };
+
+    console.log(`[Booking Form API] Fetched ${servicesMetadata?.length || 0} services from database:`, servicesMetadata?.map(s => ({ service_type: s.service_type, display_name: s.display_name, is_active: true })));
 
     const transformedServices = servicesMetadata.map((service) => {
       // Map icon emoji/text to lucide-react icon name
@@ -100,6 +103,8 @@ export async function GET() {
         displayOrder: service.display_order,
       };
     });
+
+    console.log(`[Booking Form API] Returning ${transformedServices.length} transformed services:`, transformedServices.map(s => ({ type: s.type, label: s.label })));
 
     // Transform extras - deduplicate and get most recent price
     const seenExtras = new Map<string, { name: string; price: number; blurb: string }>();

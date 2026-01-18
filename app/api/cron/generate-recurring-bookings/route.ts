@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase-server';
-import { calculateBookingDatesForMonth, getMonthYearString, parseMonthYearString } from '@/lib/recurring-bookings';
+import { calculateBookingOccurrencesForMonth, getMonthYearString } from '@/lib/recurring-bookings';
 import { calcTotalAsync } from '@/lib/pricing';
 import { generateUniqueBookingId } from '@/lib/booking-id';
+import { chargePaystackAuthorization } from '@/lib/paystack-recurring';
 import type { RecurringSchedule } from '@/types/recurring';
 
 export const dynamic = 'force-dynamic';
@@ -47,6 +48,10 @@ function getNextMonth(): { year: number; month: number } {
     year: nextMonth.getFullYear(),
     month: nextMonth.getMonth() + 1,
   };
+}
+
+function generateInvoiceReference(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
 }
 
 export async function GET(req: NextRequest) {
@@ -123,6 +128,31 @@ export async function GET(req: NextRequest) {
     let totalGenerated = 0;
     const errors: string[] = [];
 
+    // Prefetch per-day rules for custom schedules (to support different times per weekday)
+    const customScheduleIds = (schedules as any[])
+      .filter((s) => s?.frequency === 'custom-weekly' || s?.frequency === 'custom-bi-weekly')
+      .map((s) => s.id)
+      .filter(Boolean);
+
+    const rulesByScheduleId = new Map<string, Array<{ day_of_week: number; preferred_time: string }>>();
+    if (customScheduleIds.length > 0) {
+      const { data: rulesData, error: rulesFetchError } = await svc
+        .from('recurring_schedule_rules')
+        .select('schedule_id, day_of_week, preferred_time')
+        .in('schedule_id', customScheduleIds);
+
+      if (rulesFetchError) {
+        console.error('[Cron] Error fetching recurring schedule rules:', rulesFetchError);
+      } else {
+        (rulesData || []).forEach((r: any) => {
+          if (!r?.schedule_id) return;
+          const arr = rulesByScheduleId.get(r.schedule_id) || [];
+          arr.push({ day_of_week: r.day_of_week, preferred_time: r.preferred_time });
+          rulesByScheduleId.set(r.schedule_id, arr);
+        });
+      }
+    }
+
     // Process each schedule
     for (const schedule of schedules as RecurringSchedule[]) {
       try {
@@ -154,7 +184,7 @@ export async function GET(req: NextRequest) {
         // Fetch customer details
         const { data: customer, error: customerError } = await svc
           .from('customers')
-          .select('id, first_name, last_name, email, phone')
+          .select('id, first_name, last_name, email, phone, paystack_authorization_code, paystack_authorization_email, paystack_authorization_reusable, paystack_authorization_signature')
           .eq('id', schedule.customer_id)
           .maybeSingle();
 
@@ -164,17 +194,18 @@ export async function GET(req: NextRequest) {
           continue;
         }
 
-        // Calculate booking dates for next month
-        const bookingDates = calculateBookingDatesForMonth(schedule, nextYear, nextMonth);
+        // Calculate booking occurrences (date + time) for next month
+        const rules = rulesByScheduleId.get(schedule.id);
+        const occurrences = calculateBookingOccurrencesForMonth(schedule, nextYear, nextMonth, rules);
 
-        // Filter dates that fall within schedule's start_date and end_date
-        const validDates = bookingDates.filter((date) => {
-          if (date < scheduleStartDate) return false;
-          if (schedule.end_date && date > new Date(schedule.end_date)) return false;
+        // Filter occurrences that fall within schedule's start_date and end_date
+        const validOccurrences = occurrences.filter((occ) => {
+          if (occ.date < scheduleStartDate) return false;
+          if (schedule.end_date && occ.date > new Date(schedule.end_date)) return false;
           return true;
         });
 
-        if (validDates.length === 0) {
+        if (validOccurrences.length === 0) {
           console.log(`[Cron] Schedule ${schedule.id}: No valid dates for ${nextMonthYear}`);
           // Still update last_generated_month to avoid retrying
           await svc
@@ -254,7 +285,7 @@ export async function GET(req: NextRequest) {
         }
 
         // Check for existing bookings to avoid duplicates
-        const dateStrings = validDates.map((d) => d.toISOString().split('T')[0]);
+        const dateStrings = validOccurrences.map((o) => o.date.toISOString().split('T')[0]);
         const { data: existingBookings } = await svc
           .from('bookings')
           .select('booking_date')
@@ -266,15 +297,15 @@ export async function GET(req: NextRequest) {
         );
 
         // Create bookings for each valid date
-        const bookingsToCreate = validDates
-          .filter((date) => {
-            const dateStr = date.toISOString().split('T')[0];
+        const bookingsToCreate = validOccurrences
+          .filter((occ) => {
+            const dateStr = occ.date.toISOString().split('T')[0];
             return !existingDates.has(dateStr);
           })
-          .map((date) => {
+          .map((occ) => {
             const bookingId = generateUniqueBookingId();
-            const dateStr = date.toISOString().split('T')[0];
-            const timeStr = schedule.preferred_time; // Already in HH:MM format
+            const dateStr = occ.date.toISOString().split('T')[0];
+            const timeStr = occ.time; // Already in HH:MM format
 
             // Determine if team booking
             const requiresTeam = schedule.service_type === 'Deep' || schedule.service_type === 'Move In/Out';
@@ -331,7 +362,119 @@ export async function GET(req: NextRequest) {
           continue;
         }
 
-        // Update last_generated_month
+        // Create invoice for next month + attempt auto-charge (idempotent by schedule+month)
+        try {
+          const invoiceTotalAmount = totalAmountCents * bookingsToCreate.length;
+
+          const { data: existingInvoice, error: existingInvoiceError } = await svc
+            .from('recurring_invoices')
+            .select('id, status, payment_reference')
+            .eq('recurring_schedule_id', schedule.id)
+            .eq('month_year', nextMonthYear)
+            .maybeSingle();
+
+          if (existingInvoiceError) {
+            console.error(`[Cron] Schedule ${schedule.id}: Error checking existing invoice:`, existingInvoiceError);
+          }
+
+          if (!existingInvoice?.id) {
+            const invoiceReference = generateInvoiceReference(`INV-${nextMonthYear}`);
+
+            const { data: createdInvoice, error: createInvoiceError } = await svc
+              .from('recurring_invoices')
+              .insert({
+                customer_id: schedule.customer_id,
+                recurring_schedule_id: schedule.id,
+                period_start: nextMonthFirstDay,
+                period_end: nextMonthLastDay,
+                month_year: nextMonthYear,
+                total_amount: invoiceTotalAmount,
+                payment_reference: invoiceReference,
+                status: 'pending',
+              })
+              .select('id, payment_reference, status')
+              .single();
+
+            if (createInvoiceError || !createdInvoice) {
+              console.error(`[Cron] Schedule ${schedule.id}: Failed to create invoice:`, createInvoiceError);
+            } else {
+              const authCode = (customer as any)?.paystack_authorization_code || null;
+              const authEmail = (customer as any)?.paystack_authorization_email || customer.email || null;
+              const authReusable = (customer as any)?.paystack_authorization_reusable;
+
+              if (!authCode || !authEmail || authReusable === false) {
+                await svc
+                  .from('recurring_invoices')
+                  .update({ status: 'requires_action', updated_at: new Date().toISOString() })
+                  .eq('id', createdInvoice.id);
+                console.log(
+                  `[Cron] Schedule ${schedule.id}: No reusable Paystack authorization. Invoice requires action: ${createdInvoice.payment_reference}`
+                );
+              } else {
+                try {
+                  const chargeResult = await chargePaystackAuthorization({
+                    authorizationCode: authCode,
+                    email: authEmail,
+                    amountCents: invoiceTotalAmount,
+                    reference: createdInvoice.payment_reference,
+                    currency: 'ZAR',
+                    metadata: {
+                      recurring_schedule_id: schedule.id,
+                      month_year: nextMonthYear,
+                      bookings_count: bookingsToCreate.length,
+                    },
+                  });
+
+                  const chargeStatus = chargeResult?.data?.status || '';
+                  const nextStatus =
+                    chargeStatus === 'success'
+                      ? 'paid'
+                      : chargeStatus === 'failed'
+                        ? 'failed'
+                        : 'requires_action';
+
+                  await svc
+                    .from('recurring_invoices')
+                    .update({ status: nextStatus, updated_at: new Date().toISOString() })
+                    .eq('id', createdInvoice.id);
+
+                  // If Paystack returns updated authorization, store it.
+                  const auth = chargeResult?.data?.authorization;
+                  if (auth?.authorization_code) {
+                    await svc
+                      .from('customers')
+                      .update({
+                        paystack_authorization_code: auth.authorization_code,
+                        paystack_authorization_email: authEmail,
+                        paystack_authorization_reusable: auth.reusable ?? null,
+                        paystack_authorization_signature: auth.signature ?? null,
+                        updated_at: new Date().toISOString(),
+                      })
+                      .eq('id', schedule.customer_id);
+                  }
+
+                  console.log(
+                    `[Cron] Schedule ${schedule.id}: Auto-charge ${nextStatus} for ${nextMonthYear} (invoice ${createdInvoice.payment_reference})`
+                  );
+                } catch (chargeErr) {
+                  console.error(`[Cron] Schedule ${schedule.id}: Auto-charge error:`, chargeErr);
+                  await svc
+                    .from('recurring_invoices')
+                    .update({ status: 'requires_action', updated_at: new Date().toISOString() })
+                    .eq('id', createdInvoice.id);
+                }
+              }
+            }
+          } else {
+            console.log(
+              `[Cron] Schedule ${schedule.id}: Invoice already exists for ${nextMonthYear} (${existingInvoice.payment_reference}), status=${existingInvoice.status}`
+            );
+          }
+        } catch (invoiceErr) {
+          console.error(`[Cron] Schedule ${schedule.id}: Invoice/charge processing failed:`, invoiceErr);
+        }
+
+        // Update last_generated_month (after bookings/invoice attempt)
         const { error: updateError } = await svc
           .from('recurring_schedules')
           .update({ last_generated_month: nextMonthYear })

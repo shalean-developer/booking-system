@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
+import { createServiceClient } from '@/lib/supabase-server';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -31,6 +31,17 @@ interface PaystackWebhookEvent {
     gateway_response?: string;
     customer?: {
       email: string;
+    };
+    authorization?: {
+      authorization_code?: string;
+      reusable?: boolean;
+      signature?: string;
+      last4?: string;
+      exp_month?: string;
+      exp_year?: string;
+      card_type?: string;
+      brand?: string;
+      bank?: string;
     };
     metadata?: {
       custom_fields?: Array<{
@@ -122,8 +133,99 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create Supabase client
-    const supabase = await createClient();
+    // Use service role to bypass RLS (webhook is server-to-server)
+    const supabase = createServiceClient();
+
+    // 1) Prefer invoice lookup (recurring group payments)
+    const { data: invoice, error: invoiceError } = await supabase
+      .from('recurring_invoices')
+      .select('id, status, customer_id')
+      .eq('payment_reference', paymentReference)
+      .maybeSingle();
+
+    if (invoiceError) {
+      console.error('❌ Error finding invoice:', invoiceError);
+      return NextResponse.json(
+        { ok: false, error: 'Database error' },
+        { status: 500 }
+      );
+    }
+
+    if (invoice?.id) {
+      console.log('📦 Found recurring invoice:', invoice.id, 'Current status:', invoice.status);
+
+      // Store Paystack reusable authorization (if present)
+      const auth = event.data?.authorization;
+      if (auth?.authorization_code && invoice.customer_id) {
+        try {
+          await supabase
+            .from('customers')
+            .update({
+              paystack_authorization_code: auth.authorization_code,
+              paystack_authorization_email: event.data?.customer?.email || null,
+              paystack_authorization_reusable: auth.reusable ?? null,
+              paystack_authorization_signature: auth.signature ?? null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', invoice.customer_id);
+        } catch (e) {
+          console.error('⚠️ Failed to store Paystack authorization for invoice customer:', e);
+        }
+      }
+
+      if (event.event === 'charge.success' && event.data.status === 'success') {
+        const { error: updateInvoiceError } = await supabase
+          .from('recurring_invoices')
+          .update({
+            status: 'paid',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', invoice.id);
+
+        if (updateInvoiceError) {
+          console.error('❌ Error updating invoice status:', updateInvoiceError);
+          return NextResponse.json(
+            { ok: false, error: 'Failed to update invoice' },
+            { status: 500 }
+          );
+        }
+
+        console.log('✅ Invoice status updated to paid');
+        return NextResponse.json({
+          ok: true,
+          message: 'Invoice updated successfully',
+          invoice_id: invoice.id,
+        });
+      }
+
+      if (event.event === 'charge.failed') {
+        const { error: updateInvoiceError } = await supabase
+          .from('recurring_invoices')
+          .update({
+            status: 'failed',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', invoice.id);
+
+        if (updateInvoiceError) {
+          console.error('❌ Error updating invoice status:', updateInvoiceError);
+          return NextResponse.json(
+            { ok: false, error: 'Failed to update invoice' },
+            { status: 500 }
+          );
+        }
+
+        console.log('✅ Invoice status updated to failed');
+        return NextResponse.json({
+          ok: true,
+          message: 'Invoice updated to failed',
+          invoice_id: invoice.id,
+        });
+      }
+
+      console.log('ℹ️ Invoice found but event not handled:', event.event);
+      return NextResponse.json({ ok: true, message: 'Invoice event received' });
+    }
 
     // Find booking by payment reference
     const { data: booking, error: bookingError } = await supabase

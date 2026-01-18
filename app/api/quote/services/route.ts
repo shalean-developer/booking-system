@@ -26,6 +26,8 @@ export async function GET() {
       );
     }
 
+    console.log(`[Quote Services API] Fetched ${services?.length || 0} active services from database:`, services?.map(s => ({ service_type: s.service_type, display_name: s.display_name, is_active: true })));
+
     // Fetch active extra services from pricing_config
     // Use distinct to prevent duplicates, and get the most recent price for each item
     const { data: extras, error: extrasError } = await supabase
@@ -89,6 +91,8 @@ export async function GET() {
     if (extras && extras.length > transformedExtras.length) {
       console.log(`Deduplication: ${extras.length} extras found, ${transformedExtras.length} unique after deduplication`);
     }
+
+    console.log(`[Quote Services API] Returning ${transformedServices.length} services:`, transformedServices.map(s => ({ id: s.id, label: s.label, subLabel: s.subLabel })));
 
     return NextResponse.json({
       ok: true,

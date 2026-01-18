@@ -42,10 +42,17 @@ export function ServiceGrid({ selected, setSelected }: ServiceGridProps) {
   useEffect(() => {
     async function fetchServices() {
       try {
-        const response = await fetch('/api/quote/services');
+        // Add cache-busting to prevent browser cache issues
+        const response = await fetch('/api/quote/services', {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+          },
+        });
         const data = await response.json();
 
         if (data.ok) {
+          console.log(`[ServiceGrid] ✅ Fetched ${data.services?.length || 0} services from API:`, data.services);
           const transformedServices: ServiceOption[] = (data.services as ApiServiceResponse[]).map((s) => ({
             id: s.id,
             label: s.label,
@@ -53,11 +60,14 @@ export function ServiceGrid({ selected, setSelected }: ServiceGridProps) {
             icon: SERVICE_ICON_MAP[s.id] || Home,
             description: s.description || '',
           }));
+          console.log(`[ServiceGrid] ✅ Transformed ${transformedServices.length} services:`, transformedServices);
           setServices(transformedServices);
         } else {
+          console.error('[ServiceGrid] ❌ API returned error:', data.error);
           setServices([]);
         }
       } catch (error) {
+        console.error('[ServiceGrid] ❌ Error fetching services:', error);
         setServices([]);
       } finally {
         setIsLoading(false);
@@ -70,7 +80,7 @@ export function ServiceGrid({ selected, setSelected }: ServiceGridProps) {
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 6 }}
+      initial={{ opacity: 1, y: 0 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: 0.1 }}
       className="w-full max-w-[576px]"
