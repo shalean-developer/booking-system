@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getCleanerSession } from '@/lib/cleaner-auth';
-import { CleanerDashboardClient } from './dashboard-client';
+import { CleanerDashboard } from './dashboard-client';
 
 // Mark as dynamic since we use cookies for auth
 export const dynamic = 'force-dynamic';
@@ -15,6 +15,6 @@ export default async function CleanerDashboardPage() {
   }
 
   // If we get here, cleaner is authenticated
-  return <CleanerDashboardClient cleaner={session} />;
+  return <CleanerDashboard />;
 }
 
