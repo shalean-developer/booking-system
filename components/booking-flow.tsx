@@ -32,6 +32,7 @@ import {
 import {
   decodeBookingStateFromUrl,
 } from '@/lib/booking-url-params';
+import { generateBookingId } from '@/lib/booking-id';
 import {
   Select,
   SelectContent,
@@ -81,6 +82,7 @@ interface BookingState {
   notes: string;
   date: string | null;
   timeSlot: string | null;
+  expectedEndTime: string | null;
   contactInfo: {
     firstName: string;
     lastName: string;
@@ -472,6 +474,7 @@ function BookingFlow(props: BookingFlowProps = {}) {
         notes: '',
         date: null,
         timeSlot: null,
+        expectedEndTime: null,
         contactInfo: {
           firstName: '',
           lastName: '',
@@ -662,6 +665,7 @@ function BookingFlow(props: BookingFlowProps = {}) {
         if (savedState.discountCode !== undefined) merged.discountCode = savedState.discountCode;
         if (savedState.date !== undefined) merged.date = savedState.date;
         if (savedState.timeSlot !== undefined) merged.timeSlot = savedState.timeSlot;
+        if (savedState.expectedEndTime !== undefined) merged.expectedEndTime = savedState.expectedEndTime;
         if (savedState.step !== undefined) merged.step = savedState.step;
         
         // Always reset isConfirmed to false when restoring state for a new booking session
@@ -751,6 +755,7 @@ function BookingFlow(props: BookingFlowProps = {}) {
           if (savedState.discountCode !== undefined) merged.discountCode = savedState.discountCode;
           if (savedState.date !== undefined) merged.date = savedState.date;
           if (savedState.timeSlot !== undefined) merged.timeSlot = savedState.timeSlot;
+          if (savedState.expectedEndTime !== undefined) merged.expectedEndTime = savedState.expectedEndTime;
           if (savedState.step !== undefined) {
             merged.step = savedState.step;
             previousStepRef.current = savedState.step;
@@ -1818,6 +1823,7 @@ function BookingFlow(props: BookingFlowProps = {}) {
                 frequency: state.frequency,
                 date: state.date,
                 time: state.timeSlot,
+                expectedEndTime: state.expectedEndTime || undefined,
                 firstName: state.contactInfo.firstName,
                 lastName: state.contactInfo.lastName,
                 email: state.contactInfo.email,
@@ -1893,7 +1899,7 @@ function BookingFlow(props: BookingFlowProps = {}) {
     setIsProcessingPayment(true);
     setBookingError(null);
 
-    const paymentReference = `BK-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+    const paymentReference = generateBookingId();
 
     try {
       if (state.frequency !== 'one-time' && recurringOccurrencesCount <= 0) {
@@ -2609,7 +2615,14 @@ function BookingFlow(props: BookingFlowProps = {}) {
                             </div>
                             <Select
                               value={state.timeSlot || ''}
-                              onValueChange={(value) => updateField('timeSlot', value)}
+                              onValueChange={(value) => {
+                                setState((prev) => {
+                                  const startIdx = TIME_SLOTS.indexOf(value);
+                                  const endIdx = prev.expectedEndTime ? TIME_SLOTS.indexOf(prev.expectedEndTime) : -1;
+                                  const clearEnd = startIdx >= 0 && endIdx <= startIdx;
+                                  return { ...prev, timeSlot: value, ...(clearEnd ? { expectedEndTime: null } : {}) };
+                                });
+                              }}
                             >
                               <SelectTrigger className="w-[140px] border-gray-200 bg-white">
                                 <SelectValue placeholder="Time" />
@@ -2622,6 +2635,28 @@ function BookingFlow(props: BookingFlowProps = {}) {
                                 ))}
                               </SelectContent>
                             </Select>
+                            {state.timeSlot && (() => {
+                              const startIdx = TIME_SLOTS.indexOf(state.timeSlot);
+                              const endSlots = startIdx >= 0 ? TIME_SLOTS.slice(startIdx + 1) : [];
+                              return (
+                                <Select
+                                  value={state.expectedEndTime || ''}
+                                  onValueChange={(value) => updateField('expectedEndTime', value || null)}
+                                >
+                                  <SelectTrigger className="w-[160px] border-gray-200 bg-white">
+                                    <SelectValue placeholder="Finish by (optional)" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="">None</SelectItem>
+                                    {endSlots.map((slot) => (
+                                      <SelectItem key={slot} value={slot}>
+                                        {slot}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              );
+                            })()}
                           </>
                         );
                       })()}
@@ -3075,18 +3110,20 @@ function BookingFlow(props: BookingFlowProps = {}) {
   // Helper function to format booking ID to 8 digits for display
   const formatBookingIdForDisplay = (id: string | null): string => {
     if (!id) return '';
-    
+
+    // New format: SC12345678 -> 12345678
+    if (/^SC\d{8}$/.test(id)) {
+      return id.substring(2);
+    }
     // SCS format: SCS-12345678 -> 12345678
     if (id.startsWith('SCS-')) {
       return id.substring(4);
     }
-    
     // BK format: BK-1234567890-abc -> extract numbers, take last 8
     if (id.startsWith('BK-')) {
       const numericPart = id.replace(/\D/g, ''); // Extract all digits
       return numericPart.slice(-8).padStart(8, '0'); // Take last 8, pad if needed
     }
-    
     // Fallback: extract last 8 digits from any format
     const digits = id.replace(/\D/g, '');
     if (digits.length >= 8) {

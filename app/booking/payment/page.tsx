@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, CreditCard, AlertCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { generateBookingId } from '@/lib/booking-id';
 
 // Force dynamic rendering to prevent static generation
 export const dynamic = 'force-dynamic';
@@ -97,7 +98,7 @@ function PaymentContent() {
   const paystackPublicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '';
   const paymentRef = useMemo(() => {
     if (typeof window === 'undefined') return '';
-    return `BK-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+    return generateBookingId();
   }, []);
 
   const paystackConfig = useMemo(() => ({

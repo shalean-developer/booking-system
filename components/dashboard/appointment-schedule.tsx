@@ -102,6 +102,9 @@ const SortableAppointmentCard = memo(function SortableAppointmentCard({
           serviceType={booking.service_type}
           address={`${booking.address_line1}, ${booking.address_suburb}, ${booking.address_city}`}
           cleaner={booking.cleaner_id ? cleaners[booking.cleaner_id] : null}
+          cleanerStartedAt={booking.cleaner_started_at}
+          cleanerCompletedAt={booking.cleaner_completed_at}
+          expectedEndTime={booking.expected_end_time}
           onReschedule={handleReschedule}
           onCancel={onCancel}
           onOptimisticCancel={(bookingId) => {

@@ -224,8 +224,10 @@ export function generateBookingConfirmationEmail(
   // Site URL for calendar links
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://shalean.co.za';
   
-  // Truncate booking ID to last 8 digits for display
-  const displayBookingId = booking.bookingId.slice(-8);
+  // Show full ID for SC format (SC + 8 digits), otherwise last 8 for legacy
+  const displayBookingId = /^SC\d{8}$/.test(booking.bookingId)
+    ? booking.bookingId
+    : booking.bookingId.slice(-8);
   
   const html = `
     <!DOCTYPE html>

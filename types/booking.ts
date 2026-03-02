@@ -14,6 +14,7 @@ export interface BookingState {
   notes: string;
   date: string | null; // ISO yyyy-mm-dd
   time: string | null; // "07:00", "07:30", ..., "13:00"
+  expectedEndTime?: string | null; // Optional "finish by" time (HH:MM)
   frequency: 'one-time' | 'weekly' | 'bi-weekly' | 'monthly'; // NEW: Booking frequency
   firstName: string;
   lastName: string;

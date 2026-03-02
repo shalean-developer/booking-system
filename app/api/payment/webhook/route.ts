@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase-server';
+import { incrementCustomerRewardsForCompletedBooking } from '@/lib/rewards-server';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -273,6 +274,11 @@ export async function POST(request: NextRequest) {
             { ok: false, error: 'Failed to update booking' },
             { status: 500 }
           );
+        }
+
+        const rewardsResult = await incrementCustomerRewardsForCompletedBooking(supabase, booking.id);
+        if (!rewardsResult.ok) {
+          console.warn('⚠️ Failed to increment customer rewards:', rewardsResult.error);
         }
 
         console.log('✅ Booking status updated to completed');

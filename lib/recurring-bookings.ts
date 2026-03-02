@@ -456,12 +456,7 @@ export function formatBookingTime(time: string): string {
   return `${displayHour}:${minutes} ${ampm}`;
 }
 
-/**
- * Generate booking ID
- */
-export function generateBookingId(): string {
-  return `BK-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
+export { generateBookingId } from '@/lib/booking-id';
 
 /**
  * Check if a date conflicts with existing bookings

@@ -4,17 +4,10 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle2, Home, Calendar, MapPin, Mail, Loader2, AlertCircle } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { CheckCircle2, Loader2, AlertCircle, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
-
-interface ExtraItem {
-  name: string;
-  quantity: number;
-  unitPrice: number;
-  totalPrice: number;
-}
 
 interface BookingDetails {
   id: string;
@@ -29,10 +22,7 @@ interface BookingDetails {
   address_city: string;
   total_amount: number;
   status: string;
-  bedrooms?: number | null;
-  bathrooms?: number | null;
   payment_reference?: string | null;
-  extras?: ExtraItem[];
 }
 
 function ConfirmationContent() {
@@ -99,157 +89,62 @@ function ConfirmationContent() {
     );
   }
 
+  const displayDate = format(parseISO(booking.booking_date), 'EEE, d MMM');
+  const displayTime = booking.booking_time?.length === 5 ? booking.booking_time : booking.booking_time?.replace(/^(\d):/, '0$1:') ?? booking.booking_time;
+  const referenceNumber = booking.payment_reference || booking.id;
+  const receiptHref = `/api/bookings/${encodeURIComponent(referenceNumber)}/receipt`;
+
   return (
-    <div className="min-h-screen bg-slate-50 py-12">
+    <div className="min-h-screen bg-slate-50 py-12 flex items-center justify-center">
       <div className="container mx-auto px-4 max-w-[576px]">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="text-center mb-8"
+          className="text-center"
         >
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-            className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-100 mb-4"
+            className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-100 border-2 border-green-200 mb-4"
           >
             <CheckCircle2 className="h-10 w-10 text-green-600" />
           </motion.div>
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Booking Confirmed!</h1>
-          <p className="text-gray-600">Your cleaning service has been scheduled successfully</p>
-        </motion.div>
-
-        {booking.extras && booking.extras.length > 0 && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Home className="h-5 w-5 text-primary" />
-                Extras
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {booking.extras.map((extra, index) => (
-                  <div key={index} className="flex items-center justify-between text-sm">
-                    <span className="text-gray-900">
-                      {extra.name}
-                      {extra.quantity > 1 ? ` ×${extra.quantity}` : ''}
-                    </span>
-                    <span className="font-semibold text-gray-900">R{extra.totalPrice.toFixed(2)}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-primary" />
-              Schedule
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div>
-              <p className="text-sm text-gray-600">Date</p>
-              <p className="font-semibold text-gray-900">{format(parseISO(booking.booking_date), 'MMMM d, yyyy')}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Time</p>
-              <p className="font-semibold text-gray-900">{booking.booking_time}</p>
-            </div>
-            {(booking.bedrooms !== null && booking.bedrooms !== undefined) ||
-            (booking.bathrooms !== null && booking.bathrooms !== undefined) ? (
-              <div>
-                <p className="text-sm text-gray-600">Bedrooms</p>
-                <p className="font-semibold text-gray-900">
-                  {booking.bedrooms ?? 0} bed{booking.bedrooms !== 1 ? 's' : ''}
-                  {booking.bathrooms !== null && booking.bathrooms !== undefined && (
-                    <>, {booking.bathrooms} bath{booking.bathrooms !== 1 ? 's' : ''}</>
-                  )}
-                </p>
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
-
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5 text-primary" />
-              Address
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div>
-              <p className="text-sm text-gray-600">Street</p>
-              <p className="font-semibold text-gray-900">{booking.address_line1}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">City</p>
-              <p className="font-semibold text-gray-900">{booking.address_suburb}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Town</p>
-              <p className="font-semibold text-gray-900">{booking.address_city}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5 text-primary" />
-              Contact Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <p className="text-gray-900">
-              <span className="font-semibold">Name:</span> {booking.customer_name}
-            </p>
-            <p className="text-gray-900">
-              <span className="font-semibold">Email:</span> {booking.customer_email}
-            </p>
-            <p className="text-gray-900">
-              <span className="font-semibold">Phone:</span> {booking.customer_phone}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="mb-6 bg-primary/5 border-primary/20">
-          <CardContent className="p-6">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-lg font-semibold text-gray-900">Total Amount</span>
-                <span className="text-2xl font-bold text-primary">
-                  R{booking.total_amount.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-              </div>
-              {booking.payment_reference && (
-                <div className="pt-3 border-t border-primary/20">
-                  <p className="text-xs text-gray-600">Payment ID</p>
-                  <p className="text-sm font-mono font-semibold text-gray-900">{booking.payment_reference}</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="text-center space-y-4">
-          <p className="text-sm text-gray-600">
-            A confirmation email has been sent to <strong>{booking.customer_email}</strong>
+          <p className="text-gray-600 mb-6">
+            Your cleaning is scheduled for <span className="font-semibold text-gray-900">{displayDate}</span> at <span className="font-semibold text-gray-900">{displayTime}</span>.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button asChild variant="outline">
-              <Link href="/">Return to Home</Link>
-            </Button>
-            <Button asChild>
-              <Link href="/booking/standard/details">Book Another Service</Link>
-            </Button>
+
+          <div className="rounded-lg bg-blue-50 border border-blue-100 px-6 py-4 mb-6 text-center">
+            <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">REFERENCE NUMBER</p>
+            <p className="text-xl font-bold text-primary font-mono">{referenceNumber}</p>
           </div>
-        </div>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
+            <Button asChild>
+              <Link href="/booking">Book New Session</Link>
+            </Button>
+            <Button asChild variant="secondary">
+              <Link href="/dashboard">View in Dashboard</Link>
+            </Button>
+            <a
+              href={receiptHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex"
+            >
+              <Button type="button" variant="outline" className="w-full sm:w-auto">
+                <Download className="h-4 w-4" />
+                Receipt (PDF)
+              </Button>
+            </a>
+          </div>
+
+          <p className="text-sm text-gray-500">
+            A confirmation email has been sent to {booking.customer_email}.
+          </p>
+        </motion.div>
       </div>
     </div>
   );

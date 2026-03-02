@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useState } from 'react';
+import { memo, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Calendar, Clock, MapPin, X } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { CancelBookingModal } from './cancel-booking-modal';
+import { formatWorkingHoursDisplay, formatExpectedWorkingHoursDisplay } from '@/lib/booking-utils';
 
 interface AppointmentCardProps {
   id: string;
@@ -20,6 +21,9 @@ interface AppointmentCardProps {
     name: string;
     photoUrl?: string | null;
   } | null;
+  cleanerStartedAt?: string | null;
+  cleanerCompletedAt?: string | null;
+  expectedEndTime?: string | null;
   onReschedule?: () => void;
   onCancel?: () => void;
   onOptimisticCancel?: (bookingId: string) => void; // Callback for optimistic cancellation
@@ -32,6 +36,9 @@ export const AppointmentCard = memo(function AppointmentCard({
   serviceType, 
   address, 
   cleaner,
+  cleanerStartedAt,
+  cleanerCompletedAt,
+  expectedEndTime,
   onReschedule,
   onCancel,
   onOptimisticCancel,
@@ -44,6 +51,12 @@ export const AppointmentCard = memo(function AppointmentCard({
   let dateLabel = format(bookingDate, 'MMM d, yyyy');
   if (isToday) dateLabel = 'Today';
   if (isTomorrow) dateLabel = 'Tomorrow';
+
+  const workingHoursDisplay = useMemo(() => {
+    const actual = formatWorkingHoursDisplay(cleanerStartedAt, cleanerCompletedAt);
+    if (actual) return actual;
+    return formatExpectedWorkingHoursDisplay(time, expectedEndTime) ?? time;
+  }, [cleanerStartedAt, cleanerCompletedAt, time, expectedEndTime]);
 
   const handleCancelSuccess = () => {
     if (onCancel) {
@@ -72,7 +85,7 @@ export const AppointmentCard = memo(function AppointmentCard({
                 </div>
                 <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm lg:text-base text-gray-600">
                   <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 flex-shrink-0" />
-                  <span>{time}</span>
+                  <span>{workingHoursDisplay}</span>
                 </div>
               </div>
             </div>

@@ -76,7 +76,7 @@ export async function GET(request: Request) {
     // Try with all columns first, fallback if some columns don't exist
     let bookingQuery = supabase
       .from('bookings')
-      .select('id, service_type, bedrooms, bathrooms, extras, notes, customer_name, customer_email, customer_phone, address_line1, address_suburb, address_city, total_amount, booking_date, booking_time, status, payment_reference, cleaner_id, cleaner_claimed_at, cleaner_accepted_at, cleaner_on_my_way_at, cleaner_started_at, cleaner_completed_at, created_at, updated_at, frequency, service_fee, frequency_discount, tip_amount, cleaner_earnings')
+      .select('id, service_type, bedrooms, bathrooms, extras, notes, customer_name, customer_email, customer_phone, address_line1, address_suburb, address_city, total_amount, booking_date, booking_time, expected_end_time, status, payment_reference, cleaner_id, cleaner_claimed_at, cleaner_accepted_at, cleaner_on_my_way_at, cleaner_started_at, cleaner_completed_at, created_at, updated_at, frequency, service_fee, frequency_discount, tip_amount, cleaner_earnings')
       .eq('id', bookingId)
       .eq('customer_id', customer.id)
       .maybeSingle();
@@ -104,6 +104,7 @@ export async function GET(request: Request) {
           bathrooms: null,
           extras: null,
           notes: null,
+          expected_end_time: null,
           cleaner_claimed_at: null,
           cleaner_accepted_at: null,
           cleaner_on_my_way_at: null,

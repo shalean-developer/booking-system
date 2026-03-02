@@ -41,7 +41,7 @@ export async function GET(request: Request) {
     // Find customer profile by auth_user_id
     const { data: customer, error: customerError } = await supabase
       .from('customers')
-      .select('id, email, first_name, last_name, phone, address_line1, address_suburb, address_city, total_bookings')
+      .select('id, email, first_name, last_name, phone, address_line1, address_suburb, address_city, total_bookings, rewards_points')
       .eq('auth_user_id', authUser.id)
       .maybeSingle();
 
@@ -96,7 +96,10 @@ export async function GET(request: Request) {
         customer_phone,
         payment_reference,
         customer_reviewed,
-        customer_review_id
+        customer_review_id,
+        cleaner_started_at,
+        cleaner_completed_at,
+        expected_end_time
       `)
       .eq('customer_id', customer.id)
       .order('booking_date', { ascending: false })
@@ -127,13 +130,16 @@ export async function GET(request: Request) {
           customer_phone,
           payment_reference,
           customer_reviewed,
-          customer_review_id
+          customer_review_id,
+          cleaner_started_at,
+          cleaner_completed_at,
+          expected_end_time
         `)
         .eq('customer_id', customer.id)
         .order('booking_date', { ascending: false })
         .limit(limit);
       // Ensure shape matches earlier select by adding notes: null for each row
-      bookings = (retry.data || []).map((b: any) => ({ ...b, notes: null }));
+      bookings = (retry.data || []).map((b: any) => ({ ...b, notes: null, cleaner_started_at: b.cleaner_started_at ?? null, cleaner_completed_at: b.cleaner_completed_at ?? null, expected_end_time: b.expected_end_time ?? null }));
       bookingsError = retry.error || null;
     }
 
@@ -164,6 +170,7 @@ export async function GET(request: Request) {
         addressSuburb: customer.address_suburb,
         addressCity: customer.address_city,
         totalBookings: customer.total_bookings,
+        rewardsPoints: customer.rewards_points ?? 0,
       },
     });
 

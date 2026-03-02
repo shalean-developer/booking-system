@@ -2,6 +2,7 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Calendar, Clock, MapPin, BadgePercent } from 'lucide-react';
+import { formatWorkingHoursDisplay, formatExpectedWorkingHoursDisplay } from '@/lib/booking-utils';
 
 interface Booking {
 	id: string;
@@ -13,6 +14,9 @@ interface Booking {
 	address_line1: string;
 	address_suburb: string;
 	address_city?: string;
+	cleaner_started_at?: string | null;
+	cleaner_completed_at?: string | null;
+	expected_end_time?: string | null;
 }
 
 interface CustomerBookingDetailsModalProps {
@@ -25,6 +29,8 @@ export function CustomerBookingDetailsModal({ booking, isOpen, onClose }: Custom
 	if (!booking) return null;
 
 	const fullAddress = [booking.address_line1, booking.address_suburb, booking.address_city].filter(Boolean).join(', ');
+	const workingHours = formatWorkingHoursDisplay(booking.cleaner_started_at, booking.cleaner_completed_at)
+		?? formatExpectedWorkingHoursDisplay(booking.booking_time, booking.expected_end_time);
 
 	return (
 		<Dialog open={isOpen} onOpenChange={onClose}>
@@ -42,7 +48,7 @@ export function CustomerBookingDetailsModal({ booking, isOpen, onClose }: Custom
 					</div>
 					<div className="flex items-center gap-2 text-gray-700">
 						<Clock className="h-4 w-4" />
-						<span>{booking.booking_time}</span>
+						<span>{workingHours ?? booking.booking_time}</span>
 					</div>
 					<div className="flex items-center gap-2 text-gray-700">
 						<MapPin className="h-4 w-4" />

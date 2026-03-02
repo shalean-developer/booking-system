@@ -216,6 +216,7 @@ export async function POST(req: Request) {
               cleaner_id: requiresTeam ? null : cleanerIdForInsert,
               booking_date: body.date,
               booking_time: body.time,
+              expected_end_time: (body as any).expectedEndTime || null,
               service_type: body.service,
               customer_name: `${body.firstName} ${body.lastName}`,
               customer_email: body.email,

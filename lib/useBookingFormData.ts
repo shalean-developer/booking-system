@@ -47,9 +47,10 @@ function isCacheValid(): boolean {
   return cachedData !== null && Date.now() - cacheTimestamp < CACHE_DURATION;
 }
 
-export function useBookingFormData(forceRefresh = false) {
-  const [data, setData] = useState<BookingFormData | null>(cachedData);
-  const [loading, setLoading] = useState(!cachedData);
+export function useBookingFormData(initialData?: BookingFormData | null, forceRefresh = false) {
+  const hasInitial = Boolean(initialData && Array.isArray(initialData.services));
+  const [data, setData] = useState<BookingFormData | null>(cachedData ?? initialData ?? null);
+  const [loading, setLoading] = useState(!cachedData && !hasInitial);
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
@@ -125,10 +126,34 @@ export function useBookingFormData(forceRefresh = false) {
   }, [forceRefresh]);
 
   useEffect(() => {
-    fetchData().catch(() => {
-      // Error already handled in fetchData
-    });
-  }, [fetchData]);
+    if (hasInitial && initialData) {
+      cachedData = initialData;
+      cacheTimestamp = Date.now();
+    }
+    if (!hasInitial) {
+      fetchData().catch(() => {
+        // Error already handled in fetchData
+      });
+    } else {
+      // Stale-while-revalidate: background fetch to refresh cache
+      fetch('/api/booking/form-data')
+        .then((res) => res.json())
+        .then((result) => {
+          if (result.ok && result.services) {
+            const formData: BookingFormData = {
+              services: result.services || [],
+              pricing: result.pricing,
+              extras: result.extras || { all: [], standardAndAirbnb: [], deepAndMove: [], quantityExtras: [], meta: {}, prices: {} },
+              equipment: result.equipment || { items: [], charge: 500 },
+            };
+            cachedData = formData;
+            cacheTimestamp = Date.now();
+            setData(formData);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [fetchData, hasInitial, initialData]);
 
   return {
     data,

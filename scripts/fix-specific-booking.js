@@ -1,6 +1,8 @@
 /**
  * Script to fix a specific booking's total_amount
  * Usage: node scripts/fix-specific-booking.js BK-1762075705763-rmdbr40x0
+ *        node scripts/fix-specific-booking.js SC12345678
+ * (Accepts both legacy BK-... and new SC + 8-digit formats.)
  */
 
 const fs = require('fs');

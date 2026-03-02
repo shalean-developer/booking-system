@@ -1,0 +1,14 @@
+export { Hero } from "./hero";
+export { CoreServices } from "./core-services";
+export { WhatsIncluded } from "./whats-included";
+export { WhyChoose } from "./why-choose";
+export { PricingTransparency } from "./pricing-transparency";
+export { TrustStats } from "./trust-stats";
+export { HowItWorks } from "./how-it-works";
+export { BeforeAfter } from "./before-after";
+export { Testimonials } from "./testimonials";
+export { BlogPreview } from "./blog-preview";
+export { LocalSeo } from "./local-seo";
+export { FAQ } from "./faq";
+export { SatisfactionGuarantee } from "./satisfaction-guarantee";
+export { CtaFinal } from "./cta-final";

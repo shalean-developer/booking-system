@@ -15,6 +15,7 @@ import { CancelBookingModal } from '@/components/dashboard/cancel-booking-modal'
 import { BookingShare } from '@/components/dashboard/booking-share';
 import { toast } from 'sonner';
 import { devLog } from '@/lib/dev-logger';
+import { formatWorkingHoursDisplay, formatExpectedWorkingHoursDisplay } from '@/lib/booking-utils';
 
 const statusColors: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
@@ -193,7 +194,11 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                     <p className="text-sm text-gray-500 mb-1">Time</p>
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-gray-400" />
-                      <p className="font-medium">{booking.booking_time}</p>
+                      <p className="font-medium">
+                        {formatWorkingHoursDisplay(booking.cleaner_started_at, booking.cleaner_completed_at)
+                          ?? formatExpectedWorkingHoursDisplay(booking.booking_time, booking.expected_end_time)
+                          ?? booking.booking_time}
+                      </p>
                     </div>
                   </div>
                   <div className="sm:col-span-2">
@@ -403,6 +408,16 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                         <div className="flex-1">
                           <p className="font-medium text-sm">Service Completed</p>
                           <p className="text-xs text-gray-500">{format(new Date(booking.cleaner_completed_at), 'MMM d, yyyy h:mm a')}</p>
+                        </div>
+                      </div>
+                    )}
+                    {booking.cleaner_started_at && booking.cleaner_completed_at && formatWorkingHoursDisplay(booking.cleaner_started_at, booking.cleaner_completed_at) && (
+                      <div className="flex items-start gap-3 pt-2 mt-2 border-t border-gray-100">
+                        <div className="flex-1">
+                          <p className="font-medium text-sm text-gray-900">Working hours</p>
+                          <p className="text-sm text-gray-600">
+                            {formatWorkingHoursDisplay(booking.cleaner_started_at, booking.cleaner_completed_at)}
+                          </p>
                         </div>
                       </div>
                     )}

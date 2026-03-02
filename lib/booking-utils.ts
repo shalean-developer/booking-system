@@ -4,6 +4,7 @@
  */
 
 import type { ServiceType } from '@/types/booking';
+import { generateBookingId } from '@/lib/booking-id';
 
 /**
  * Convert ServiceType to URL slug
@@ -42,7 +43,7 @@ export function slugToServiceType(slug: string): ServiceType | null {
  * Ensures fresh reference on each payment attempt
  */
 export function generatePaymentReference(): string {
-  return `BK-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+  return generateBookingId();
 }
 
 /**
@@ -133,6 +134,54 @@ export function getBookingUrl(slug: string, step?: BookingStepName | number): st
     ? (typeof step === 'number' ? getStepName(step) : step)
     : 'details';
   return `/booking/${slug}/${stepName}`;
+}
+
+/**
+ * Compute working hours (start time, end time, duration) from cleaner_started_at and cleaner_completed_at.
+ * Uses booking date for consistent time-only display (e.g. "7:00", "11:00").
+ * @returns { startTime, endTime, durationHours } or null if either timestamp is missing
+ */
+export function getWorkingHoursFromTimestamps(
+  startedAt: string | null | undefined,
+  completedAt: string | null | undefined,
+  bookingDate?: string | null
+): { startTime: string; endTime: string; durationHours: number } | null {
+  if (!startedAt || !completedAt) return null;
+  const start = new Date(startedAt);
+  const end = new Date(completedAt);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return null;
+
+  const durationMs = end.getTime() - start.getTime();
+  const durationHours = Math.round((durationMs / (1000 * 60 * 60)) * 10) / 10;
+
+  const startTime = start.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const endTime = end.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+  return { startTime, endTime, durationHours };
+}
+
+/**
+ * Format working hours for display: "7:00 – 11:00 (4 hours)"
+ */
+export function formatWorkingHoursDisplay(
+  startedAt: string | null | undefined,
+  completedAt: string | null | undefined
+): string | null {
+  const wh = getWorkingHoursFromTimestamps(startedAt, completedAt);
+  if (!wh) return null;
+  const hourLabel = wh.durationHours === 1 ? 'hour' : 'hours';
+  return `${wh.startTime} – ${wh.endTime} (${wh.durationHours} ${hourLabel})`;
+}
+
+/**
+ * Format expected working hours from booking_time + expected_end_time: "7:00 – 11:00"
+ */
+export function formatExpectedWorkingHoursDisplay(
+  bookingTime: string | null | undefined,
+  expectedEndTime: string | null | undefined
+): string | null {
+  if (!bookingTime || !expectedEndTime) return null;
+  return `${bookingTime} – ${expectedEndTime}`;
 }
 
 /**

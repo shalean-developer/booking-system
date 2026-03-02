@@ -29,6 +29,7 @@ export interface Booking {
   cleaner_on_my_way_at?: string | null;
   cleaner_started_at?: string | null;
   cleaner_completed_at?: string | null;
+  expected_end_time?: string | null;
   created_at: string;
   updated_at: string;
 }

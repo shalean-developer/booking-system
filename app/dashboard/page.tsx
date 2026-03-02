@@ -2,32 +2,24 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase-client';
-import { safeGetSession, handleRefreshTokenError } from '@/lib/logout-utils';
+import { safeGetSession, safeLogout, handleRefreshTokenError } from '@/lib/logout-utils';
 import { devLog } from '@/lib/dev-logger';
 import { toast } from 'sonner';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
 // New Components
 import { NewHeader } from '@/components/dashboard/new-header';
-import { ServiceSummaryKPIs } from '@/components/dashboard/service-summary-kpis';
-import { AppointmentSchedule } from '@/components/dashboard/appointment-schedule';
-import { ServiceHistory } from '@/components/dashboard/service-history';
-import { BillingOverview } from '@/components/dashboard/billing-overview';
-import { SubscriptionPlans } from '@/components/dashboard/subscription-plans';
-import { ServiceRequestPanel } from '@/components/dashboard/service-request-panel';
-import { SupportWidget } from '@/components/dashboard/support-widget';
-import { MobileBottomNav } from '@/components/dashboard/mobile-bottom-nav';
-import { SidebarNav } from '@/components/dashboard/sidebar-nav';
-import { MobileDrawer } from '@/components/dashboard/mobile-drawer';
-import { ProfileQuickSetup } from '@/components/dashboard/profile-quick-setup';
-import { DashboardErrorBoundary } from '@/components/dashboard/error-boundary';
-import { SessionTimeoutWarning } from '@/components/dashboard/session-timeout-warning';
-import { PullToRefreshIndicator } from '@/components/dashboard/pull-to-refresh-indicator';
-import { OfflineIndicator } from '@/components/dashboard/offline-indicator';
+import { CustomerDashboard } from '@/components/dashboard/customer-dashboard-ui';
+import type {
+  UserProfile,
+  UserProfileBooking,
+  ServiceType,
+} from '@/components/dashboard/customer-dashboard-ui';
+import { getTierFromPoints, computePointsFromCompletedBookings } from '@/lib/rewards';
+import { normalizeDisplayRef } from '@/lib/booking-id';
 import { useKeyboardShortcuts } from '@/lib/hooks/use-keyboard-shortcuts';
 import { usePullToRefresh } from '@/lib/hooks/use-pull-to-refresh';
 import { useOffline } from '@/lib/hooks/use-offline';
@@ -65,6 +57,7 @@ interface CustomerData {
   addressSuburb?: string | null;
   addressCity?: string | null;
   totalBookings: number;
+  rewardsPoints?: number;
 }
 
 interface DashboardStats {
@@ -104,6 +97,25 @@ interface RecurringSchedule {
   is_active: boolean;
 }
 
+// Map API service_type to dashboard ServiceType
+function mapServiceType(serviceType: string): ServiceType {
+  const normalized = (serviceType || '').toLowerCase().replace(/\s+/g, '_');
+  if (normalized.includes('standard')) return 'standard';
+  if (normalized.includes('deep')) return 'deep';
+  if (normalized.includes('move') || normalized.includes('move_in')) return 'move';
+  if (normalized.includes('airbnb')) return 'airbnb';
+  if (normalized.includes('carpet')) return 'carpet';
+  return 'standard';
+}
+
+// Map API status to dashboard booking status
+function mapBookingStatus(status: string): 'upcoming' | 'completed' | 'cancelled' {
+  const s = (status || '').toLowerCase();
+  if (s === 'cancelled' || s === 'canceled') return 'cancelled';
+  if (s === 'completed') return 'completed';
+  return 'upcoming';
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
@@ -115,8 +127,6 @@ export default function DashboardPage() {
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
   const [recurringSchedules, setRecurringSchedules] = useState<RecurringSchedule[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [profileSheetOpen, setProfileSheetOpen] = useState(false);
   const { isOnline } = useOffline({
     onOnline: async () => {
       // Sync offline queue when back online
@@ -473,6 +483,72 @@ export default function DashboardPage() {
     toast.success('Dashboard refreshed');
   }, [fetchDashboardData]);
 
+  // Map API customer + bookings to UserProfile for CustomerDashboard
+  const userProfile: UserProfile = useMemo(() => {
+    const firstName = customer?.firstName ?? (user as any)?.user_metadata?.first_name ?? '';
+    const lastName = customer?.lastName ?? (user as any)?.user_metadata?.last_name ?? '';
+    const name = [firstName, lastName].filter(Boolean).join(' ') || (user?.email ?? 'Customer');
+    const mappedBookings: UserProfileBooking[] = bookings.map((b) => {
+      const parts = [b.address_line1, b.address_suburb, b.address_city].filter(Boolean);
+      const address = parts.length > 0 ? parts.join(', ') : undefined;
+      return {
+        id: b.id,
+        ref: normalizeDisplayRef(b.payment_reference, b.id),
+        date: b.booking_date,
+        time: b.booking_time,
+        service: mapServiceType(b.service_type),
+        status: mapBookingStatus(b.status),
+        total: b.total_amount ?? 0,
+        address,
+        instructions: b.notes ?? undefined,
+        cleanerName: undefined,
+      };
+    });
+    const completedCount = mappedBookings.filter((b) => b.status === 'completed').length;
+    const points =
+      customer?.rewardsPoints ?? computePointsFromCompletedBookings(completedCount);
+    const tier = getTierFromPoints(points);
+    return {
+      name,
+      email: customer?.email ?? user?.email ?? '',
+      phone: customer?.phone ?? undefined,
+      avatar: (user as any)?.user_metadata?.avatar_url ?? (user as any)?.user_metadata?.photo_url,
+      bookings: mappedBookings,
+      points,
+      tier,
+    };
+  }, [customer, user, bookings]);
+
+  const handleCancelBooking = useCallback(
+    async (bookingId: string) => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          toast.error('Please log in to cancel bookings');
+          return;
+        }
+        const response = await fetch(`/api/dashboard/booking?id=${encodeURIComponent(bookingId)}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ status: 'cancelled' }),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || 'Failed to cancel booking');
+        }
+        toast.success('Booking cancelled successfully');
+        fetchDashboardData(false);
+      } catch (err) {
+        devLog.error('Error cancelling booking:', err);
+        toast.error(err instanceof Error ? err.message : 'Failed to cancel booking. Please try again.');
+      }
+    },
+    [fetchDashboardData]
+  );
+
   // Pull-to-refresh hook
   const pullToRefresh = usePullToRefresh({
     onRefresh: handleRefresh,
@@ -505,13 +581,7 @@ export default function DashboardPage() {
       {
         key: 'Escape',
         handler: () => {
-          // Close any open modals/drawers
-          if (drawerOpen) {
-            setDrawerOpen(false);
-          }
-          if (profileSheetOpen) {
-            setProfileSheetOpen(false);
-          }
+          // Close any open modals if needed in future
         },
         description: 'Close modals',
       },
@@ -562,252 +632,32 @@ export default function DashboardPage() {
     );
   }
 
-  function welcomeName(): string {
-    return (user as any)?.firstName ?? "";
-  }
-
   return (
-    <div 
-      className="min-h-screen bg-gradient-to-b from-teal-50/30 via-white to-white pb-32 lg:pb-0"
-      ref={pullToRefresh.containerRef}
-    >
-      {/* Performance monitoring badge - hidden from customers */}
+    <div className="min-h-screen bg-gradient-to-b from-teal-50/30 via-white to-white pb-20 lg:pb-8" ref={pullToRefresh.containerRef}>
+      <NewHeader user={user} customer={customer} onRefresh={handleRefresh} />
 
-      {/* Offline Indicator */}
-      <OfflineIndicator />
-
-      {/* Pull-to-Refresh Indicator */}
-      <PullToRefreshIndicator
-        isPulling={pullToRefresh.isPulling}
-        pullDistance={pullToRefresh.pullDistance}
-        pullProgress={pullToRefresh.pullProgress}
-        shouldShowIndicator={pullToRefresh.shouldShowIndicator}
-        isRefreshing={pullToRefresh.isRefreshing}
-      />
-      
-      <NewHeader 
-        user={user}
-        customer={customer}
-        onOpenMobileDrawer={() => setDrawerOpen(true)}
-        onRefresh={handleRefresh}
-      />
-
-      {/* Refreshing Indicator (only show if not using pull-to-refresh) */}
-      {isRefreshing && !pullToRefresh.isRefreshing && (
-        <div className="bg-teal-500 text-white text-center py-2 px-4 text-sm">
-          Refreshing data...
-        </div>
+      {isRefreshing && (
+        <div className="bg-teal-500 text-white text-center py-2 px-4 text-sm">Refreshing data...</div>
       )}
 
       <main id="main-content" className="py-6 sm:py-8" role="main">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 min-w-0">
-          {/* Welcome Section */}
-          <motion.div 
-            className="mb-6 sm:mb-8"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
-              Welcome back, {welcomeName()}! 👋
-            </h1>
-            <p className="text-xs sm:text-sm lg:text-base text-gray-600">
-              Manage your bookings, payments, and cleaning plans all in one place
-            </p>
-          </motion.div>
-
-          {/* Service Summary KPIs */}
-          <DashboardErrorBoundary componentName="ServiceSummaryKPIs">
-            <ServiceSummaryKPIs
-              upcomingAppointments={stats?.upcomingAppointments ?? 0}
-              activeCleaningPlans={stats?.activeCleaningPlans ?? 0}
-              lastCleaningCompleted={stats?.lastCleaningCompleted ?? null}
-              balanceDue={stats?.balanceDue ?? 0}
-              isLoading={isLoading && !stats}
+          {isLoading ? (
+            <div className="flex items-center justify-center min-h-[40vh]">
+              <div className="text-slate-500 text-sm font-medium">Loading your dashboard...</div>
+            </div>
+          ) : (
+            <CustomerDashboard
+              user={userProfile}
+              onLogout={() => safeLogout(supabase, router, { redirectPath: '/' })}
+              onNewBooking={() => router.push('/booking')}
+              onAutoRebook={() => router.push('/booking')}
+              onReschedule={(booking) => router.push(`/booking/reschedule?id=${encodeURIComponent(booking.id)}`)}
+              onCancel={handleCancelBooking}
             />
-          </DashboardErrorBoundary>
-
-          {/* Main Content Grid */}
-          <motion.div 
-            className="grid lg:grid-cols-12 gap-4 sm:gap-6 mb-6 min-w-0"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            {/* Left Column - Sidebar Navigation */}
-            <div className="hidden lg:block lg:col-span-3 min-w-0">
-              <DashboardErrorBoundary componentName="SidebarNav">
-                <div className="sticky top-16 z-10 h-fit max-h-[calc(100vh-4rem)] overflow-y-auto">
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.4, delay: 0.2 }}
-                  >
-                    <SidebarNav />
-                  </motion.div>
-                </div>
-              </DashboardErrorBoundary>
-            </div>
-
-            {/* Center Column - Main Content */}
-            <div className="lg:col-span-6 space-y-6 min-w-0">
-              {/* Service Request Panel */}
-              <DashboardErrorBoundary componentName="ServiceRequestPanel">
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.4, delay: 0.3 }}
-                  className="min-w-0"
-                >
-                  <ServiceRequestPanel />
-                </motion.div>
-              </DashboardErrorBoundary>
-
-              {/* Appointment Schedule */}
-              <DashboardErrorBoundary componentName="AppointmentSchedule">
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.4, delay: 0.4 }}
-                >
-                  <AppointmentSchedule
-                    bookings={bookings}
-                    isLoading={isLoading}
-                    onReschedule={(bookingId) => {
-                      router.push(`/booking/reschedule?id=${bookingId}`);
-                    }}
-                    onCancel={() => {
-                      fetchDashboardData(false);
-                    }}
-                    onBookingUpdate={(updatedBookings) => {
-                      // Optimistically update bookings list
-                      setBookings(updatedBookings);
-                      // Still refresh to ensure consistency
-                      setTimeout(() => fetchDashboardData(false), 1000);
-                    }}
-                  />
-                </motion.div>
-              </DashboardErrorBoundary>
-
-              {/* Service History */}
-              <DashboardErrorBoundary componentName="ServiceHistory">
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.4, delay: 0.5 }}
-                >
-                  <ServiceHistory
-                    bookings={bookings}
-                    isLoading={isLoading}
-                  />
-                </motion.div>
-              </DashboardErrorBoundary>
-            </div>
-
-            {/* Right Column - Sidebar */}
-            <div className="lg:col-span-3 space-y-6">
-              {/* Billing Overview */}
-              <DashboardErrorBoundary componentName="BillingOverview">
-                <motion.div
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.4, delay: 0.3 }}
-                >
-                  <BillingOverview
-                    outstandingBalance={paymentData?.outstandingBalance ?? 0}
-                    recentPayments={paymentData?.recentPayments ?? []}
-                    nextInvoice={paymentData?.nextInvoice ?? null}
-                    isLoading={isLoading && !paymentData}
-                  />
-                </motion.div>
-              </DashboardErrorBoundary>
-
-              {/* Subscription Plans */}
-              <DashboardErrorBoundary componentName="SubscriptionPlans">
-                <motion.div
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.4, delay: 0.4 }}
-                >
-                  <SubscriptionPlans
-                    schedules={recurringSchedules}
-                    isLoading={isLoading && recurringSchedules.length === 0}
-                  />
-                </motion.div>
-              </DashboardErrorBoundary>
-
-              {/* Support Widget */}
-              <DashboardErrorBoundary componentName="SupportWidget">
-                <motion.div
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.4, delay: 0.5 }}
-                >
-                  <SupportWidget />
-                </motion.div>
-              </DashboardErrorBoundary>
-            </div>
-          </motion.div>
-
-          {/* Empty State for New Users */}
-          {!isLoading && !customer && (
-            <Card className="border-2 border-dashed border-teal-300 bg-teal-50/30">
-              <CardContent className="p-6 sm:p-8 text-center">
-                <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900 mb-2">
-                  Your dashboard is ready!
-                </h2>
-                <p className="text-xs sm:text-sm lg:text-base text-gray-600 mb-6">
-                  Book your first service to see your appointments, history, and more here.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <Button asChild className="bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-sm sm:text-base h-10 sm:h-11">
-                    <a href="/booking/service/standard/details">Book Your First Service</a>
-                  </Button>
-                  <Button variant="outline" asChild className="text-sm sm:text-base h-10 sm:h-11">
-                    <a href="/contact">Contact Support</a>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
           )}
         </div>
       </main>
-
-      {/* Mobile Bottom Navigation */}
-      <MobileBottomNav 
-        activeTab="overview" 
-        onTabChange={() => {}}
-        onMoreClick={() => setDrawerOpen(true)}
-      />
-
-      {/* Mobile Drawer */}
-      <MobileDrawer
-        isOpen={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        user={user}
-        customer={customer}
-        onEditProfile={() => setProfileSheetOpen(true)}
-      />
-
-      {/* Profile Quick Setup */}
-      <ProfileQuickSetup
-        open={profileSheetOpen}
-        onOpenChange={setProfileSheetOpen}
-        customer={customer}
-        onUpdated={(updated) => {
-          setCustomer((prev) =>
-            prev
-              ? { ...prev, ...updated }
-              : {
-                  ...updated,
-                  totalBookings: 0,
-                }
-          );
-        }}
-      />
-      
-      {/* Session Timeout Warning */}
-      <SessionTimeoutWarning warningMinutes={5} checkInterval={30} />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { generateReviewRequestEmail, sendEmail } from '@/lib/email';
 import { createServiceClient } from '@/lib/supabase-server';
 import { sendWhatsAppTemplate } from '@/lib/notifications/whatsapp';
 import { logNotification } from '@/lib/notifications/log';
+import { incrementCustomerRewardsForCompletedBooking } from '@/lib/rewards-server';
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   pending: ['accepted', 'declined', 'reschedule_requested'],
@@ -302,6 +303,19 @@ export async function PATCH(
         }
       }
     } catch {}
+
+    // Increment customer rewards when booking is marked completed
+    if (newStatus === 'completed') {
+      try {
+        const serviceSupabase = await createServiceClient();
+        const rewardsResult = await incrementCustomerRewardsForCompletedBooking(serviceSupabase, bookingId);
+        if (!rewardsResult.ok) {
+          console.warn('⚠️ Failed to increment customer rewards:', rewardsResult.error);
+        }
+      } catch (rewardsErr) {
+        console.warn('⚠️ Rewards increment error:', rewardsErr);
+      }
+    }
 
     // Send review request email if booking is completed
     if (newStatus === 'completed' && process.env.RESEND_API_KEY && cleaner) {
