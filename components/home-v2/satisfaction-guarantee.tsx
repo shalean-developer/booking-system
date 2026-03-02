@@ -27,7 +27,7 @@ export function SatisfactionGuarantee() {
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <ShaleanButtonLink
-              href="/booking"
+              href="/booking/service/standard/plan"
               variant="primary"
               className="text-lg px-10"
             >

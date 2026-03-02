@@ -69,7 +69,7 @@ export const SEO_CONFIG = {
   "booking-select": {
     title: "Book a Cleaning Service Online",
     description: "Book a trusted cleaner online for deep clean, regular service, or Airbnb turnovers across Cape Town. Get instant quote with transparent pricing and flexible scheduling. Book now!",
-    canonical: generateCanonical("/booking/service/standard/details"),
+    canonical: generateCanonical("/booking/service/standard/plan"),
     ogImage: {
       url: generateOgImageUrl("booking"),
       alt: "Mobile booking interface with cleaning options"

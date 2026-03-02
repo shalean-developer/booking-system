@@ -26,7 +26,7 @@ export function Hero() {
             office. Book a sparkle in under 60 seconds.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
-            <ShaleanButtonLink href="/booking" variant="primary" className="text-lg px-8 md:px-10 py-4">
+            <ShaleanButtonLink href="/booking/service/standard/plan" variant="primary" className="text-lg px-8 md:px-10 py-4">
               Book Now <ChevronRight className="w-5 h-5" />
             </ShaleanButtonLink>
             <ShaleanButton variant="outline" className="text-lg px-8 md:px-10 py-4">

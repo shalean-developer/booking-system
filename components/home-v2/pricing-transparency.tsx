@@ -41,7 +41,7 @@ export function PricingTransparency() {
               our instant quote tool to see your exact price in seconds — no
               commitment required.
             </p>
-            <ShaleanButtonLink href="/booking" variant="primary">
+            <ShaleanButtonLink href="/booking/service/standard/plan" variant="primary">
               Get Instant Quote <ChevronRight className="w-5 h-5" />
             </ShaleanButtonLink>
           </div>

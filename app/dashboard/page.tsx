@@ -650,8 +650,8 @@ export default function DashboardPage() {
             <CustomerDashboard
               user={userProfile}
               onLogout={() => safeLogout(supabase, router, { redirectPath: '/' })}
-              onNewBooking={() => router.push('/booking')}
-              onAutoRebook={() => router.push('/booking')}
+              onNewBooking={() => router.push('/booking/service/standard/plan')}
+              onAutoRebook={() => router.push('/booking/service/standard/plan')}
               onReschedule={(booking) => router.push(`/booking/reschedule?id=${encodeURIComponent(booking.id)}`)}
               onCancel={handleCancelBooking}
             />

@@ -6,48 +6,48 @@ import { serviceTypeToSlug, getStepName } from './booking-utils';
 /**
  * Centralized booking URLs.
  *
- * All booking steps include the step slug in the URL: `/booking/[slug]/[step]`
+ * Uses canonical 4-segment form: `/booking/service/[slug]/[step]`
  */
 export function useBookingPath() {
   const isOldBookingPath = false;
+  const prefix = '/booking/service';
 
   const getSelectPath = useMemo(() => {
-    // Redirect to new unified booking flow (details page has service selection built in)
-    return '/booking/standard/details';
+    return '/booking/service/standard/plan';
   }, []);
 
   const getDetailsPath = useMemo(() => {
     return (serviceType: string) => {
       const slug = serviceTypeToSlug(serviceType as any);
-      return `/booking/${slug}/details`;
+      return `${prefix}/${slug}/plan`;
     };
   }, []);
 
   const getSchedulePath = useMemo(() => {
     return (serviceType: string) => {
       const slug = serviceTypeToSlug(serviceType as any);
-      return `/booking/${slug}/schedule`;
+      return `${prefix}/${slug}/schedule`;
     };
   }, []);
 
   const getContactPath = useMemo(() => {
     return (serviceType: string) => {
       const slug = serviceTypeToSlug(serviceType as any);
-      return `/booking/${slug}/contact`;
+      return `${prefix}/${slug}/contact`;
     };
   }, []);
 
   const getCleanerPath = useMemo(() => {
     return (serviceType: string) => {
       const slug = serviceTypeToSlug(serviceType as any);
-      return `/booking/${slug}/cleaner`;
+      return `${prefix}/${slug}/cleaner`;
     };
   }, []);
 
   const getReviewPath = useMemo(() => {
     return (serviceType: string) => {
       const slug = serviceTypeToSlug(serviceType as any);
-      return `/booking/${slug}/review`;
+      return `${prefix}/${slug}/review`;
     };
   }, []);
 
@@ -63,7 +63,7 @@ export function useBookingPath() {
     return (serviceType: string, stepNumber: number) => {
       const slug = serviceTypeToSlug(serviceType as any);
       const stepName = getStepName(stepNumber);
-      return `/booking/${slug}/${stepName}`;
+      return `${prefix}/${slug}/${stepName}`;
     };
   }, []);
 

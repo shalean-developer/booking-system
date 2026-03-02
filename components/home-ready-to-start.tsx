@@ -42,7 +42,7 @@ export function HomeReadyToStart() {
               className="bg-primary hover:bg-primary/90 text-white rounded-full pl-6 pr-2 py-2.5 text-sm font-medium transition-colors gap-3"
               asChild
             >
-              <Link href="/booking/standard" className="flex items-center gap-3">
+              <Link href="/booking/service/standard/plan" className="flex items-center gap-3">
                 Book Now
                 <span className="bg-white rounded-full flex items-center justify-center p-1.5 w-7 h-7 flex-shrink-0">
                   <ArrowUpRight className="h-4 w-4 text-primary" />

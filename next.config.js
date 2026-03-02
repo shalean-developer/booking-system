@@ -49,7 +49,7 @@ const nextConfig = {
       },
       {
         source: '/booking-v2/:path*',
-        destination: '/booking',
+        destination: '/booking/service/standard/plan',
         permanent: true,
       },
       // Force apex domain
@@ -72,7 +72,7 @@ const nextConfig = {
       },
       {
         source: '/blog/shalean.co.za/booking/service/select',
-        destination: '/booking/standard',
+        destination: '/booking/service/standard/plan',
         permanent: true,
       },
       // Wildcard redirect for old blog URLs with domain prefix
@@ -123,40 +123,26 @@ const nextConfig = {
         destination: '/services/deep-cleaning',
         permanent: true,
       },
-      // Old booking URLs - redirect all /booking/service/[slug]/[step] to /booking/[slug] (flat URL structure)
-      {
-        source: '/booking/service/:slug/details',
-        destination: '/booking/:slug',
-        permanent: true,
-      },
-      {
-        source: '/booking/service/:slug/schedule',
-        destination: '/booking/:slug',
-        permanent: true,
-      },
-      {
-        source: '/booking/service/:slug/worker',
-        destination: '/booking/:slug',
-        permanent: true,
-      },
-      {
-        source: '/booking/service/:slug/contact',
-        destination: '/booking/:slug',
-        permanent: true,
-      },
-      {
-        source: '/booking/service/:slug/review',
-        destination: '/booking/:slug',
-        permanent: true,
-      },
-      {
-        source: '/booking/service/:slug/:step',
-        destination: '/booking/:slug',
-        permanent: true,
-      },
       {
         source: '/booking/service/select',
-        destination: '/booking/standard',
+        destination: '/booking/service/standard/plan',
+        permanent: true,
+      },
+      // Legacy /details step -> /plan (Plan, Time, Crew, Final)
+      {
+        source: '/booking/service/:slug(standard|deep|move-in-out|airbnb|carpet)/details',
+        destination: '/booking/service/:slug/plan',
+        permanent: true,
+      },
+      // Legacy flat booking URLs -> canonical /booking/service/[service]/[step]
+      {
+        source: '/booking/:slug(standard|deep|move-in-out|airbnb|carpet)',
+        destination: '/booking/service/:slug/plan',
+        permanent: true,
+      },
+      {
+        source: '/booking/:slug(standard|deep|move-in-out|airbnb|carpet)/:step',
+        destination: '/booking/service/:slug/:step',
         permanent: true,
       },
       // Old booking IDs redirect to confirmation page (format: numbersxnumbers)
@@ -193,17 +179,17 @@ const nextConfig = {
       },
       {
         source: '/cleaning/first-step',
-        destination: '/booking/service/standard/details',
+        destination: '/booking/service/standard/plan',
         permanent: true,
       },
       {
         source: '/cleaning0/:path*',
-        destination: '/booking/service/standard/details',
+        destination: '/booking/service/standard/plan',
         permanent: true,
       },
       {
         source: '/cleaning1',
-        destination: '/booking/service/standard/details',
+        destination: '/booking/service/standard/plan',
         permanent: true,
       },
       // Old location paths

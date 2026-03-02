@@ -461,7 +461,7 @@ function QuoteSummary({ contact, serviceId, bedrooms, bathrooms, extras, onSubmi
               )}
             </Button>
 
-            <Link href="/booking/standard" className="block">
+            <Link href="/booking/service/standard/plan" className="block">
               <Button variant="outline" size="lg" className="w-full">
                 <span className="hidden sm:inline">Skip to Full Booking</span>
                 <span className="sm:hidden">Full Booking</span>

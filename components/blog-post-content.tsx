@@ -22,7 +22,7 @@ function sanitizeBlogContent(content: string): string {
 
   // Fix malformed /blog/shalean.co.za links - replace with homepage or correct destination
   sanitized = sanitized.replace(/href=["']\/blog\/shalean\.co\.za\/?["']/gi, 'href="/"');
-  sanitized = sanitized.replace(/href=["']\/blog\/shalean\.co\.za\/booking\/service\/select["']/gi, 'href="/booking/standard"');
+  sanitized = sanitized.replace(/href=["']\/blog\/shalean\.co\.za\/booking\/service\/select["']/gi, 'href="/booking/service/standard/plan"');
   sanitized = sanitized.replace(/href=["']\/blog\/shalean\.co\.za\/?([^"']*)["']/gi, (match, path) => {
     // If there's a path after /blog/shalean.co.za, try to redirect to that path directly
     if (path && path !== '/') {
@@ -38,7 +38,7 @@ function sanitizeBlogContent(content: string): string {
   });
   
   // Fix /booking links to point to booking page
-  sanitized = sanitized.replace(/href=["']\/booking["']/gi, 'href="/booking/standard"');
+  sanitized = sanitized.replace(/href=["']\/booking["']/gi, 'href="/booking/service/standard/plan"');
   
   // Fix blog post links that might have incorrect slugs
   // eco-friendly-cleaning-practices -> the-benefits-of-eco-friendly-cleaning-products

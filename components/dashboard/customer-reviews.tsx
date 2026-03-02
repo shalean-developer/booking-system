@@ -168,7 +168,7 @@ export function CustomerReviews() {
           </div>
           <div className="flex flex-col sm:flex-row gap-2 justify-center pb-2">
             <Button asChild className="sm:min-w-[160px]">
-              <Link href="/booking/service/standard/details">Book a service</Link>
+              <Link href="/booking/service/standard/plan">Book a service</Link>
             </Button>
             <Button variant="outline" asChild className="sm:min-w-[160px]">
               <Link href="/contact">Need recommendations?</Link>

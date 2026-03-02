@@ -239,7 +239,7 @@ export function PricingContent() {
                 size="lg"
                 asChild
               >
-                <Link href={`/booking/standard?service=${service.type}`}>
+                <Link href={`/booking/service/standard/plan?service=${service.type}`}>
                   Book {service.name}
                 </Link>
               </Button>
@@ -401,7 +401,7 @@ export function PricingContent() {
               className="bg-primary hover:bg-primary/90 text-white"
               asChild
             >
-              <Link href="/booking/standard">Get Instant Quote</Link>
+              <Link href="/booking/service/standard/plan">Get Instant Quote</Link>
             </Button>
             <Button
               size="lg"

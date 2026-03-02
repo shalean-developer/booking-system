@@ -87,7 +87,7 @@ export const SubscriptionPlans = memo(function SubscriptionPlans({
             <RefreshCw className="h-12 w-12 sm:h-16 sm:w-16 text-gray-300 mx-auto mb-3" />
             <p className="text-xs sm:text-sm lg:text-base text-gray-600 mb-4">No active cleaning plans</p>
             <Button asChild className="bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-sm sm:text-base h-10 sm:h-11">
-              <Link href="/booking/service/standard/details?recurring=true">
+              <Link href="/booking/service/standard/plan?recurring=true">
                 <Plus className="h-4 w-4 mr-2" />
                 Add New Plan
               </Link>
@@ -120,7 +120,7 @@ export const SubscriptionPlans = memo(function SubscriptionPlans({
               className="w-full border-dashed border-2 border-teal-300 text-teal-600 hover:bg-teal-50 h-9 sm:h-10 text-xs sm:text-sm touch-manipulation"
               asChild
             >
-              <Link href="/booking/service/standard/details?recurring=true">
+              <Link href="/booking/service/standard/plan?recurring=true">
                 <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2 flex-shrink-0" />
                 Add New Plan
               </Link>

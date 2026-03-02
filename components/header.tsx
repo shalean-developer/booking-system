@@ -66,6 +66,12 @@ export function Header({ variant = 'default' }: HeaderProps) {
   
   // Check if we're in booking flow
   const isBookingFlow = pathname?.startsWith('/booking');
+  // Plan flow: /booking/plan (legacy redirect) or /booking/service/[serviceType]/plan
+  const isPlanFlow =
+    pathname?.startsWith('/booking/plan') ||
+    (pathname?.match(/^\/booking\/service\/[^/]+\/plan\/?$/) ?? false);
+  // Details flow (DETAILS → SCHEDULE → CONTACT → etc.) shows header stepper; Plan flow has its own
+  const isDetailsBookingFlow = isBookingFlow && !isPlanFlow;
   
   // Handle scroll direction detection
   useEffect(() => {
@@ -96,9 +102,9 @@ export function Header({ variant = 'default' }: HeaderProps) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
   
-  // Always call hook (React rules), but only use it in booking flow
+  // Always call hook (React rules), but only use it in details booking flow
   const bookingHook = useBookingV2();
-  const bookingState = isBookingFlow ? bookingHook.state : { currentStep: 1 };
+  const bookingState = isDetailsBookingFlow ? bookingHook.state : { currentStep: 1 };
 
   // Fetch services for dropdown - Deferred to prevent blocking initial render
   useEffect(() => {
@@ -129,7 +135,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
   // Generate service URL from service type
   const getServiceUrl = (serviceType: string) => {
     const slug = serviceType.toLowerCase().replace(/\s+/g, '-').replace(/\//g, '-');
-    return `/booking/${slug}`;
+    return `/booking/service/${slug}/plan`;
   };
 
   // Group services by category
@@ -216,8 +222,8 @@ export function Header({ variant = 'default' }: HeaderProps) {
             {/* Logo */}
             <Logo />
 
-            {/* Stepper - Between logo and navlinks, only visible in booking flow */}
-            {isBookingFlow && (
+            {/* Stepper - Only in details flow (Plan flow has its own Plan/Time/Crew/Final) */}
+            {isDetailsBookingFlow && (
               <div className="hidden md:flex items-center justify-center flex-1 px-8">
                 {(() => {
                   const current = bookingState.currentStep;
@@ -434,7 +440,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
                   className="hidden md:flex bg-primary hover:bg-primary/90 text-white rounded-full pl-6 pr-2 py-2.5 text-sm font-medium transition-colors gap-3" 
                   asChild
                 >
-                  <Link href="/booking/standard" className="flex items-center gap-3">
+                  <Link href="/booking/service/standard/plan" className="flex items-center gap-3">
                     Book a service
                     <span className="bg-white rounded-full flex items-center justify-center p-1.5 w-7 h-7 flex-shrink-0">
                       <ArrowUpRight className="h-4 w-4 text-primary" />
@@ -557,7 +563,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
                     className="bg-primary hover:bg-primary/90 text-white rounded-full pl-6 pr-2 py-2.5 text-sm font-medium transition-colors w-full justify-center gap-3" 
                     asChild
                   >
-                    <Link href="/booking/standard" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3">
+                    <Link href="/booking/service/standard/plan" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3">
                       Book a service
                       <span className="bg-white rounded-full flex items-center justify-center p-1.5 w-7 h-7 flex-shrink-0">
                         <ArrowUpRight className="h-3.5 w-3.5 text-primary" />

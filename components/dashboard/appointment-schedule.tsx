@@ -269,7 +269,7 @@ export const AppointmentSchedule = memo(function AppointmentSchedule({ bookings,
                 <Calendar className="h-12 w-12 sm:h-16 sm:w-16 text-gray-300 mx-auto mb-3" />
                 <p className="text-xs sm:text-sm lg:text-base text-gray-600 mb-4">No upcoming appointments</p>
                 <Button asChild className="text-sm sm:text-base h-10 sm:h-11">
-                  <Link href="/booking/service/standard/details">Book a Service</Link>
+                  <Link href="/booking/service/standard/plan">Book a Service</Link>
                 </Button>
               </motion.div>
             ) : (

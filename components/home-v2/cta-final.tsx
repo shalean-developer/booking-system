@@ -39,7 +39,7 @@ export function CtaFinal() {
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4 relative z-10">
           <ShaleanButtonLink
-            href="/booking"
+            href="/booking/service/standard/plan"
             className="!bg-white !text-blue-600 hover:!bg-blue-50 px-10"
           >
             Book a Clean Now

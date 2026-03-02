@@ -112,6 +112,15 @@ export async function POST(req: Request) {
       );
     }
 
+    // Ensure booking date and time are present before proceeding
+    if (!body.date || !body.time) {
+      console.error('❌ Booking date/time missing in booking submission:', { date: body.date, time: body.time });
+      return NextResponse.json(
+        { ok: false, error: 'Booking date and time are required' },
+        { status: 400 }
+      );
+    }
+
     // STEP 4: Generate unique booking ID and handle customer profile
     const bookingId = body.paymentReference || generateUniqueBookingId();
     console.log('Step 4: Generated booking ID:', bookingId);
@@ -419,7 +428,7 @@ export async function POST(req: Request) {
           id: bookingId,
           customer_id: customerId,
           cleaner_id: requiresTeam ? null : cleanerIdForInsert, // Use NULL for team bookings (teams tracked separately)
-          booking_date: body.date,
+          booking_date: body.date || null,
           booking_time: body.time,
           expected_end_time: (body as any).expectedEndTime || null,
           service_type: body.service,
@@ -446,7 +455,14 @@ export async function POST(req: Request) {
 
       if (bookingError) {
         console.error('❌ Failed to save booking to database:', bookingError);
-        throw new Error(`Database error: ${bookingError.message}`);
+        // Return a structured error so the client can show a clear message
+        return NextResponse.json(
+          {
+            ok: false,
+            error: `Failed to save booking: ${bookingError.message}`,
+          },
+          { status: 500 }
+        );
       }
       
       bookingData = data;
@@ -760,7 +776,8 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { 
         ok: false, 
-        error: 'Failed to process booking', 
+        // Surface the underlying error message so the client can display it
+        error: error instanceof Error ? error.message : 'Failed to process booking',
         message: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString()
       },

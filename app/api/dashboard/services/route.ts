@@ -67,7 +67,7 @@ export async function GET(request: Request) {
           fullName: key,
           icon: mapping.icon,
           type: 'extra' as const,
-          href: `/booking/standard?extras=${urlSlug}`,
+          href: `/booking/service/standard/plan?extras=${urlSlug}`,
         };
       });
 
@@ -98,7 +98,7 @@ export async function GET(request: Request) {
           fullName: service.display_name,
           icon: service.icon || '✨',
           type: 'service' as const,
-          href: `/booking/${urlSlug}`,
+          href: `/booking/service/${urlSlug}/plan`,
         };
       })
       .sort((a, b) => {

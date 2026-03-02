@@ -618,7 +618,7 @@ export function SuburbPageTemplate({
               )}
               <div className="flex flex-wrap gap-4">
                 <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-8 py-4 text-lg" asChild>
-                  <Link href="/booking/service/standard/details">
+                  <Link href="/booking/service/standard/plan">
                     Book Your Clean
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
@@ -692,7 +692,7 @@ export function SuburbPageTemplate({
               <p className="text-sm text-gray-600">Reserve your {suburb} cleaning slot</p>
             </div>
             <Button size="sm" className="px-4 py-2" asChild>
-              <Link href="/booking/service/standard/details">
+              <Link href="/booking/service/standard/plan">
                 <span aria-hidden="true">Book Now</span>
                 <span className="sr-only">Book a cleaning appointment in {suburb}</span>
               </Link>
@@ -983,7 +983,7 @@ export function SuburbPageTemplate({
             {available ? (
               <>
                 <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-8 py-4 text-lg" asChild>
-                  <Link href="/booking/service/standard/details">
+                  <Link href="/booking/service/standard/plan">
                     Book Now
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>

@@ -46,7 +46,7 @@ export function BlogPostCTA({ relatedServices }: BlogPostCTAProps = {}) {
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-10 py-4 text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1" asChild>
-            <Link href="/booking/standard">
+            <Link href="/booking/service/standard/plan">
               Book a Service
               <ArrowRight className="ml-2 h-5 w-5" />
             </Link>

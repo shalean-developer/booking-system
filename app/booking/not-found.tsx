@@ -22,7 +22,7 @@ export default function BookingNotFound() {
         
         <div className="space-y-3">
           <button
-            onClick={() => router.push('/booking')}
+            onClick={() => router.push('/booking/service/standard/plan')}
             className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
           >
             <Home className="w-5 h-5" />

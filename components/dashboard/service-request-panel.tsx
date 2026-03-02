@@ -50,22 +50,22 @@ export const ServiceRequestPanel = memo(function ServiceRequestPanel({ onBookSer
         } else {
           // Fallback to default services (all 5 services)
           setAllServices([
-            { id: 'Standard', name: 'Standard', fullName: 'Standard Cleaning', icon: '✨', type: 'service', href: '/booking/standard' },
-            { id: 'Deep', name: 'Deep Clean', fullName: 'Deep Cleaning', icon: '✨', type: 'service', href: '/booking/deep' },
-            { id: 'Move In/Out', name: 'Move In/Out', fullName: 'Move In/Out Cleaning', icon: '✨', type: 'service', href: '/booking/move-in-out' },
-            { id: 'Airbnb', name: 'Airbnb', fullName: 'Airbnb Cleaning', icon: '✨', type: 'service', href: '/booking/airbnb' },
-            { id: 'Carpet', name: 'Carpet', fullName: 'Carpet Cleaning', icon: '✨', type: 'service', href: '/booking/carpet' },
+            { id: 'Standard', name: 'Standard', fullName: 'Standard Cleaning', icon: '✨', type: 'service', href: '/booking/service/standard/plan' },
+            { id: 'Deep', name: 'Deep Clean', fullName: 'Deep Cleaning', icon: '✨', type: 'service', href: '/booking/service/deep/plan' },
+            { id: 'Move In/Out', name: 'Move In/Out', fullName: 'Move In/Out Cleaning', icon: '✨', type: 'service', href: '/booking/service/move-in-out/plan' },
+            { id: 'Airbnb', name: 'Airbnb', fullName: 'Airbnb Cleaning', icon: '✨', type: 'service', href: '/booking/service/airbnb/plan' },
+            { id: 'Carpet', name: 'Carpet', fullName: 'Carpet Cleaning', icon: '✨', type: 'service', href: '/booking/service/carpet/plan' },
           ]);
         }
       } catch (error) {
         console.error('Error fetching services:', error);
         // Fallback to default services (all 5 services)
         setAllServices([
-          { id: 'Standard', name: 'Standard', fullName: 'Standard Cleaning', icon: '✨', type: 'service', href: '/booking/standard' },
-          { id: 'Deep', name: 'Deep Clean', fullName: 'Deep Cleaning', icon: '✨', type: 'service', href: '/booking/deep' },
-          { id: 'Move In/Out', name: 'Move In/Out', fullName: 'Move In/Out Cleaning', icon: '✨', type: 'service', href: '/booking/move-in-out' },
-          { id: 'Airbnb', name: 'Airbnb', fullName: 'Airbnb Cleaning', icon: '✨', type: 'service', href: '/booking/airbnb' },
-          { id: 'Carpet', name: 'Carpet', fullName: 'Carpet Cleaning', icon: '✨', type: 'service', href: '/booking/carpet' },
+          { id: 'Standard', name: 'Standard', fullName: 'Standard Cleaning', icon: '✨', type: 'service', href: '/booking/service/standard/plan' },
+          { id: 'Deep', name: 'Deep Clean', fullName: 'Deep Cleaning', icon: '✨', type: 'service', href: '/booking/service/deep/plan' },
+          { id: 'Move In/Out', name: 'Move In/Out', fullName: 'Move In/Out Cleaning', icon: '✨', type: 'service', href: '/booking/service/move-in-out/plan' },
+          { id: 'Airbnb', name: 'Airbnb', fullName: 'Airbnb Cleaning', icon: '✨', type: 'service', href: '/booking/service/airbnb/plan' },
+          { id: 'Carpet', name: 'Carpet', fullName: 'Carpet Cleaning', icon: '✨', type: 'service', href: '/booking/service/carpet/plan' },
         ]);
       } finally {
         setIsLoading(false);
@@ -110,7 +110,7 @@ export const ServiceRequestPanel = memo(function ServiceRequestPanel({ onBookSer
           onClick={handleBookService}
           asChild
         >
-          <Link href="/booking/standard" className="flex items-center justify-center gap-1.5">
+          <Link href="/booking/service/standard/plan" className="flex items-center justify-center gap-1.5">
             <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
             <span>Book a New Cleaning</span>
           </Link>
@@ -191,7 +191,7 @@ export const ServiceRequestPanel = memo(function ServiceRequestPanel({ onBookSer
                   className="flex flex-col items-center justify-center gap-0.5 h-[68px] min-h-[68px] py-1.5 px-1 border-teal-200 active:bg-teal-50 bg-white touch-manipulation rounded-lg min-w-0"
                   asChild
                 >
-                  <Link href="/booking/standard" className="flex flex-col items-center justify-center w-full h-full min-w-0">
+                  <Link href="/booking/service/standard/plan" className="flex flex-col items-center justify-center w-full h-full min-w-0">
                     <Sparkles className="h-3.5 w-3.5 text-teal-600 flex-shrink-0" />
                     <span className="text-[10px] sm:text-xs lg:text-sm font-medium leading-tight text-center truncate w-full">Standard</span>
                   </Link>
@@ -201,7 +201,7 @@ export const ServiceRequestPanel = memo(function ServiceRequestPanel({ onBookSer
                   className="flex flex-col items-center justify-center gap-0.5 h-[68px] min-h-[68px] py-1.5 px-1 border-teal-200 active:bg-teal-50 bg-white touch-manipulation rounded-lg min-w-0"
                   asChild
                 >
-                  <Link href="/booking/deep" className="flex flex-col items-center justify-center w-full h-full min-w-0">
+                  <Link href="/booking/service/deep/plan" className="flex flex-col items-center justify-center w-full h-full min-w-0">
                     <Sparkles className="h-3.5 w-3.5 text-teal-600 flex-shrink-0" />
                     <span className="text-[10px] sm:text-xs lg:text-sm font-medium leading-tight text-center truncate w-full">Deep</span>
                   </Link>
@@ -221,17 +221,17 @@ export const ServiceRequestPanel = memo(function ServiceRequestPanel({ onBookSer
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" sideOffset={4} className="w-[calc(100vw-2rem)] max-w-[280px] p-1.5">
                     <DropdownMenuItem asChild className="py-3 px-3 rounded-md">
-                      <Link href="/booking/move-in-out" className="flex items-center gap-2 cursor-pointer w-full text-sm font-medium touch-manipulation">
+                      <Link href="/booking/service/move-in-out/plan" className="flex items-center gap-2 cursor-pointer w-full text-sm font-medium touch-manipulation">
                         <span>Move In/Out</span>
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild className="py-3 px-3 rounded-md">
-                      <Link href="/booking/airbnb" className="flex items-center gap-2 cursor-pointer w-full text-sm font-medium touch-manipulation">
+                      <Link href="/booking/service/airbnb/plan" className="flex items-center gap-2 cursor-pointer w-full text-sm font-medium touch-manipulation">
                         <span>Airbnb</span>
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild className="py-3 px-3 rounded-md">
-                      <Link href="/booking/carpet" className="flex items-center gap-2 cursor-pointer w-full text-sm font-medium touch-manipulation">
+                      <Link href="/booking/service/carpet/plan" className="flex items-center gap-2 cursor-pointer w-full text-sm font-medium touch-manipulation">
                         <span>Carpet</span>
                       </Link>
                     </DropdownMenuItem>

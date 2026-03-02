@@ -283,7 +283,7 @@ export default function CapeTownPage() {
               </p>
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                 <Button size="lg" className="px-8 py-4 text-lg" asChild>
-                  <Link href="/booking/service/standard/details" aria-label="Book a cleaning service in Cape Town">
+                  <Link href="/booking/service/standard/plan" aria-label="Book a cleaning service in Cape Town">
                     Book a Clean
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
@@ -521,7 +521,7 @@ export default function CapeTownPage() {
                       ))}
                     </ul>
                     <Button className="mt-4 w-full" asChild>
-                      <Link href="/booking/service/standard/details" aria-label={`Book ${pkg.title} cleaning package`}>Book this package</Link>
+                      <Link href="/booking/service/standard/plan" aria-label={`Book ${pkg.title} cleaning package`}>Book this package</Link>
                     </Button>
                   </CardFooter>
                 </Card>
@@ -625,7 +625,7 @@ export default function CapeTownPage() {
                 </p>
                 <div className="mt-6 flex flex-col gap-3">
                   <Button className="w-full" asChild>
-                    <Link href="/booking/service/standard/details">Get a custom quote</Link>
+                    <Link href="/booking/service/standard/plan">Get a custom quote</Link>
                   </Button>
                   <Button
                     variant="outline"
@@ -681,7 +681,7 @@ export default function CapeTownPage() {
             </p>
             <div className="flex flex-col gap-4 sm:flex-row">
               <Button size="lg" variant="secondary" className="px-8 py-4 text-lg text-primary" asChild>
-                <Link href="/booking/service/standard/details">Book your clean</Link>
+                <Link href="/booking/service/standard/plan">Book your clean</Link>
               </Button>
               <Button
                 size="lg"

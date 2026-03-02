@@ -70,7 +70,7 @@ export function ShaleanHeader() {
                 {link.label}
               </Link>
             ))}
-            <ShaleanButtonLink href="/booking" className="px-8 py-2.5">
+            <ShaleanButtonLink href="/booking/service/standard/plan" className="px-8 py-2.5">
               Book Now
             </ShaleanButtonLink>
           </div>
@@ -117,7 +117,7 @@ export function ShaleanHeader() {
                 </Link>
               ))}
               <ShaleanButtonLink
-                href="/booking"
+                href="/booking/service/standard/plan"
                 className="w-full text-lg mt-4 py-4"
               >
                 Book a Clean

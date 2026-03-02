@@ -123,7 +123,7 @@ function ConfirmationContent() {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
             <Button asChild>
-              <Link href="/booking">Book New Session</Link>
+              <Link href="/booking/service/standard/plan">Book New Session</Link>
             </Button>
             <Button asChild variant="secondary">
               <Link href="/dashboard">View in Dashboard</Link>

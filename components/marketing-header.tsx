@@ -52,7 +52,7 @@ export function MarketingHeader({ activeItem = "locations" }: MarketingHeaderPro
 
         <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
           <Button asChild className="rounded-full bg-primary px-4 py-2 text-sm text-white hover:bg-primary/90">
-            <Link href="/booking/service/standard/details">Book a Clean</Link>
+            <Link href="/booking/service/standard/plan">Book a Clean</Link>
           </Button>
           <Button
             variant="outline"

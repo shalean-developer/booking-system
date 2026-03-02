@@ -1,5 +1,5 @@
 import { unstable_cache } from 'next/cache';
-import { createClient } from '@/lib/supabase-server';
+import { createServiceClient } from '@/lib/supabase-server';
 import { fetchActivePricing } from '@/lib/pricing-db';
 import { fetchServicesMetadata } from '@/lib/pricing-db';
 
@@ -36,7 +36,8 @@ export interface BookingFormDataServer {
 }
 
 async function getBookingFormDataUncached(): Promise<BookingFormDataServer> {
-  const supabase = await createClient();
+  // Use service client so we never call cookies() inside unstable_cache (not allowed by Next.js)
+  const supabase = createServiceClient();
 
   const [
     servicesMetadata,

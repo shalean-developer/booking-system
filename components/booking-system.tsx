@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { ChevronRight, ChevronLeft, CheckCircle2, Star, ShieldCheck, Clock, Calendar, Home, Layers, Sparkles, Wind, ArrowRight, Plus, Minus, Users, CreditCard, Download, RefreshCw, Phone, Mail, MapPin, MessageSquare, Check, AlertCircle, Loader2, Building2, Sofa, ChevronDown, Award, User, X, ThumbsUp, Map, Zap, Tag, Briefcase } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateBookingId } from '@/lib/booking-id';
@@ -333,6 +333,28 @@ function slugify(name: string): string {
   return name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
 }
 
+// Service id -> URL slug (move-in-out for move)
+const SERVICE_TO_URL_SLUG: Record<ServiceType, string> = {
+  standard: 'standard',
+  deep: 'deep',
+  move: 'move-in-out',
+  airbnb: 'airbnb',
+  carpet: 'carpet',
+};
+const STEP_TO_SLUG: Record<number, string> = {
+  1: 'plan',
+  2: 'time',
+  3: 'crew',
+  4: 'final',
+};
+const SLUG_TO_STEP: Record<string, number> = {
+  plan: 1,
+  time: 2,
+  crew: 3,
+  final: 4,
+};
+const BOOKING_STORAGE_KEY = 'shalean-booking-form-v1';
+
 // --- HELPERS ---
 
 const generateRef = () => 'SHL-' + Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -515,13 +537,35 @@ const FormCard = ({
 interface BookingSystemProps {
   onNavigateContact?: () => void;
   initialFormData?: BookingFormDataFromApi | null;
+  initialService?: ServiceType;
 }
 
-export const BookingSystem = ({ onNavigateContact, initialFormData }: BookingSystemProps = {}) => {
+export const BookingSystem = ({ onNavigateContact, initialFormData, initialService }: BookingSystemProps = {}) => {
   const router = useRouter();
+  const pathname = usePathname();
   const { data: formData, loading: formDataLoading, error: formDataError } = useBookingFormData(initialFormData);
-  const [step, setStep] = useState(1);
-  const [data, setData] = useState<BookingFormData>(DEFAULT_FORM);
+  const [step, setStep] = useState(() => {
+    const segments = pathname.split('/').filter(Boolean);
+    const last = segments[segments.length - 1];
+    return SLUG_TO_STEP[last] ?? 1;
+  });
+  const [data, setData] = useState<BookingFormData>(() => {
+    const base: BookingFormData = {
+      ...DEFAULT_FORM,
+      ...(initialService && { service: initialService }),
+    };
+    if (typeof window === 'undefined') return base;
+    try {
+      const stored = window.sessionStorage.getItem(BOOKING_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return { ...base, ...parsed };
+      }
+    } catch {
+      // ignore storage errors
+    }
+    return base;
+  });
   const [errors, setErrors] = useState<Partial<Record<keyof BookingFormData, string>>>({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState('');
@@ -592,6 +636,30 @@ export const BookingSystem = ({ onNavigateContact, initialFormData }: BookingSys
       setData((prev) => ({ ...prev, paymentMethod: 'online' }));
     }
   }, [hasRewardsBalance, data.paymentMethod]);
+
+  // Persist booking form data across step route changes
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.sessionStorage.setItem(BOOKING_STORAGE_KEY, JSON.stringify(data));
+    } catch {
+      // ignore storage write errors
+    }
+  }, [data]);
+
+  // Keep URL service slug in sync with selected service (preserve current step from pathname)
+  useEffect(() => {
+    const segments = pathname.split('/').filter(Boolean);
+    const serviceIdx = segments.indexOf('service');
+    if (serviceIdx === -1 || serviceIdx + 2 >= segments.length) return;
+    const currentServiceSlug = segments[serviceIdx + 1];
+    const currentStepSlug = segments[serviceIdx + 2];
+    const expectedServiceSlug = SERVICE_TO_URL_SLUG[data.service];
+
+    if (currentServiceSlug !== expectedServiceSlug) {
+      router.replace(`/booking/service/${expectedServiceSlug}/${currentStepSlug}`, { scroll: false });
+    }
+  }, [data.service, pathname, router]);
 
   const displayServices = useMemo(() => {
     if (formData?.services?.length) {
@@ -828,11 +896,20 @@ export const BookingSystem = ({ onNavigateContact, initialFormData }: BookingSys
   const submitBooking = useCallback(
     async (paymentReference: string) => {
       setPaymentError('');
+      if (!data.date || !data.time) {
+        setPaymentError('Please select a date and time before confirming your booking.');
+        setIsProcessing(false);
+        return;
+      }
       const body = buildBookingPayload(paymentReference);
       try {
         const res = await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         const result = await res.json();
-        if (!result.ok) throw new Error(result.error || 'Failed to submit booking');
+        if (!result.ok) {
+          // Prefer detailed message from API if available
+          const errorMessage = result.error || result.message || 'Failed to submit booking';
+          throw new Error(errorMessage);
+        }
         const ref = result.bookingId || paymentReference;
         setBookingRef(ref);
         setStep(5);
@@ -844,11 +921,16 @@ export const BookingSystem = ({ onNavigateContact, initialFormData }: BookingSys
         setIsProcessing(false);
       }
     },
-    [buildBookingPayload, router]
+    [buildBookingPayload, router, data.date, data.time]
   );
 
   const submitGuestBooking = useCallback(async () => {
     setPaymentError('');
+    if (!data.date || !data.time) {
+      setPaymentError('Please select a date and time before confirming your booking.');
+      setIsProcessing(false);
+      return;
+    }
     const body = buildBookingPayload(null);
     try {
       const res = await fetch('/api/bookings/guest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -864,7 +946,7 @@ export const BookingSystem = ({ onNavigateContact, initialFormData }: BookingSys
     } finally {
       setIsProcessing(false);
     }
-  }, [buildBookingPayload, router]);
+  }, [buildBookingPayload, router, data.date, data.time]);
 
   const handleNext = () => {
     if (!validateStep()) return;
@@ -908,11 +990,20 @@ export const BookingSystem = ({ onNavigateContact, initialFormData }: BookingSys
       }
       return;
     }
-    setStep(s => s + 1);
+    const nextStep = step + 1;
+    setStep(nextStep);
+    const serviceSlug = SERVICE_TO_URL_SLUG[data.service];
+    const nextStepSlug = STEP_TO_SLUG[nextStep] ?? 'plan';
+    router.replace(`/booking/service/${serviceSlug}/${nextStepSlug}`, { scroll: false });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   const handleBack = () => {
-    setStep(s => Math.max(1, s - 1));
+    const prevStep = Math.max(1, step - 1);
+    if (prevStep === step) return;
+    setStep(prevStep);
+    const serviceSlug = SERVICE_TO_URL_SLUG[data.service];
+    const prevStepSlug = STEP_TO_SLUG[prevStep] ?? 'plan';
+    router.replace(`/booking/service/${serviceSlug}/${prevStepSlug}`, { scroll: false });
     window.scrollTo({
       top: 0,
       behavior: 'smooth'
@@ -1077,7 +1168,7 @@ export const BookingSystem = ({ onNavigateContact, initialFormData }: BookingSys
                 </button>
                 <button
                   type="button"
-                  onClick={() => router.push('/login?redirect=/booking')}
+                  onClick={() => router.push('/login?redirect=/booking/service/standard/plan')}
                   className="px-5 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-black shadow-lg shadow-slate-900/10 hover:bg-slate-800 transition-all"
                 >
                   Login
@@ -1480,7 +1571,7 @@ export const BookingSystem = ({ onNavigateContact, initialFormData }: BookingSys
                               </div>
                               <button
                                 type="button"
-                                onClick={() => router.push('/login?redirect=/booking')}
+                                onClick={() => router.push('/login?redirect=' + encodeURIComponent('/booking/service/standard/plan'))}
                                 className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[10px] font-black"
                               >
                                 Login

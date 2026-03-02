@@ -11,7 +11,7 @@ export function ShaleanMobileCta() {
   const pathname = usePathname();
   const shouldHide =
     !pathname ||
-    pathname === "/booking" ||
+    (pathname === "/booking" || pathname.startsWith("/booking/service/")) ||
     HIDE_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
     pathname.startsWith(HIDE_PREFIX);
 
@@ -19,7 +19,7 @@ export function ShaleanMobileCta() {
 
   return (
     <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 p-4 z-40 flex gap-4 pb-safe">
-      <ShaleanButtonLink href="/booking" className="flex-1 py-4 text-lg shadow-lg">
+      <ShaleanButtonLink href="/booking/service/standard/plan" className="flex-1 py-4 text-lg shadow-lg">
         Book Now
       </ShaleanButtonLink>
       <a

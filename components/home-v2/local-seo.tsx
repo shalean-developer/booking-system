@@ -38,7 +38,7 @@ export function LocalSeo() {
               </p>
             </div>
             <div className="mt-8">
-              <ShaleanButtonLink href="/booking" variant="primary">
+              <ShaleanButtonLink href="/booking/service/standard/plan" variant="primary">
                 Book Cleaning in Cape Town <ChevronRight className="w-5 h-5" />
               </ShaleanButtonLink>
             </div>

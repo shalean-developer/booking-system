@@ -453,7 +453,7 @@ export default function AnalyticsPage() {
                 <h2 className="text-xl font-semibold text-gray-900 mb-2">No analytics data yet</h2>
                 <p className="text-gray-600 mb-6">Complete some bookings to see your spending trends and insights</p>
                 <Button asChild className="bg-gradient-to-r from-teal-500 to-green-500">
-                  <a href="/booking/service/standard/details">Book a Service</a>
+                  <a href="/booking/service/standard/plan">Book a Service</a>
                 </Button>
               </CardContent>
             </Card>

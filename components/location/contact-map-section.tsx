@@ -77,7 +77,7 @@ export function ContactMapSection({
             </div>
             <div className="mt-8 flex flex-wrap gap-4">
               <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-6" asChild>
-                <Link href="/booking/service/standard/details">
+                <Link href="/booking/service/standard/plan">
                   Book Online
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>

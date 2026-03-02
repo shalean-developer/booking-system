@@ -7,7 +7,7 @@ export default function CalculatorRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/booking/standard');
+    router.replace('/booking/service/standard/plan');
   }, [router]);
 
   return (

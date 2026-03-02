@@ -212,6 +212,32 @@
     @apply border border-gray-200 px-4 py-2;
   }
 
+  /* Customer dashboard: bump text sizes one step for readability */
+  .dashboard-larger-text .text-xs {
+    font-size: 0.875rem;
+  }
+  .dashboard-larger-text .text-sm {
+    font-size: 1rem;
+  }
+  .dashboard-larger-text .text-base {
+    font-size: 1.125rem;
+  }
+  .dashboard-larger-text .text-lg {
+    font-size: 1.25rem;
+  }
+  .dashboard-larger-text .text-xl {
+    font-size: 1.5rem;
+  }
+  .dashboard-larger-text .text-2xl {
+    font-size: 1.875rem;
+  }
+  .dashboard-larger-text .text-3xl {
+    font-size: 2.25rem;
+  }
+  .dashboard-larger-text .text-4xl {
+    font-size: 2.5rem;
+  }
+
   /* Tip Cards and Special Content */
   .tip-card {
     @apply bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-lg p-6 my-6;

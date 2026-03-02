@@ -45,54 +45,41 @@ export function getSessionStorageKey(sessionId: string): string {
   return `booking_session:${sessionId}`;
 }
 
-/**
- * Get default session storage key (for backward compatibility)
- */
-export function getDefaultSessionStorageKey(): string {
-  return 'bookingState';
-}
+const LEGACY_KEY = 'bookingState';
 
 /**
- * Save booking state to sessionStorage
+ * Save booking state to sessionStorage (session key only; legacy key removed)
  */
 export function saveSessionState(sessionId: string, state: any): void {
   if (typeof window === 'undefined') return;
-  
+
   try {
     const key = getSessionStorageKey(sessionId);
     const cleaned = cleanStateForStorage(state);
     sessionStorage.setItem(key, JSON.stringify(cleaned));
-    
-    // Also save to default key for backward compatibility
-    sessionStorage.setItem(getDefaultSessionStorageKey(), JSON.stringify(cleaned));
+    sessionStorage.removeItem(LEGACY_KEY);
   } catch (error) {
     console.error('Failed to save session state:', error);
   }
 }
 
 /**
- * Load booking state from sessionStorage
+ * Load booking state from sessionStorage (session key only).
+ * Returns null when sessionId is null or no state exists for that session.
  */
 export function loadSessionState(sessionId: string | null): any | null {
   if (typeof window === 'undefined') return null;
-  
+
   try {
-    // First try to load from session-specific key
     if (sessionId) {
       const key = getSessionStorageKey(sessionId);
       const stored = sessionStorage.getItem(key);
       if (stored) {
         return JSON.parse(stored);
       }
+      return null;
     }
-    
-    // Fallback to default key for backward compatibility
-    const defaultKey = getDefaultSessionStorageKey();
-    const stored = sessionStorage.getItem(defaultKey);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-    
+    sessionStorage.removeItem(LEGACY_KEY);
     return null;
   } catch (error) {
     console.error('Failed to load session state:', error);
@@ -134,8 +121,7 @@ export function clearSessionState(sessionId: string): void {
   try {
     const key = getSessionStorageKey(sessionId);
     sessionStorage.removeItem(key);
-    // Optionally clear default key too
-    // sessionStorage.removeItem(getDefaultSessionStorageKey());
+    sessionStorage.removeItem(LEGACY_KEY);
   } catch (error) {
     console.error('Failed to clear session state:', error);
   }
