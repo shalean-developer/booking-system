@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Facebook, Twitter, Instagram, Linkedin, ChevronRight } from "lucide-react";
+import { ShaleanWordmark } from "@/components/shalean-wordmark";
 
 // Contact email - ensure consistency between server and client
 // IMPORTANT: This must match exactly on server and client to prevent hydration errors
@@ -18,6 +19,10 @@ export function HomeFooter() {
     setCurrentYear(new Date().getFullYear());
     setMounted(true);
   }, []);
+
+  const openCookieSettings = () => {
+    window.dispatchEvent(new Event("open-cookie-settings"));
+  };
 
   return (
     <>
@@ -40,15 +45,15 @@ export function HomeFooter() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-12">
               {/* Brand Section */}
               <div className="lg:col-span-1">
-                <Link href="/" className="inline-flex items-center gap-2 mb-4">
+                <Link href="/" className="inline-flex items-center gap-2 mb-4" aria-label="Shalean Home">
                   <Image
                     src="/logo.svg"
-                    alt="Shalean"
+                    alt=""
                     width={40}
                     height={40}
                     className="h-10 w-10 object-contain"
                   />
-                  <span className="text-2xl font-bold text-gray-900">Shalean</span>
+                  <ShaleanWordmark className="text-2xl font-bold text-gray-900" dotClassName="text-emerald-600" />
                 </Link>
                 <p className="text-sm text-gray-600 mb-6 leading-relaxed">
                   Shalean delivers reliable, professional cleaning services for spotless, healthy spaces.
@@ -56,7 +61,7 @@ export function HomeFooter() {
                 {/* Social Media Icons */}
                 <div className="flex items-center gap-3">
                   <a 
-                    href="https://facebook.com/shaleancleaning" 
+                    href="https://www.facebook.com/shaleancleaning" 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="w-10 h-10 bg-white border border-gray-300 rounded-full flex items-center justify-center hover:border-gray-400 transition-colors"
@@ -65,7 +70,7 @@ export function HomeFooter() {
                     <Facebook className="h-5 w-5 text-gray-900" />
                   </a>
                   <a 
-                    href="https://www.instagram.com/shalean_cleaning_services" 
+                    href="https://www.instagram.com/shalean_cleaning_services/" 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="w-10 h-10 bg-white border border-gray-300 rounded-full flex items-center justify-center hover:border-gray-400 transition-colors"
@@ -225,6 +230,16 @@ export function HomeFooter() {
                       <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
                       Cookie Policy
                     </Link>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={openCookieSettings}
+                      className="text-sm text-gray-600 hover:text-gray-900 transition-colors flex items-center gap-2 group"
+                    >
+                      <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
+                      Cookie Settings
+                    </button>
                   </li>
                   <li>
                     <Link href="/popia" className="text-sm text-gray-600 hover:text-gray-900 transition-colors flex items-center gap-2 group">

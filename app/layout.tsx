@@ -3,9 +3,11 @@ import { Inter, Playfair_Display } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import { cn } from "@/lib/utils";
+import { GBP_LISTING_URL } from "@/lib/public-site-urls";
 import { stringifyStructuredData } from "@/lib/structured-data-validator";
 import ToasterWrapper from "./components/toaster";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
+import { AnalyticsConsent } from "@/components/analytics-consent";
 
 const inter = Inter({ 
   subsets: ["latin"],
@@ -127,7 +129,10 @@ export default function RootLayout({
       "addressCountry": "ZA"
     },
     "sameAs": [
-      "https://www.instagram.com/shalean_cleaning_services"
+      GBP_LISTING_URL,
+      "https://www.facebook.com/shaleancleaning",
+      "https://www.instagram.com/shalean_cleaning_services/",
+      "https://www.linkedin.com/in/shalean-cleaning-services-undefined-264687360/"
     ],
     "foundingDate": "2022",
     "numberOfEmployees": "50+",
@@ -160,14 +165,12 @@ export default function RootLayout({
     <html lang="en">
       <head>
         {/* Resource Hints for Performance - Preconnect for critical origins */}
-        <link rel="preconnect" href="https://shalean.co.za" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://fonts.googleapis.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://www.googletagmanager.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
         <link rel="dns-prefetch" href="https://www.google-analytics.com" />
         <link rel="dns-prefetch" href="https://analytics.ahrefs.com" />
-        <link rel="dns-prefetch" href="https://images.unsplash.com" />
         <link rel="dns-prefetch" href="https://utfvbtcszzafuoyytlpf.supabase.co" />
         
         {/* Critical CSS - Minimal styles for above-the-fold content */}
@@ -193,30 +196,6 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: stringifyStructuredData(websiteSchema) }}
         />
         
-        {/* Google Analytics (gtag.js) - Deferred to lazyOnload for better performance */}
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-VV357GZWXM"
-          strategy="lazyOnload"
-        />
-        <Script
-          id="google-analytics"
-          strategy="lazyOnload"
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', 'G-VV357GZWXM');
-            `,
-          }}
-        />
-        
-        {/* Ahrefs Analytics - Deferred to lazyOnload for better performance */}
-        <Script
-          src="https://analytics.ahrefs.com/analytics.js"
-          data-key="03pYd6IC2yPD0CqqG1dMTg"
-          strategy="lazyOnload"
-        />
       </head>
       <body className={cn(inter.variable, playfairDisplay.variable, inter.className, "min-h-screen bg-slate-50")} suppressHydrationWarning>
         {gtmId && (
@@ -256,6 +235,7 @@ export default function RootLayout({
         
         <ToasterWrapper />
         <ServiceWorkerRegister />
+        <AnalyticsConsent />
         
         {/* Chunk Error Handler */}
         <Script
@@ -284,7 +264,7 @@ export default function RootLayout({
           }}
         />
         
-        <main className="min-h-screen">{children}</main>
+        <div className="min-h-screen">{children}</div>
       </body>
     </html>
   );

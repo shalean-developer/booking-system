@@ -7,17 +7,17 @@ const items = [
   {
     label: "Sea Point Apartment",
     badge: "Deep Clean",
-    img: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80",
+    img: "/image/more-than-clean-services.jpg",
   },
   {
     label: "Claremont Family Home",
     badge: "Move In Clean",
-    img: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?auto=format&fit=crop&w=800&q=80",
+    img: "/image/more-than-clean-regions.jpg",
   },
   {
     label: "Gardens Airbnb",
     badge: "Airbnb Turnover",
-    img: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=800&q=80",
+    img: "/image/more-than-clean-homes.jpg",
   },
 ];
 

@@ -1,4 +1,5 @@
 import { stringifyStructuredData } from "@/lib/structured-data-validator";
+import { GBP_LISTING_URL } from "@/lib/public-site-urls";
 
 export function HomeStructuredData() {
   // Sample reviews from homepage (matching home-reviews-showcase.tsx)
@@ -151,8 +152,10 @@ export function HomeStructuredData() {
     },
     "review": reviews,
     "sameAs": [
-      process.env.NEXT_PUBLIC_GBP_URL || "https://www.google.com/maps/place/Shalean+Cleaning+Services",
-      "https://www.instagram.com/shalean_cleaning_services"
+      GBP_LISTING_URL,
+      "https://www.facebook.com/shaleancleaning",
+      "https://www.instagram.com/shalean_cleaning_services/",
+      "https://www.linkedin.com/in/shalean-cleaning-services-undefined-264687360/"
     ]
   };
 

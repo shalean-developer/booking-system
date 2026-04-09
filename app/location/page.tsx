@@ -16,6 +16,7 @@ import type { Metadata } from "next";
 import { createMetadata } from "@/lib/metadata";
 import { getSeoConfig } from "@/lib/seo-config";
 import { stringifyStructuredData } from "@/lib/structured-data-validator";
+import { GBP_LISTING_URL } from "@/lib/public-site-urls";
 
 // Location page metadata with canonical URL
 export const metadata: Metadata = createMetadata(getSeoConfig("location"));
@@ -107,7 +108,10 @@ export default function LocationPage() {
       ]
     },
     "sameAs": [
-      "https://www.instagram.com/shalean_cleaning_services"
+      GBP_LISTING_URL,
+      "https://www.facebook.com/shaleancleaning",
+      "https://www.instagram.com/shalean_cleaning_services/",
+      "https://www.linkedin.com/in/shalean-cleaning-services-undefined-264687360/"
     ],
     "foundingDate": "2020",
     "numberOfEmployees": "50+"

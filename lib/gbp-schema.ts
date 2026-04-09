@@ -1,3 +1,5 @@
+import { GBP_LISTING_URL } from "@/lib/public-site-urls";
+
 /**
  * Google Business Profile Schema Helper
  * 
@@ -100,8 +102,7 @@ export function generateGBPSchema(options: GBPSchemaOptions) {
     serviceArea = defaultServiceAreas,
   } = options;
 
-  // Get GBP URL from environment if not provided
-  const finalGbpUrl = gbpUrl || process.env.NEXT_PUBLIC_GBP_URL;
+  const finalGbpUrl = gbpUrl?.trim() || GBP_LISTING_URL;
 
   // Base LocalBusiness schema
   const schema: any = {

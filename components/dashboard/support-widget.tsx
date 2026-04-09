@@ -34,7 +34,7 @@ export const SupportWidget = memo(function SupportWidget({
       onCallSupport();
     } else {
       // Open phone dialer
-      window.location.href = 'tel:+27123456789';
+      window.location.href = 'tel:+27871535250';
     }
   }, [onCallSupport]);
 

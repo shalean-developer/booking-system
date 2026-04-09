@@ -341,6 +341,13 @@ const SERVICE_TO_URL_SLUG: Record<ServiceType, string> = {
   airbnb: 'airbnb',
   carpet: 'carpet',
 };
+const URL_SLUG_TO_SERVICE: Record<string, ServiceType> = {
+  standard: 'standard',
+  deep: 'deep',
+  'move-in-out': 'move',
+  airbnb: 'airbnb',
+  carpet: 'carpet',
+};
 const STEP_TO_SLUG: Record<number, string> = {
   1: 'plan',
   2: 'time',
@@ -544,6 +551,12 @@ export const BookingSystem = ({ onNavigateContact, initialFormData, initialServi
   const router = useRouter();
   const pathname = usePathname();
   const { data: formData, loading: formDataLoading, error: formDataError } = useBookingFormData(initialFormData);
+  const pathSegments = pathname.split('/').filter(Boolean);
+  const pathServiceIdx = pathSegments.indexOf('service');
+  const serviceSlugFromPath = pathServiceIdx !== -1 && pathServiceIdx + 1 < pathSegments.length
+    ? pathSegments[pathServiceIdx + 1]
+    : null;
+  const serviceFromPath = serviceSlugFromPath ? URL_SLUG_TO_SERVICE[serviceSlugFromPath] : undefined;
   const [step, setStep] = useState(() => {
     const segments = pathname.split('/').filter(Boolean);
     const last = segments[segments.length - 1];
@@ -559,6 +572,11 @@ export const BookingSystem = ({ onNavigateContact, initialFormData, initialServi
       const stored = window.sessionStorage.getItem(BOOKING_STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
+        // URL service slug is the source of truth for entry points from marketing pages.
+        // Ignore stale persisted service when a valid service slug is present.
+        if (serviceFromPath) {
+          return { ...base, ...parsed, service: serviceFromPath };
+        }
         return { ...base, ...parsed };
       }
     } catch {
@@ -646,6 +664,18 @@ export const BookingSystem = ({ onNavigateContact, initialFormData, initialServi
       // ignore storage write errors
     }
   }, [data]);
+
+  // Sync selected service from URL slug so entry points (e.g., homepage hero) always open with the intended service.
+  useEffect(() => {
+    const segments = pathname.split('/').filter(Boolean);
+    const serviceIdx = segments.indexOf('service');
+    if (serviceIdx === -1 || serviceIdx + 1 >= segments.length) return;
+    const serviceSlug = segments[serviceIdx + 1];
+    const serviceFromUrl = URL_SLUG_TO_SERVICE[serviceSlug];
+    if (!serviceFromUrl) return;
+
+    setData((prev) => (prev.service === serviceFromUrl ? prev : { ...prev, service: serviceFromUrl }));
+  }, [pathname]);
 
   // Keep URL service slug in sync with selected service (preserve current step from pathname)
   useEffect(() => {
@@ -1835,7 +1865,7 @@ export const BookingSystem = ({ onNavigateContact, initialFormData, initialServi
               <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 flex-shrink-0"><Phone className="w-4 h-4" /></div>
               <div className="min-w-0">
                 <p className="text-xs font-black text-slate-900 truncate">Call Support</p>
-                <p className="text-[10px] text-slate-500">+27 21 555 0123</p>
+                <p className="text-[10px] text-slate-500">+27 87 153 5250</p>
               </div>
             </button>
             {onNavigateContact && (

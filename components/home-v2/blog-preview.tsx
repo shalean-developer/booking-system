@@ -1,85 +1,88 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-import { SectionHeading, Card, ShaleanButtonLink } from "@/components/shalean-ui";
+
+const brandBlue = "#2B59FF";
 
 const posts = [
   {
-    title: "Complete Guide to Deep Cleaning Your Cape Town Home",
-    category: "Deep Cleaning",
-    readTime: "5 min read",
-    img: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80",
+    title:
+      "Habits that keep your home cleaner between professional visits",
     excerpt:
-      "Everything you need to know about scheduling a professional deep clean, what's covered, and how to prepare your home.",
+      "Simple daily routines that stretch the results of every booking — without turning weekends into chores.",
+    author: "Shalean Team",
+    date: "Mar 12, 2026",
+    img: "/image/more-than-clean-services.jpg",
+    href: "/blog",
   },
   {
-    title: "How Much Does Cleaning Cost in Cape Town?",
-    category: "Pricing Guide",
-    readTime: "4 min read",
-    img: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80",
+    title:
+      "How we approach eco-friendly cleaning — and what we learned",
     excerpt:
-      "A transparent breakdown of cleaning service costs across Cape Town suburbs, including seasonal pricing factors.",
-  },
-  {
-    title: "Airbnb Cleaning Checklist for Hosts",
-    category: "Airbnb",
-    readTime: "6 min read",
-    img: "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=600&q=80",
-    excerpt:
-      "The complete turnaround checklist top-rated Cape Town Airbnb hosts use to maintain 5-star cleanliness ratings.",
+      "What worked in real homes across South Africa, from products to scheduling and staff training.",
+    author: "Shalean Team",
+    date: "Feb 2, 2026",
+    img: "/image/more-than-clean-homes.jpg",
+    href: "/blog/eco-friendly-cleaning-south-africa",
   },
 ];
 
 export function BlogPreview() {
   return (
-    <section className="px-6 bg-slate-50 py-24">
+    <section className="px-6 bg-white py-20 md:py-28">
       <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 mb-12">
-          <SectionHeading subtitle="Practical cleaning advice from the Cape Town experts.">
-            Cleaning Guides & Tips
-          </SectionHeading>
-          <ShaleanButtonLink
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10 md:mb-14">
+          <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900">
+            Practical guides from our cleaning experts
+          </h2>
+          <Link
             href="/blog"
-            variant="outline"
-            className="whitespace-nowrap self-start sm:self-auto"
+            className="inline-flex items-center gap-1 text-sm font-bold shrink-0 w-fit transition hover:gap-2"
+            style={{ color: brandBlue }}
           >
-            View All Articles <ArrowRight className="w-4 h-4" />
-          </ShaleanButtonLink>
+            View all articles <ArrowRight className="w-4 h-4" aria-hidden />
+          </Link>
         </div>
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="flex flex-col gap-8 md:gap-10">
           {posts.map((post, idx) => (
-            <motion.div key={idx} whileHover={{ y: -4 }}>
-              <Link href="/blog">
-                <Card className="h-full flex flex-col hover:border-blue-200 transition-all cursor-pointer p-0 overflow-hidden">
-                  <div className="aspect-[16/9] overflow-hidden">
-                    <img
-                      src={post.img}
-                      alt={post.title}
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
-                    />
-                  </div>
-                  <div className="p-6 flex flex-col flex-grow">
-                    <div className="flex items-center gap-3 mb-3">
-                      <span className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
-                        {post.category}
-                      </span>
-                      <span className="text-xs text-slate-400">
-                        {post.readTime}
-                      </span>
-                    </div>
-                    <h3 className="font-bold text-slate-900 mb-3 leading-snug">
-                      {post.title}
-                    </h3>
-                    <p className="text-slate-500 text-sm leading-relaxed flex-grow">
-                      {post.excerpt}
-                    </p>
-                    <div className="flex items-center gap-1 text-blue-600 text-sm font-semibold mt-4">
-                      Read More <ArrowRight className="w-4 h-4" />
-                    </div>
-                  </div>
-                </Card>
+            <motion.div
+              key={post.href}
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: idx * 0.06 }}
+            >
+              <Link
+                href={post.href}
+                className="group grid md:grid-cols-[minmax(0,1fr)_minmax(0,340px)] lg:grid-cols-[minmax(0,1fr)_400px] gap-0 rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow"
+              >
+                <div className="p-6 md:p-8 lg:p-10 flex flex-col justify-center order-2 md:order-1">
+                  <h3 className="text-xl md:text-2xl font-bold text-slate-900 group-hover:underline decoration-2 underline-offset-4 leading-snug">
+                    {post.title}
+                  </h3>
+                  <p className="text-slate-600 mt-3 leading-relaxed">{post.excerpt}</p>
+                  <p className="text-slate-400 text-sm mt-4">
+                    {post.author} · {post.date}
+                  </p>
+                  <span
+                    className="inline-flex items-center gap-1 text-sm font-bold mt-5 w-fit"
+                    style={{ color: brandBlue }}
+                  >
+                    Read article <ArrowRight className="w-4 h-4" aria-hidden />
+                  </span>
+                </div>
+                <div className="relative aspect-[16/10] md:aspect-auto md:min-h-full min-h-[200px] order-1 md:order-2">
+                  <Image
+                    src={post.img}
+                    alt={post.title}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 400px"
+                  />
+                </div>
               </Link>
             </motion.div>
           ))}

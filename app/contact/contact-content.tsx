@@ -128,8 +128,37 @@ export function ContactContent() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900 mb-1">Social Media</h3>
-                      <p className="text-gray-600">@shaleancleaning</p>
+                      <p className="text-gray-600">
+                        Instagram:{" "}
+                        <span className="text-gray-800">@shalean_cleaning_services</span>
+                      </p>
                       <p className="text-sm text-gray-500 mt-1">Follow us for tips & updates</p>
+                      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm font-medium">
+                        <a
+                          href="https://www.facebook.com/shaleancleaning"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          Facebook
+                        </a>
+                        <a
+                          href="https://www.instagram.com/shalean_cleaning_services/"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          Instagram
+                        </a>
+                        <a
+                          href="https://www.linkedin.com/in/shalean-cleaning-services-undefined-264687360/"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          LinkedIn
+                        </a>
+                      </div>
                     </div>
                   </div>
                 </CardContent>

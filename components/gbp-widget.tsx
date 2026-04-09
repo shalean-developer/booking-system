@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Star, MapPin, ExternalLink, MessageSquare } from "lucide-react";
+import { GBP_LISTING_URL } from "@/lib/public-site-urls";
 
 interface GBPWidgetProps {
   /**
@@ -49,9 +50,7 @@ export function GBPWidget({
   address,
   compact = false,
 }: GBPWidgetProps) {
-  // Get GBP URL from environment or use default
-  const defaultGbpUrl = process.env.NEXT_PUBLIC_GBP_URL || "https://www.google.com/maps/place/Shalean+Cleaning+Services";
-  const finalGbpUrl = gbpUrl || defaultGbpUrl;
+  const finalGbpUrl = gbpUrl?.trim() || GBP_LISTING_URL;
 
   // Get Place ID from environment or prop
   const defaultPlaceId = process.env.NEXT_PUBLIC_GOOGLE_PLACE_ID || placeId;

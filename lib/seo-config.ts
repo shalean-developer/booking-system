@@ -4,8 +4,8 @@ import { generateOgImageUrl, generateCanonical } from "./metadata";
 export const SEO_CONFIG = {
   // Home page
   home: {
-    title: "Professional Cleaning You Can Rely On | Cape Town Cleaning Services",
-    description: "Book vetted cleaners in Cape Town. Same-day deep cleaning, house cleaning & office cleaning. Insured cleaners, satisfaction guaranteed. From R250. Book online today!",
+    title: "Cape Town Cleaning Services | Book Trusted Cleaners | Shalean",
+    description: "Book trusted cleaners in Cape Town for house, deep, office, and Airbnb cleaning. Same-day slots, insured teams, and a satisfaction guarantee.",
     canonical: generateCanonical("/"),
     keywords: ["cleaning services Cape Town", "house cleaning Cape Town", "maid service Cape Town", "deep cleaning Cape Town", "office cleaning Cape Town", "Airbnb cleaning Cape Town", "professional cleaners Cape Town", "move out cleaning Cape Town"],
     ogImage: {
@@ -94,6 +94,16 @@ export const SEO_CONFIG = {
     ogImage: {
       url: generateOgImageUrl("contact"),
       alt: "Shalean office front and phone icon"
+    }
+  },
+
+  help: {
+    title: "Help Centre | Shalean Cleaning Services",
+    description: "Get help with booking, your account, payments, and services. Quick links to FAQs, how it works, pricing, and contact options for Shalean Cleaning.",
+    canonical: generateCanonical("/help"),
+    ogImage: {
+      url: generateOgImageUrl("contact"),
+      alt: "Shalean help and customer support"
     }
   },
 

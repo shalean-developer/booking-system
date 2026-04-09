@@ -77,6 +77,7 @@ export default function SitemapPage() {
     { name: "How It Works", href: "/how-it-works" },
     { name: "Team", href: "/team" },
     { name: "Contact", href: "/contact" },
+    { name: "Help", href: "/help" },
     { name: "Careers", href: "/careers" },
     { name: "Blog", href: "/blog" },
     { name: "Testimonials", href: "/testimonials" },

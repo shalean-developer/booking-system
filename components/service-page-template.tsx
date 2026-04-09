@@ -8,6 +8,7 @@ import { InternalLinking } from "@/components/internal-linking";
 import { GBPWidget } from "@/components/gbp-widget";
 import { stringifyStructuredData } from "@/lib/structured-data-validator";
 import { generateServiceLocalBusinessSchema } from "@/lib/gbp-schema";
+import { GBP_LISTING_URL } from "@/lib/public-site-urls";
 import { 
   CheckCircle,
   ArrowRight,
@@ -53,7 +54,7 @@ export function ServicePageTemplate({
   iconColor,
   faqs = [],
   relatedServices = [],
-  gbpUrl = "https://www.google.com/maps/place/Shalean+Cleaning+Services",
+  gbpUrl = GBP_LISTING_URL,
   reviewLink,
 }: ServicePageProps) {
   // Enhanced Service schema with better areaServed

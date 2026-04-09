@@ -365,7 +365,7 @@ export function CustomerDashboard({
               </p>
               <button
                 className="w-full py-3 bg-blue-600 text-white rounded-xl font-black text-xs hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
-                onClick={() => window.open('https://wa.me/27215550123', '_blank')}
+                onClick={() => window.open('https://wa.me/27825915525', '_blank')}
               >
                 <MessageSquare className="w-4 h-4" />
                 Chat Support
@@ -966,7 +966,7 @@ export function CustomerDashboard({
               rescheduling and requests.
             </p>
             <button
-              onClick={() => window.open('https://wa.me/27215550123', '_blank')}
+              onClick={() => window.open('https://wa.me/27825915525', '_blank')}
               className="w-full py-4 bg-white text-slate-900 rounded-2xl font-black text-xs hover:bg-slate-100 transition-all flex items-center justify-center gap-2"
             >
               <MessageSquare className="w-4 h-4" />

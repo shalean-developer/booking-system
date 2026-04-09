@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MarketingHeader } from "@/components/marketing-header";
 import { stringifyStructuredData } from "@/lib/structured-data-validator";
+import { GBP_LISTING_URL } from "@/lib/public-site-urls";
 import { getCitySlug, getRelatedSuburbs, slugifyLocation } from "@/lib/location-data";
 import {
   MapPin,
@@ -413,8 +414,7 @@ export function SuburbPageTemplate({
     }
   ];
 
-  // Get GBP URL from environment or use default
-  const gbpUrl = process.env.NEXT_PUBLIC_GBP_URL || "https://www.google.com/maps/place/Shalean+Cleaning+Services";
+  const gbpUrl = GBP_LISTING_URL;
 
   // Generate structured data for LocalBusiness
   const structuredData = {

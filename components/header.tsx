@@ -10,6 +10,7 @@ import { useBookingV2 } from '@/lib/useBookingV2';
 import { Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { ShaleanWordmark } from '@/components/shalean-wordmark';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -194,7 +195,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
             }}
           />
         </div>
-        <span className="text-xl font-semibold text-gray-900">Shalean</span>
+        <ShaleanWordmark className="text-xl font-semibold text-gray-900" />
       </Link>
     );
   };
