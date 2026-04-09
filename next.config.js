@@ -102,6 +102,22 @@ const nextConfig = {
         destination: '/blog/airbnb-cleaning-checklist',
         permanent: true,
       },
+      // Legacy marketing/content routes
+      {
+        source: '/about-us',
+        destination: '/about',
+        permanent: true,
+      },
+      {
+        source: '/service',
+        destination: '/services',
+        permanent: true,
+      },
+      {
+        source: '/locations',
+        destination: '/location',
+        permanent: true,
+      },
       // Old service URLs
       {
         source: '/services/move-in-cleaning',
@@ -749,4 +765,3 @@ const nextConfig = {
 }
 
 module.exports = withBundleAnalyzer(nextConfig)
-

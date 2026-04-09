@@ -29,7 +29,7 @@ export default function SitemapPage() {
   const services = [
     { name: "All Services", href: "/services" },
     { name: "Regular Cleaning", href: "/services/regular-cleaning" },
-    { name: "Deep Cleaning", href: "/services/deep-specialty" },
+    { name: "Deep Cleaning", href: "/services/deep-cleaning" },
     { name: "Move In/Out Cleaning", href: "/services/move-turnover" },
     { name: "Airbnb Cleaning", href: "/services/airbnb-cleaning" },
     { name: "Office Cleaning", href: "/services/office-cleaning" },

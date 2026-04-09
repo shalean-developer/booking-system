@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Home, Phone, Mail, Clock, MapPin, Send, Instagram } from "lucide-react";
+import { SITE_PHONE_DISPLAY, SITE_SUPPORT_EMAIL, SOCIAL_PROFILE_URLS } from "@/lib/site-config";
 
 export function ContactContent() {
   return (
@@ -56,7 +57,7 @@ export function ContactContent() {
                 </div>
                 <div>
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder="john@example.com" required />
+                  <Input id="email" type="email" placeholder="your-email@example.com" required />
                 </div>
                 <div>
                   <Label htmlFor="phone">Phone Number</Label>
@@ -83,7 +84,7 @@ export function ContactContent() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900 mb-1">Phone</h3>
-                      <p className="text-gray-600">+27 87 153 5250</p>
+                      <p className="text-gray-600">{SITE_PHONE_DISPLAY}</p>
                       <p className="text-sm text-gray-500 mt-1">Mon-Fri: 8am-6pm</p>
                     </div>
                   </div>
@@ -98,7 +99,7 @@ export function ContactContent() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900 mb-1">Email</h3>
-                      <p className="text-gray-600">support@shalean.com</p>
+                      <p className="text-gray-600">{SITE_SUPPORT_EMAIL}</p>
                       <p className="text-sm text-gray-500 mt-1">24/7 support</p>
                     </div>
                   </div>
@@ -135,7 +136,7 @@ export function ContactContent() {
                       <p className="text-sm text-gray-500 mt-1">Follow us for tips & updates</p>
                       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm font-medium">
                         <a
-                          href="https://www.facebook.com/shaleancleaning"
+                          href={SOCIAL_PROFILE_URLS.facebook}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-primary hover:underline"
@@ -143,20 +144,12 @@ export function ContactContent() {
                           Facebook
                         </a>
                         <a
-                          href="https://www.instagram.com/shalean_cleaning_services/"
+                          href={SOCIAL_PROFILE_URLS.instagram}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-primary hover:underline"
                         >
                           Instagram
-                        </a>
-                        <a
-                          href="https://www.linkedin.com/in/shalean-cleaning-services-undefined-264687360/"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline"
-                        >
-                          LinkedIn
                         </a>
                       </div>
                     </div>
@@ -178,4 +171,3 @@ export function ContactContent() {
     </div>
   );
 }
-

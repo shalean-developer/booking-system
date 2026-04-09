@@ -3,16 +3,14 @@ import type { Database } from '@/lib/supabase';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables for blog data fetching');
-}
-
-const staticSupabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: false,
-  },
-});
+const staticSupabase =
+  supabaseUrl && supabaseAnonKey
+    ? createClient<Database>(supabaseUrl, supabaseAnonKey, {
+        auth: {
+          persistSession: false,
+        },
+      })
+    : null;
 
 type SupabasePostWithCategory = BlogPostWithDetails & {
   blog_categories?: {
@@ -68,6 +66,11 @@ export interface BlogPostWithDetails extends BlogPost {
 // Server-side functions (for use in Server Components and API routes)
 export async function getPublishedPosts(): Promise<BlogPostWithDetails[]> {
   try {
+    if (!staticSupabase) {
+      console.warn('Skipping blog fetch: Supabase environment variables are not configured');
+      return [];
+    }
+
     const supabase = staticSupabase;
     
     const response = await supabase
@@ -116,6 +119,11 @@ export async function getPublishedPosts(): Promise<BlogPostWithDetails[]> {
 
 export async function getPublishedPostBySlug(slug: string): Promise<BlogPostWithDetails | null> {
   try {
+    if (!staticSupabase) {
+      console.warn('Skipping blog post fetch: Supabase environment variables are not configured');
+      return null;
+    }
+
     const supabase = staticSupabase;
     
     const response = await supabase
@@ -169,6 +177,11 @@ export async function getPublishedPostBySlug(slug: string): Promise<BlogPostWith
 
 export async function getRelatedPosts(categoryId: string, currentPostId: string, limit: number = 3): Promise<BlogPostWithDetails[]> {
   try {
+    if (!staticSupabase) {
+      console.warn('Skipping related posts fetch: Supabase environment variables are not configured');
+      return [];
+    }
+
     const supabase = staticSupabase;
     
     const response = await supabase
@@ -222,6 +235,11 @@ export async function getRelatedPosts(categoryId: string, currentPostId: string,
 }
 
 export async function getCategories(): Promise<BlogCategory[]> {
+  if (!staticSupabase) {
+    console.warn('Skipping categories fetch: Supabase environment variables are not configured');
+    return [];
+  }
+
   const supabase = staticSupabase;
   
   const { data, error } = await supabase
@@ -238,6 +256,11 @@ export async function getCategories(): Promise<BlogCategory[]> {
 }
 
 export async function getTags(): Promise<BlogTag[]> {
+  if (!staticSupabase) {
+    console.warn('Skipping tags fetch: Supabase environment variables are not configured');
+    return [];
+  }
+
   const supabase = staticSupabase;
   
   const { data, error } = await supabase
@@ -306,4 +329,3 @@ export function generateBlogPostSchema(post: BlogPostWithDetails, authorName?: s
   // Clean undefined values before returning
   return cleanStructuredData(schema);
 }
-

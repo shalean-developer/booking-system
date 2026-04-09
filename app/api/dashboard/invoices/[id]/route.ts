@@ -313,7 +313,7 @@ export async function GET(
       <p><strong>Thank you for choosing Shalean Cleaning Services!</strong></p>
       <div class="footer-contact">
         <p>For support or inquiries:</p>
-        <p>Phone: +27 87 153 5250 | Email: support@shalean.com</p>
+        <p>Phone: +27 87 153 5250 | Email: support@shalean.co.za</p>
       </div>
       <p style="margin-top: 15px; font-size: 11px; color: #999;">
         This is an automated ${documentType.toLowerCase()}. Please keep this for your records.

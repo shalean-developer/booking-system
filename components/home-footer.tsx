@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Facebook, Twitter, Instagram, Linkedin, ChevronRight } from "lucide-react";
+import { Facebook, Twitter, Instagram, ChevronRight } from "lucide-react";
 import { ShaleanWordmark } from "@/components/shalean-wordmark";
+import { SITE_SUPPORT_EMAIL, SOCIAL_PROFILE_URLS } from "@/lib/site-config";
 
 // Contact email - ensure consistency between server and client
 // IMPORTANT: This must match exactly on server and client to prevent hydration errors
-const CONTACT_EMAIL = 'info@shalean.com' as const;
+const CONTACT_EMAIL = SITE_SUPPORT_EMAIL;
 const CONTACT_PHONE = '+27 87 153 5250';
 
 export function HomeFooter() {
@@ -61,7 +62,7 @@ export function HomeFooter() {
                 {/* Social Media Icons */}
                 <div className="flex items-center gap-3">
                   <a 
-                    href="https://www.facebook.com/shaleancleaning" 
+                    href={SOCIAL_PROFILE_URLS.facebook}
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="w-10 h-10 bg-white border border-gray-300 rounded-full flex items-center justify-center hover:border-gray-400 transition-colors"
@@ -70,7 +71,7 @@ export function HomeFooter() {
                     <Facebook className="h-5 w-5 text-gray-900" />
                   </a>
                   <a 
-                    href="https://www.instagram.com/shalean_cleaning_services/" 
+                    href={SOCIAL_PROFILE_URLS.instagram}
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="w-10 h-10 bg-white border border-gray-300 rounded-full flex items-center justify-center hover:border-gray-400 transition-colors"
@@ -86,15 +87,6 @@ export function HomeFooter() {
                     aria-label="Visit our Twitter page"
                   >
                     <Twitter className="h-5 w-5 text-gray-900" />
-                  </a>
-                  <a 
-                    href="https://www.linkedin.com/in/shalean-cleaning-services-undefined-264687360/" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="w-10 h-10 bg-white border border-gray-300 rounded-full flex items-center justify-center hover:border-gray-400 transition-colors"
-                    aria-label="Visit our LinkedIn page"
-                  >
-                    <Linkedin className="h-5 w-5 text-gray-900" />
                   </a>
                 </div>
               </div>
@@ -203,7 +195,7 @@ export function HomeFooter() {
                       className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
                       suppressHydrationWarning
                     >
-                      {mounted ? CONTACT_EMAIL : 'info@shalean.com'}
+                      {mounted ? CONTACT_EMAIL : SITE_SUPPORT_EMAIL}
                     </a>
                   </li>
                 </ul>

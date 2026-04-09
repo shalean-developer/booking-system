@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/header";
 import { stringifyStructuredData } from "@/lib/structured-data-validator";
+import { SITE_SUPPORT_EMAIL } from "@/lib/site-config";
 import { 
   MapPin, 
   Phone,
@@ -64,7 +65,7 @@ export function AreaHubTemplate({
       "addressCountry": "ZA"
     },
     "telephone": "+27871535250",
-    "email": "support@shalean.com",
+    "email": SITE_SUPPORT_EMAIL,
     "url": `https://shalean.co.za/location/${city.toLowerCase().replace(/\s+/g, '-')}/${areaName.toLowerCase().replace(/\s+/g, '-')}`,
     "priceRange": "R200-R1500",
     "areaServed": {

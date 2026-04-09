@@ -93,7 +93,7 @@ export async function GET(
 
   <div class="footer">
     <p>Thank you for choosing Shalean Cleaning Services!</p>
-    <p>For support, contact us at +27 87 153 5250 or support@shalean.com</p>
+    <p>For support, contact us at +27 87 153 5250 or support@shalean.co.za</p>
   </div>
 </body>
 </html>
@@ -114,4 +114,3 @@ export async function GET(
     );
   }
 }
-
