@@ -1,5 +1,6 @@
 import { stringifyStructuredData } from "@/lib/structured-data-validator";
 import { GBP_LISTING_URL } from "@/lib/public-site-urls";
+import { ORGANIZATION_SAME_AS, SITE_PHONE_DISPLAY, SITE_SUPPORT_EMAIL } from "@/lib/site-config";
 
 export function HomeStructuredData() {
   // Sample reviews from homepage (matching home-reviews-showcase.tsx)
@@ -84,7 +85,8 @@ export function HomeStructuredData() {
       "height": 630
     },
     "priceRange": "$$",
-    "telephone": "+27 87 153 5250",
+    "telephone": SITE_PHONE_DISPLAY,
+    "email": SITE_SUPPORT_EMAIL,
     "address": {
       "@type": "PostalAddress",
       "addressRegion": "Western Cape",
@@ -151,12 +153,7 @@ export function HomeStructuredData() {
       "worstRating": "1"
     },
     "review": reviews,
-    "sameAs": [
-      GBP_LISTING_URL,
-      "https://www.facebook.com/shaleancleaning",
-      "https://www.instagram.com/shalean_cleaning_services/",
-      "https://www.linkedin.com/in/shalean-cleaning-services-undefined-264687360/"
-    ]
+    "sameAs": [GBP_LISTING_URL, ...ORGANIZATION_SAME_AS]
   };
 
   // Use validator to clean and validate schema

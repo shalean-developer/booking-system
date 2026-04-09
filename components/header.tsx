@@ -36,7 +36,7 @@ const navigationItems = [
     key: 'about',
   },
   {
-    name: 'Service',
+    name: 'Services',
     href: '/services',
     key: 'services',
   },

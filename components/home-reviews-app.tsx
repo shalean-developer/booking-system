@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Phone, Mail, ArrowUpRight } from 'lucide-react';
+import { SITE_PHONE_DISPLAY, SITE_PHONE_E164, SITE_SUPPORT_EMAIL } from '@/lib/site-config';
 
 export function HomeReviewsApp() {
   return (
@@ -14,19 +15,19 @@ export function HomeReviewsApp() {
           {/* Middle Section - Phone and Email */}
           <div className="flex flex-wrap items-center gap-4 md:gap-6">
             {/* Phone Number */}
-            <a href="tel:+27871535250" className="flex items-center gap-2 hover:opacity-80 transition-opacity" aria-label="Call Shalean Cleaning Services">
+            <a href={`tel:${SITE_PHONE_E164}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity" aria-label="Call Shalean Cleaning Services">
               <div className="w-8 h-8 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center flex-shrink-0">
                 <Phone className="h-4 w-4 text-gray-700" />
               </div>
-              <span className="text-base text-gray-700">+27 87 153 5250</span>
+              <span className="text-base text-gray-700">{SITE_PHONE_DISPLAY}</span>
             </a>
 
             {/* Email */}
-            <a href="mailto:support@shalean.com" className="flex items-center gap-2 hover:opacity-80 transition-opacity" aria-label="Email Shalean Cleaning Services support">
+            <a href={`mailto:${SITE_SUPPORT_EMAIL}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity" aria-label="Email Shalean Cleaning Services support">
               <div className="w-8 h-8 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center flex-shrink-0">
                 <Mail className="h-4 w-4 text-gray-700" />
               </div>
-              <span className="text-base text-gray-500">support@shalean.com</span>
+              <span className="text-base text-gray-500">{SITE_SUPPORT_EMAIL}</span>
             </a>
           </div>
 

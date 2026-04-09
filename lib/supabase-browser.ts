@@ -14,8 +14,8 @@ export function createClient() {
     return supabaseClient;
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
   
   // Extract project ref from URL
   const projectRef = supabaseUrl.match(/https:\/\/([^.]+)/)?.[1] || 'default';
@@ -49,7 +49,7 @@ export function clearClientAndStorage() {
   
   // Also clear localStorage
   if (typeof window !== 'undefined') {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
     const projectRef = supabaseUrl.match(/https:\/\/([^.]+)/)?.[1] || 'default';
     const storageKey = `sb-${projectRef}-auth-token`;
     localStorage.removeItem(storageKey);

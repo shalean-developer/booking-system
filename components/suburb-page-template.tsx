@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { MarketingHeader } from "@/components/marketing-header";
 import { stringifyStructuredData } from "@/lib/structured-data-validator";
 import { GBP_LISTING_URL } from "@/lib/public-site-urls";
+import { SITE_SUPPORT_EMAIL } from "@/lib/site-config";
 import { getCitySlug, getRelatedSuburbs, slugifyLocation } from "@/lib/location-data";
 import {
   MapPin,
@@ -122,7 +123,7 @@ export function SuburbPageTemplate({
 
   const businessNameValue = businessName ?? "Shalean Cleaning Services";
   const phoneNumber = contactPhone ?? "+27 87 153 5250";
-  const emailAddress = contactEmail ?? "support@shalean.com";
+  const emailAddress = contactEmail ?? SITE_SUPPORT_EMAIL;
   const addressValue = contactAddress ?? `${suburb}, ${city}, South Africa`;
   const serviceHoursValue = serviceHours ?? "Mon-Sun: 08:00-18:00";
   const mapQuery = encodeURIComponent(addressValue);
@@ -1016,4 +1017,3 @@ export function SuburbPageTemplate({
     </div>
   );
 }
-

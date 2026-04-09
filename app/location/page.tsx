@@ -17,6 +17,7 @@ import { createMetadata } from "@/lib/metadata";
 import { getSeoConfig } from "@/lib/seo-config";
 import { stringifyStructuredData } from "@/lib/structured-data-validator";
 import { GBP_LISTING_URL } from "@/lib/public-site-urls";
+import { ORGANIZATION_SAME_AS, SITE_PHONE_DISPLAY, SITE_SUPPORT_EMAIL } from "@/lib/site-config";
 
 // Location page metadata with canonical URL
 export const metadata: Metadata = createMetadata(getSeoConfig("location"));
@@ -32,8 +33,8 @@ export default function LocationPage() {
     "url": "https://shalean.co.za",
     "logo": "https://shalean.co.za/icon-512.png",
     "description": "Professional cleaning services for homes and businesses across South Africa. Expert cleaners, eco-friendly products, 98% satisfaction rate.",
-    "telephone": "+27 87 153 5250",
-    "email": "support@shalean.com",
+    "telephone": SITE_PHONE_DISPLAY,
+    "email": SITE_SUPPORT_EMAIL,
     "address": {
       "@type": "PostalAddress",
       "addressCountry": "ZA",
@@ -107,12 +108,7 @@ export default function LocationPage() {
         }
       ]
     },
-    "sameAs": [
-      GBP_LISTING_URL,
-      "https://www.facebook.com/shaleancleaning",
-      "https://www.instagram.com/shalean_cleaning_services/",
-      "https://www.linkedin.com/in/shalean-cleaning-services-undefined-264687360/"
-    ],
+    "sameAs": [GBP_LISTING_URL, ...ORGANIZATION_SAME_AS],
     "foundingDate": "2020",
     "numberOfEmployees": "50+"
   };
@@ -292,7 +288,7 @@ export default function LocationPage() {
                   <h3 className="font-semibold text-gray-900 mb-2">Email</h3>
                   <p className="text-gray-600">
                     <a href="mailto:support@shalean.co.za" className="hover:text-primary transition-colors">
-                      support@shalean.com
+                      {SITE_SUPPORT_EMAIL}
                     </a>
                   </p>
                   <p className="text-sm text-gray-500 mt-1">24/7 support</p>
@@ -361,4 +357,3 @@ export default function LocationPage() {
     </div>
   );
 }
-

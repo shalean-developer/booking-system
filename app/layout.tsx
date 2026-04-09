@@ -4,6 +4,7 @@ import Script from "next/script";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { GBP_LISTING_URL } from "@/lib/public-site-urls";
+import { ORGANIZATION_SAME_AS, SITE_PHONE_DISPLAY, SITE_SUPPORT_EMAIL } from "@/lib/site-config";
 import { stringifyStructuredData } from "@/lib/structured-data-validator";
 import ToasterWrapper from "./components/toaster";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
@@ -121,19 +122,15 @@ export default function RootLayout({
       "height": 630
     },
     "description": "Professional cleaning services for homes and businesses. Expert cleaners, eco-friendly products, 98% satisfaction rate.",
-    "telephone": "+27 87 153 5250",
+    "telephone": SITE_PHONE_DISPLAY,
+    "email": SITE_SUPPORT_EMAIL,
     "address": {
       "@type": "PostalAddress",
       "addressRegion": "Western Cape",
       "addressLocality": "Cape Town",
       "addressCountry": "ZA"
     },
-    "sameAs": [
-      GBP_LISTING_URL,
-      "https://www.facebook.com/shaleancleaning",
-      "https://www.instagram.com/shalean_cleaning_services/",
-      "https://www.linkedin.com/in/shalean-cleaning-services-undefined-264687360/"
-    ],
+    "sameAs": [GBP_LISTING_URL, ...ORGANIZATION_SAME_AS],
     "foundingDate": "2022",
     "numberOfEmployees": "50+",
     "serviceArea": {
@@ -269,4 +266,3 @@ export default function RootLayout({
     </html>
   );
 }
-

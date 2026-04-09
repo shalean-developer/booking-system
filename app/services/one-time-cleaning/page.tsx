@@ -64,7 +64,7 @@ const relatedServices = [
   },
   {
     title: "House Cleaning",
-    href: "/services/house-cleaning",
+    href: "/services/regular-cleaning",
     description: "Regular house cleaning service"
   },
   {
@@ -93,7 +93,6 @@ export default function OneTimeCleaningServicePage() {
     />
   );
 }
-
 
 
 

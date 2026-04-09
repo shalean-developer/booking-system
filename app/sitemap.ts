@@ -25,12 +25,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.75,
     }))
   
-  // Service pages (removed deep-specialty as it's a duplicate of deep-cleaning)
+  // Service pages included in search results.
+  // Keep only canonical, index-worthy pages here.
   const servicePages = [
     'regular-cleaning', 'airbnb-cleaning', 'office-cleaning', 
     'apartment-cleaning', 'window-cleaning', 'home-maintenance', 
     'deep-cleaning', 'move-turnover',
-    'carpet-cleaning', 'house-cleaning', 'one-time-cleaning',
+    'carpet-cleaning', 'one-time-cleaning',
     'post-construction-cleaning'
   ];
 
@@ -98,18 +99,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: new Date(),
       changeFrequency: 'monthly' as const,
       priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/booking/service/standard/plan`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly' as const,
-      priority: 0.85,
-    },
-    {
-      url: `${baseUrl}/booking/quote`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly' as const,
-      priority: 0.8,
     },
     {
       url: `${baseUrl}/about`,
@@ -243,4 +232,3 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...otherCityEntries,
   ]
 }
-

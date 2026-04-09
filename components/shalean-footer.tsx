@@ -3,9 +3,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { Phone, MessageSquare, MapPin, Facebook, Instagram, Linkedin } from "lucide-react";
+import { Phone, MessageSquare, MapPin, Facebook, Instagram } from "lucide-react";
 import { ShaleanWordmark } from "@/components/shalean-wordmark";
 import { GBP_LISTING_URL } from "@/lib/public-site-urls";
+import { SITE_PHONE_DISPLAY, SITE_PHONE_E164, SOCIAL_PROFILE_URLS } from "@/lib/site-config";
 
 const quickLinks = [
   { label: "About Us", href: "/about" },
@@ -26,19 +27,14 @@ const serviceLinks = [
 
 const socialLinks = [
   {
-    href: "https://www.facebook.com/shaleancleaning",
+    href: SOCIAL_PROFILE_URLS.facebook,
     label: "Shalean on Facebook",
     Icon: Facebook,
   },
   {
-    href: "https://www.instagram.com/shalean_cleaning_services/",
+    href: SOCIAL_PROFILE_URLS.instagram,
     label: "Shalean on Instagram",
     Icon: Instagram,
-  },
-  {
-    href: "https://www.linkedin.com/in/shalean-cleaning-services-undefined-264687360/",
-    label: "Shalean on LinkedIn",
-    Icon: Linkedin,
   },
 ] as const;
 
@@ -126,8 +122,8 @@ export function ShaleanFooter() {
             <ul className="space-y-4 text-slate-400">
               <li className="flex items-center gap-3">
                 <Phone className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                <a href="tel:+27871535250" className="hover:text-white transition-colors">
-                  +27 87 153 5250
+                <a href={`tel:${SITE_PHONE_E164}`} className="hover:text-white transition-colors">
+                  {SITE_PHONE_DISPLAY}
                 </a>
               </li>
               <li className="flex items-center gap-3">

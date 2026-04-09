@@ -1,47 +1,32 @@
 import { MetadataRoute } from 'next'
 
 export default function robots(): MetadataRoute.Robots {
+  const disallow = [
+    '/api/',
+    '/admin/',
+    '/dashboard/',
+    '/cleaner/',
+    '/booking/confirmation',
+  ];
+
   return {
     rules: [
       {
         userAgent: '*',
         allow: '/',
-        disallow: [
-          '/api/',
-          '/admin/',
-          '/dashboard/',
-          '/cleaner/',
-          '/booking/confirmation',
-          '/static/',
-        ],
+        disallow,
       },
       {
         userAgent: 'Googlebot',
         allow: '/',
-        disallow: [
-          '/api/',
-          '/admin/',
-          '/dashboard/',
-          '/cleaner/',
-          '/booking/confirmation',
-          '/static/',
-        ],
+        disallow,
       },
       {
         userAgent: 'Bingbot',
         allow: '/',
-        disallow: [
-          '/api/',
-          '/admin/',
-          '/dashboard/',
-          '/cleaner/',
-          '/booking/confirmation',
-          '/static/',
-        ],
+        disallow,
       },
     ],
     sitemap: 'https://shalean.co.za/sitemap.xml',
-    host: 'https://shalean.co.za',
   }
 }
-

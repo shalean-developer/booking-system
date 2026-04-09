@@ -36,7 +36,7 @@ const brandTeal = "#26B99A";
 
 /** Top navigation aligned with marketing home design */
 const primaryNavLinks = [
-  { label: "Residential", href: "/services/house-cleaning" },
+  { label: "Residential", href: "/services/regular-cleaning" },
   { label: "Commercial", href: "/services/office-cleaning" },
   { label: "How it works", href: "/#how-it-works" },
   { label: "About us", href: "/about" },
