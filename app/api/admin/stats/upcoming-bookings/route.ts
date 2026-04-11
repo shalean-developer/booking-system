@@ -1,25 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { isAdmin } from '@/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { ok: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
+    if (!(await isAdmin())) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 403 });
     }
+
+    const supabase = await createClient();
 
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '10');
     const dateFrom = searchParams.get('date_from') || new Date().toISOString().split('T')[0];
 
-    // Fetch upcoming bookings
     let bookingsQuery = supabase
       .from('bookings')
       .select(`
@@ -30,15 +26,15 @@ export async function GET(request: NextRequest) {
         status,
         customer_name,
         address_suburb,
+        total_amount,
         cleaner_id,
         cleaners:cleaner_id (
           id,
-          first_name,
-          last_name
+          name
         )
       `)
       .gte('booking_date', dateFrom)
-      .in('status', ['pending', 'confirmed', 'accepted'])
+      .in('status', ['pending', 'confirmed', 'accepted', 'paid', 'in-progress', 'on_my_way'])
       .order('booking_date', { ascending: true })
       .order('booking_time', { ascending: true })
       .limit(limit);
@@ -53,13 +49,13 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Transform to include cleaner name
-    const transformedBookings = (bookings || []).map((booking: any) => ({
-      ...booking,
-      cleaner_name: booking.cleaners
-        ? `${booking.cleaners.first_name || ''} ${booking.cleaners.last_name || ''}`.trim()
-        : null,
-    }));
+    const transformedBookings = (bookings || []).map((booking: Record<string, unknown>) => {
+      const cleaners = booking.cleaners as { name?: string } | null;
+      return {
+        ...booking,
+        cleaner_name: cleaners?.name ?? null,
+      };
+    });
 
     return NextResponse.json({
       ok: true,

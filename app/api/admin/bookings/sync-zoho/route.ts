@@ -50,7 +50,15 @@ export async function GET() {
     return NextResponse.json({
       ok: true,
       zohoBooksConfigured: isZohoBooksConfigured(),
+      zohoOrgIdSet: Boolean(process.env.ZOHO_BOOKS_ORGANIZATION_ID?.trim()),
+      zohoTokenConfigured: Boolean(
+        process.env.ZOHO_ACCESS_TOKEN?.trim() ||
+          (process.env.ZOHO_REFRESH_TOKEN?.trim() &&
+            process.env.ZOHO_CLIENT_ID?.trim() &&
+            process.env.ZOHO_CLIENT_SECRET?.trim()),
+      ),
       resendConfigured: Boolean(process.env.RESEND_API_KEY?.trim()),
+      senderEmailSet: Boolean(process.env.SENDER_EMAIL?.trim()),
       serviceRoleConfigured: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()),
       pendingInvoiceBackfillApprox: pendingCount,
       hint:
@@ -121,7 +129,7 @@ export async function POST(req: NextRequest) {
         {
           ok: false,
           error:
-            'ZOHO_BOOKS_ORGANIZATION_ID (and Zoho OAuth/token vars) are not set in this environment. Add them to .env.local, restart the server, and try again.',
+            'Zoho Books is not fully configured: set ZOHO_BOOKS_ORGANIZATION_ID plus either ZOHO_ACCESS_TOKEN or (ZOHO_REFRESH_TOKEN + ZOHO_CLIENT_ID + ZOHO_CLIENT_SECRET). Match ZOHO_ACCOUNTS_HOST / ZOHO_BOOKS_API_HOST to your Zoho data center. Add the same vars to Supabase Edge secrets for webhooks.',
           candidates: bookings.length,
         },
         { status: 400 },

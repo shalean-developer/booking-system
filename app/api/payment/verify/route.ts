@@ -1,42 +1,133 @@
 import { NextResponse } from 'next/server';
 import type { PaystackVerificationResponse } from '@/types/booking';
 import { validatePaymentEnv } from '@/lib/env-validation';
-import { edgeVerifyPayment } from '@/lib/payment-edge';
+import { createServiceClient } from '@/lib/supabase-server';
+import {
+  finalizePaidBookingServer,
+  paystackVerifyTransaction,
+  resolveBookingForVerify,
+} from '@/lib/booking-paid-server';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Client-friendly verify after Paystack redirect: ?reference=booking-{uuid}
- * Delegates to Edge finalize (Zoho + Resend + DB).
+ * Client-friendly verify after Paystack redirect: ?reference=booking-{uuid}&trxref=…&ref=…
+ * Verifies with Paystack, updates booking, Zoho invoice + Resend (no Edge Function required).
  */
 export async function GET(req: Request) {
   try {
+    console.log('🔥 VERIFY ROUTE HIT');
+
     const { searchParams } = new URL(req.url);
-    const reference =
+    const referenceParam =
       searchParams.get('reference')?.trim() ||
       searchParams.get('trxref')?.trim() ||
+      searchParams.get('ref')?.trim() ||
       '';
-    if (!reference) {
-      return NextResponse.json({ ok: false, error: 'reference is required' }, { status: 400 });
+    if (!referenceParam) {
+      return NextResponse.json(
+        { ok: false, success: false, error: 'reference is required' },
+        { status: 400 },
+      );
     }
 
-    let booking_id = searchParams.get('booking_id')?.trim() || '';
-    if (!booking_id && reference.startsWith('booking-')) {
-      booking_id = reference.slice('booking-'.length);
+    let bookingIdHint =
+      searchParams.get('booking_id')?.trim() ||
+      searchParams.get('id')?.trim() ||
+      '';
+    if (!bookingIdHint) {
+      const refOnly = searchParams.get('ref')?.trim();
+      if (
+        refOnly &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(refOnly)
+      ) {
+        bookingIdHint = refOnly;
+      }
     }
-    if (!booking_id) {
-      return NextResponse.json({ ok: false, error: 'booking_id could not be derived from reference' }, { status: 400 });
+    if (!bookingIdHint && referenceParam.startsWith('booking-')) {
+      bookingIdHint = referenceParam.slice('booking-'.length);
     }
 
-    const result = await edgeVerifyPayment({ reference, booking_id });
-    // Edge returns ok:false for benign idempotency cases only when duplicate handling is incomplete; prefer 200 if paid path succeeded.
-    const duplicate = 'duplicate' in result && result.duplicate === true;
-    const status = result.ok || duplicate ? 200 : 400;
-    return NextResponse.json(result, { status });
+    const secret = process.env.PAYSTACK_SECRET_KEY?.trim();
+    if (!secret) {
+      return NextResponse.json(
+        { ok: false, success: false, error: 'Payment provider not configured' },
+        { status: 500 },
+      );
+    }
+
+    let supabase;
+    try {
+      supabase = createServiceClient();
+    } catch {
+      return NextResponse.json(
+        {
+          ok: false,
+          success: false,
+          error:
+            'SUPABASE_SERVICE_ROLE_KEY is required for payment verification. Add it to .env.local.',
+        },
+        { status: 503 },
+      );
+    }
+
+    const { booking, error: resolveErr } = await resolveBookingForVerify(
+      supabase,
+      referenceParam,
+      bookingIdHint || null,
+    );
+    if (resolveErr) {
+      return NextResponse.json({ ok: false, success: false, error: resolveErr }, { status: 400 });
+    }
+    if (!booking) {
+      return NextResponse.json({ ok: false, success: false, error: 'Booking not found' }, { status: 404 });
+    }
+
+    console.log('📦 Booking:', booking.id);
+
+    const verified = await paystackVerifyTransaction(secret, referenceParam);
+    if (!verified.ok) {
+      return NextResponse.json(
+        { ok: false, success: false, error: 'Payment verification failed' },
+        { status: 400 },
+      );
+    }
+
+    console.log('🧾 Creating invoice...');
+    const result = await finalizePaidBookingServer({
+      supabase,
+      booking,
+      reference: referenceParam,
+      paystackAmountKobo: verified.amountKobo,
+    });
+    console.log('✅ Invoice / finalize step done');
+
+    if (!result.ok) {
+      return NextResponse.json(
+        { ok: false, success: false, error: result.error ?? 'Finalize failed' },
+        { status: 400 },
+      );
+    }
+
+    console.log('[api/payment/verify GET] finalize ok — email path runs in finalizePaidBookingServer', booking.id);
+
+    const duplicate = result.duplicate === true;
+    const amount_zar = Math.round(Number(booking.total_amount ?? 0)) / 100;
+
+    return NextResponse.json({
+      ok: true,
+      success: true,
+      duplicate,
+      booking_id: booking.id,
+      zoho_invoice_id: result.zoho_invoice_id ?? null,
+      amount_zar,
+      service_type: booking.service_type,
+      customer_name: booking.customer_name,
+    });
   } catch (e) {
     console.error('[api/payment/verify GET]', e);
     return NextResponse.json(
-      { ok: false, error: e instanceof Error ? e.message : 'Verification failed' },
+      { ok: false, success: false, error: e instanceof Error ? e.message : 'Verification failed' },
       { status: 500 },
     );
   }

@@ -55,8 +55,17 @@ function booksApiHost(): string {
   return process.env.ZOHO_BOOKS_API_HOST?.trim() || 'https://www.zohoapis.com';
 }
 
+/** True only when org id is set and at least one auth path exists (static token or OAuth refresh trio). */
 export function isZohoBooksConfigured(): boolean {
-  return Boolean(process.env.ZOHO_BOOKS_ORGANIZATION_ID?.trim());
+  const orgId = process.env.ZOHO_BOOKS_ORGANIZATION_ID?.trim();
+  if (!orgId) return false;
+  const staticToken = process.env.ZOHO_ACCESS_TOKEN?.trim();
+  const refresh = process.env.ZOHO_REFRESH_TOKEN?.trim();
+  const clientId = process.env.ZOHO_CLIENT_ID?.trim();
+  const clientSecret = process.env.ZOHO_CLIENT_SECRET?.trim();
+  if (staticToken) return true;
+  if (refresh && clientId && clientSecret) return true;
+  return false;
 }
 
 function zohoErrorDetail(data: { code?: number | string; message?: string }, status: number): string {
@@ -187,12 +196,29 @@ async function ensureContactActive(token: string, orgId: string, contactId: stri
   throw new Error(zohoErrorDetail(data, res.status));
 }
 
+/** Zoho Books v3 usually returns `invoice.invoice_id`; tolerate minor shape differences. */
+function extractInvoiceIdFromCreateResponse(data: Record<string, unknown>): string | null {
+  const inv = data.invoice;
+  if (inv && typeof inv === 'object' && inv !== null && 'invoice_id' in inv) {
+    const id = (inv as { invoice_id?: string }).invoice_id;
+    if (id != null && String(id)) return String(id);
+  }
+  if (typeof data.invoice_id === 'string' && data.invoice_id) return data.invoice_id;
+  return null;
+}
+
+/**
+ * Create invoice, mark as sent (not left in draft), record customer payment linked to the invoice
+ * with payment_mode Paystack (falls back to API-allowed `others` if Zoho rejects the label).
+ */
 export async function createZohoBooksInvoiceServer(params: {
   customerName: string;
   customerEmail?: string | null;
   serviceName: string;
   amountZar: number;
   bookingId: string;
+  /** Paystack transaction reference — stored on Zoho payment and must match settlement amount context. */
+  paystackReference?: string | null;
 }): Promise<string | null> {
   const orgId = process.env.ZOHO_BOOKS_ORGANIZATION_ID?.trim();
   if (!orgId) {
@@ -241,18 +267,170 @@ export async function createZohoBooksInvoiceServer(params: {
     body: JSON.stringify(payload),
   });
 
-  const data = (await res.json()) as {
-    code?: number | string;
-    message?: string;
-    invoice?: { invoice_id?: string };
-    invoice_id?: string;
-  };
+  const data = (await res.json()) as Record<string, unknown>;
   const okCode = data.code === 0 || data.code === '0';
   if (!res.ok || !okCode) {
     console.error('[zoho-server] create invoice failed', res.status, data);
-    throw new Error(zohoErrorDetail(data, res.status));
+    throw new Error(zohoErrorDetail(data as { code?: number | string; message?: string }, res.status));
   }
 
-  const invoiceId = data?.invoice?.invoice_id ?? data?.invoice_id;
-  return invoiceId ? String(invoiceId) : null;
+  const invoiceId = extractInvoiceIdFromCreateResponse(data);
+  if (!invoiceId) {
+    console.error('[zoho-server] create invoice success but no invoice_id in body', data);
+    return null;
+  }
+
+  await markInvoiceAsSent(token, orgId, invoiceId);
+
+  const details = await getInvoiceDetails(token, orgId, invoiceId);
+  const st = (details.status || '').toLowerCase();
+  if (st === 'draft') {
+    throw new Error('[zoho-server] Invoice is still in draft after mark sent');
+  }
+
+  const balance = num(details.balance);
+  const total = num(details.total);
+  const payAmount = balance > 0 ? balance : total;
+  if (payAmount <= 0) {
+    console.warn('[zoho-server] Invoice has zero balance/total; skipping customer payment');
+    return invoiceId;
+  }
+
+  const payCustomerId = String(details.customer_id || customerId);
+  await createCustomerPaymentLinkedToInvoice({
+    token,
+    orgId,
+    customerId: payCustomerId,
+    invoiceId,
+    amount: payAmount,
+    bookingId: params.bookingId,
+    paystackReference: params.paystackReference,
+  });
+
+  return invoiceId;
+}
+
+type ZohoInvoiceDetails = {
+  invoice_id?: string;
+  customer_id?: string;
+  status?: string;
+  total?: number | string;
+  balance?: number | string;
+};
+
+async function markInvoiceAsSent(token: string, orgId: string, invoiceId: string): Promise<void> {
+  const url = `${booksApiHost()}/books/v3/invoices/${encodeURIComponent(invoiceId)}/status/sent?organization_id=${encodeURIComponent(orgId)}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { Authorization: `Zoho-oauthtoken ${token}` },
+  });
+  const data = (await res.json()) as { code?: number | string; message?: string };
+  const okCode = data.code === 0 || data.code === '0';
+  if (okCode) return;
+  const msg = (data.message || '').toLowerCase();
+  if (
+    msg.includes('not') &&
+    (msg.includes('draft') || msg.includes('only') || msg.includes('mark'))
+  ) {
+    return;
+  }
+  if (msg.includes('already') || msg.includes('sent')) {
+    return;
+  }
+  console.warn('[zoho-server] mark sent non-success (continuing if invoice not draft)', res.status, data);
+}
+
+async function getInvoiceDetails(
+  token: string,
+  orgId: string,
+  invoiceId: string,
+): Promise<ZohoInvoiceDetails> {
+  const url = `${booksApiHost()}/books/v3/invoices/${encodeURIComponent(invoiceId)}?organization_id=${encodeURIComponent(orgId)}`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Zoho-oauthtoken ${token}` },
+  });
+  const data = (await res.json()) as {
+    code?: number | string;
+    message?: string;
+    invoice?: ZohoInvoiceDetails;
+  };
+  const okCode = data.code === 0 || data.code === '0';
+  if (!res.ok || !okCode || !data.invoice) {
+    throw new Error(zohoErrorDetail(data as { code?: number | string; message?: string }, res.status));
+  }
+  return data.invoice;
+}
+
+function num(v: number | string | undefined): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+async function createCustomerPaymentLinkedToInvoice(params: {
+  token: string;
+  orgId: string;
+  customerId: string;
+  invoiceId: string;
+  /** Must match invoice balance / total exactly (Zoho). */
+  amount: number;
+  bookingId: string;
+  paystackReference?: string | null;
+}): Promise<void> {
+  const today = new Date().toISOString().slice(0, 10);
+  const ref =
+    (params.paystackReference && String(params.paystackReference).trim()) ||
+    `booking-${params.bookingId}`;
+  const basePayload = {
+    customer_id: params.customerId,
+    amount: params.amount,
+    date: today,
+    reference_number: ref.slice(0, 100),
+    description: `Paystack — booking ${params.bookingId}`,
+    invoices: [
+      {
+        invoice_id: params.invoiceId,
+        amount_applied: params.amount,
+      },
+    ],
+  };
+  const accountId = process.env.ZOHO_BOOKS_DEPOSIT_ACCOUNT_ID?.trim();
+  const url = `${booksApiHost()}/books/v3/customerpayments?organization_id=${encodeURIComponent(params.orgId)}`;
+
+  const tryModes = ['Paystack', 'others'] as const;
+  let lastErr: Error | null = null;
+
+  for (const payment_mode of tryModes) {
+    const body: Record<string, unknown> = {
+      ...basePayload,
+      payment_mode,
+    };
+    if (payment_mode === 'others') {
+      body.description = `Paystack — booking ${params.bookingId} (mode: others)`;
+    }
+    if (accountId) {
+      body.account_id = accountId;
+    }
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Zoho-oauthtoken ${params.token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    const data = (await res.json()) as { code?: number | string; message?: string };
+    const okCode = data.code === 0 || data.code === '0';
+    if (res.ok && okCode) {
+      return;
+    }
+    const msg = String(data.message || '');
+    lastErr = new Error(zohoErrorDetail(data, res.status));
+    const lower = msg.toLowerCase();
+    if (payment_mode === 'Paystack' && (lower.includes('payment_mode') || lower.includes('mode'))) {
+      continue;
+    }
+    throw lastErr;
+  }
+  throw lastErr ?? new Error('Zoho customer payment failed');
 }

@@ -1,14 +1,52 @@
-import { Resend } from 'resend';
 import { BookingState, ServiceType } from '@/types/booking';
 import { calcTotalSync } from '@/lib/pricing';
 import { fetchActivePricing } from '@/lib/pricing-db';
+import { Resend } from 'resend';
 
-// Initialize Resend only when needed to avoid errors if API key is not configured
-function getResendInstance() {
-  if (!process.env.RESEND_API_KEY) {
+/**
+ * Send via Resend HTTP API (POST only). Do not use resend.emails.get() or GET /emails/:id
+ * with non-UUID ids — that caused 422 "id must be a valid UUID" (e.g. /emails/0).
+ */
+async function postResendEmail(params: {
+  from: string;
+  to: string[];
+  subject: string;
+  html: string;
+}): Promise<{ id?: string }> {
+  const key = process.env.RESEND_API_KEY?.trim();
+  if (!key) {
     throw new Error('RESEND_API_KEY is not configured');
   }
-  return new Resend(process.env.RESEND_API_KEY);
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: params.from,
+      to: params.to,
+      subject: params.subject,
+      html: params.html,
+    }),
+  });
+  const json = (await res.json()) as { id?: string; message?: string; name?: string };
+  if (!res.ok) {
+    console.error('❌ Resend API error:', res.status, json);
+    throw new Error(json.message || `Resend request failed (${res.status})`);
+  }
+  return { id: json.id };
+}
+
+/** Call before sending; logs clearly when misconfigured (local + prod). */
+export function validateResendConfig(): { ok: true } | { ok: false; error: string } {
+  const key = process.env.RESEND_API_KEY?.trim();
+  if (!key) {
+    const msg = 'RESEND_API_KEY is missing — set it in .env.local';
+    console.error('❌ [email]', msg);
+    return { ok: false, error: msg };
+  }
+  return { ok: true };
 }
 
 export interface EmailData {
@@ -19,47 +57,50 @@ export interface EmailData {
 
 export async function sendEmail({ to, subject, html }: EmailData) {
   try {
-    const resend = getResendInstance();
-    
-    // Get sender email from environment variable or use default
     const senderEmail = process.env.SENDER_EMAIL || 'noreply@shalean.co.za';
     const senderName = 'Shalean Cleaning';
     const fromAddress = `${senderName} <${senderEmail}>`;
 
-    const { data, error } = await resend.emails.send({
+    const { id: emailId } = await postResendEmail({
       from: fromAddress,
       to: [to],
       subject,
       html,
     });
 
-    if (error) {
-      console.error('Resend error:', error);
-      throw new Error(`Failed to send email: ${error.message}`);
-    }
-
-    console.log('Email sent successfully:', data);
-    return { success: true, messageId: data?.id };
+    console.log('Email sent successfully:', { emailId });
+    return { success: true, messageId: emailId };
   } catch (error) {
     console.error('Email sending failed:', error);
     throw error;
   }
 }
 
+const resendClient = new Resend(process.env.RESEND_API_KEY);
+
 export async function sendInvoiceEmail(email: string) {
-  const resend = getResendInstance();
-  const senderEmail = process.env.SENDER_EMAIL || 'noreply@shalean.co.za';
-  const fromAddress = `Shalean Cleaning <${senderEmail}>`;
-  const { error } = await resend.emails.send({
-    from: fromAddress,
-    to: [email],
+  console.log('📧 EMAIL FUNCTION STARTED');
+  console.log('📧 Sending to:', email);
+  console.log('📧 API KEY EXISTS:', !!process.env.RESEND_API_KEY?.trim());
+
+  const from = process.env.SENDER_EMAIL?.trim() || 'onboarding@resend.dev';
+
+  const { data, error } = await resendClient.emails.send({
+    from,
+    to: email,
     subject: 'Booking Confirmed',
-    html: '<p>Your payment was successful</p>',
+    html: '<p>Test email</p>',
   });
+
+  console.log('📧 RESPONSE:', data);
+
   if (error) {
-    console.error('Email error:', error);
+    console.error('❌ RESEND ERROR:', error);
     throw error;
   }
+
+  console.log('✅ EMAIL SENT SUCCESSFULLY');
+  return { id: data?.id };
 }
 
 export interface CarpetDetails {
@@ -2264,9 +2305,9 @@ export async function sendBookingPaidConfirmationEmail(params: {
   bookingId: string;
   zohoInvoiceId: string | null;
 }): Promise<{ ok: boolean; providerId?: string; error?: string }> {
-  if (!process.env.RESEND_API_KEY) {
-    console.warn('[email] RESEND_API_KEY not set — skipping paid confirmation');
-    return { ok: false, error: 'RESEND_API_KEY missing' };
+  const cfg = validateResendConfig();
+  if (!cfg.ok) {
+    return { ok: false, error: cfg.error };
   }
   const senderEmail = process.env.SENDER_EMAIL || 'noreply@shalean.co.za';
   const invoiceLine = params.zohoInvoiceId
@@ -2290,17 +2331,13 @@ export async function sendBookingPaidConfirmationEmail(params: {
 </html>`;
 
   try {
-    const resend = getResendInstance();
-    const { data, error } = await resend.emails.send({
+    const { id: emailId } = await postResendEmail({
       from: `Shalean Cleaning <${senderEmail}>`,
       to: [params.to],
       subject: 'Booking Confirmed – Shalean Cleaning Services',
       html,
     });
-    if (error) {
-      return { ok: false, error: error.message };
-    }
-    return { ok: true, providerId: data?.id };
+    return { ok: true, providerId: emailId };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'send failed' };
   }

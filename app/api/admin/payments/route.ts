@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
       .select(`
         id,
         customer_name,
+        service_type,
         total_amount,
         payment_reference,
         status,
@@ -225,6 +226,7 @@ export async function GET(request: NextRequest) {
         id: booking.id,
         booking_id: booking.id,
         customer_name: booking.customer_name || 'Unknown Customer',
+        service_type: booking.service_type || null,
         amount: booking.total_amount || 0,
         payment_method: 'card', // Default payment method
         status: paymentStatus,

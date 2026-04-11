@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase as supabaseAnon } from '@/lib/supabase';
+import { createServiceClient } from '@/lib/supabase-server';
 import { sendEmail, generateBookingConfirmationEmail } from '@/lib/email';
+
+function getSupabaseForResend() {
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
+    return createServiceClient();
+  }
+  return supabaseAnon;
+}
 
 /**
  * POST handler to resend booking confirmation email
@@ -21,6 +29,8 @@ export async function POST(
     }
 
     console.log('Resending booking confirmation email for ID:', id);
+
+    const supabase = getSupabaseForResend();
 
     // Fetch booking details
     const { data: booking, error: bookingError } = await supabase
@@ -68,6 +78,9 @@ export async function POST(
         }
       }
       
+      const fullName = (booking.customer_name ?? '').trim() || 'Customer';
+      const nameParts = fullName.split(/\s+/);
+
       const emailData = await generateBookingConfirmationEmail({
         service: booking.service_type as any,
         bedrooms,
@@ -76,8 +89,8 @@ export async function POST(
         extrasQuantities,
         date: booking.booking_date,
         time: booking.booking_time,
-        firstName: booking.customer_name.split(' ')[0] || '',
-        lastName: booking.customer_name.split(' ')[1] || '',
+        firstName: nameParts[0] || '',
+        lastName: nameParts.slice(1).join(' ') || '',
         email: booking.customer_email,
         phone: booking.customer_phone || '',
         address: {
@@ -94,20 +107,29 @@ export async function POST(
         cleanerName
       });
 
+      if (!process.env.RESEND_API_KEY?.trim()) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error:
+              'RESEND_API_KEY is not set on the server. Add it to .env.local (and Vercel/hosting env) and restart.',
+          },
+          { status: 503 },
+        );
+      }
+
       await sendEmail(emailData);
-      
+
       console.log('Confirmation email resent successfully');
-      
+
       return NextResponse.json({
         ok: true,
         message: 'Confirmation email sent successfully',
       });
     } catch (emailError) {
       console.error('Failed to resend email:', emailError);
-      return NextResponse.json(
-        { ok: false, error: 'Failed to resend email' },
-        { status: 500 }
-      );
+      const detail = emailError instanceof Error ? emailError.message : 'Failed to resend email';
+      return NextResponse.json({ ok: false, error: detail }, { status: 500 });
     }
   } catch (error) {
     console.error('Error resending booking email:', error);

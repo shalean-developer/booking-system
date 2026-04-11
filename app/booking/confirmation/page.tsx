@@ -29,26 +29,57 @@ interface BookingDetails {
 
 function ConfirmationContent() {
   const searchParams = useSearchParams();
-  const paystackRef = searchParams.get('reference') || searchParams.get('trxref');
+  const paystackReference =
+    searchParams.get('reference')?.trim() ||
+    searchParams.get('trxref')?.trim() ||
+    searchParams.get('ref')?.trim() ||
+    null;
   const id =
-    searchParams.get('ref') ||
-    searchParams.get('id') ||
-    (paystackRef?.startsWith('booking-') ? paystackRef.slice('booking-'.length) : null);
+    searchParams.get('ref')?.trim() ||
+    searchParams.get('id')?.trim() ||
+    (paystackReference?.startsWith('booking-') ? paystackReference.slice('booking-'.length) : null);
   const ct = searchParams.get('ct');
 
   const [booking, setBooking] = useState<BookingDetails | null>(null);
   const [isProcessing, setIsProcessing] = useState(true);
   const [processingError, setProcessingError] = useState<string | null>(null);
-
-  // Single primitive dep so the dependency array length never changes between renders (React 19 / Strict).
-  const paymentVerifyKey = `${paystackRef ?? ''}|${id ?? ''}`;
+  const [verifyStatus, setVerifyStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(() =>
+    paystackReference ? 'loading' : 'idle',
+  );
+  const [bookingRefresh, setBookingRefresh] = useState(0);
 
   useEffect(() => {
-    if (!paystackRef) return;
-    const params = new URLSearchParams({ reference: paystackRef });
-    if (id) params.set('booking_id', id);
-    fetch(`/api/payment/verify?${params.toString()}`).catch(() => {});
-  }, [paymentVerifyKey]);
+    if (!paystackReference) {
+      setVerifyStatus('idle');
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setVerifyStatus('loading');
+      try {
+        const params = new URLSearchParams();
+        params.set('reference', paystackReference);
+        if (id) params.set('booking_id', id);
+        const verifyUrl = `/api/payment/verify?${params.toString()}`;
+        console.log('📡 CALLING VERIFY API...', verifyUrl);
+        const res = await fetch(verifyUrl);
+        const data = await res.json();
+        if (cancelled) return;
+        console.log('VERIFY RESPONSE:', data);
+        if (res.ok && (data.ok === true || data.success === true)) {
+          setVerifyStatus('success');
+          setBookingRefresh((r) => r + 1);
+        } else {
+          setVerifyStatus('error');
+        }
+      } catch {
+        if (!cancelled) setVerifyStatus('error');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [paystackReference, id]);
 
   useEffect(() => {
     const fetchBooking = async () => {
@@ -91,7 +122,55 @@ function ConfirmationContent() {
     };
 
     fetchBooking();
-  }, [id, ct]);
+  }, [id, ct, bookingRefresh]);
+
+  if (paystackReference && verifyStatus === 'loading') {
+    return (
+      <div className="min-h-screen bg-[#f0f2f5] font-sans flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-violet-600 mx-auto" />
+          <p className="text-gray-600">Processing payment...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (paystackReference && verifyStatus === 'error') {
+    return (
+      <div className="min-h-screen bg-[#f0f2f5] font-sans flex flex-col">
+        <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3 min-w-0">
+            <Link
+              href="/"
+              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors flex-shrink-0"
+              aria-label="Go home"
+            >
+              <ArrowLeft size={18} className="text-gray-500" />
+            </Link>
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Shalean Cleaning Services</p>
+              <h1 className="text-lg font-bold text-gray-900 leading-tight">Confirmation</h1>
+            </div>
+          </div>
+        </header>
+        <div className="flex-1 flex items-center justify-center px-4 py-8">
+          <Card className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-gray-100">
+            <CardContent className="p-8 text-center">
+              <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+              <h2 className="text-xl font-bold text-gray-900 mb-2">Payment verification failed</h2>
+              <p className="text-gray-600 mb-6 text-sm">We could not confirm your payment. Please contact support if you were charged.</p>
+              <Button
+                asChild
+                className="rounded-full bg-violet-600 hover:bg-violet-700 text-white shadow-md shadow-violet-200"
+              >
+                <Link href="/">Return to home</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   if (isProcessing) {
     return (

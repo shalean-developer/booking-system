@@ -1,8 +1,7 @@
 import React from 'react';
 import { redirect } from 'next/navigation';
 import { isAdmin } from '@/lib/supabase-server';
-import { AdminNavbar } from '@/components/admin/navigation/navbar';
-import { AdminSidebar } from '@/components/admin/navigation/sidebar';
+import { AdminShell } from '@/components/admin/admin-shell';
 import { FilterPeriodProvider } from '@/context/FilterPeriodContext';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { SWRProvider } from '@/components/providers/swr-provider';
@@ -24,19 +23,9 @@ export default async function AdminLayout({
   return (
     <ErrorBoundary>
       <SWRProvider>
-      <div className="min-h-screen bg-gray-50">
         <FilterPeriodProvider>
-          <AdminNavbar />
-          <div className="flex">
-            <AdminSidebar />
-            <main className="flex-1 min-h-[calc(100vh-4rem)] overflow-auto lg:ml-64 pt-0">
-              <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
-                {children}
-              </div>
-            </main>
-          </div>
+          <AdminShell>{children}</AdminShell>
         </FilterPeriodProvider>
-      </div>
       </SWRProvider>
     </ErrorBoundary>
   );
