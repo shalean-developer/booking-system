@@ -14,9 +14,13 @@ export function AnalyticsConsent() {
 
   useEffect(() => {
     setMounted(true);
-    const saved = window.localStorage.getItem(CONSENT_KEY);
-    if (saved === "accepted" || saved === "declined") {
-      setConsent(saved);
+    try {
+      const saved = window.localStorage.getItem(CONSENT_KEY);
+      if (saved === "accepted" || saved === "declined") {
+        setConsent(saved);
+      }
+    } catch {
+      // Ignore storage access errors (privacy mode / blocked storage)
     }
 
     const handleOpenSettings = () => setIsBannerOpen(true);
@@ -28,8 +32,16 @@ export function AnalyticsConsent() {
   }, []);
 
   const updateConsent = (value: Exclude<ConsentState, null>) => {
-    window.localStorage.setItem(CONSENT_KEY, value);
-    document.cookie = `analytics_consent=${value}; path=/; max-age=31536000; samesite=lax`;
+    try {
+      window.localStorage.setItem(CONSENT_KEY, value);
+    } catch {
+      // Ignore storage access errors
+    }
+    try {
+      document.cookie = `analytics_consent=${value}; path=/; max-age=31536000; samesite=lax`;
+    } catch {
+      // Ignore cookie write errors
+    }
     setConsent(value);
     setIsBannerOpen(false);
   };

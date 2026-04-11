@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { createBookingLookupToken } from '@/lib/booking-lookup-token';
 
 export async function GET(request: Request) {
   try {
@@ -214,7 +215,15 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ ok: false, error: 'Failed to update booking' }, { status: 500 });
     }
 
-    return NextResponse.json({ ok: true });
+    const lookupKey =
+      typeof body.payment_reference === 'string' && body.payment_reference
+        ? body.payment_reference
+        : bookingId;
+
+    return NextResponse.json({
+      ok: true,
+      confirmationToken: createBookingLookupToken(lookupKey),
+    });
   } catch (err) {
     console.error('Unexpected error:', err);
     return NextResponse.json({ ok: false, error: 'Internal server error' }, { status: 500 });

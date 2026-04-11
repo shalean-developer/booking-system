@@ -1,0 +1,14 @@
+# Supabase local config — https://supabase.com/docs/guides/cli/config
+# Edge Functions use secrets set in Dashboard → Project Settings → Edge Functions
+
+[api]
+enabled = true
+
+[functions.initialize-payment]
+verify_jwt = false
+
+[functions.verify-payment]
+verify_jwt = false
+
+[functions.paystack-webhook]
+verify_jwt = false

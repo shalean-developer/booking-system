@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { CheckCircle2, Loader2, AlertCircle, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
+import { logBookingFlowClient } from '@/lib/debug-booking-flow';
 
 interface BookingDetails {
   id: string;
@@ -28,6 +29,7 @@ interface BookingDetails {
 function ConfirmationContent() {
   const searchParams = useSearchParams();
   const id = searchParams.get('ref') || searchParams.get('id');
+  const ct = searchParams.get('ct');
 
   const [booking, setBooking] = useState<BookingDetails | null>(null);
   const [isProcessing, setIsProcessing] = useState(true);
@@ -36,6 +38,7 @@ function ConfirmationContent() {
   useEffect(() => {
     const fetchBooking = async () => {
       if (!id) {
+        logBookingFlowClient('confirmation: missing ref/id query param');
         setProcessingError('Booking reference not found');
         setIsProcessing(false);
         return;
@@ -43,15 +46,29 @@ function ConfirmationContent() {
 
       try {
         setIsProcessing(true);
-        const response = await fetch(`/api/bookings/guest?id=${encodeURIComponent(id)}`);
+        logBookingFlowClient('confirmation: GET /api/bookings/guest', {
+          id,
+          hasCt: Boolean(ct),
+        });
+        const ctParam = ct ? `&ct=${encodeURIComponent(ct)}` : '';
+        const response = await fetch(`/api/bookings/guest?id=${encodeURIComponent(id)}${ctParam}`);
         const data = await response.json();
 
         if (response.ok && data.ok && data.booking) {
+          logBookingFlowClient('confirmation: booking loaded', {
+            bookingId: data.booking.id,
+            status: data.booking.status,
+          });
           setBooking(data.booking);
         } else {
+          logBookingFlowClient('confirmation: load failed', {
+            status: response.status,
+            error: data.error ?? data.message,
+          });
           setProcessingError(data.error || 'Failed to load booking details');
         }
       } catch {
+        logBookingFlowClient('confirmation: network or parse error');
         setProcessingError('An error occurred while loading your booking');
       } finally {
         setIsProcessing(false);
@@ -59,7 +76,7 @@ function ConfirmationContent() {
     };
 
     fetchBooking();
-  }, [id]);
+  }, [id, ct]);
 
   if (isProcessing) {
     return (
@@ -92,7 +109,10 @@ function ConfirmationContent() {
   const displayDate = format(parseISO(booking.booking_date), 'EEE, d MMM');
   const displayTime = booking.booking_time?.length === 5 ? booking.booking_time : booking.booking_time?.replace(/^(\d):/, '0$1:') ?? booking.booking_time;
   const referenceNumber = booking.payment_reference || booking.id;
-  const receiptHref = `/api/bookings/${encodeURIComponent(referenceNumber)}/receipt`;
+  const receiptHref =
+    ct && referenceNumber
+      ? `/api/bookings/${encodeURIComponent(referenceNumber)}/receipt?ct=${encodeURIComponent(ct)}`
+      : `/api/bookings/${encodeURIComponent(referenceNumber)}/receipt`;
 
   return (
     <div className="min-h-screen bg-slate-50 py-12 flex items-center justify-center">

@@ -1,7 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase-server';
-import { incrementCustomerRewardsForCompletedBooking } from '@/lib/rewards-server';
 import crypto from 'crypto';
+import { edgeForwardPaystackWebhook } from '@/lib/payment-edge';
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+async function findBookingByPaystackReference(
+  supabase: SupabaseClient,
+  reference: string,
+) {
+  if (reference.startsWith('booking-')) {
+    const id = reference.slice('booking-'.length);
+    const { data } = await supabase
+      .from('bookings')
+      .select('id, status, total_amount, customer_name, customer_email')
+      .eq('id', id)
+      .maybeSingle();
+    if (data) return data;
+  }
+  const { data: byRef } = await supabase
+    .from('bookings')
+    .select('id, status, total_amount, customer_name, customer_email')
+    .eq('payment_reference', reference)
+    .maybeSingle();
+  return byRef ?? null;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -228,67 +250,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, message: 'Invoice event received' });
     }
 
-    // Find booking by payment reference
-    const { data: booking, error: bookingError } = await supabase
-      .from('bookings')
-      .select('id, status, total_amount, customer_name, customer_email')
-      .eq('payment_reference', paymentReference)
-      .maybeSingle();
-
-    if (bookingError) {
-      console.error('❌ Error finding booking:', bookingError);
-      return NextResponse.json(
-        { ok: false, error: 'Database error' },
-        { status: 500 }
-      );
+    // Successful charge: delegate to Supabase Edge (Zoho Books + Resend + DB + idempotency)
+    if (event.event === 'charge.success' && event.data.status === 'success') {
+      console.log('[paystack-webhook] Forwarding charge.success to Edge');
+      const out = await edgeForwardPaystackWebhook(body, signature);
+      const edgeOk = out && typeof out === 'object' && 'ok' in out && out.ok === true;
+      return NextResponse.json(out, { status: edgeOk ? 200 : 502 });
     }
+
+    const booking = await findBookingByPaystackReference(supabase, paymentReference);
 
     if (!booking) {
       console.log('⚠️ Booking not found for payment reference:', paymentReference);
-      // Return success to Paystack even if booking not found (prevents retries)
-      return NextResponse.json({ 
-        ok: true, 
-        message: 'Booking not found, but webhook processed' 
+      return NextResponse.json({
+        ok: true,
+        message: 'Booking not found, but webhook processed',
       });
     }
 
     console.log('📦 Found booking:', booking.id, 'Current status:', booking.status);
 
-    // Handle different event types
-    if (event.event === 'charge.success') {
-      // Payment successful - update booking status
-      if (event.data.status === 'success') {
-        console.log('✅ Payment successful, updating booking status to completed');
-        
-        const { error: updateError } = await supabase
-          .from('bookings')
-          .update({
-            status: 'completed',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', booking.id);
-
-        if (updateError) {
-          console.error('❌ Error updating booking status:', updateError);
-          return NextResponse.json(
-            { ok: false, error: 'Failed to update booking' },
-            { status: 500 }
-          );
-        }
-
-        const rewardsResult = await incrementCustomerRewardsForCompletedBooking(supabase, booking.id);
-        if (!rewardsResult.ok) {
-          console.warn('⚠️ Failed to increment customer rewards:', rewardsResult.error);
-        }
-
-        console.log('✅ Booking status updated to completed');
-        return NextResponse.json({ 
-          ok: true, 
-          message: 'Booking updated successfully',
-          booking_id: booking.id,
-        });
-      }
-    } else if (event.event === 'charge.failed') {
+    if (event.event === 'charge.failed') {
       // Payment failed - update booking status
       console.log('❌ Payment failed, updating booking status');
       
@@ -296,6 +278,7 @@ export async function POST(request: NextRequest) {
         .from('bookings')
         .update({
           status: 'cancelled',
+          payment_status: 'failed',
           updated_at: new Date().toISOString(),
         })
         .eq('id', booking.id);
@@ -309,8 +292,8 @@ export async function POST(request: NextRequest) {
       }
 
       console.log('✅ Booking status updated to cancelled');
-      return NextResponse.json({ 
-        ok: true, 
+      return NextResponse.json({
+        ok: true,
         message: 'Booking updated to cancelled',
         booking_id: booking.id,
       });
@@ -322,6 +305,7 @@ export async function POST(request: NextRequest) {
         .from('bookings')
         .update({
           status: 'cancelled',
+          payment_status: 'failed',
           updated_at: new Date().toISOString(),
         })
         .eq('id', booking.id);
@@ -335,8 +319,8 @@ export async function POST(request: NextRequest) {
       }
 
       console.log('✅ Booking status updated after refund');
-      return NextResponse.json({ 
-        ok: true, 
+      return NextResponse.json({
+        ok: true,
         message: 'Booking updated after refund',
         booking_id: booking.id,
       });

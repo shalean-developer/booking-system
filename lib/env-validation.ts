@@ -9,44 +9,71 @@ export interface EnvValidationResult {
   errors: string[];
 }
 
+function isNonEmpty(v: string | undefined): boolean {
+  return typeof v === 'string' && v.trim().length > 0;
+}
+
 /**
- * Validates that all required environment variables for booking flow are present
- * For deployment compatibility, only validates critical variables
+ * Validates env for POST /api/bookings (paid flow).
+ * - Always requires Supabase (persist bookings).
+ * - Paystack keys are required in production (or when REQUIRE_PAYSTACK_KEYS=true); optional in development so local testing works without Paystack.
  */
 export function validateBookingEnv(): EnvValidationResult {
-  // Only validate critical variables that prevent the app from building
-  const required = {
-    NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
-    PAYSTACK_SECRET_KEY: process.env.PAYSTACK_SECRET_KEY,
-  };
+  const requirePaystack =
+    process.env.NODE_ENV === 'production' ||
+    process.env.REQUIRE_PAYSTACK_KEYS?.trim().toLowerCase() === 'true';
 
-  // Optional variables that can be missing during deployment
-  const optional = {
+  const required: Record<string, string | undefined> = {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    RESEND_API_KEY: process.env.RESEND_API_KEY,
+  };
+
+  if (requirePaystack) {
+    required.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;
+    required.PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
+  }
+
+  const missing = Object.entries(required)
+    .filter(([_, value]) => !isNonEmpty(value))
+    .map(([key]) => key);
+
+  const errors = missing.map((key) => `Missing required environment variable: ${key}`);
+
+  if (typeof console !== 'undefined' && missing.length === 0) {
+    if (!requirePaystack && (!isNonEmpty(process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY) || !isNonEmpty(process.env.PAYSTACK_SECRET_KEY))) {
+      console.warn(
+        '[env-validation] Paystack keys not set — OK for local dev. Set NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY + PAYSTACK_SECRET_KEY for paid checkout; use REQUIRE_PAYSTACK_KEYS=true to enforce.',
+      );
+    }
+    if (!isNonEmpty(process.env.RESEND_API_KEY)) {
+      console.warn('[env-validation] RESEND_API_KEY not set — booking confirmation emails may fail.');
+    }
+  }
+
+  return {
+    valid: missing.length === 0,
+    missing,
+    errors,
+  };
+}
+
+/**
+ * Supabase only — for pay-later pending booking creation (Paystack used when user clicks Pay).
+ */
+export function validatePendingBookingEnv(): EnvValidationResult {
+  const required: Record<string, string | undefined> = {
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   };
 
   const missing = Object.entries(required)
-    .filter(([_, value]) => !value)
+    .filter(([_, value]) => !isNonEmpty(value))
     .map(([key]) => key);
 
-  const missingOptional = Object.entries(optional)
-    .filter(([_, value]) => !value)
-    .map(([key]) => key);
-
-  const errors = missing.map(
-    (key) => `Missing required environment variable: ${key}`
-  );
-
-  if (missingOptional.length > 0) {
-    errors.push(`Optional services not configured (booking features will be limited): ${missingOptional.join(', ')}`);
-  }
-
-  return { 
-    valid: missing.length === 0, 
+  return {
+    valid: missing.length === 0,
     missing,
-    errors 
+    errors: missing.map((key) => `Missing required environment variable: ${key}`),
   };
 }
 
@@ -133,4 +160,3 @@ export function validateEmailEnv(): EnvValidationResult {
     errors 
   };
 }
-

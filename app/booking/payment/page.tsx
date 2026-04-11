@@ -174,8 +174,21 @@ function PaymentContent() {
             }),
           });
 
-          // Redirect even if update fails (payment was successful)
-          router.push(`/booking/confirmation?ref=${encodeURIComponent(reference.reference)}`);
+          const updatePayload = await updateResponse.json().catch(() => ({}));
+          if (!updateResponse.ok || !updatePayload?.ok) {
+            setError(
+              updatePayload?.error ||
+                'Payment succeeded but we could not save it to your booking. Please contact support with your payment reference.'
+            );
+            setIsProcessing(false);
+            return;
+          }
+
+          const ct =
+            typeof updatePayload.confirmationToken === 'string' && updatePayload.confirmationToken
+              ? `&ct=${encodeURIComponent(updatePayload.confirmationToken)}`
+              : '';
+          router.push(`/booking/confirmation?ref=${encodeURIComponent(reference.reference)}${ct}`);
         } catch (err) {
           console.error('Error verifying payment:', err);
           setError('Payment verification failed');

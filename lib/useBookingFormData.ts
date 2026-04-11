@@ -36,6 +36,8 @@ export interface BookingFormData {
     items: string[];
     charge: number;
   };
+  /** Server-driven: pay-later is off in production unless ALLOW_PAY_LATER_BOOKINGS=true */
+  allowPayLater?: boolean;
 }
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -103,6 +105,7 @@ export function useBookingFormData(initialData?: BookingFormData | null, forceRe
             items: [],
             charge: 500,
           },
+          allowPayLater: result.allowPayLater !== false,
         };
 
         // Update cache
@@ -145,6 +148,7 @@ export function useBookingFormData(initialData?: BookingFormData | null, forceRe
               pricing: result.pricing,
               extras: result.extras || { all: [], standardAndAirbnb: [], deepAndMove: [], quantityExtras: [], meta: {}, prices: {} },
               equipment: result.equipment || { items: [], charge: 500 },
+              allowPayLater: result.allowPayLater !== false,
             };
             cachedData = formData;
             cacheTimestamp = Date.now();

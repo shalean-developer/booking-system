@@ -149,7 +149,7 @@ function isDestinationInRedirects(destination, redirects) {
 function parseRedirects() {
   // This is a placeholder - in practice, you'd parse next.config.js
   // For now, we'll read the file and extract redirect patterns
-  const configPath = path.join(process.cwd(), 'next.config.js');
+  const configPath = path.join(process.cwd(), 'next.config.mjs');
   const configContent = fs.readFileSync(configPath, 'utf8');
   
   // Simple regex to extract redirects (this is basic - may need refinement)

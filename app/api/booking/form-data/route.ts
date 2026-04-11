@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getBookingFormData } from '@/lib/booking-form-data-server';
+import { isPayLaterAllowed } from '@/lib/booking-env';
 
 /**
  * API endpoint to fetch all booking form data (services, extras, pricing)
@@ -16,6 +17,7 @@ export async function GET() {
       pricing: data.pricing,
       extras: data.extras,
       equipment: data.equipment,
+      allowPayLater: isPayLaterAllowed(),
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal server error';
@@ -23,6 +25,7 @@ export async function GET() {
       {
         ok: false,
         error: message,
+        allowPayLater: false,
         services: [],
         pricing: null,
         extras: {

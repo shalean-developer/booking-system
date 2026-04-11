@@ -1,6 +1,5 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { BookingSystem } from '@/components/booking-system';
 import type { BookingFormData } from '@/lib/useBookingFormData';
 
@@ -19,13 +18,6 @@ interface BookingFlowWrapperProps {
 }
 
 export function BookingFlowWrapper({ initialFormData, initialServiceSlug }: BookingFlowWrapperProps) {
-  const router = useRouter();
   const initialService = initialServiceSlug ? SLUG_TO_SERVICE[initialServiceSlug] : undefined;
-  return (
-    <BookingSystem
-      initialFormData={initialFormData}
-      initialService={initialService}
-      onNavigateContact={() => router.push('/contact')}
-    />
-  );
+  return <BookingSystem initialFormData={initialFormData} initialService={initialService} />;
 }

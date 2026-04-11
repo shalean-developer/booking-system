@@ -4,14 +4,25 @@ import { supabase } from '@/lib/supabase';
 import { generateUniqueBookingId } from '@/lib/booking-id';
 import { calculateCleanerEarnings } from '@/lib/cleaner-earnings';
 import type { BookingStateV2 } from '@/lib/useBookingV2';
+import { isPayLaterAllowed } from '@/lib/booking-env';
+import { validateBookingDiscountAmount } from '@/lib/discount-booking-server';
+import { computeCheckoutPricing } from '@/lib/booking-checkout-pricing';
+import { createBookingLookupToken } from '@/lib/booking-lookup-token';
 
 /**
- * Guest booking API endpoint (no authentication required)
- * Creates bookings without payment verification for testing/development
+ * Guest booking API — pay-later path (no Paystack). Disabled in production unless
+ * `ALLOW_PAY_LATER_BOOKINGS=true`.
  */
 export async function POST(req: Request) {
   try {
-    const body: BookingStateV2 & { totalAmount: number; serviceFee?: number; frequencyDiscount?: number } = await req.json();
+    if (!isPayLaterAllowed()) {
+      return NextResponse.json(
+        { ok: false, error: 'Pay-later bookings are not available. Please pay online to confirm.' },
+        { status: 403 }
+      );
+    }
+
+    const body: BookingStateV2 & { totalAmount: number; serviceFee?: number; frequencyDiscount?: number; preSurgeTotal?: number } = await req.json();
     
     if (!body.service || !body.date || !body.time || !body.email || !body.firstName || !body.lastName) {
       return NextResponse.json(
@@ -26,6 +37,47 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+
+    const tipAmt = body.tipAmount || 0;
+    const preSurgeTotal =
+      typeof body.preSurgeTotal === 'number' && Number.isFinite(body.preSurgeTotal)
+        ? body.preSurgeTotal
+        : body.totalAmount;
+
+    const discountCheck = await validateBookingDiscountAmount(supabase, {
+      discountCode: body.discountCode,
+      discountAmountClaimedZar: body.discountAmount || 0,
+      subtotalBeforeDiscountZar: preSurgeTotal - tipAmt + (body.discountAmount || 0),
+      serviceType: body.service,
+    });
+    if (!discountCheck.ok) {
+      return NextResponse.json(
+        { ok: false, error: discountCheck.error },
+        { status: discountCheck.status }
+      );
+    }
+
+    const checkoutPricing = await computeCheckoutPricing(supabase, {
+      date: body.date,
+      service: body.service,
+      preSurgeTotalZar: preSurgeTotal,
+      selected_team: body.selected_team ?? undefined,
+    });
+    if (!checkoutPricing.ok) {
+      return NextResponse.json(
+        { ok: false, error: checkoutPricing.error },
+        { status: checkoutPricing.status }
+      );
+    }
+
+    if (Math.abs(checkoutPricing.finalTotalZar - body.totalAmount) > 0.02) {
+      return NextResponse.json(
+        { ok: false, error: 'Total does not match server pricing. Please refresh and try again.' },
+        { status: 400 }
+      );
+    }
+
+    const adjustedTotalAmount = checkoutPricing.finalTotalZar;
 
     const bookingId = generateUniqueBookingId();
     let customerId = null;
@@ -78,9 +130,9 @@ export async function POST(req: Request) {
     const requiresTeam = body.service === 'Deep' || body.service === 'Move In/Out';
     
     // Extract tip amount (tips go 100% to cleaner, separate from commission)
-    const tipAmount = (body.tipAmount || 0);
+    const tipAmount = body.tipAmount || 0;
     const tipAmountInCents = Math.round(tipAmount * 100);
-    const serviceTotal = (body.totalAmount || 0) - tipAmount;
+    const serviceTotal = adjustedTotalAmount - tipAmount;
     
     let cleanerEarnings = 0;
     let cleanerIdForInsert = null;
@@ -97,13 +149,12 @@ export async function POST(req: Request) {
           .single();
         
         const cleanerHireDate = cleanerData?.hire_date || null;
-        // Calculate earnings: commission on service + 100% of tip
         cleanerEarnings = calculateCleanerEarnings(
-          body.totalAmount ?? null, // Total includes tip
+          adjustedTotalAmount ?? null,
           body.serviceFee ?? null,
           cleanerHireDate,
-          tipAmount, // Pass tip amount to exclude from commission calculation
-          body.service ?? null // Pass service type for minimum commission check
+          tipAmount,
+          body.service ?? null
         ) * 100;
       }
     }
@@ -120,9 +171,9 @@ export async function POST(req: Request) {
       frequency: frequencyForDb,
       service_fee: (body.serviceFee || 0) * 100,
       frequency_discount: (body.frequencyDiscount || 0) * 100,
-      tip_amount: tipAmountInCents, // Store tip separately
+      tip_amount: tipAmountInCents,
       subtotal: serviceTotal ? (serviceTotal - (body.serviceFee || 0) + (body.frequencyDiscount || 0)) * 100 : 0,
-      total: (body.totalAmount || 0) * 100, // Total includes tip
+      total: adjustedTotalAmount * 100,
       snapshot_date: new Date().toISOString(),
     };
 
@@ -142,11 +193,13 @@ export async function POST(req: Request) {
         address_line1: body.address.line1,
         address_suburb: body.address.suburb,
         address_city: body.address.city,
-        payment_reference: null, // No payment for guest bookings
-        total_amount: (body.totalAmount || 0) * 100, // Total includes tip
-        tip_amount: tipAmountInCents, // Store tip separately (goes 100% to cleaner)
+        payment_reference: null,
+        total_amount: Math.round(adjustedTotalAmount * 100),
+        tip_amount: tipAmountInCents,
         cleaner_earnings: cleanerEarnings,
         requires_team: requiresTeam,
+        surge_pricing_applied: checkoutPricing.surgePricingApplied,
+        surge_amount: Math.round(checkoutPricing.surgeAmountZar * 100),
         frequency: frequencyForDb,
         service_fee: (body.serviceFee || 0) * 100,
         frequency_discount: (body.frequencyDiscount || 0) * 100,
@@ -251,7 +304,7 @@ export async function POST(req: Request) {
           selected_team: body.selected_team || undefined,
           requires_team: body.requires_team || false,
           bookingId,
-          totalAmount: body.totalAmount, // Pass actual total amount paid (in rands)
+          totalAmount: adjustedTotalAmount,
           cleanerName
         });
         
@@ -275,7 +328,7 @@ export async function POST(req: Request) {
           selected_team: body.selected_team || undefined,
           requires_team: body.requires_team || false,
           bookingId,
-          totalAmount: body.totalAmount, // Pass actual total amount paid (in rands)
+          totalAmount: adjustedTotalAmount,
         });
 
         await Promise.all([
@@ -294,6 +347,7 @@ export async function POST(req: Request) {
       bookingId,
       message: 'Booking created successfully',
       emailSent,
+      confirmationToken: createBookingLookupToken(bookingId),
     });
   } catch (error) {
     console.error('Guest booking error:', error);
@@ -311,6 +365,7 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
+  const ct = searchParams.get('ct');
 
   if (!id) {
     return NextResponse.json(
@@ -320,13 +375,34 @@ export async function GET(req: Request) {
   }
 
   try {
-    const { data: booking, error } = await supabase
-      .from('bookings')
-      .select('*')
-      .or(`payment_reference.eq.${id},id.eq.${id}`)
-      .maybeSingle();
+    const { isSafeBookingLookupId } = await import('@/lib/booking-lookup-id');
+    const { verifyBookingLookupToken, isBookingLookupTokenConfigured } = await import(
+      '@/lib/booking-lookup-token'
+    );
 
-    if (error || !booking) {
+    if (!isSafeBookingLookupId(id)) {
+      return NextResponse.json({ ok: false, error: 'Invalid reference' }, { status: 400 });
+    }
+
+    if (isBookingLookupTokenConfigured() && !verifyBookingLookupToken(id, ct)) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const r1 = await supabase.from('bookings').select('*').eq('id', id).maybeSingle();
+    if (r1.error) {
+      console.error('guest GET booking:', r1.error);
+      return NextResponse.json({ ok: false, error: 'Failed to fetch booking' }, { status: 500 });
+    }
+    let booking = r1.data;
+    if (!booking) {
+      const r2 = await supabase.from('bookings').select('*').eq('payment_reference', id).maybeSingle();
+      if (r2.error) {
+        return NextResponse.json({ ok: false, error: 'Failed to fetch booking' }, { status: 500 });
+      }
+      booking = r2.data;
+    }
+
+    if (!booking) {
       return NextResponse.json(
         { ok: false, error: 'Booking not found' },
         { status: 404 }

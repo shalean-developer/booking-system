@@ -1,75 +1,37 @@
 'use client';
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { ChevronRight, ChevronLeft, CheckCircle2, Star, ShieldCheck, Clock, Calendar, Home, Layers, Sparkles, Wind, ArrowRight, Plus, Minus, Users, CreditCard, Download, RefreshCw, Phone, Mail, MapPin, MessageSquare, Check, AlertCircle, Loader2, Building2, Sofa, ChevronDown, Award, User, X, ThumbsUp, Map, Zap, Tag, Briefcase } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Star, ShieldCheck, Calendar, Home, Layers, Sparkles, Wind, RefreshCw, Loader2, Building2, Sofa, Award, User } from 'lucide-react';
 import { generateBookingId } from '@/lib/booking-id';
 import { useBookingFormData, type BookingFormData as BookingFormDataFromApi } from '@/lib/useBookingFormData';
 import type { Cleaner as ApiCleaner } from '@/types/booking';
 import { supabase } from '@/lib/supabase-client';
+import { BookingStep1Cleaning } from '@/components/booking-step1-cleaning';
+import { BookingStep2Schedule } from '@/components/booking-step2-schedule';
+import { BookingStep3Crew } from '@/components/booking-step3-crew';
+import { BookingStep4Confirmation } from '@/components/booking-step4-confirmation';
+import type { BookingFormData, ServiceType } from '@/components/booking-system-types';
+import { BOOKING_DEFAULT_CITY } from '@/lib/contact';
+import { logBookingFlowClient } from '@/lib/debug-booking-flow';
+
+export type { BookingFormData, PropertyType, ServiceType } from '@/components/booking-system-types';
 
 // --- TYPES ---
 
-type ServiceType = 'standard' | 'deep' | 'move' | 'airbnb' | 'carpet';
-type PropertyType = 'apartment' | 'house' | 'office';
-type PaymentMethod = 'online' | 'later';
 interface Extra {
   id: string;
   label: string;
   price: number;
   icon: React.ReactNode;
 }
-interface Cleaner {
-  id: string;
-  name: string;
-  photo: string;
-  experience: string;
-  rating: number;
-  reviews: number;
-  badge?: string;
-  workingAreas: string[];
-  unavailableDates: string[];
-}
-interface Team {
-  id: string;
-  name: string;
-  size: number;
-  experience: string;
-  availability: 'high' | 'medium' | 'low';
-  speciality: string;
-  workingAreas: string[];
-  unavailableDates: string[];
-}
-interface BookingFormData {
-  service: ServiceType;
-  bedrooms: number;
-  bathrooms: number;
-  extraRooms: number;
-  propertyType: PropertyType;
-  officeSize: string;
-  extras: string[];
-  cleanerId: string;
-  teamId: string;
-  workingArea: string;
-  date: string;
-  time: string;
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  instructions: string;
-  paymentMethod: PaymentMethod;
-  tipAmount: number;
-  promoCode: string;
-  discountAmount: number;
-}
-
 // --- CONSTANTS ---
 
 const PROMO_CODES: Record<string, number> = {
   'SHALEAN10': 0.10,
   'SAVE20': 0.20,
+  'SAVE50': 50,
+  'NEWCLIENT': 100,
   'FIRSTCLEAN': 100
 };
 const SERVICES = [{
@@ -134,6 +96,21 @@ const EXTRAS: Extra[] = [{
   price: 120,
   icon: <ShieldCheck className="w-5 h-5" />
 }, {
+  id: 'water_plants',
+  label: 'Water Plants',
+  price: 20,
+  icon: <Sparkles className="w-5 h-5" />
+}, {
+  id: 'ironing',
+  label: 'Ironing',
+  price: 40,
+  icon: <User className="w-5 h-5" />
+}, {
+  id: 'flatlet',
+  label: 'Small Flatlet',
+  price: 95,
+  icon: <Building2 className="w-5 h-5" />
+}, {
   id: 'laundry',
   label: 'Laundry Wash',
   price: 250,
@@ -184,76 +161,6 @@ const EXTRAS: Extra[] = [{
   price: 350,
   icon: <Layers className="w-5 h-5" />
 }];
-const INDIVIDUAL_CLEANERS: Cleaner[] = [{
-  id: 'c1',
-  name: 'Ashley Byrd',
-  photo: 'https://images.unsplash.com/photo-1494790108755-2616b612b1e8?auto=format&fit=crop&w=150&q=80',
-  experience: '3 years',
-  rating: 4.9,
-  reviews: 127,
-  badge: 'Top Rated',
-  workingAreas: ['Sea Point', 'Green Point', 'Camps Bay'],
-  unavailableDates: ['2024-05-20', '2024-05-25']
-}, {
-  id: 'c2',
-  name: 'Nomvula Dlamini',
-  photo: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=150&q=80',
-  experience: '5 years',
-  rating: 4.8,
-  reviews: 214,
-  badge: 'Most Booked',
-  workingAreas: ['Sea Point', 'Gardens', 'Vredehoek'],
-  unavailableDates: ['2024-05-21']
-}, {
-  id: 'c3',
-  name: 'Fatima Hartley',
-  photo: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=150&q=80',
-  experience: '2 years',
-  rating: 4.7,
-  reviews: 89,
-  workingAreas: ['Claremont', 'Kenilworth', 'Rondebosch'],
-  unavailableDates: []
-}, {
-  id: 'c4',
-  name: 'Thandiwe Mokoena',
-  photo: 'https://images.unsplash.com/photo-1601288496920-b6154fe3626a?auto=format&fit=crop&w=150&q=80',
-  experience: '4 years',
-  rating: 4.9,
-  reviews: 173,
-  workingAreas: ['Durbanville', 'Bellville'],
-  unavailableDates: []
-}];
-const TEAMS: Team[] = [{
-  id: 't1',
-  name: 'Team A — Precision Squad',
-  size: 3,
-  experience: 'Senior Level',
-  availability: 'high',
-  speciality: 'Deep & Move-In/Out specialists',
-  workingAreas: ['Sea Point', 'Green Point', 'Gardens'],
-  unavailableDates: []
-}, {
-  id: 't2',
-  name: 'Team B — Speed Force',
-  size: 4,
-  experience: 'Expert Level',
-  availability: 'medium',
-  speciality: 'Large property experts',
-  workingAreas: ['Claremont', 'Kenilworth', 'Constantia'],
-  unavailableDates: []
-}, {
-  id: 't3',
-  name: 'Team C — Elite Clean',
-  size: 2,
-  experience: 'Specialist Level',
-  availability: 'high',
-  speciality: 'Compact & fast turnaround',
-  workingAreas: ['Vredehoek', 'Gardens', 'Sea Point'],
-  unavailableDates: []
-}];
-const TIME_SLOTS = ['07:00', '07:30', '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30'];
-const WORKING_AREAS = ['Sea Point', 'Green Point', 'Camps Bay', 'Gardens', 'Vredehoek', 'Claremont', 'Kenilworth', 'Rondebosch', 'Durbanville', 'Bellville', 'Constantia'];
-const STEP_LABELS = ['Plan', 'Time', 'Crew', 'Final'];
 const DEFAULT_FORM: BookingFormData = {
   service: 'standard',
   bedrooms: 2,
@@ -275,7 +182,16 @@ const DEFAULT_FORM: BookingFormData = {
   paymentMethod: 'online',
   tipAmount: 0,
   promoCode: '',
-  discountAmount: 0
+  discountAmount: 0,
+  officeBoardrooms: 1,
+  officePrivateOffices: 1,
+  officeOpenAreas: 1,
+  officeBathrooms: 1,
+  officeKitchens: 1,
+  officeHasReception: false,
+  carpetRooms: 1,
+  carpetRugs: 0,
+  carpetExtraCleaner: false,
 };
 
 // Map our service id to API ServiceType
@@ -299,7 +215,6 @@ const TEAM_ID_TO_NAME: Record<string, 'Team A' | 'Team B' | 'Team C'> = {
   t3: 'Team C'
 };
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const DEFAULT_CITY = 'Cape Town';
 
 // Icon name (from API) to React node for services
 const SERVICE_ICON_MAP: Record<string, React.ReactNode> = {
@@ -365,70 +280,6 @@ const BOOKING_STORAGE_KEY = 'shalean-booking-form-v1';
 // --- HELPERS ---
 
 const generateRef = () => 'SHL-' + Math.random().toString(36).substring(2, 8).toUpperCase();
-const getQuickDates = () => {
-  const today = new Date();
-  const currentHour = today.getHours();
-
-  // If it's after 12 PM (12:00), start from tomorrow
-  const startDate = new Date(today);
-  if (currentHour >= 12) {
-    startDate.setDate(today.getDate() + 1);
-  }
-  const dates: string[] = [];
-  let count = 0;
-  let i = 0;
-
-  // Find the first 7 valid dates (skipping Sundays)
-  while (count < 7) {
-    const d = new Date(startDate);
-    d.setDate(startDate.getDate() + i);
-    if (d.getDay() !== 0) {
-      // Skip Sunday
-      dates.push(d.toISOString().split('T')[0]);
-      count++;
-    }
-    i++;
-  }
-  return dates;
-};
-const getAdvanceMonths = () => {
-  const today = new Date();
-  const months: {
-    label: string;
-    value: string;
-  }[] = [];
-  for (let i = 0; i < 3; i++) {
-    const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
-    months.push({
-      label: d.toLocaleDateString('en-ZA', {
-        month: 'long',
-        year: 'numeric'
-      }),
-      value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    });
-  }
-  return months;
-};
-const getDatesForSelectedMonth = (monthValue: string) => {
-  if (!monthValue) return [];
-  const [year, month] = monthValue.split('-').map(Number);
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const dates: string[] = [];
-  const today = new Date();
-  const currentHour = today.getHours();
-  const todayStr = today.toISOString().split('T')[0];
-  for (let day = 1; day <= daysInMonth; day++) {
-    const d = new Date(year, month - 1, day);
-    const dateStr = d.toISOString().split('T')[0];
-
-    // Logic: Skip Sundays, and skip today if it's past 12 PM
-    const isPastCutoffToday = dateStr === todayStr && currentHour >= 12;
-    if (d.getDay() !== 0 && dateStr >= todayStr && !isPastCutoffToday) {
-      dates.push(dateStr);
-    }
-  }
-  return dates;
-};
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '';
   const d = new Date(dateStr + 'T00:00:00');
@@ -438,27 +289,68 @@ const formatDate = (dateStr: string) => {
     month: 'short'
   });
 };
+
+const formatTimeDisplay = (t: string) => {
+  if (!t) return 'TBD';
+  const [h, m] = t.split(':').map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d.toLocaleTimeString('en-ZA', { hour: 'numeric', minute: '2-digit', hour12: true });
+};
+
+const validateEmailFormat = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+/** Maps step-1 UI (office/carpet/studio) into bedroom/bathroom/extra counts for API pricing */
+function getEffectiveRoomCounts(data: BookingFormData): { bedrooms: number; bathrooms: number; extraRooms: number } {
+  if (data.service === 'carpet') {
+    return {
+      bedrooms: data.carpetRooms ?? data.bedrooms,
+      bathrooms: data.carpetRugs ?? data.bathrooms,
+      extraRooms: data.carpetExtraCleaner ? 1 : 0,
+    };
+  }
+  if (data.propertyType === 'office') {
+    const ob = data.officeBoardrooms ?? data.bathrooms;
+    const op = data.officePrivateOffices ?? data.bedrooms;
+    const ox =
+      (data.officeOpenAreas ?? 0) +
+      (data.officeKitchens ?? 0) +
+      (data.officeBathrooms ?? 0) +
+      (data.officeHasReception ? 1 : 0);
+    return { bedrooms: op, bathrooms: ob, extraRooms: ox };
+  }
+  if (data.propertyType === 'studio') {
+    return {
+      bedrooms: 0,
+      bathrooms: Math.max(1, data.bathrooms),
+      extraRooms: data.extraRooms,
+    };
+  }
+  return { bedrooms: data.bedrooms, bathrooms: data.bathrooms, extraRooms: data.extraRooms };
+}
+
 const useCalcTotal = (
   data: BookingFormData,
   formData: { pricing: NonNullable<ReturnType<typeof useBookingFormData>['data']>['pricing']; extras?: { prices: Record<string, number> }; equipmentCharge?: number } | null
 ) => {
   return useMemo(() => {
     const apiService = SERVICE_TO_API[data.service];
+    const eff = getEffectiveRoomCounts(data);
     let basePrice = 0;
     let bedroomAdd = 0;
     let bathroomAdd = 0;
-    const extraRoomAdd = data.extraRooms * 75;
+    const extraRoomAdd = eff.extraRooms * 75;
 
     if (formData?.pricing?.services?.[apiService]) {
       const s = formData.pricing.services[apiService];
       basePrice = s.base ?? 0;
-      bedroomAdd = Math.max(0, data.bedrooms - 1) * (s.bedroom ?? 0);
-      bathroomAdd = Math.max(0, data.bathrooms - 1) * (s.bathroom ?? 0);
+      bedroomAdd = Math.max(0, eff.bedrooms - 1) * (s.bedroom ?? 0);
+      bathroomAdd = Math.max(0, eff.bathrooms - 1) * (s.bathroom ?? 0);
     } else {
       const svc = SERVICES.find(s => s.id === data.service);
       basePrice = svc?.price ?? 0;
-      bedroomAdd = (data.bedrooms - 1) * 100;
-      bathroomAdd = (data.bathrooms - 1) * 50;
+      bedroomAdd = (eff.bedrooms - 1) * 100;
+      bathroomAdd = (eff.bathrooms - 1) * 50;
     }
 
     let extrasTotal = 0;
@@ -505,52 +397,17 @@ const useCalcTotal = (
 
 // --- COMPONENTS ---
 
-const StepHeader = ({
-  title,
-  desc,
-  step
-}: {
-  title: string;
-  desc: string;
-  step: number;
-}) => <div className="mb-8">
-    <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-[10px] font-bold uppercase tracking-wider mb-4 border border-blue-100">
-      <Zap className="w-3 h-3" />
-      Step {step} of 4
-    </div>
-    <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-none mb-3">{title}</h2>
-    <p className="text-slate-500 text-sm max-w-md">{desc}</p>
-  </div>;
-const FormCard = ({
-  selected,
-  onClick,
-  children,
-  className = ""
-}: {
-  selected?: boolean;
-  onClick?: () => void;
-  children: React.ReactNode;
-  className?: string;
-}) => <button type="button" onClick={onClick} className={`relative w-full text-left group overflow-hidden p-5 rounded-2xl border-2 transition-all duration-300 ${selected ? 'border-blue-600 bg-blue-50/40 shadow-xl shadow-blue-500/10' : 'border-slate-100 bg-white hover:border-blue-200 hover:shadow-lg hover:shadow-slate-200/50'} ${className}`}>
-    <div className={`absolute top-0 right-0 p-2 transition-opacity ${selected ? 'opacity-100' : 'opacity-0'}`}>
-      <div className="bg-blue-600 rounded-full p-1">
-        <Check className="w-3 h-3 text-white" />
-      </div>
-    </div>
-    {children}
-  </button>;
-
 // @component: BookingSystem
 interface BookingSystemProps {
-  onNavigateContact?: () => void;
   initialFormData?: BookingFormDataFromApi | null;
   initialService?: ServiceType;
 }
 
-export const BookingSystem = ({ onNavigateContact, initialFormData, initialService }: BookingSystemProps = {}) => {
+export const BookingSystem = ({ initialFormData, initialService }: BookingSystemProps = {}) => {
   const router = useRouter();
   const pathname = usePathname();
   const { data: formData, loading: formDataLoading, error: formDataError } = useBookingFormData(initialFormData);
+  const checkoutPricingRef = useRef<{ preSurgeTotal: number; finalTotal: number } | null>(null);
   const pathSegments = pathname.split('/').filter(Boolean);
   const pathServiceIdx = pathSegments.indexOf('service');
   const serviceSlugFromPath = pathServiceIdx !== -1 && pathServiceIdx + 1 < pathSegments.length
@@ -588,14 +445,10 @@ export const BookingSystem = ({ onNavigateContact, initialFormData, initialServi
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState('');
   const [paystackLoaded, setPaystackLoaded] = useState(false);
-  const [bookingRef, setBookingRef] = useState('');
   const [promoInput, setPromoInput] = useState('');
   const [promoError, setPromoError] = useState('');
-  const [advanceMonth, setAdvanceMonth] = useState('');
-  const [showAdvance, setShowAdvance] = useState(false);
   const [session, setSession] = useState<{ user: { id: string; email?: string; user_metadata?: Record<string, unknown> } } | null>(null);
   const [customerProfile, setCustomerProfile] = useState<{ firstName?: string; lastName?: string; email?: string; phone?: string; rewardsPoints?: number } | null>(null);
-  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
 
   // Session and customer profile for dashboard linking and form prefill
   useEffect(() => {
@@ -655,6 +508,12 @@ export const BookingSystem = ({ onNavigateContact, initialFormData, initialServi
     }
   }, [hasRewardsBalance, data.paymentMethod]);
 
+  useEffect(() => {
+    if (formData?.allowPayLater === false && data.paymentMethod === 'later') {
+      setData((prev) => ({ ...prev, paymentMethod: 'online' }));
+    }
+  }, [formData?.allowPayLater, data.paymentMethod]);
+
   // Persist booking form data across step route changes
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -664,6 +523,16 @@ export const BookingSystem = ({ onNavigateContact, initialFormData, initialServi
       // ignore storage write errors
     }
   }, [data]);
+
+  // Keep step aligned with the URL segment (browser back/forward, manual URL edits)
+  useEffect(() => {
+    const segments = pathname.split('/').filter(Boolean);
+    const last = segments[segments.length - 1] ?? '';
+    const fromUrl = SLUG_TO_STEP[last];
+    if (fromUrl !== undefined && fromUrl >= 1 && fromUrl <= 4) {
+      setStep((s) => (s === fromUrl ? s : fromUrl));
+    }
+  }, [pathname]);
 
   // Sync selected service from URL slug so entry points (e.g., homepage hero) always open with the intended service.
   useEffect(() => {
@@ -676,6 +545,35 @@ export const BookingSystem = ({ onNavigateContact, initialFormData, initialServi
 
     setData((prev) => (prev.service === serviceFromUrl ? prev : { ...prev, service: serviceFromUrl }));
   }, [pathname]);
+
+  // Drop extras that do not apply to the selected service (ids must stay in sync with step-2 grid)
+  useEffect(() => {
+    const standardAirbnb = new Set([
+      'fridge',
+      'oven',
+      'cabinets',
+      'windows',
+      'walls',
+      'water_plants',
+      'ironing',
+      'laundry',
+      'flatlet',
+      'equipment',
+      'extra_cleaner',
+    ]);
+    const deepMove = new Set(['carpet_deep', 'ceiling', 'garage', 'balcony', 'couch', 'exterior_windows']);
+    setData((prev) => {
+      const allowed =
+        prev.service === 'standard' || prev.service === 'airbnb'
+          ? standardAirbnb
+          : prev.service === 'deep' || prev.service === 'move'
+            ? deepMove
+            : new Set<string>();
+      const next = prev.extras.filter((e) => allowed.has(e));
+      if (next.length === prev.extras.length) return prev;
+      return { ...prev, extras: next };
+    });
+  }, [data.service]);
 
   // Keep URL service slug in sync with selected service (preserve current step from pathname)
   useEffect(() => {
@@ -731,9 +629,13 @@ export const BookingSystem = ({ onNavigateContact, initialFormData, initialServi
 
   const pricing = useCalcTotal(data, formData ? { pricing: formData.pricing, extras: formData?.extras, equipmentCharge: formData?.equipment?.charge } : null);
 
+  const effRoomCounts = useMemo(() => getEffectiveRoomCounts(data), [data]);
+
   const estimatedDuration = useMemo(() => {
     const selectedService = data.service;
     if (!selectedService) return { label: '—', maxHours: 3 };
+
+    const eff = getEffectiveRoomCounts(data);
 
     let hours =
       selectedService === 'standard'
@@ -749,15 +651,15 @@ export const BookingSystem = ({ onNavigateContact, initialFormData, initialServi
                 : 2.5;
 
     if (selectedService === 'carpet') {
-      hours += Math.max(0, data.bedrooms) * 0.5; // fitted carpets proxy
-      hours += Math.max(0, data.bathrooms) * 0.25; // loose carpets/rugs proxy
-      hours += Math.max(0, data.extraRooms) * 0.5; // extra crew / complexity
+      hours += Math.max(0, eff.bedrooms) * 0.5;
+      hours += Math.max(0, eff.bathrooms) * 0.25;
+      hours += Math.max(0, eff.extraRooms) * 0.5;
     } else {
-      hours += Math.max(0, data.bedrooms) * 0.5;
-      hours += Math.max(0, data.bathrooms) * 0.75;
-      hours += Math.max(0, data.extraRooms) * 0.5; // extra rooms add to working duration
+      hours += Math.max(0, eff.bedrooms) * 0.5;
+      hours += Math.max(0, eff.bathrooms) * 0.75;
+      hours += Math.max(0, eff.extraRooms) * 0.5;
       if (data.propertyType === 'office') {
-        hours += Math.max(0, data.bedrooms) * 0.25; // small office overhead per office
+        hours += Math.max(0, eff.bedrooms) * 0.25;
       }
     }
 
@@ -768,14 +670,7 @@ export const BookingSystem = ({ onNavigateContact, initialFormData, initialServi
     const min = Math.max(1, roundHalf(base * 0.9));
     const max = Math.max(min, roundHalf(base * 1.1));
     return { label: `Est. ${min}–${max} hrs`, maxHours: max };
-  }, [
-    data.service,
-    data.bedrooms,
-    data.bathrooms,
-    data.extraRooms,
-    data.extras,
-    data.propertyType,
-  ]);
+  }, [data]);
 
   /** Compute expected end time (HH:MM) from start time + max duration hours */
   const expectedEndTime = useMemo(() => {
@@ -831,45 +726,72 @@ export const BookingSystem = ({ onNavigateContact, initialFormData, initialServi
       if (existing?.parentNode) existing.parentNode.removeChild(existing);
     };
   }, []);
-  const quickDates = useMemo(() => getQuickDates(), []);
-  const advanceMonths = useMemo(() => getAdvanceMonths(), []);
-  const advanceDates = useMemo(() => getDatesForSelectedMonth(advanceMonth), [advanceMonth]);
-  const availableTimeSlots = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    if (data.date !== todayStr) return TIME_SLOTS;
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMin = now.getMinutes();
-    return TIME_SLOTS.filter(slot => {
-      const [h, m] = slot.split(':').map(Number);
-      if (h > currentHour) return true;
-      if (h === currentHour && m > currentMin) return true;
-      return false;
-    });
-  }, [data.date]);
   const currentExtras = useMemo(() => {
     if (displayExtrasForService?.length) return displayExtrasForService;
     if (data.service === 'standard' || data.service === 'airbnb') {
-      return EXTRAS.filter(e => ['fridge', 'oven', 'windows', 'cabinets', 'walls', 'laundry', 'extra_cleaner', 'equipment'].includes(e.id));
+      return EXTRAS.filter(e => ['fridge', 'oven', 'windows', 'cabinets', 'walls', 'laundry', 'extra_cleaner', 'equipment', 'water_plants', 'ironing', 'flatlet'].includes(e.id));
     }
     if (data.service === 'deep' || data.service === 'move') {
       return EXTRAS.filter(e => ['balcony', 'carpet_deep', 'ceiling', 'couch', 'garage', 'mattress', 'exterior_windows'].includes(e.id));
     }
     return [];
   }, [data.service, displayExtrasForService]);
+
+  const crewDisplayName = useMemo(() => {
+    if (data.teamId) {
+      const teams: Record<string, string> = { t1: 'Team Alpha', t2: 'Team Bravo', t3: 'Team Sierra' };
+      return teams[data.teamId] ?? 'Team';
+    }
+    const c = apiCleaners.find((x) => x.id === data.cleanerId);
+    return c?.name ?? 'Your cleaner';
+  }, [data.teamId, data.cleanerId, apiCleaners]);
+
+  const propertySummaryForStep4 = useMemo(() => {
+    if (data.service === 'carpet') {
+      return `${effRoomCounts.bedrooms} Carpets, ${effRoomCounts.bathrooms} Rugs${effRoomCounts.extraRooms > 0 ? `, ${effRoomCounts.extraRooms} Extra Crew` : ''}`;
+    }
+    if (data.propertyType === 'studio') {
+      return `${effRoomCounts.bathrooms} Bath, ${effRoomCounts.extraRooms} extra rooms`;
+    }
+    return `${effRoomCounts.bedrooms} ${data.propertyType === 'office' ? 'Offices' : 'Bed'}, ${effRoomCounts.bathrooms} ${data.propertyType === 'office' ? 'Rooms' : 'Bath'}`;
+  }, [data.service, data.propertyType, effRoomCounts]);
+
+  const extrasSummaryForStep4 = useMemo(() => {
+    if (data.extras.length === 0) return 'None';
+    const labels = data.extras.map((e) => currentExtras.find((ex) => ex.id === e)?.label ?? e);
+    const zar = new Intl.NumberFormat('en-ZA', {
+      style: 'currency',
+      currency: 'ZAR',
+      minimumFractionDigits: 0
+    }).format(pricing.extrasTotal);
+    return `${labels.join(' + ')} (+${zar})`;
+  }, [data.extras, currentExtras, pricing.extrasTotal]);
+
+  const dateTimeLabelForStep4 = useMemo(
+    () => (data.date ? `${formatDate(data.date)} · ${formatTimeDisplay(data.time)}` : 'To be confirmed'),
+    [data.date, data.time]
+  );
+
+  const shortDateLabelForStep4 = useMemo(() => (data.date ? formatDate(data.date) : ''), [data.date]);
+
   const validateStep = useCallback(() => {
     const newErrors: Partial<Record<keyof BookingFormData, string>> = {};
     if (step === 1) {
       if (!data.workingArea) newErrors.workingArea = 'Location is required';
-      if (data.propertyType === 'office' && !data.officeSize) newErrors.officeSize = 'Size is required';
     }
     if (step === 2) {
       if (!data.date) newErrors.date = 'Date is required';
       if (!data.time) newErrors.time = 'Time is required';
+      if (data.service === 'standard' || data.service === 'airbnb') {
+        if (data.scheduleEquipmentPref !== 'bring' && data.scheduleEquipmentPref !== 'own') {
+          newErrors.scheduleEquipmentPref = 'Please choose an equipment option';
+        }
+      }
     }
     if (step === 4) {
       if (!data.name.trim()) newErrors.name = 'Required';
-      if (!data.email.trim() || !data.email.includes('@')) newErrors.email = 'Valid email required';
+      if (!data.email.trim()) newErrors.email = 'Valid email required';
+      else if (!validateEmailFormat(data.email)) newErrors.email = 'Valid email required';
       if (!data.phone.trim()) newErrors.phone = 'Required';
       if (!data.address.trim()) newErrors.address = 'Required';
     }
@@ -890,6 +812,9 @@ export const BookingSystem = ({ onNavigateContact, initialFormData, initialServi
       data.extras.forEach((id) => {
         extrasQuantities[id] = (extrasQuantities[id] || 0) + 1;
       });
+      const totals = checkoutPricingRef.current;
+      const totalAmount = totals?.finalTotal ?? pricing.total;
+      const preSurgeTotal = totals?.preSurgeTotal ?? pricing.total;
       return {
         step: 4 as const,
         service: apiService,
@@ -906,13 +831,14 @@ export const BookingSystem = ({ onNavigateContact, initialFormData, initialServi
         lastName,
         email: data.email.trim(),
         phone: data.phone.trim(),
-        address: { line1: data.address.trim(), suburb: data.workingArea || '', city: DEFAULT_CITY },
+        address: { line1: data.address.trim(), suburb: data.workingArea || '', city: BOOKING_DEFAULT_CITY },
         cleaner_id: cleanerId || undefined,
         selected_team: selectedTeam,
         requires_team: requiresTeam,
         ...(paymentReference ? { paymentReference } : {}),
         expectedEndTime: expectedEndTime || undefined,
-        totalAmount: pricing.total,
+        totalAmount,
+        preSurgeTotal,
         serviceFee: 0,
         frequencyDiscount: 0,
         discountCode: data.promoCode || undefined,
@@ -941,10 +867,19 @@ export const BookingSystem = ({ onNavigateContact, initialFormData, initialServi
           throw new Error(errorMessage);
         }
         const ref = result.bookingId || paymentReference;
-        setBookingRef(ref);
         setStep(5);
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        router.push(`/booking/confirmation?ref=${encodeURIComponent(ref)}`);
+        const ct =
+          typeof result.confirmationToken === 'string' && result.confirmationToken
+            ? `&ct=${encodeURIComponent(result.confirmationToken)}`
+            : '';
+        const confirmPath = `/booking/confirmation?ref=${encodeURIComponent(ref)}${ct}`;
+        logBookingFlowClient('POST /api/bookings succeeded → redirect', {
+          ref,
+          hasConfirmationToken: Boolean(ct),
+          path: confirmPath,
+        });
+        router.push(confirmPath);
       } catch (err) {
         setPaymentError(err instanceof Error ? err.message : 'Failed to submit booking. Please try again.');
       } finally {
@@ -961,63 +896,144 @@ export const BookingSystem = ({ onNavigateContact, initialFormData, initialServi
       setIsProcessing(false);
       return;
     }
-    const body = buildBookingPayload(null);
     try {
-      const res = await fetch('/api/bookings/guest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const apiService = SERVICE_TO_API[data.service];
+      const selectedTeam =
+        data.teamId && TEAM_ID_TO_NAME[data.teamId] ? TEAM_ID_TO_NAME[data.teamId] : undefined;
+      const previewRes = await fetch('/api/booking/pricing-preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: data.date,
+          service: apiService,
+          preSurgeTotal: pricing.total,
+          selected_team: selectedTeam,
+        }),
+      });
+      const preview = await previewRes.json();
+      if (!previewRes.ok || !preview.ok) {
+        throw new Error(preview.error || 'Could not confirm pricing for this date.');
+      }
+      checkoutPricingRef.current = {
+        preSurgeTotal: preview.preSurgeTotalZar,
+        finalTotal: preview.finalTotalZar,
+      };
+      const body = buildBookingPayload(null);
+      const res = await fetch('/api/bookings/guest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
       const result = await res.json();
       if (!result.ok) throw new Error(result.error || 'Failed to save booking');
       const ref = result.bookingId || result.id || generateRef();
-      setBookingRef(ref);
       setStep(5);
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      router.push(`/booking/confirmation?ref=${encodeURIComponent(ref)}`);
+      const ct =
+        typeof result.confirmationToken === 'string' && result.confirmationToken
+          ? `&ct=${encodeURIComponent(result.confirmationToken)}`
+          : '';
+      const confirmPath = `/booking/confirmation?ref=${encodeURIComponent(ref)}${ct}`;
+      logBookingFlowClient('POST /api/bookings/guest succeeded → redirect', {
+        ref,
+        hasConfirmationToken: Boolean(ct),
+        path: confirmPath,
+      });
+      router.push(confirmPath);
     } catch (err) {
       setPaymentError(err instanceof Error ? err.message : 'Failed to save booking. Please try again.');
     } finally {
       setIsProcessing(false);
     }
-  }, [buildBookingPayload, router, data.date, data.time]);
+  }, [buildBookingPayload, router, data.date, data.time, data.service, data.teamId, pricing.total]);
 
   const handleNext = () => {
     if (!validateStep()) return;
     if (step === 4) {
       if (data.paymentMethod === 'later') {
+        if (formData?.allowPayLater === false) {
+          setPaymentError('Pay later is not available. Please pay online.');
+          return;
+        }
         setIsProcessing(true);
         submitGuestBooking();
         return;
       }
       setPaymentError('');
+
+      const paystackKey = (process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '').trim();
+      /** Local dev: guest booking API allows unpaid confirmation when Paystack key is missing */
+      const devGuestCheckout =
+        process.env.NODE_ENV === 'development' && !paystackKey;
+
+      if (devGuestCheckout) {
+        if (typeof console !== 'undefined') {
+          console.warn(
+            '[booking] NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY is not set — completing booking without Paystack (development only). Add pk_test_… to .env.local to test card checkout.'
+          );
+        }
+        setIsProcessing(true);
+        submitGuestBooking();
+        return;
+      }
+
       if (!paystackLoaded) {
         setPaymentError('Payment system is loading. Please wait a moment and try again.');
         return;
       }
-      const paystackKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '';
       if (!paystackKey) {
-        setPaymentError('Payment system not configured. Please contact support.');
+        setPaymentError(
+          'Payment system is not configured. Add NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY to your environment (see .env.example) or contact support.'
+        );
         return;
       }
       setIsProcessing(true);
       const paymentReference = generateBookingId();
-      try {
-        const handler = (window as any).PaystackPop.setup({
-          key: paystackKey,
-          email: data.email.trim(),
-          amount: Math.round(pricing.total * 100),
-          currency: 'ZAR',
-          ref: paymentReference,
-          metadata: {
-            booking_service: data.service,
-            customer_email: data.email,
-            customer_name: data.name
-          },
-          onClose: () => setIsProcessing(false),
-          callback: () => { submitBooking(paymentReference); }
-        });
-        handler.openIframe();
-      } catch {
-        setPaymentError('Failed to open payment. Please try again.');
-        setIsProcessing(false);
-      }
+      void (async () => {
+        try {
+          const apiService = SERVICE_TO_API[data.service];
+          const selectedTeam =
+            data.teamId && TEAM_ID_TO_NAME[data.teamId] ? TEAM_ID_TO_NAME[data.teamId] : undefined;
+          const previewRes = await fetch('/api/booking/pricing-preview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              date: data.date,
+              service: apiService,
+              preSurgeTotal: pricing.total,
+              selected_team: selectedTeam,
+            }),
+          });
+          const preview = await previewRes.json();
+          if (!previewRes.ok || !preview.ok) {
+            throw new Error(preview.error || 'Could not confirm pricing for this date.');
+          }
+          checkoutPricingRef.current = {
+            preSurgeTotal: preview.preSurgeTotalZar,
+            finalTotal: preview.finalTotalZar,
+          };
+          const handler = (window as any).PaystackPop.setup({
+            key: paystackKey,
+            email: data.email.trim(),
+            amount: Math.round(preview.finalTotalZar * 100),
+            currency: 'ZAR',
+            ref: paymentReference,
+            metadata: {
+              booking_service: data.service,
+              customer_email: data.email,
+              customer_name: data.name,
+            },
+            onClose: () => setIsProcessing(false),
+            callback: () => {
+              submitBooking(paymentReference);
+            },
+          });
+          handler.openIframe();
+        } catch (e) {
+          setPaymentError(e instanceof Error ? e.message : 'Failed to open payment. Please try again.');
+          setIsProcessing(false);
+        }
+      })();
       return;
     }
     const nextStep = step + 1;
@@ -1039,12 +1055,6 @@ export const BookingSystem = ({ onNavigateContact, initialFormData, initialServi
       behavior: 'smooth'
     });
   };
-  const toggleExtra = (id: string) => {
-    setData(prev => ({
-      ...prev,
-      extras: prev.extras.includes(id) ? prev.extras.filter(e => e !== id) : [...prev.extras, id]
-    }));
-  };
   const handleApplyPromo = () => {
     const code = promoInput.trim().toUpperCase();
     if (!code) {
@@ -1058,26 +1068,9 @@ export const BookingSystem = ({ onNavigateContact, initialFormData, initialServi
       }));
       setPromoError('');
     } else {
-      setPromoError('Invalid promo code');
+      setPromoError('Invalid promo code. Try SHALEAN10, SAVE50, or NEWCLIENT.');
     }
   };
-  const filteredCrew = useMemo(() => {
-    const needsIndividual = data.service === 'standard' || data.service === 'airbnb';
-    if (needsIndividual) {
-      return apiCleaners.map((c) => ({
-        id: c.id,
-        name: c.name,
-        photo: c.photo_url ?? '',
-        experience: c.years_experience ? `${c.years_experience} years` : 'Experience',
-        rating: c.rating ?? 0,
-        reviews: 0,
-        workingAreas: c.areas ?? [],
-        unavailableDates: [],
-      }));
-    }
-    return [{ id: 'assign', name: "We'll assign a team", size: 0, experience: '', availability: 'high' as const, speciality: 'Deep & Move-In/Out specialists', workingAreas: [], unavailableDates: [] }];
-  }, [data.service, apiCleaners]);
-
   if (formDataLoading) {
     return (
       <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
@@ -1089,799 +1082,95 @@ export const BookingSystem = ({ onNavigateContact, initialFormData, initialServi
     );
   }
 
-  // @return
-  return <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans pb-20">
-      {/* Dynamic Background Element */}
-      <div className="absolute top-0 left-0 right-0 h-[400px] bg-gradient-to-b from-blue-50 to-transparent -z-10" />
+  if (step === 2) {
+    return (
+      <BookingStep2Schedule
+        data={data}
+        setData={setData}
+        onBack={handleBack}
+        onContinue={handleNext}
+        pricing={pricing}
+        serviceTitle={displayServices.find((s) => s.id === data.service)?.title ?? 'Cleaning'}
+      />
+    );
+  }
 
-      {/* Navigation Header */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => router.push('/')}>
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-              <Sparkles className="w-6 h-6 text-white" />
-            </div>
-            <h1 className="text-xl font-black tracking-tight text-slate-900">Shalean</h1>
-          </div>
+  if (step === 1) {
+    return (
+      <BookingStep1Cleaning
+        data={data}
+        setData={setData}
+        onBack={() => router.push('/')}
+        onContinue={handleNext}
+        liveTotalZar={pricing.total}
+        durationLabel={estimatedDuration.label}
+      />
+    );
+  }
 
-          <div className="hidden md:flex items-center gap-1">
-            {STEP_LABELS.map((label, idx) => {
-            const isActive = step === idx + 1;
-            const isPast = step > idx + 1;
-            return <div key={label} className="flex items-center">
-                  <div className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${isActive ? 'bg-blue-600 text-white shadow-md' : isPast ? 'text-emerald-600 flex items-center gap-1.5' : 'text-slate-400'}`}>
-                    {isPast && <Check className="w-3 h-3" />}
-                    {label}
-                  </div>
-                  {idx < STEP_LABELS.length - 1 && <div className="w-4 h-px bg-slate-200 mx-1" />}
-                </div>;
-          })}
-          </div>
+  if (step === 3) {
+    return (
+      <BookingStep3Crew
+        data={data}
+        setData={setData}
+        onBack={handleBack}
+        onContinue={handleNext}
+        pricingTotalZar={pricing.total}
+        serviceTitle={displayServices.find((s) => s.id === data.service)?.title ?? 'Cleaning'}
+        apiCleaners={apiCleaners}
+        cleanersLoading={cleanersLoading}
+        formatDate={formatDate}
+      />
+    );
+  }
 
-          <div className="flex items-center gap-2">
-            <button className="md:hidden p-2 text-slate-400">
-              <span className="text-xs font-black">STEP {step}/4</span>
-            </button>
-            {session ? (
-              <div className="relative flex items-center gap-2 pl-4 border-l border-slate-200">
-                <span className="hidden sm:block text-right">
-                  <p className="text-[10px] font-black text-slate-900 leading-none">
-                    {customerProfile?.firstName ?? (session.user.user_metadata as any)?.first_name ?? session.user.email?.split('@')[0] ?? 'Account'}
-                  </p>
-                  <p className="text-[8px] font-bold text-blue-600 uppercase">My account</p>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowProfileDropdown((v) => !v)}
-                  className="w-9 h-9 rounded-full bg-slate-100 overflow-hidden ring-2 ring-white shadow-sm hover:ring-blue-100 transition-all flex items-center justify-center"
-                >
-                  {(session.user.user_metadata as any)?.avatar_url ? (
-                    <img src={(session.user.user_metadata as any).avatar_url} className="w-full h-full object-cover" alt="" />
-                  ) : (
-                    <User className="w-4 h-4 text-slate-500" />
-                  )}
-                </button>
-                <AnimatePresence>
-                  {showProfileDropdown && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute top-full right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-[60]"
-                    >
-                      <div className="px-4 py-3 border-b border-slate-50 mb-1">
-                        <p className="text-xs font-black text-slate-900">
-                          {[customerProfile?.firstName, customerProfile?.lastName].filter(Boolean).join(' ') || session.user.email}
-                        </p>
-                        <p className="text-[10px] text-slate-500 truncate">{session.user.email}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => { setShowProfileDropdown(false); router.push('/dashboard'); }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-black text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition-all text-left"
-                      >
-                        <Layers className="w-4 h-4" />
-                        Dashboard
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setShowProfileDropdown(false); setStep(1); setData(DEFAULT_FORM); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-black text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition-all text-left"
-                      >
-                        <Plus className="w-4 h-4" />
-                        New Booking
-                      </button>
-                      <div className="my-1 border-t border-slate-50" />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowProfileDropdown(false);
-                          supabase.auth.signOut().then(() => setSession(null));
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-black text-red-500 hover:bg-red-50 transition-all text-left"
-                      >
-                        <RefreshCw className="w-4 h-4" />
-                        Log out
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => router.push('/login?redirect=/dashboard')}
-                  className="hidden sm:block text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-blue-600 transition-colors"
-                >
-                  My Dashboard
-                </button>
-                <button
-                  type="button"
-                  onClick={() => router.push('/login?redirect=/booking/service/standard/plan')}
-                  className="px-5 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-black shadow-lg shadow-slate-900/10 hover:bg-slate-800 transition-all"
-                >
-                  Login
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
+  if (step === 4) {
+    const serviceTitle = displayServices.find((s) => s.id === data.service)?.title ?? 'Cleaning';
+    return (
+      <BookingStep4Confirmation
+        data={data}
+        setData={setData}
+        errors={errors}
+        setErrors={setErrors}
+        paymentError={paymentError}
+        promoInput={promoInput}
+        setPromoInput={setPromoInput}
+        promoError={promoError}
+        setPromoError={setPromoError}
+        onApplyPromo={handleApplyPromo}
+        onBack={handleBack}
+        onFinalize={handleNext}
+        isProcessing={isProcessing}
+        showLoginCta={!session}
+        onLogin={() =>
+          router.push(
+            '/login?redirect=' +
+              encodeURIComponent(`/booking/service/${SERVICE_TO_URL_SLUG[data.service]}/plan`)
+          )
+        }
+        serviceTitle={serviceTitle}
+        propertySummary={propertySummaryForStep4}
+        dateTimeLabel={dateTimeLabelForStep4}
+        shortDateLabel={shortDateLabelForStep4}
+        cleanerLabel={crewDisplayName}
+        extrasSummary={extrasSummaryForStep4}
+        totalZar={pricing.total}
+        discountAmount={pricing.discountAmount}
+        appliedPromoCode={data.promoCode}
+      />
+    );
+  }
 
-      <main className="max-w-6xl mx-auto px-6 pt-10 pb-24 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-12">
-        <section className="relative">
-          <AnimatePresence mode="wait">
-            <motion.div key={step} initial={{
-            opacity: 0,
-            y: 10
-          }} animate={{
-            opacity: 1,
-            y: 0
-          }} exit={{
-            opacity: 0,
-            y: -10
-          }} transition={{
-            duration: 0.3
-          }}>
-              {step === 1 && <div>
-                  <StepHeader title="Customize Your Plan" desc="Tell us about your space so we can provide the best cleaning experience." step={1} />
-                  
-                  <div className="space-y-10">
-                    <section>
-                      <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Choose a Service</h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {displayServices.map(s => <FormCard key={s.id} selected={data.service === s.id} onClick={() => setData(p => ({
-                      ...p,
-                      service: s.id
-                    }))}>
-                            <div className="flex items-start gap-4">
-                              <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${data.service === s.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                                {s.icon}
-                              </div>
-                              <div className="flex-1">
-                                <p className="font-bold text-slate-900">{s.title}</p>
-                                <p className="text-xs text-slate-500 leading-snug mt-1">{s.description}</p>
-                              </div>
-                            </div>
-                          </FormCard>)}
-                      </div>
-                    </section>
+  if (step === 5) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-blue-600" aria-hidden />
+        <span className="sr-only">Redirecting to confirmation…</span>
+      </div>
+    );
+  }
 
-                    <section>
-                      <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Space Details</h3>
-                      <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-8">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                          <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-3">Property Type</label>
-                            <div className="grid grid-cols-3 gap-2">
-                              {(['apartment', 'house', 'office'] as PropertyType[]).map(type => <button key={type} onClick={() => setData(p => ({
-                            ...p,
-                            propertyType: type
-                          }))} className={`py-3 px-1 rounded-xl text-[10px] font-black uppercase transition-all border-2 ${data.propertyType === type ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200'}`}>
-                                  {type}
-                                </button>)}
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-3">Your Location</label>
-                            <div className="relative">
-                              <select value={data.workingArea} onChange={e => setData(p => ({
-                            ...p,
-                            workingArea: e.target.value
-                          }))} className="w-full pl-10 pr-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl text-sm appearance-none focus:border-blue-500 outline-none transition-all">
-                                <option value="">Select an area</option>
-                                {WORKING_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
-                              </select>
-                              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                            </div>
-                            {errors.workingArea && <p className="text-[10px] text-red-500 font-bold mt-1.5 ml-1">{errors.workingArea}</p>}
-                          </div>
-                        </div>
-
-                        <div className="space-y-4">
-                          <label className="block text-xs font-bold text-slate-500 uppercase">
-                            {data.service === 'carpet' ? 'CARPET DETAILS' : data.propertyType === 'office' ? 'OFFICE CONFIGURATION' : 'ROOMS'}
-                          </label>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm text-blue-600">
-                                  {data.service === 'carpet' ? <Wind className="w-4 h-4" /> : data.propertyType === 'office' ? <Building2 className="w-4 h-4" /> : <Sofa className="w-4 h-4" />}
-                                </div>
-                                <span className="font-bold text-sm">
-                                  {data.service === 'carpet' ? 'Carpeted Rooms' : data.propertyType === 'office' ? 'Private Offices' : 'Bedrooms'}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <button onClick={() => setData(p => ({
-                              ...p,
-                              bedrooms: Math.max(1, p.bedrooms - 1)
-                            }))} className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors shadow-sm"><Minus className="w-4 h-4" /></button>
-                                <span className="w-6 text-center font-black">{data.bedrooms}</span>
-                                <button onClick={() => setData(p => ({
-                              ...p,
-                              bedrooms: Math.min(15, p.bedrooms + 1)
-                            }))} className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors shadow-sm"><Plus className="w-4 h-4" /></button>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm text-indigo-600">
-                                  {data.service === 'carpet' ? <Layers className="w-4 h-4" /> : data.propertyType === 'office' ? <Wind className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />}
-                                </div>
-                                <span className="font-bold text-sm">
-                                  {data.service === 'carpet' ? 'Loose Rugs' : data.propertyType === 'office' ? 'Meeting Rooms' : 'Bathrooms'}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <button onClick={() => setData(p => ({
-                              ...p,
-                              bathrooms: Math.max(1, p.bathrooms - 1)
-                            }))} className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors shadow-sm"><Minus className="w-4 h-4" /></button>
-                                <span className="w-6 text-center font-black">{data.bathrooms}</span>
-                                <button onClick={() => setData(p => ({
-                              ...p,
-                              bathrooms: Math.min(15, p.bathrooms + 1)
-                            }))} className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors shadow-sm"><Plus className="w-4 h-4" /></button>
-                              </div>
-                            </div>
-
-                            {(data.propertyType === 'apartment' || data.propertyType === 'house' || data.service === 'carpet') && <motion.div initial={{
-                          opacity: 0,
-                          height: 0
-                        }} animate={{
-                          opacity: 1,
-                          height: 'auto'
-                        }} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm text-violet-600">
-                                    {data.service === 'carpet' ? <User className="w-4 h-4" /> : <Layers className="w-4 h-4" />}
-                                  </div>
-                                  <span className="font-bold text-sm">
-                                    {data.service === 'carpet' ? 'Extra cleaner' : 'Extra Rooms'}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <button onClick={() => setData(p => ({
-                              ...p,
-                              extraRooms: Math.max(0, p.extraRooms - 1)
-                            }))} className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors shadow-sm"><Minus className="w-4 h-4" /></button>
-                                  <span className="w-6 text-center font-black">{data.extraRooms}</span>
-                                  <button onClick={() => setData(p => ({
-                              ...p,
-                              extraRooms: Math.min(10, p.extraRooms + 1)
-                            }))} className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors shadow-sm"><Plus className="w-4 h-4" /></button>
-                                </div>
-                              </motion.div>}
-
-                            {data.propertyType === 'office' && <motion.div initial={{
-                          opacity: 0,
-                          x: 10
-                        }} animate={{
-                          opacity: 1,
-                          x: 0
-                        }} className="md:col-span-2">
-                                <label className="block text-xs font-black text-slate-500 uppercase mb-3">Office Scale</label>
-                                <div className="grid grid-cols-3 gap-2">
-                                  {['Small (0-100m²)', 'Medium (100-250m²)', 'Large (250m²+)'].map(size => <button key={size} onClick={() => setData(p => ({
-                              ...p,
-                              officeSize: size
-                            }))} className={`w-full text-center px-4 py-3 rounded-xl text-[10px] font-black uppercase transition-all border-2 ${data.officeSize === size ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200'}`}>
-                                      {size}
-                                    </button>)}
-                                </div>
-                              </motion.div>}
-                          </div>
-                        </div>
-                      </div>
-                    </section>
-
-                    <section>
-                      <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Popular Add-ons</h3>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        {currentExtras.map(extra => {
-                      const active = data.extras.includes(extra.id);
-                      return <button key={extra.id} onClick={() => toggleExtra(extra.id)} className={`p-4 rounded-2xl border-2 text-center transition-all ${active ? 'border-blue-600 bg-blue-50' : 'border-slate-100 bg-white hover:border-blue-200'}`}>
-                              <div className={`w-10 h-10 mx-auto rounded-xl flex items-center justify-center mb-3 ${active ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                                {extra.icon}
-                              </div>
-                              <p className="text-[10px] font-black text-slate-900 leading-tight mb-1">{extra.label}</p>
-                              <p className="text-[10px] font-bold text-blue-600">R{extra.price}</p>
-                            </button>;
-                    })}
-                      </div>
-                    </section>
-                  </div>
-                </div>}
-
-              {step === 2 && <div>
-                  <StepHeader title="Select a Schedule" desc="Choose a date and time that works best for you. Flexible reschedules included." step={2} />
-
-                  <div className="space-y-10">
-                    <section>
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Availability Calendar</h3>
-                        <button onClick={() => setShowAdvance(!showAdvance)} className="text-[10px] font-black text-blue-600 uppercase tracking-tight flex items-center gap-1 hover:text-blue-700 transition-colors">
-                          {showAdvance ? 'Show Quick Dates' : 'Select Advance Date'}
-                          <Calendar className="w-3 h-3" />
-                        </button>
-                      </div>
-
-                      <AnimatePresence mode="wait">
-                        {!showAdvance ? <motion.div key="quick" initial={{
-                      opacity: 0,
-                      x: -10
-                    }} animate={{
-                      opacity: 1,
-                      x: 0
-                    }} exit={{
-                      opacity: 0,
-                      x: 10
-                    }} className="grid grid-cols-4 sm:grid-cols-7 gap-2">
-                            {quickDates.map(dateStr => {
-                        const d = new Date(dateStr + 'T00:00:00');
-                        const active = data.date === dateStr;
-                        return <button key={dateStr} onClick={() => setData(p => ({
-                          ...p,
-                          date: dateStr
-                        }))} className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all duration-300 ${active ? 'border-blue-600 bg-blue-600 text-white shadow-lg scale-105' : 'border-slate-100 bg-white hover:border-blue-200 hover:shadow-md'}`}>
-                              <span className={`text-[9px] font-black uppercase tracking-tighter mb-1 ${active ? 'text-blue-100' : 'text-slate-400'}`}>
-                                {d.toLocaleDateString('en-ZA', {
-                              weekday: 'short'
-                            })}
-                              </span>
-                              <span className="text-lg font-black">{d.getDate()}</span>
-                              <span className={`text-[8px] font-bold mt-1 ${active ? 'text-blue-200' : 'text-slate-500'}`}>
-                                {d.toLocaleDateString('en-ZA', {
-                              month: 'short'
-                            })}
-                              </span>
-                            </button>;
-                      })}
-                          </motion.div> : <motion.div key="advance" initial={{
-                      opacity: 0,
-                      x: 10
-                    }} animate={{
-                      opacity: 1,
-                      x: 0
-                    }} exit={{
-                      opacity: 0,
-                      x: -10
-                    }} className="space-y-4">
-                            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                              {advanceMonths.map(m => <button key={m.value} onClick={() => setAdvanceMonth(m.value)} className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border-2 ${advanceMonth === m.value ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-100 bg-white text-slate-500'}`}>
-                                  {m.label}
-                                </button>)}
-                            </div>
-                            
-                            {advanceMonth && <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2">
-                                {advanceDates.map(dateStr => {
-                          const d = new Date(dateStr + 'T00:00:00');
-                          const active = data.date === dateStr;
-                          return <button key={dateStr} onClick={() => setData(p => ({
-                            ...p,
-                            date: dateStr
-                          }))} className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all ${active ? 'border-blue-600 bg-blue-600 text-white shadow-md' : 'border-slate-50 bg-white hover:border-blue-100'}`}>
-                                      <span className={`text-[7px] font-black uppercase ${active ? 'text-blue-100' : 'text-slate-400'}`}>
-                                        {d.toLocaleDateString('en-ZA', {
-                                weekday: 'short'
-                              })}
-                                      </span>
-                                      <span className="text-sm font-black">{d.getDate()}</span>
-                                    </button>;
-                        })}
-                              </div>}
-                          </motion.div>}
-                      </AnimatePresence>
-                      
-                      {errors.date && <p className="text-[10px] text-red-500 font-bold mt-2 ml-1">{errors.date}</p>}
-                    </section>
-
-                    <section>
-                      <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Available Slots</h3>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        {availableTimeSlots.map(time => <button key={time} onClick={() => setData(p => ({
-                      ...p,
-                      time
-                    }))} className={`py-4 rounded-2xl text-sm font-black transition-all border-2 ${data.time === time ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-md' : 'border-slate-100 bg-white hover:border-blue-200'}`}>
-                            <Clock className="w-3.5 h-3.5 inline mr-2 opacity-50" />
-                            {time}
-                          </button>)}
-                      </div>
-                      {errors.time && <p className="text-[10px] text-red-500 font-bold mt-2 ml-1">{errors.time}</p>}
-                    </section>
-                  </div>
-                </div>}
-
-              {step === 3 && <div>
-                  <StepHeader title="Meet Your Crew" desc="We've curated the best professionals available for your specific needs and location." step={3} />
-
-                  <div className="space-y-6">
-                    {cleanersLoading && (data.service === 'standard' || data.service === 'airbnb') ? (
-                      <div className="flex flex-col items-center justify-center py-12">
-                        <Loader2 className="w-10 h-10 animate-spin text-blue-600 mb-4" />
-                        <p className="text-slate-500 text-sm">Loading available cleaners...</p>
-                      </div>
-                    ) : filteredCrew.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {filteredCrew.map((person) => {
-                          const isTeam = 'size' in person;
-                          const selected = isTeam ? data.teamId === person.id : data.cleanerId === person.id;
-                          return (
-                            <FormCard
-                              key={person.id}
-                              selected={selected}
-                              onClick={() =>
-                                setData(p =>
-                                  isTeam ? { ...p, teamId: person.id, cleanerId: '' } : { ...p, cleanerId: person.id, teamId: '' }
-                                )
-                              }
-                            >
-                              <div className="flex gap-4">
-                                {isTeam ? (
-                                  <div className="w-16 h-16 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-600">
-                                    <Users className="w-8 h-8" />
-                                  </div>
-                                ) : (
-                                  (person as Cleaner).photo ? (
-                                    <img src={(person as Cleaner).photo} className="w-16 h-16 rounded-2xl object-cover shadow-sm" alt={person.name} />
-                                  ) : (
-                                    <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-lg">
-                                      {person.name.slice(0, 2).toUpperCase()}
-                                    </div>
-                                  )
-                                )}
-                                <div className="flex-1">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <p className="font-black text-slate-900 leading-none">{person.name}</p>
-                                    {!isTeam && (
-                                      <div className="flex items-center gap-1">
-                                        <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-                                        <span className="text-xs font-bold text-slate-700">{(person as Cleaner).rating}</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                  <p className="text-[10px] text-slate-500 text-sm max-w-xs mx-auto">
-                                    {isTeam ? (person as Team).speciality : `${(person as Cleaner).experience}${(person as Cleaner).reviews ? ` • ${(person as Cleaner).reviews} Reviews` : ''}`}
-                                  </p>
-                                  <div className="flex flex-wrap gap-1.5">
-                                    {isTeam ? (
-                                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[8px] font-black uppercase rounded-full">{(person as Team).availability} Availability</span>
-                                    ) : (
-                                      (person as Cleaner).badge && (
-                                        <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[8px] font-black uppercase rounded-full">{(person as Cleaner).badge}</span>
-                                      )
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </FormCard>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="bg-white rounded-3xl p-12 text-center border-2 border-dashed border-slate-100">
-                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <Users className="w-8 h-8 text-slate-300" />
-                        </div>
-                        <h4 className="text-lg font-black text-slate-900 mb-2">No Crew Found</h4>
-                        <p className="text-slate-500 text-sm max-w-xs mx-auto">
-                          {data.service === 'standard' || data.service === 'airbnb'
-                            ? "We couldn't find an available professional for this date and area. Try a different date or location."
-                            : "We'll assign a team for your booking."}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>}
-
-              {step === 4 && <div>
-                  <StepHeader title="Confirm & Secure" desc="Review your booking and enter your details to lock in your professional cleaner." step={4} />
-                  {paymentError && (
-                    <div className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-100 flex items-center gap-3">
-                      <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-                      <p className="text-sm font-bold text-red-700">{paymentError}</p>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-6">
-                      <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-6">
-                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Contact Information</h4>
-                        <div className="space-y-4">
-                          {!session && (
-                            <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex items-center justify-between">
-                              <div>
-                                <p className="text-xs font-black text-blue-900">Already a customer?</p>
-                                <p className="text-[10px] text-blue-600 font-bold">Sign in to use your saved details</p>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => router.push('/login?redirect=' + encodeURIComponent('/booking/service/standard/plan'))}
-                                className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[10px] font-black"
-                              >
-                                Login
-                              </button>
-                            </div>
-                          )}
-                          <div>
-                            <input placeholder="Full Name" value={data.name} onChange={e => setData(p => ({
-                          ...p,
-                          name: e.target.value
-                        }))} className={`w-full px-4 py-3 bg-slate-50 border-2 rounded-xl text-sm outline-none transition-all ${errors.name ? 'border-red-200' : 'border-slate-100 focus:border-blue-500'}`} />
-                            {errors.name && <p className="text-[10px] text-red-500 font-bold mt-1.5 ml-1">{errors.name}</p>}
-                          </div>
-                          <div>
-                            <input type="email" placeholder="Email Address" value={data.email} onChange={e => setData(p => ({
-                          ...p,
-                          email: e.target.value
-                        }))} className={`w-full px-4 py-3 bg-slate-50 border-2 rounded-xl text-sm outline-none transition-all ${errors.email ? 'border-red-200' : 'border-slate-100 focus:border-blue-500'}`} />
-                            {errors.email && <p className="text-[10px] text-red-500 font-bold mt-1.5 ml-1">{errors.email}</p>}
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <input placeholder="Phone" value={data.phone} onChange={e => setData(p => ({
-                            ...p,
-                            phone: e.target.value
-                          }))} className={`w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl text-sm outline-none transition-all ${errors.phone ? 'border-red-200' : 'focus:border-blue-500'}`} />
-                              {errors.phone && <p className="text-[10px] text-red-500 font-bold mt-1.5 ml-1">{errors.phone}</p>}
-                            </div>
-                            <input placeholder="Unit/Flat #" className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl text-sm outline-none focus:border-blue-500 transition-all" />
-                          </div>
-                          <div>
-                            <textarea placeholder="Full Street Address" rows={2} value={data.address} onChange={e => setData(p => ({
-                          ...p,
-                          address: e.target.value
-                        }))} className={`w-full px-4 py-3 bg-slate-50 border-2 rounded-xl text-sm outline-none resize-none transition-all ${errors.address ? 'border-red-200' : 'border-slate-100 focus:border-blue-500'}`} />
-                            {errors.address && <p className="text-[10px] text-red-500 font-bold mt-1.5 ml-1">{errors.address}</p>}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-6">
-                      <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-6">
-                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Payment Method</h4>
-                        <div className="space-y-3">
-                          <FormCard selected={data.paymentMethod === 'online'} onClick={() => setData(p => ({ ...p, paymentMethod: 'online' }))}>
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600"><CreditCard className="w-5 h-5" /></div>
-                              <div>
-                                <p className="font-bold text-slate-900 text-sm">Pay Online</p>
-                                <p className="text-[10px] text-slate-500">Secure card payment now</p>
-                              </div>
-                            </div>
-                          </FormCard>
-                          {((customerProfile?.rewardsPoints ?? 0) > 0 && (
-                          <FormCard selected={data.paymentMethod === 'later'} onClick={() => setData(p => ({ ...p, paymentMethod: 'later' }))}>
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-600"><Clock className="w-5 h-5" /></div>
-                              <div>
-                                <p className="font-bold text-slate-900 text-sm">Pay on the day of your clean with Shalean Rewards</p>
-                                <p className="text-[10px] text-slate-500">Use your rewards balance</p>
-                              </div>
-                            </div>
-                          </FormCard>
-                        ))}
-                        </div>
-                        
-                        <div className="pt-4 space-y-4">
-                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Promotion Code</label>
-                          <div className="flex gap-2">
-                            <input placeholder="Enter Code" value={promoInput} onChange={e => setPromoInput(e.target.value)} className="flex-1 px-4 py-2 bg-slate-50 border-2 border-slate-100 rounded-xl text-sm outline-none focus:border-blue-500 transition-all uppercase font-bold" />
-                            <button onClick={handleApplyPromo} className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-black hover:bg-slate-800 transition-colors">
-                              Apply
-                            </button>
-                          </div>
-                          {promoError && <p className="text-[10px] text-red-500 font-bold ml-1">{promoError}</p>}
-                          {data.promoCode && !promoError && <p className="text-[10px] text-emerald-500 font-bold ml-1 flex items-center gap-1">
-                            <Check className="w-3 h-3" />
-                            Code "{data.promoCode}" applied!
-                          </p>}
-                        </div>
-
-                        <div className="pt-4 space-y-4">
-                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Optional Tip</label>
-                          <div className="flex gap-2">
-                            {[0, 50, 100, 200].map(tip => <button key={tip} onClick={() => setData(p => ({
-                          ...p,
-                          tipAmount: tip
-                        }))} className={`flex-1 py-2 rounded-xl text-[10px] font-black border-2 transition-all ${data.tipAmount === tip ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-100 bg-white text-slate-500'}`}>
-                                {tip === 0 ? 'NO TIP' : `R${tip}`}
-                              </button>)}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>}
-
-              {step === 5 && <div className="bg-white rounded-[40px] p-12 text-center shadow-2xl shadow-blue-500/10 border border-slate-100 max-w-2xl mx-auto">
-                   <div className="w-24 h-24 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
-                     <CheckCircle2 className="w-12 h-12" />
-                   </div>
-                   <h2 className="text-4xl font-black text-slate-900 mb-4 tracking-tight leading-none">Booking Confirmed!</h2>
-                   <p className="text-slate-500 text-lg mb-8 leading-relaxed">
-                     Your cleaning is scheduled for <span className="font-bold text-slate-800">{formatDate(data.date)} at {data.time}</span>.
-                   </p>
-                   
-                   <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 mb-10 flex flex-col items-center">
-                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Reference Number</span>
-                     <span className="text-2xl font-black text-blue-600 font-mono tracking-wider">{bookingRef}</span>
-                   </div>
-
-                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                     <button onClick={() => {
-                  setStep(1);
-                  setData(DEFAULT_FORM);
-                }} className="px-8 py-5 bg-blue-600 text-white font-black rounded-2xl shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2">
-                       Book New Session
-                     </button>
-                     <button
-                       type="button"
-                       onClick={() => router.push('/dashboard')}
-                       className="px-8 py-5 bg-slate-900 text-white font-black rounded-2xl border-2 border-slate-900 hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
-                     >
-                       View in Dashboard
-                     </button>
-                   </div>
-                   <div className="mt-4">
-                     <button className="w-full px-8 py-5 bg-white text-slate-600 font-black rounded-2xl border-2 border-slate-100 hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
-                       <Download className="w-5 h-5" />
-                       Receipt (PDF)
-                     </button>
-                   </div>
-                   
-                   <p className="mt-10 text-[11px] text-slate-400 font-medium">A confirmation email has been sent to <span className="text-slate-900">{data.email}</span></p>
-                </div>}
-            </motion.div>
-          </AnimatePresence>
-        </section>
-
-        {/* Sidebar: Your Summary only */}
-        <aside className="relative">
-          <div className="sticky top-32">
-            <div className="bg-slate-900 rounded-[32px] p-8 text-white shadow-2xl shadow-slate-900/20 overflow-hidden group">
-              <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/20 rounded-full blur-3xl transition-all group-hover:bg-blue-500/30" />
-              <div className="relative">
-                <div className="flex items-center gap-2 mb-8">
-                  <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-blue-400">
-                    <CheckCircle2 className="w-4 h-4" />
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Your Summary</span>
-                </div>
-                <div className="space-y-4 mb-10">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-xs text-slate-400 font-bold mb-1">Service Type</p>
-                      <p className="text-sm font-black">{displayServices.find(s => s.id === data.service)?.title}</p>
-                    </div>
-                    <span className="text-sm font-black text-blue-400">R{pricing.basePrice}</span>
-                  </div>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-xs text-slate-400 font-bold mb-1">{data.service === 'carpet' ? 'Carpet Details' : 'Scale'}</p>
-                      <p className="text-sm font-black">
-                        {data.service === 'carpet' ? `${data.bedrooms} Carpets, ${data.bathrooms} Rugs${data.extraRooms > 0 ? `, ${data.extraRooms} Extra Crew` : ''}` : `${data.bedrooms} ${data.propertyType === 'office' ? 'Offices' : 'Bed'}, ${data.bathrooms} ${data.propertyType === 'office' ? 'Rooms' : 'Bath'}`}
-                      </p>
-                    </div>
-                    <span className="text-sm font-black text-blue-400">R{pricing.bedroomAdd + pricing.bathroomAdd + pricing.extraRoomAdd}</span>
-                  </div>
-                  {data.date && (
-                    <div className="flex justify-between items-start pt-2 border-t border-white/5">
-                      <div>
-                        <p className="text-xs text-slate-400 font-bold mb-1">Scheduled for</p>
-                        <p className="text-sm font-black text-emerald-400">{formatDate(data.date)} @ {data.time || 'TBD'}</p>
-                        {data.time && expectedEndTime && (
-                          <p className="text-[10px] text-slate-500 font-medium mt-0.5">
-                            Working window: {data.time} – {expectedEndTime}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex justify-between items-start pt-2 border-t border-white/5">
-                    <div>
-                      <p className="text-xs text-slate-400 font-bold mb-1">Estimated duration</p>
-                      <p className="text-sm font-black text-slate-200">{estimatedDuration.label}</p>
-                    </div>
-                  </div>
-                  {data.extras.length > 0 && (
-                    <div className="flex justify-between items-start pt-2 border-t border-white/5">
-                      <div>
-                        <p className="text-xs text-slate-400 font-bold mb-1">Extras ({data.extras.length})</p>
-                        <p className="text-[10px] text-slate-500 font-bold leading-tight max-w-[120px]">
-                          {data.extras.map(e => currentExtras.find(ex => ex.id === e)?.label ?? e).join(', ')}
-                        </p>
-                      </div>
-                      <span className="text-sm font-black text-blue-400">R{pricing.extrasTotal}</span>
-                    </div>
-                  )}
-                  {pricing.tipAmount > 0 && (
-                    <div className="flex justify-between items-start">
-                      <p className="text-xs text-slate-400 font-bold">Gratuity</p>
-                      <span className="text-sm font-black text-blue-400">R{pricing.tipAmount}</span>
-                    </div>
-                  )}
-                </div>
-                <div className="pt-8 border-t border-white/10">
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-xs font-black uppercase tracking-wider text-slate-400">Total Price</span>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-black text-white">R{pricing.total}</span>
-                    </div>
-                  </div>
-                  <p className="text-[9px] text-slate-500 mt-3 flex items-center gap-1.5 font-bold">
-                    <ShieldCheck className="w-3 h-3 text-emerald-500" />
-                    FULLY INSURED & BONDED SERVICE
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </aside>
-      </main>
-
-      {step < 5 && (
-        <footer className="fixed bottom-0 left-0 right-0 h-20 z-40 bg-white border-t border-slate-200 flex items-center justify-center">
-          <div className="max-w-6xl mx-auto px-6 w-full flex items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <button onClick={handleBack} disabled={step === 1 || isProcessing} className="flex items-center gap-2 px-6 py-4 rounded-2xl font-black text-slate-400 hover:text-slate-600 disabled:opacity-0 transition-all">
-                <ChevronLeft className="w-5 h-5" />
-                Go Back
-              </button>
-              <button onClick={handleNext} disabled={isProcessing} className="flex items-center gap-3 px-10 py-5 bg-blue-600 text-white rounded-[24px] font-black shadow-2xl shadow-blue-500/30 hover:bg-blue-700 hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:translate-y-0">
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Processing…
-                  </>
-                ) : step === 4 ? (
-                  <>
-                    <ShieldCheck className="w-5 h-5" />
-                    Finalize Booking
-                  </>
-                ) : (
-                  <>
-                    Continue
-                    <ChevronRight className="w-5 h-5" />
-                  </>
-                )}
-              </button>
-            </div>
-            <div className="flex items-center gap-4 sm:gap-6">
-            <button type="button" className="flex items-center gap-2 p-2 rounded-xl hover:bg-slate-50 transition-all text-left min-w-0">
-              <div className="w-9 h-9 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600 flex-shrink-0"><MessageSquare className="w-4 h-4" /></div>
-              <div className="min-w-0">
-                <p className="text-xs font-black text-slate-900 truncate">WhatsApp Us</p>
-                <p className="text-[10px] text-slate-500">Fast response time</p>
-              </div>
-            </button>
-            <button type="button" className="flex items-center gap-2 p-2 rounded-xl hover:bg-slate-50 transition-all text-left min-w-0">
-              <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 flex-shrink-0"><Phone className="w-4 h-4" /></div>
-              <div className="min-w-0">
-                <p className="text-xs font-black text-slate-900 truncate">Call Support</p>
-                <p className="text-[10px] text-slate-500">+27 87 153 5250</p>
-              </div>
-            </button>
-            {onNavigateContact && (
-              <button type="button" onClick={onNavigateContact} className="flex items-center gap-2 p-2 rounded-xl hover:bg-slate-50 transition-all text-left min-w-0">
-                <div className="w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center text-slate-600 flex-shrink-0"><MapPin className="w-4 h-4" /></div>
-                <div className="min-w-0">
-                  <p className="text-xs font-black text-slate-900 truncate">Contact page</p>
-                  <p className="text-[10px] text-slate-500">Get in touch</p>
-                </div>
-              </button>
-            )}
-            </div>
-          </div>
-        </footer>
-      )}
-    </div>;
+  return null;
 };
 
 export default BookingSystem;

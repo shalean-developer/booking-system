@@ -119,7 +119,7 @@ async function debugRevenue() {
       fixedAmounts.forEach(b => {
         console.log(`   - ${b.id}: Should be ${b.amount} cents (R${(b.amount / 100).toFixed(2)})`);
       });
-      console.log(`\n💡 Run: node scripts/fix-specific-booking.js ${fixedAmounts[0].id}`);
+      console.log(`\n💡 Run: node scripts/fix-specific-booking.cjs ${fixedAmounts[0].id}`);
     }
 
   } catch (error) {

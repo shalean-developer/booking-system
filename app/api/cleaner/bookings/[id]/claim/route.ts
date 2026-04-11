@@ -65,8 +65,17 @@ export async function POST(
       );
     }
 
-    if (booking.status !== 'pending') {
-      console.log('⚠️ Booking status is not pending:', booking.status);
+    const hasPayment = !!(booking.payment_reference || (booking as { paystack_ref?: string }).paystack_ref);
+    if (!hasPayment) {
+      console.log('⚠️ Booking has no payment recorded yet');
+      return NextResponse.json(
+        { ok: false, error: 'Payment is required before this booking can be claimed' },
+        { status: 409 },
+      );
+    }
+
+    if (booking.status !== 'pending' && booking.status !== 'paid') {
+      console.log('⚠️ Booking status is not claimable:', booking.status);
       return NextResponse.json(
         { ok: false, error: 'Booking is not available' },
         { status: 409 }

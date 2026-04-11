@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { isSafeBookingLookupId } from '@/lib/booking-lookup-id';
+import { verifyBookingLookupToken, isBookingLookupTokenConfigured } from '@/lib/booking-lookup-token';
 
 /**
  * GET handler to fetch booking details by ID
@@ -11,7 +13,9 @@ export async function GET(
   try {
     const params = await context.params;
     const id = params.id;
-    
+    const { searchParams } = new URL(req.url);
+    const ct = searchParams.get('ct');
+
     if (!id) {
       return NextResponse.json(
         { ok: false, error: 'Booking ID is required' },
@@ -19,21 +23,30 @@ export async function GET(
       );
     }
 
-    console.log('Fetching booking details for ID:', id);
+    if (!isSafeBookingLookupId(id)) {
+      return NextResponse.json({ ok: false, error: 'Invalid reference' }, { status: 400 });
+    }
 
-    // Query bookings table
-    const { data: booking, error: bookingError } = await supabase
-      .from('bookings')
-      .select('*')
-      .or(`payment_reference.eq.${id},id.eq.${id}`)
-      .maybeSingle();
+    if (isBookingLookupTokenConfigured() && !verifyBookingLookupToken(id, ct)) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
 
-    if (bookingError) {
-      console.error('Database error:', bookingError);
+    const r1 = await supabase.from('bookings').select('*').eq('id', id).maybeSingle();
+    if (r1.error) {
+      console.error('Database error:', r1.error);
       return NextResponse.json(
         { ok: false, error: 'Failed to fetch booking' },
         { status: 500 }
       );
+    }
+
+    let booking = r1.data;
+    if (!booking) {
+      const r2 = await supabase.from('bookings').select('*').eq('payment_reference', id).maybeSingle();
+      if (r2.error) {
+        return NextResponse.json({ ok: false, error: 'Failed to fetch booking' }, { status: 500 });
+      }
+      booking = r2.data;
     }
 
     if (!booking) {

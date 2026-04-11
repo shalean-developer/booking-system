@@ -309,9 +309,17 @@ export const CITY_AREA_DATA: Record<string, CityArea[]> = {
 };
 
 const SPECIAL_SUBURB_LABELS: Record<string, string> = {
+  "sea-point": "Sea Point",
   "simons-town": "Simon's Town",
   "waterfront": "V&A Waterfront",
 };
+
+/** Canonical display name for booking + location lists (fixes legacy casing like "Sea point"). */
+function normalizeSuburbDisplayName(slug: string, rawName: string): string {
+  if (SPECIAL_SUBURB_LABELS[slug]) return SPECIAL_SUBURB_LABELS[slug];
+  if (rawName.trim().toLowerCase() === 'sea point') return 'Sea Point';
+  return rawName;
+}
 
 const CITY_LABEL_OVERRIDES: Record<string, string> = {
   "cape-town": "Cape Town",
@@ -365,7 +373,7 @@ export function getRelatedSuburbs(
     .filter((entry) => entry.slug !== suburbSlug)
     .slice(0, limit)
     .map((entry) => ({
-      name: SPECIAL_SUBURB_LABELS[entry.slug] ?? entry.name,
+      name: normalizeSuburbDisplayName(entry.slug, entry.name),
       href: `/location/${citySlug}/${entry.slug}`,
     }));
 }
@@ -376,11 +384,16 @@ export function getAllSuburbsForCity(city: string): SuburbEntry[] {
   if (!areas) return [];
   const seen = new Set<string>();
   return areas.flatMap((area) =>
-    area.suburbs.filter((suburb) => {
-      if (seen.has(suburb.slug)) return false;
-      seen.add(suburb.slug);
-      return true;
-    })
+    area.suburbs
+      .filter((suburb) => {
+        if (seen.has(suburb.slug)) return false;
+        seen.add(suburb.slug);
+        return true;
+      })
+      .map((suburb) => ({
+        slug: suburb.slug,
+        name: normalizeSuburbDisplayName(suburb.slug, suburb.name),
+      }))
   );
 }
 

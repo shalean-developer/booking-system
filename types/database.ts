@@ -33,6 +33,11 @@ export interface Database {
           cleaner_completed_at: string | null;
           expected_end_time: string | null;
           customer_rating_id: string | null;
+          user_id: string | null;
+          price: number | null;
+          paystack_ref: string | null;
+          zoho_invoice_id: string | null;
+          payment_status: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -64,6 +69,11 @@ export interface Database {
           cleaner_completed_at?: string | null;
           expected_end_time?: string | null;
           customer_rating_id?: string | null;
+          user_id?: string | null;
+          price?: number | null;
+          paystack_ref?: string | null;
+          zoho_invoice_id?: string | null;
+          payment_status?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -95,6 +105,11 @@ export interface Database {
           cleaner_completed_at?: string | null;
           expected_end_time?: string | null;
           customer_rating_id?: string | null;
+          user_id?: string | null;
+          price?: number | null;
+          paystack_ref?: string | null;
+          zoho_invoice_id?: string | null;
+          payment_status?: string | null;
           created_at?: string;
           updated_at?: string;
         };

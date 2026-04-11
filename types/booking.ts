@@ -30,7 +30,9 @@ export interface BookingState {
   requires_team?: boolean; // True if booking requires team assignment
   customer_id?: string; // Customer profile ID (UUID)
   paymentReference?: string; // Paystack payment reference
-  totalAmount?: number; // Total amount paid (in kobo for Paystack)
+  totalAmount?: number; // Final total in ZAR (after surge) — must match Paystack charge
+  /** Cart total in ZAR before surge (required for server-side surge + Paystack amount checks) */
+  preSurgeTotal?: number;
   serviceFee?: number; // NEW: Service fee amount
   frequencyDiscount?: number; // NEW: Discount amount based on frequency
   discountCode?: string; // Discount code applied

@@ -7,6 +7,9 @@ import { getServerAuthUser } from '@/lib/supabase-server';
 import { calculateCleanerEarnings } from '@/lib/cleaner-earnings';
 import { generateUniqueBookingId } from '@/lib/booking-id';
 import { notifyCleanerAssignment, notifyCustomerAssignment } from '@/lib/notifications/events';
+import { validateBookingDiscountAmount } from '@/lib/discount-booking-server';
+import { computeCheckoutPricing } from '@/lib/booking-checkout-pricing';
+import { createBookingLookupToken } from '@/lib/booking-lookup-token';
 
 /**
  * API endpoint to handle booking submissions
@@ -46,83 +49,138 @@ export async function POST(req: Request) {
     // STEP 2: Parse and validate booking data
     console.log('Step 2: Parsing booking data...');
     const body: BookingState = await req.json();
-    
-    console.log('=== BOOKING SUBMISSION ===');
-    console.log('Service:', body.service);
-    console.log('Customer:', body.firstName, body.lastName);
-    console.log('Email:', body.email);
-    console.log('Payment Reference:', body.paymentReference);
-    console.log('Full booking data:', JSON.stringify(body, null, 2));
-    console.log('========================');
+    console.log('=== BOOKING SUBMISSION ===', { service: body.service, paymentReference: body.paymentReference });
 
-    // Verify payment reference is provided
     if (!body.paymentReference) {
-      console.error('❌ Payment reference missing in booking submission');
       return NextResponse.json(
         { ok: false, error: 'Payment reference is required' },
         { status: 400 }
       );
     }
 
-    console.log('✅ Payment reference found:', body.paymentReference);
-
-    // Validate required financial data
     if (!body.totalAmount || body.totalAmount <= 0) {
-      console.error('❌ Total amount missing or invalid:', body.totalAmount);
       return NextResponse.json(
         { ok: false, error: 'Total amount is required and must be greater than 0' },
         { status: 400 }
       );
     }
 
-    // STEP 3: Re-verify payment for extra security (REQUIRED)
-    console.log('Step 3: Re-verifying payment with Paystack...');
-    try {
-      const verifyUrl = `https://api.paystack.co/transaction/verify/${body.paymentReference}`;
-      console.log('Re-verification URL:', verifyUrl);
-      
-      const verifyResponse = await fetch(verifyUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      console.log('Re-verification response status:', verifyResponse.status);
-      const verifyData = await verifyResponse.json();
-      console.log('Re-verification data:', verifyData);
-      
-      if (!verifyResponse.ok || verifyData.data.status !== 'success') {
-        console.error('❌ Payment re-verification failed on booking submission');
-        console.error('Response ok:', verifyResponse.ok);
-        console.error('Payment status:', verifyData.data?.status);
-        return NextResponse.json(
-          { ok: false, error: 'Payment verification failed. Please contact support if you were charged.' },
-          { status: 400 }
-        );
-      }
-
-      console.log('✅ Payment re-verified successfully:', body.paymentReference);
-    } catch (verifyError) {
-      console.error('❌ Payment re-verification error:', verifyError);
-      return NextResponse.json(
-        { ok: false, error: 'Failed to verify payment. Please contact support.' },
-        { status: 500 }
-      );
-    }
-
-    // Ensure booking date and time are present before proceeding
     if (!body.date || !body.time) {
-      console.error('❌ Booking date/time missing in booking submission:', { date: body.date, time: body.time });
       return NextResponse.json(
         { ok: false, error: 'Booking date and time are required' },
         { status: 400 }
       );
     }
 
-    // STEP 4: Generate unique booking ID and handle customer profile
+    if (!body.service) {
+      return NextResponse.json({ ok: false, error: 'Service is required' }, { status: 400 });
+    }
+
     const bookingId = body.paymentReference || generateUniqueBookingId();
+    const tipAmountEarly = body.tipAmount || 0;
+    const preSurgeTotal =
+      typeof body.preSurgeTotal === 'number' && Number.isFinite(body.preSurgeTotal)
+        ? body.preSurgeTotal
+        : body.totalAmount;
+    const discountAmountClaimed = body.discountAmount || 0;
+    const subtotalBeforeDiscount = preSurgeTotal - tipAmountEarly + discountAmountClaimed;
+
+    const discountCheck = await validateBookingDiscountAmount(supabase, {
+      discountCode: body.discountCode,
+      discountAmountClaimedZar: discountAmountClaimed,
+      subtotalBeforeDiscountZar: subtotalBeforeDiscount,
+      serviceType: body.service,
+    });
+    if (!discountCheck.ok) {
+      return NextResponse.json(
+        { ok: false, error: discountCheck.error },
+        { status: discountCheck.status }
+      );
+    }
+
+    const checkoutPricing = await computeCheckoutPricing(supabase, {
+      date: body.date,
+      service: body.service,
+      preSurgeTotalZar: preSurgeTotal,
+      selected_team: body.selected_team,
+    });
+    if (!checkoutPricing.ok) {
+      return NextResponse.json(
+        { ok: false, error: checkoutPricing.error },
+        { status: checkoutPricing.status }
+      );
+    }
+
+    if (Math.abs(checkoutPricing.finalTotalZar - body.totalAmount) > 0.02) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'Total does not match server pricing. Please refresh the page and try again.',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Re-verify Paystack and match charged amount (ZAR → smallest unit, same as client Math.round(zar * 100))
+    const paystackSecret = process.env.PAYSTACK_SECRET_KEY?.trim();
+    const isProd = process.env.NODE_ENV === 'production';
+
+    if (paystackSecret) {
+      console.log('Step 3: Re-verifying payment with Paystack...');
+      try {
+        const verifyUrl = `https://api.paystack.co/transaction/verify/${encodeURIComponent(body.paymentReference)}`;
+        const verifyResponse = await fetch(verifyUrl, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${paystackSecret}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        const verifyData = await verifyResponse.json();
+
+        if (!verifyResponse.ok || !verifyData?.data || verifyData.data.status !== 'success') {
+          return NextResponse.json(
+            { ok: false, error: 'Payment verification failed. Please contact support if you were charged.' },
+            { status: 400 }
+          );
+        }
+
+        const paystackCents = Number(verifyData.data.amount);
+        const expectedCents = Math.round(checkoutPricing.finalTotalZar * 100);
+        if (!Number.isFinite(paystackCents) || paystackCents !== expectedCents) {
+          console.error('Paystack amount mismatch', { paystackCents, expectedCents });
+          return NextResponse.json(
+            {
+              ok: false,
+              error: 'Payment amount does not match booking total. Please contact support if you were charged.',
+            },
+            { status: 400 }
+          );
+        }
+      } catch (verifyError) {
+        console.error('Payment re-verification error:', verifyError);
+        return NextResponse.json(
+          { ok: false, error: 'Failed to verify payment. Please contact support.' },
+          { status: 500 }
+        );
+      }
+    } else if (isProd) {
+      return NextResponse.json(
+        { ok: false, error: 'Payment verification is not configured (PAYSTACK_SECRET_KEY).' },
+        { status: 500 }
+      );
+    } else {
+      console.warn(
+        '[bookings] PAYSTACK_SECRET_KEY not set — skipping Paystack re-verification (development only). Configure Paystack for production.'
+      );
+    }
+
+    const adjustedTotalAmount = checkoutPricing.finalTotalZar;
+    const surgePricingApplied = checkoutPricing.surgePricingApplied;
+    const surgeAmount = checkoutPricing.surgeAmountZar;
+
+    // STEP 4: handle customer profile
     console.log('Step 4: Generated booking ID:', bookingId);
     
     let customerId = (body as any).customer_id || null;
@@ -274,8 +332,8 @@ export async function POST(req: Request) {
       const tipAmountInCents = Math.round(tipAmount * 100);
       
       // Calculate service total excluding tip (for commission calculation)
-      // totalAmount includes tip, so we need to extract it
-      const serviceTotal = (body.totalAmount || 0) - tipAmount;
+      // Final total (after surge) includes tip
+      const serviceTotal = adjustedTotalAmount - tipAmount;
 
       // Create price snapshot for historical record
       // Normalize frequency for consistency
@@ -297,77 +355,9 @@ export async function POST(req: Request) {
         discount_amount: discountAmount,
         tip_amount: tipAmountInCents, // Store tip separately
         subtotal: serviceTotal ? (serviceTotal - (body.serviceFee || 0) + (body.frequencyDiscount || 0)) * 100 : 0,
-        total: (body.totalAmount || 0) * 100, // Total includes tip, excludes discount
+        total: adjustedTotalAmount * 100, // Total includes tip and surge
         snapshot_date: new Date().toISOString(),
       };
-
-      // STEP 4.5: Check availability and apply surge pricing if needed
-      console.log('Step 4.5: Checking date availability and surge pricing...');
-      let surgePricingApplied = false;
-      let surgeAmount = 0;
-      let adjustedTotalAmount = body.totalAmount || 0;
-
-      if (body.date && body.service) {
-        try {
-          // Call the database function directly to check availability
-          const { data: availabilityData, error: availabilityError } = await supabase.rpc('check_date_availability', {
-            p_service_type: body.service,
-            p_booking_date: body.date,
-          });
-
-          if (availabilityError) {
-            console.error('⚠️ Error checking availability:', availabilityError);
-            // Continue with booking but log the error
-          } else if (availabilityData && availabilityData.length > 0) {
-            const availability = availabilityData[0];
-            
-            if (!availability.available) {
-              console.error('❌ Date is not available for booking');
-              return NextResponse.json(
-                { ok: false, error: 'This date is no longer available. Please select another date.' },
-                { status: 400 }
-              );
-            }
-
-            // Check if surge pricing is active for Standard/Airbnb services
-            if (availability.surge_pricing_active && availability.surge_percentage) {
-              console.log(`📈 Surge pricing active: ${availability.surge_percentage}% increase`);
-              const { calculateSurgePricing } = await import('@/lib/surge-pricing');
-              const surgeInfo = calculateSurgePricing(
-                adjustedTotalAmount,
-                availability.current_bookings,
-                availability.current_bookings >= 70 ? 70 : null,
-                Number(availability.surge_percentage)
-              );
-
-              if (surgeInfo.isActive) {
-                surgePricingApplied = true;
-                surgeAmount = surgeInfo.surgeAmount;
-                adjustedTotalAmount = surgeInfo.finalAmount;
-                console.log(`💰 Surge pricing applied: R${surgeAmount.toFixed(2)} (${surgeInfo.percentage}%)`);
-                console.log(`💰 Original: R${surgeInfo.originalAmount.toFixed(2)}, Final: R${adjustedTotalAmount.toFixed(2)}`);
-              }
-            }
-
-            // For team bookings, verify the selected team is available
-            if (body.service === 'Deep' || body.service === 'Move In/Out') {
-              if (body.selected_team && availability.available_teams) {
-                if (!availability.available_teams.includes(body.selected_team)) {
-                  console.error('❌ Selected team is not available');
-                  return NextResponse.json(
-                    { ok: false, error: `${body.selected_team} is not available on this date. Please select another team or date.` },
-                    { status: 400 }
-                  );
-                }
-              }
-            }
-          }
-        } catch (availabilityError) {
-          console.error('⚠️ Error checking availability:', availabilityError);
-          // Continue with booking but log the error
-          // In production, you might want to fail here for safety
-        }
-      }
 
       // Check if this is a team-based booking
       const requiresTeam =
@@ -393,7 +383,7 @@ export async function POST(req: Request) {
         cleanerHireDate = cleanerData?.hire_date || null;
         // Calculate earnings: commission on service + 100% of tip
         cleanerEarnings = calculateCleanerEarnings(
-          body.totalAmount ?? null, // Total includes tip
+          adjustedTotalAmount ?? null, // Total includes tip (after surge)
           body.serviceFee ?? null,
           cleanerHireDate,
           tipAmount, // Pass tip amount to exclude from commission calculation
@@ -454,19 +444,29 @@ export async function POST(req: Request) {
         .select();
 
       if (bookingError) {
-        console.error('❌ Failed to save booking to database:', bookingError);
-        // Return a structured error so the client can show a clear message
-        return NextResponse.json(
-          {
-            ok: false,
-            error: `Failed to save booking: ${bookingError.message}`,
-          },
-          { status: 500 }
-        );
+        const pgCode = (bookingError as { code?: string }).code;
+        if (pgCode === '23505') {
+          const { data: existing } = await supabase.from('bookings').select('*').eq('id', bookingId).maybeSingle();
+          if (existing) {
+            bookingData = [existing];
+            dbSaved = true;
+          } else {
+            return NextResponse.json(
+              { ok: false, error: `Failed to save booking: ${bookingError.message}` },
+              { status: 500 }
+            );
+          }
+        } else {
+          console.error('❌ Failed to save booking to database:', bookingError);
+          return NextResponse.json(
+            { ok: false, error: `Failed to save booking: ${bookingError.message}` },
+            { status: 500 }
+          );
+        }
+      } else {
+        bookingData = data;
+        dbSaved = true;
       }
-      
-      bookingData = data;
-      dbSaved = true;
       console.log('✅ Booking saved to database successfully');
       console.log('Saved booking data:', bookingData);
       console.log('Booking ID:', bookingId);
@@ -740,12 +740,13 @@ export async function POST(req: Request) {
       message = 'Booking confirmed! (Limited functionality - configure database and email services)';
     }
     
-    const finalResponse = { 
+    const finalResponse = {
       ok: true,
       bookingId,
       message,
       dbSaved,
       emailSent,
+      confirmationToken: createBookingLookupToken(bookingId),
     };
 
     console.log('=== BOOKING API SUCCESS ===');
