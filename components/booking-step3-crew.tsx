@@ -277,7 +277,7 @@ export function BookingStep3Crew({
 
   return (
     <div className="min-h-screen bg-[#f0f2f5] font-sans">
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
@@ -802,7 +802,7 @@ export function BookingStep3Crew({
           )}
         </AnimatePresence>
 
-        <div className="px-4 py-3">
+        <div className="px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <motion.button
             type="button"
             whileTap={{ scale: 0.97 }}

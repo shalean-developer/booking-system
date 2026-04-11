@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase-server';
 import { isAdmin } from '@/lib/supabase-server';
 import { calcTotalSync } from '@/lib/pricing';
+import { fetchActivePricing } from '@/lib/pricing-db';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,19 +58,25 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const pricingData = await fetchActivePricing();
+
     // Transform quotes to match frontend interface
     const transformedQuotes = (quotes || []).map((quote: any) => {
       // Calculate price if missing
       let amount = quote.estimated_price;
       if (!amount || amount === 0) {
         try {
-          const pricingDetails = calcTotalSync({
-            service: quote.service_type as any,
-            bedrooms: quote.bedrooms || 0,
-            bathrooms: quote.bathrooms || 1,
-            extras: quote.extras || [],
-            extrasQuantities: undefined
-          }, 'one-time');
+          const pricingDetails = calcTotalSync(
+            {
+              service: quote.service_type as any,
+              bedrooms: quote.bedrooms || 0,
+              bathrooms: quote.bathrooms || 1,
+              extras: quote.extras || [],
+              extrasQuantities: undefined,
+            },
+            'one-time',
+            pricingData
+          );
           // Convert Rands to cents for database storage
           amount = Math.round(pricingDetails.total * 100);
         } catch (error) {

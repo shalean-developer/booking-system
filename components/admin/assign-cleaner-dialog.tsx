@@ -42,6 +42,7 @@ export function AssignCleanerDialog({
   onOpenChange,
   bookingId,
   bookingDate,
+  bookingTime,
   bookingCity,
   serviceType,
   bookingRequiresTeam,
@@ -75,7 +76,7 @@ export function AssignCleanerDialog({
       setSupervisorId('');
       setError(null);
     }
-  }, [open, bookingDate, bookingCity, serviceType]);
+  }, [open, bookingDate, bookingTime, bookingCity, serviceType]);
 
   const fetchCleaners = async () => {
     try {
@@ -89,6 +90,9 @@ export function AssignCleanerDialog({
           date: bookingDate,
           city: bookingCity,
         });
+        if (bookingTime) {
+          params.set('time', bookingTime);
+        }
         const availableResponse = await fetch(`/api/cleaners/available?${params}`, {
           credentials: 'include',
         });

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase-server';
 import crypto from 'crypto';
-import { edgeForwardPaystackWebhook } from '@/lib/payment-edge';
+import { edgeForwardPaystackWebhook, edgeVerifyPayment } from '@/lib/payment-edge';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 async function findBookingByPaystackReference(
@@ -255,7 +255,22 @@ export async function POST(request: NextRequest) {
       console.log('[paystack-webhook] Forwarding charge.success to Edge');
       const out = await edgeForwardPaystackWebhook(body, signature);
       const edgeOk = out && typeof out === 'object' && 'ok' in out && out.ok === true;
-      return NextResponse.json(out, { status: edgeOk ? 200 : 502 });
+      if (edgeOk) {
+        return NextResponse.json(out, { status: 200 });
+      }
+      console.warn('[paystack-webhook] Edge forward failed, trying edge verify fallback', out);
+      let bookingId = '';
+      if (paymentReference.startsWith('booking-')) {
+        bookingId = paymentReference.slice('booking-'.length);
+      }
+      if (bookingId) {
+        const v = await edgeVerifyPayment({
+          reference: paymentReference,
+          booking_id: bookingId,
+        });
+        return NextResponse.json(v, { status: v.ok ? 200 : 502 });
+      }
+      return NextResponse.json(out, { status: 502 });
     }
 
     const booking = await findBookingByPaystackReference(supabase, paymentReference);

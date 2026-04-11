@@ -280,18 +280,22 @@ export async function POST(req: Request) {
             }
           }
 
-          const [customerEmailResult, adminEmailResult] = await Promise.all([
-            sendEmail(generateBookingConfirmationEmail({
+          const [customerEmailData, adminEmailData] = await Promise.all([
+            generateBookingConfirmationEmail({
               ...body,
               bookingId,
               totalAmount: body.totalAmount, // Pass actual total amount paid (in rands)
               cleanerName
-            })),
-            sendEmail(generateAdminBookingNotificationEmail({
+            }),
+            generateAdminBookingNotificationEmail({
               ...body,
               bookingId,
               totalAmount: body.totalAmount // Pass actual total amount paid (in rands)
-            })),
+            }),
+          ]);
+          const [customerEmailResult, adminEmailResult] = await Promise.all([
+            sendEmail(customerEmailData),
+            sendEmail(adminEmailData),
           ]);
 
           return { ok: true, customerEmailResult, adminEmailResult };

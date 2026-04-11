@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, Calculator, Info } from 'lucide-react';
@@ -12,127 +12,126 @@ export function PricingContent() {
   const exampleBedrooms = 2;
   const exampleBathrooms = 2;
   
-  // State for database pricing
   const [pricingData, setPricingData] = useState<PricingData | null>(null);
-  const [isLoadingPricing, setIsLoadingPricing] = useState(true);
 
-  // Fetch pricing from database on mount
   useEffect(() => {
     const fetchPricing = async () => {
       try {
-        setIsLoadingPricing(true);
         const data = await getCurrentPricing();
         setPricingData(data);
       } catch (error) {
         console.error('Failed to fetch pricing from database:', error);
-        // Fallback to static PRICING
-        setPricingData(PRICING as PricingData);
-      } finally {
-        setIsLoadingPricing(false);
+        setPricingData(PRICING);
       }
     };
-    
+
     fetchPricing();
   }, []);
 
-  const services = [
-    {
-      name: 'Standard Cleaning',
-      type: 'Standard',
-      base: PRICING.services.Standard.base,
-      bedroom: PRICING.services.Standard.bedroom,
-      bathroom: PRICING.services.Standard.bathroom,
-      exampleTotal: PRICING.services.Standard.base + 
-                   (exampleBedrooms * PRICING.services.Standard.bedroom) + 
-                   (exampleBathrooms * PRICING.services.Standard.bathroom) + 
-                   PRICING.serviceFee,
-      description: 'Regular upkeep for your home',
-      features: [
-        'Dusting and vacuuming all surfaces',
-        'Bathroom cleaning and sanitization',
-        'Kitchen cleaning including countertops',
-        'Trash removal and replacement',
-        'Floor mopping and sweeping',
-        'General tidying and organization'
-      ],
-      bestFor: 'Regular maintenance, weekly or bi-weekly cleaning'
-    },
-    {
-      name: 'Deep Cleaning',
-      type: 'Deep',
-      base: PRICING.services.Deep.base,
-      bedroom: PRICING.services.Deep.bedroom,
-      bathroom: PRICING.services.Deep.bathroom,
-      exampleTotal: PRICING.services.Deep.base + 
-                   (exampleBedrooms * PRICING.services.Deep.bedroom) + 
-                   (exampleBathrooms * PRICING.services.Deep.bathroom) + 
-                   PRICING.serviceFee,
-      description: 'Intensive cleaning for every corner',
-      features: [
-        'Inside all appliances (fridge, oven, microwave)',
-        'Baseboards, window sills, and ledges',
-        'Detailed scrubbing of bathrooms',
-        'Carpet and upholstery cleaning',
-        'Inside cabinets and drawers',
-        'Ceiling fans and light fixtures',
-        'Deep sanitization throughout'
-      ],
-      bestFor: 'Spring cleaning, move-in preparation, or periodic deep clean'
-    },
-    {
-      name: 'Move In/Out Cleaning',
-      type: 'Move In/Out',
-      base: PRICING.services['Move In/Out'].base,
-      bedroom: PRICING.services['Move In/Out'].bedroom,
-      bathroom: PRICING.services['Move In/Out'].bathroom,
-      exampleTotal: PRICING.services['Move In/Out'].base + 
-                   (exampleBedrooms * PRICING.services['Move In/Out'].bedroom) + 
-                   (exampleBathrooms * PRICING.services['Move In/Out'].bathroom) + 
-                   PRICING.serviceFee,
-      description: 'Perfect for switching homes',
-      features: [
-        'Full deep cleaning service',
-        'Inside all cabinets and closets',
-        'Window cleaning (inside and out)',
-        'Move-out inspection ready',
-        'Garage and storage areas',
-        'Appliance deep cleaning',
-        'Property condition report'
-      ],
-      bestFor: 'Moving in or out, end of lease cleaning, property sales'
-    },
-    {
-      name: 'Airbnb Cleaning',
-      type: 'Airbnb',
-      base: PRICING.services.Airbnb.base,
-      bedroom: PRICING.services.Airbnb.bedroom,
-      bathroom: PRICING.services.Airbnb.bathroom,
-      exampleTotal: PRICING.services.Airbnb.base + 
-                   (exampleBedrooms * PRICING.services.Airbnb.bedroom) + 
-                   (exampleBathrooms * PRICING.services.Airbnb.bathroom) + 
-                   PRICING.serviceFee,
-      description: 'Professional rental preparation',
-      features: [
-        'Guest-ready standard cleaning',
-        'Linen change and bed making',
-        'Quick turnaround service',
-        'Quality guarantee',
-        'Restocking essentials',
-        'Property inspection',
-        'Same-day availability'
-      ],
-      bestFor: 'Airbnb turnovers, short-term rental cleaning, guest preparation'
-    }
-  ];
+  const activePricing: PricingData = pricingData ?? PRICING;
 
-  // Use database pricing if available, otherwise fallback to static PRICING
-  const activePricing = pricingData || PRICING as PricingData;
-  
-  // Ensure extras is properly extracted from pricing (database or fallback)
-  const extras = Object.entries(activePricing.extras || {}).map(([name, price]) => ({
-    name,
-    price: typeof price === 'number' ? price : 0
-  }));
+  const services = useMemo(() => {
+    const p = activePricing;
+    const sf = p.serviceFee;
+    const svc = (key: string) =>
+      p.services[key] ?? { base: 0, bedroom: 0, bathroom: 0 };
+    const std = svc('Standard');
+    const deep = svc('Deep');
+    const move = svc('Move In/Out');
+    const airbnb = svc('Airbnb');
+    return [
+      {
+        name: 'Standard Cleaning',
+        type: 'Standard',
+        base: std.base,
+        bedroom: std.bedroom,
+        bathroom: std.bathroom,
+        exampleTotal:
+          std.base + exampleBedrooms * std.bedroom + exampleBathrooms * std.bathroom + sf,
+        description: 'Regular upkeep for your home',
+        features: [
+          'Dusting and vacuuming all surfaces',
+          'Bathroom cleaning and sanitization',
+          'Kitchen cleaning including countertops',
+          'Trash removal and replacement',
+          'Floor mopping and sweeping',
+          'General tidying and organization',
+        ],
+        bestFor: 'Regular maintenance, weekly or bi-weekly cleaning',
+      },
+      {
+        name: 'Deep Cleaning',
+        type: 'Deep',
+        base: deep.base,
+        bedroom: deep.bedroom,
+        bathroom: deep.bathroom,
+        exampleTotal:
+          deep.base + exampleBedrooms * deep.bedroom + exampleBathrooms * deep.bathroom + sf,
+        description: 'Intensive cleaning for every corner',
+        features: [
+          'Inside all appliances (fridge, oven, microwave)',
+          'Baseboards, window sills, and ledges',
+          'Detailed scrubbing of bathrooms',
+          'Carpet and upholstery cleaning',
+          'Inside cabinets and drawers',
+          'Ceiling fans and light fixtures',
+          'Deep sanitization throughout',
+        ],
+        bestFor: 'Spring cleaning, move-in preparation, or periodic deep clean',
+      },
+      {
+        name: 'Move In/Out Cleaning',
+        type: 'Move In/Out',
+        base: move.base,
+        bedroom: move.bedroom,
+        bathroom: move.bathroom,
+        exampleTotal:
+          move.base + exampleBedrooms * move.bedroom + exampleBathrooms * move.bathroom + sf,
+        description: 'Perfect for switching homes',
+        features: [
+          'Full deep cleaning service',
+          'Inside all cabinets and closets',
+          'Window cleaning (inside and out)',
+          'Move-out inspection ready',
+          'Garage and storage areas',
+          'Appliance deep cleaning',
+          'Property condition report',
+        ],
+        bestFor: 'Moving in or out, end of lease cleaning, property sales',
+      },
+      {
+        name: 'Airbnb Cleaning',
+        type: 'Airbnb',
+        base: airbnb.base,
+        bedroom: airbnb.bedroom,
+        bathroom: airbnb.bathroom,
+        exampleTotal:
+          airbnb.base + exampleBedrooms * airbnb.bedroom + exampleBathrooms * airbnb.bathroom + sf,
+        description: 'Professional rental preparation',
+        features: [
+          'Guest-ready standard cleaning',
+          'Linen change and bed making',
+          'Quick turnaround service',
+          'Quality guarantee',
+          'Restocking essentials',
+          'Property inspection',
+          'Same-day availability',
+        ],
+        bestFor: 'Airbnb turnovers, short-term rental cleaning, guest preparation',
+      },
+    ];
+  }, [activePricing, exampleBedrooms, exampleBathrooms]);
+
+  const extras = useMemo(
+    () =>
+      Object.entries(activePricing.extras || {}).map(([name, price]) => ({
+        name,
+        price: typeof price === 'number' ? price : 0,
+      })),
+    [activePricing]
+  );
+
+  const freq = activePricing.frequencyDiscounts || {};
 
   return (
     <main className="py-12 md:py-16">
@@ -200,7 +199,7 @@ export function PricingContent() {
                   </div>
                   <div className="flex justify-between items-center border-t pt-3 mt-3">
                     <span className="text-gray-600">Service fee:</span>
-                    <span className="font-bold text-gray-900">R{PRICING.serviceFee}</span>
+                    <span className="font-bold text-gray-900">R{activePricing.serviceFee}</span>
                   </div>
                   <div className="bg-primary/10 rounded-lg p-4 mt-4">
                     <div className="text-sm text-gray-600 mb-1">Example: {exampleBedrooms} bedroom, {exampleBathrooms} bathroom home</div>
@@ -293,7 +292,7 @@ export function PricingContent() {
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white rounded-lg p-6 text-center shadow">
-              <div className="text-4xl font-bold text-primary mb-2">{PRICING.frequencyDiscounts.weekly}%</div>
+              <div className="text-4xl font-bold text-primary mb-2">{freq.weekly ?? 0}%</div>
               <div className="text-xl font-semibold text-gray-900 mb-2">Weekly</div>
               <div className="text-gray-600 mb-4">Save on every clean</div>
               <div className="text-sm text-gray-500">
@@ -301,7 +300,7 @@ export function PricingContent() {
               </div>
             </div>
             <div className="bg-white rounded-lg p-6 text-center shadow">
-              <div className="text-4xl font-bold text-primary mb-2">{PRICING.frequencyDiscounts['bi-weekly']}%</div>
+              <div className="text-4xl font-bold text-primary mb-2">{freq['bi-weekly'] ?? 0}%</div>
               <div className="text-xl font-semibold text-gray-900 mb-2">Bi-Weekly</div>
               <div className="text-gray-600 mb-4">Regular savings</div>
               <div className="text-sm text-gray-500">
@@ -309,7 +308,7 @@ export function PricingContent() {
               </div>
             </div>
             <div className="bg-white rounded-lg p-6 text-center shadow">
-              <div className="text-4xl font-bold text-primary mb-2">{PRICING.frequencyDiscounts.monthly}%</div>
+              <div className="text-4xl font-bold text-primary mb-2">{freq.monthly ?? 0}%</div>
               <div className="text-xl font-semibold text-gray-900 mb-2">Monthly</div>
               <div className="text-gray-600 mb-4">Ongoing discount</div>
               <div className="text-sm text-gray-500">
@@ -338,19 +337,19 @@ export function PricingContent() {
               <ul className="space-y-2 text-gray-600">
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                  <span><strong>Standard Cleaning:</strong> R{PRICING.services.Standard.base} base</span>
+                  <span><strong>Standard Cleaning:</strong> R{activePricing.services.Standard?.base ?? 0} base</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                  <span><strong>Deep Cleaning:</strong> R{PRICING.services.Deep.base} base</span>
+                  <span><strong>Deep Cleaning:</strong> R{activePricing.services.Deep?.base ?? 0} base</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                  <span><strong>Move In/Out:</strong> R{PRICING.services['Move In/Out'].base} base</span>
+                  <span><strong>Move In/Out:</strong> R{activePricing.services['Move In/Out']?.base ?? 0} base</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                  <span><strong>Airbnb:</strong> R{PRICING.services.Airbnb.base} base</span>
+                  <span><strong>Airbnb:</strong> R{activePricing.services.Airbnb?.base ?? 0} base</span>
                 </li>
               </ul>
             </div>
@@ -362,15 +361,15 @@ export function PricingContent() {
               <ul className="space-y-2 text-gray-600">
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                  <span>Bedroom charges vary by service type (R{PRICING.services.Standard.bedroom}-R{PRICING.services.Deep.bedroom} per bedroom)</span>
+                  <span>Bedroom charges vary by service type (R{activePricing.services.Standard?.bedroom ?? 0}-R{activePricing.services.Deep?.bedroom ?? 0} per bedroom)</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                  <span>Bathroom charges vary by service type (R{PRICING.services.Standard.bathroom}-R{PRICING.services.Deep.bathroom} per bathroom)</span>
+                  <span>Bathroom charges vary by service type (R{activePricing.services.Standard?.bathroom ?? 0}-R{activePricing.services.Deep?.bathroom ?? 0} per bathroom)</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                  <span>Service fee of R{PRICING.serviceFee} is added to all bookings</span>
+                  <span>Service fee of R{activePricing.serviceFee} is added to all bookings</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />

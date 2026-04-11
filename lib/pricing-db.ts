@@ -63,6 +63,10 @@ export interface PricingData {
   frequencyDiscounts: {
     [key: string]: number; // percentage
   };
+  /** ZAR — from `pricing_config` `equipment_charge` */
+  equipmentChargeZar: number;
+  /** ZAR — optional floor; from `pricing_config` `minimum_booking` when present */
+  minimumBookingFeeZar: number;
 }
 
 // Cache configuration
@@ -131,6 +135,8 @@ export async function fetchActivePricing(forceRefresh = false): Promise<PricingD
         extras: {},
         serviceFee: 0,
         frequencyDiscounts: {},
+        equipmentChargeZar: 0,
+        minimumBookingFeeZar: 0,
       };
 
       // Track duplicates and validate prices
@@ -143,6 +149,12 @@ export async function fetchActivePricing(forceRefresh = false): Promise<PricingD
         const numericPrice = Number(price);
 
         switch (price_type) {
+          case 'equipment_charge':
+            pricing.equipmentChargeZar = numericPrice;
+            break;
+          case 'minimum_booking':
+            pricing.minimumBookingFeeZar = numericPrice;
+            break;
           case 'base':
           case 'bedroom':
           case 'bathroom':
@@ -185,64 +197,19 @@ export async function fetchActivePricing(forceRefresh = false): Promise<PricingD
         }
       });
 
-      // Validate pricing data
-      const validationErrors: string[] = [];
-      const validationWarnings: string[] = [];
-      
-      // Validate Standard service pricing
-      if (pricing.services['Standard']) {
-        const standard = pricing.services['Standard'];
-        if (standard.base > 500) {
-          validationErrors.push(`Standard base price too high: R${standard.base} (expected ~R250) - fallback will be used`);
-        }
-        if (standard.bedroom > 50) {
-          validationErrors.push(`Standard bedroom price too high: R${standard.bedroom} (expected R20) - fallback will be used`);
-        }
-        if (standard.bathroom > 50) {
-          validationErrors.push(`Standard bathroom price too high: R${standard.bathroom} (expected R30) - fallback will be used`);
-        }
-      }
-
-      // Validate service fee
-      if (pricing.serviceFee > 0 && pricing.serviceFee !== 50 && pricing.serviceFee !== 40) {
-        validationWarnings.push(`Service fee unusual: R${pricing.serviceFee} (expected R50) - fallback will be used if invalid`);
-      }
       if (seenServiceFees.length > 1) {
-        validationWarnings.push(`Multiple service fees found: ${seenServiceFees.join(', ')}. Using last: R${pricing.serviceFee}`);
+        console.warn(`⚠️ Multiple service_fee rows found; using last: R${pricing.serviceFee}`);
       }
 
       // Log detailed pricing breakdown
-      console.log('📊 Detailed Database Pricing Breakdown:', {
-        services: Object.entries(pricing.services).map(([service, prices]) => ({
-          service,
-          base: prices.base,
-          bedroom: prices.bedroom,
-          bathroom: prices.bathroom,
-          duplicates: {
-            base: servicePricingTracker[service]?.base.length > 1 ? servicePricingTracker[service].base : undefined,
-            bedroom: servicePricingTracker[service]?.bedroom.length > 1 ? servicePricingTracker[service].bedroom : undefined,
-            bathroom: servicePricingTracker[service]?.bathroom.length > 1 ? servicePricingTracker[service].bathroom : undefined,
-          }
-        })),
-        extras: Object.entries(pricing.extras).slice(0, 10), // First 10 extras
-        extrasCount: Object.keys(pricing.extras).length,
+      console.log('📊 Database pricing snapshot:', {
+        services: Object.keys(pricing.services).length,
+        extras: Object.keys(pricing.extras).length,
         serviceFee: pricing.serviceFee,
-        serviceFeeDuplicates: seenServiceFees.length > 1 ? seenServiceFees : undefined,
+        equipmentChargeZar: pricing.equipmentChargeZar,
+        minimumBookingFeeZar: pricing.minimumBookingFeeZar,
         frequencyDiscounts: pricing.frequencyDiscounts,
-        validationErrors: validationErrors.length > 0 ? validationErrors : undefined,
-        validationWarnings: validationWarnings.length > 0 ? validationWarnings : undefined,
       });
-
-      // Log validation errors (critical issues that will trigger fallback)
-      if (validationErrors.length > 0) {
-        console.warn('⚠️ Database Pricing Validation Issues (fallback pricing will be used automatically):', validationErrors);
-        console.info('ℹ️ The application will automatically use fallback pricing values to ensure correct calculations.');
-      }
-      
-      // Log validation warnings (non-critical issues)
-      if (validationWarnings.length > 0) {
-        console.warn('⚠️ Database Pricing Warnings:', validationWarnings);
-      }
 
       // Update cache
       cachedPricing = pricing;

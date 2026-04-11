@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { sendEmail, generateQuoteConfirmationEmail, generateAdminQuoteNotificationEmail, QuoteRequest } from '@/lib/email';
 import { supabase } from '@/lib/supabase';
 import { calcTotalSync } from '@/lib/pricing';
+import { fetchActivePricing } from '@/lib/pricing-db';
 import type { ServiceType } from '@/types/booking';
 
 /**
@@ -54,14 +55,18 @@ export async function POST(req: Request) {
     // Generate unique quote ID
     const quoteId = `QT-${Date.now()}`;
     
-    // Calculate estimated price (for internal use, not shown to customer)
-    const pricingDetails = calcTotalSync({
-      service: body.service as ServiceType,
-      bedrooms: body.bedrooms || 0,
-      bathrooms: body.bathrooms || 1,
-      extras: body.extras || [],
-      extrasQuantities: undefined // Quotes don't have quantities
-    }, 'one-time');
+    const pricingData = await fetchActivePricing();
+    const pricingDetails = calcTotalSync(
+      {
+        service: body.service as ServiceType,
+        bedrooms: body.bedrooms || 0,
+        bathrooms: body.bathrooms || 1,
+        extras: body.extras || [],
+        extrasQuantities: undefined,
+      },
+      'one-time',
+      pricingData
+    );
     // Convert Rands to cents for database storage
     const estimatedPrice = Math.round(pricingDetails.total * 100);
     
@@ -146,7 +151,7 @@ export async function POST(req: Request) {
       // Send notification email to admin (don't fail if this fails)
       try {
         console.log('Generating admin email...');
-        const adminEmailData = generateAdminQuoteNotificationEmail(emailData);
+        const adminEmailData = await generateAdminQuoteNotificationEmail(emailData);
         console.log('Admin email generated successfully');
         
         await sendEmail(adminEmailData);

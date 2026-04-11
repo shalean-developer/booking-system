@@ -199,6 +199,8 @@ export interface BookingStep2ScheduleProps {
     total: number;
   };
   serviceTitle: string;
+  /** Deep / Move / Standard / Airbnb: add-on tiles from form-data API (Deep/Move falls back to static EXTRAS when empty) */
+  addonTilesFromPricing?: { id: string; label: string; price: number; icon: React.ReactNode }[];
 }
 
 export function BookingStep2Schedule({
@@ -208,6 +210,7 @@ export function BookingStep2Schedule({
   onContinue,
   pricing,
   serviceTitle,
+  addonTilesFromPricing,
 }: BookingStep2ScheduleProps) {
   const [weekStartOffset, setWeekStartOffset] = useState(() => {
     const parsed = parseDateStr(data.date);
@@ -218,7 +221,32 @@ export function BookingStep2Schedule({
   const [selectedDate, setSelectedDate] = useState<Date | null>(() => parseDateStr(data.date));
   const [selectedTime, setSelectedTime] = useState<string | null>(() => (data.time ? data.time : null));
 
-  const selectedExtras = useMemo(() => uiExtrasFromBookingExtras(data.extras), [data.extras]);
+  const addonTiles = useMemo(() => {
+    if (addonTilesFromPricing && addonTilesFromPricing.length > 0) {
+      return addonTilesFromPricing.map((t) => ({
+        ...t,
+        sublabel: 'Add-on' as const,
+      }));
+    }
+    if (data.service === 'deep' || data.service === 'move') {
+      return EXTRAS;
+    }
+    return [] as typeof EXTRAS;
+  }, [addonTilesFromPricing, data.service]);
+
+  const showEnhanceSection =
+    addonTiles.length > 0 &&
+    (data.service === 'deep' ||
+      data.service === 'move' ||
+      data.service === 'standard' ||
+      data.service === 'airbnb');
+
+  const selectedAddonUiIds = useMemo(() => {
+    if (data.service === 'standard' || data.service === 'airbnb') {
+      return data.extras.filter((id) => addonTiles.some((t) => t.id === id));
+    }
+    return uiExtrasFromBookingExtras(data.extras);
+  }, [data.service, data.extras, addonTiles]);
 
   const addonsLine = pricing.bedroomAdd + pricing.bathroomAdd + pricing.extraRoomAdd;
   const totalEstimate = pricing.total;
@@ -254,7 +282,32 @@ export function BookingStep2Schedule({
     });
   }, [data.service, setData]);
 
+  /** Restore equipment charge alignment when extras were loaded from session storage */
+  useEffect(() => {
+    if (data.service !== 'standard' && data.service !== 'airbnb') return;
+    if (!data.extras.includes('equipment')) return;
+    setData((prev) => {
+      if (prev.scheduleEquipmentPref === 'bring') return prev;
+      return { ...prev, scheduleEquipmentPref: 'bring' };
+    });
+  }, [data.service, data.extras, setData]);
+
   const toggleExtra = (id: string) => {
+    if (data.service === 'standard' || data.service === 'airbnb') {
+      setData((prev) => {
+        const has = prev.extras.includes(id);
+        const nextExtras = has ? prev.extras.filter((e) => e !== id) : [...prev.extras, id];
+        if (id === 'equipment') {
+          return {
+            ...prev,
+            extras: nextExtras,
+            scheduleEquipmentPref: has ? 'own' : 'bring',
+          };
+        }
+        return { ...prev, extras: nextExtras };
+      });
+      return;
+    }
     const bookingId = EXTRA_UI_ID_TO_BOOKING[id];
     if (!bookingId) return;
     setData((prev) => {
@@ -292,18 +345,24 @@ export function BookingStep2Schedule({
     onContinue();
   };
 
+  const mobileDateSummary = selectedDate
+    ? selectedDate.toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' })
+    : 'Pick a date';
+  const mobileTimeSummary = selectedTime ? TIME_SLOTS.find((t) => t.id === selectedTime)?.label ?? '' : '';
+
   return (
     <div className="min-h-screen bg-[#f0f2f5] font-sans">
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
             onClick={onBack}
-            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"
+            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors flex-shrink-0"
+            aria-label="Go back"
           >
             <ArrowLeft size={18} className="text-gray-500" />
           </button>
-          <div>
+          <div className="min-w-0">
             <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">
               Shalean Cleaning Services
             </p>
@@ -314,69 +373,71 @@ export function BookingStep2Schedule({
         <BookingFlowStepIndicator activeStep={2} />
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-8 flex gap-6 items-start">
-        <div className="flex-1 min-w-0 flex flex-col gap-6">
+      <div className="max-w-5xl mx-auto px-4 py-8 flex flex-col lg:flex-row gap-6 items-start pb-40 lg:pb-8 w-full">
+        <div className="flex-1 min-w-0 flex flex-col gap-6 w-full">
           <p className="text-xs font-bold tracking-widest text-violet-600 uppercase">Step 2 of 4</p>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <div className="flex items-start gap-3 mb-5">
-              <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center flex-shrink-0">
-                <Zap size={18} className="text-white" />
+          {showEnhanceSection && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
+              <div className="flex items-start gap-3 mb-5">
+                <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center flex-shrink-0">
+                  <Zap size={18} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-gray-900">Enhance Your Service</h2>
+                  <p className="text-sm text-gray-500">
+                    Additional services — optional; prices follow your live estimate (database rates)
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-base font-bold text-gray-900">Enhance Your Service</h2>
-                <p className="text-sm text-gray-500">
-                  Additional services — optional; selections appear in your estimate
-                </p>
-              </div>
-            </div>
 
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-              {EXTRAS.map((extra) => {
-                const isSelected = selectedExtras.includes(extra.id);
-                return (
-                  <motion.button
-                    key={extra.id}
-                    type="button"
-                    onClick={() => toggleExtra(extra.id)}
-                    whileTap={{ scale: 0.94 }}
-                    className={[
-                      'flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-2 cursor-pointer transition-all duration-200',
-                      isSelected
-                        ? 'border-violet-500 bg-violet-50 shadow-sm shadow-violet-100'
-                        : 'border-gray-200 bg-white hover:border-violet-300 hover:bg-violet-50/40',
-                    ].join(' ')}
-                  >
-                    <div
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                {addonTiles.map((extra) => {
+                  const isSelected = selectedAddonUiIds.includes(extra.id);
+                  return (
+                    <motion.button
+                      key={extra.id}
+                      type="button"
+                      onClick={() => toggleExtra(extra.id)}
+                      whileTap={{ scale: 0.94 }}
                       className={[
-                        'w-14 h-14 rounded-full flex items-center justify-center border-2 transition-colors',
-                        isSelected ? 'border-violet-500 text-violet-600' : 'border-gray-300 text-gray-500',
+                        'flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-2 cursor-pointer transition-all duration-200',
+                        isSelected
+                          ? 'border-violet-500 bg-violet-50 shadow-sm shadow-violet-100'
+                          : 'border-gray-200 bg-white hover:border-violet-300 hover:bg-violet-50/40',
                       ].join(' ')}
                     >
-                      {extra.icon}
-                    </div>
-                    <div className="text-center leading-tight">
-                      <p
-                        className={['text-xs font-semibold', isSelected ? 'text-violet-700' : 'text-gray-700'].join(
-                          ' '
-                        )}
+                      <div
+                        className={[
+                          'w-14 h-14 rounded-full flex items-center justify-center border-2 transition-colors',
+                          isSelected ? 'border-violet-500 text-violet-600' : 'border-gray-300 text-gray-500',
+                        ].join(' ')}
                       >
-                        {extra.label}
-                      </p>
-                      <p className="text-[10px] text-gray-400">{extra.sublabel}</p>
-                    </div>
-                    {isSelected && (
-                      <span className="text-[10px] font-bold text-violet-600 bg-violet-100 px-2 py-0.5 rounded-full">
-                        +R{extra.price}
-                      </span>
-                    )}
-                  </motion.button>
-                );
-              })}
+                        {extra.icon}
+                      </div>
+                      <div className="text-center leading-tight">
+                        <p
+                          className={['text-xs font-semibold', isSelected ? 'text-violet-700' : 'text-gray-700'].join(
+                            ' '
+                          )}
+                        >
+                          {extra.label}
+                        </p>
+                        <p className="text-[10px] text-gray-400">{extra.sublabel}</p>
+                      </div>
+                      {isSelected && (
+                        <span className="text-[10px] font-bold text-violet-600 bg-violet-100 px-2 py-0.5 rounded-full">
+                          +R{extra.price}
+                        </span>
+                      )}
+                    </motion.button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
             <div className="flex items-start gap-3 mb-5">
               <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center flex-shrink-0">
                 <Calendar size={18} className="text-white" />
@@ -391,7 +452,7 @@ export function BookingStep2Schedule({
               <Calendar size={14} className="text-gray-400" />
               <span className="text-sm font-semibold text-gray-600">Date</span>
               {selectedDate && (
-                <span className="ml-auto text-xs font-medium text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-200">
+                <span className="ml-auto max-w-[min(100%,11rem)] sm:max-w-none text-xs font-medium text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-200 truncate text-right">
                   {formatSelectedDate(selectedDate)}
                 </span>
               )}
@@ -437,7 +498,7 @@ export function BookingStep2Schedule({
                         onClick={() => handleDateSelect(cellDate)}
                         whileTap={{ scale: 0.94 }}
                         className={[
-                          'flex flex-col items-center justify-center rounded-xl py-2.5 px-1 sm:py-3 sm:px-2 min-h-[4.25rem] transition-all duration-150',
+                          'flex flex-col items-center justify-center rounded-xl py-2 px-0.5 sm:py-3 sm:px-2 min-h-[3.5rem] sm:min-h-[4.25rem] transition-all duration-150',
                           isSelected
                             ? 'bg-violet-600 text-white shadow-md shadow-violet-200'
                             : todayCell
@@ -462,7 +523,7 @@ export function BookingStep2Schedule({
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <Clock size={14} className="text-gray-400" />
               <span className="text-sm font-semibold text-gray-600">Start Time</span>
@@ -498,7 +559,7 @@ export function BookingStep2Schedule({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.25 }}
-                  className="grid grid-cols-5 gap-2"
+                  className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2"
                 >
                   {TIME_SLOTS.map((slot) => (
                     <motion.button
@@ -528,7 +589,10 @@ export function BookingStep2Schedule({
           </div>
         </div>
 
-        <div className="w-72 flex-shrink-0 sticky top-6 flex flex-col gap-4">
+        <aside
+          className="hidden lg:flex w-full lg:w-72 flex-shrink-0 lg:sticky lg:top-6 flex-col gap-4"
+          aria-label="Pricing summary"
+        >
           <div className="rounded-2xl overflow-hidden shadow-md">
             <div className="bg-gradient-to-br from-violet-600 to-violet-800 px-5 py-5">
               <p className="text-violet-200 text-xs font-semibold tracking-widest uppercase mb-1">Your Estimate</p>
@@ -554,9 +618,10 @@ export function BookingStep2Schedule({
               </div>
 
               <AnimatePresence>
-                {selectedExtras.map((id) => {
-                  const extra = EXTRAS.find((e) => e.id === id);
+                {selectedAddonUiIds.map((id) => {
+                  const extra = addonTiles.find((e) => e.id === id);
                   if (!extra) return null;
+                  const deepMove = data.service === 'deep' || data.service === 'move';
                   return (
                     <motion.div
                       key={id}
@@ -568,7 +633,8 @@ export function BookingStep2Schedule({
                     >
                       <span className="flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-violet-400 inline-block" />
-                        {extra.label} Cleaning
+                        {extra.label}
+                        {deepMove ? ' Cleaning' : ''}
                       </span>
                       <span className="font-semibold text-violet-600">+R{extra.price}</span>
                     </motion.div>
@@ -670,6 +736,63 @@ export function BookingStep2Schedule({
               </motion.div>
             )}
           </AnimatePresence>
+        </aside>
+      </div>
+
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-[0_-4px_32px_rgba(0,0,0,0.08)]">
+        <AnimatePresence>
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pt-3 pb-1 flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <p className="text-xs text-gray-500 font-medium">
+                  <span className="block truncate">
+                    {mobileDateSummary}
+                    {mobileTimeSummary ? ` · ${mobileTimeSummary}` : selectedDate ? ' · Pick a time' : ''}
+                  </span>
+                </p>
+                <p className="text-xs font-semibold text-violet-600 truncate">{serviceTitle}</p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <motion.p
+                  key={totalEstimate}
+                  initial={{ y: -4, opacity: 0.6 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  className="text-lg font-extrabold text-gray-900"
+                >
+                  R {totalEstimate.toLocaleString()}
+                </motion.p>
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide">estimated</p>
+              </div>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+
+        <div className="px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <motion.button
+            type="button"
+            onClick={handleContinue}
+            animate={canContinue ? { opacity: 1 } : { opacity: 0.45 }}
+            whileTap={canContinue ? { scale: 0.97 } : {}}
+            disabled={!canContinue}
+            className={[
+              'w-full py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200',
+              canContinue
+                ? 'bg-violet-600 text-white shadow-md shadow-violet-200 hover:bg-violet-700 cursor-pointer'
+                : 'bg-gray-100 text-gray-400 cursor-not-allowed',
+            ].join(' ')}
+          >
+            {canContinue ? (
+              <>
+                Continue to Step 3 <ArrowRight size={18} />
+              </>
+            ) : (
+              <>Pick a date & time to continue</>
+            )}
+          </motion.button>
         </div>
       </div>
     </div>

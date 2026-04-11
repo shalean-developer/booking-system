@@ -68,7 +68,7 @@ export async function POST(
         }
       }
       
-      const emailData = generateBookingConfirmationEmail({
+      const emailData = await generateBookingConfirmationEmail({
         service: booking.service_type as any,
         bedrooms,
         bathrooms,

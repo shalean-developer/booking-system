@@ -7,6 +7,7 @@ import type { BookingStateV2 } from '@/lib/useBookingV2';
 import { isPayLaterAllowed } from '@/lib/booking-env';
 import { validateBookingDiscountAmount } from '@/lib/discount-booking-server';
 import { computeCheckoutPricing } from '@/lib/booking-checkout-pricing';
+import { computeServerPreSurgeTotalZar } from '@/lib/booking-server-pricing';
 import { createBookingLookupToken } from '@/lib/booking-lookup-token';
 
 /**
@@ -57,10 +58,40 @@ export async function POST(req: Request) {
       );
     }
 
+    let serverCart: Awaited<ReturnType<typeof computeServerPreSurgeTotalZar>>;
+    try {
+      serverCart = await computeServerPreSurgeTotalZar(supabase, {
+        service: body.service,
+        bedrooms: body.bedrooms,
+        bathrooms: body.bathrooms,
+        extras: body.extras,
+        extrasQuantities: body.extrasQuantities,
+        frequency: body.frequency || 'one-time',
+        tipAmount: tipAmt,
+        discountAmount: body.discountAmount || 0,
+        numberOfCleaners: body.numberOfCleaners,
+        provideEquipment: body.provideEquipment,
+        carpetDetails: body.carpetDetails ?? undefined,
+      });
+    } catch (e) {
+      console.error('[bookings/guest] server pricing', e);
+      return NextResponse.json(
+        { ok: false, error: 'Pricing is temporarily unavailable. Please try again.' },
+        { status: 503 }
+      );
+    }
+
+    if (Math.abs(serverCart.preSurgeTotalZar - preSurgeTotal) > 0.02) {
+      return NextResponse.json(
+        { ok: false, error: 'Price mismatch. Please refresh the page and try again.' },
+        { status: 400 }
+      );
+    }
+
     const checkoutPricing = await computeCheckoutPricing(supabase, {
       date: body.date,
       service: body.service,
-      preSurgeTotalZar: preSurgeTotal,
+      preSurgeTotalZar: serverCart.preSurgeTotalZar,
       selected_team: body.selected_team ?? undefined,
     });
     if (!checkoutPricing.ok) {
@@ -284,7 +315,7 @@ export async function POST(req: Request) {
           }
         }
 
-        const customerEmailData = generateBookingConfirmationEmail({
+        const customerEmailData = await generateBookingConfirmationEmail({
           step: 6,
           service: body.service,
           firstName: body.firstName,
@@ -308,7 +339,7 @@ export async function POST(req: Request) {
           cleanerName
         });
         
-        const adminEmailData = generateAdminBookingNotificationEmail({
+        const adminEmailData = await generateAdminBookingNotificationEmail({
           step: 6,
           service: body.service,
           firstName: body.firstName,

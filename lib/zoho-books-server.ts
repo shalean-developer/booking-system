@@ -1,15 +1,15 @@
 /**
- * Zoho Books — contacts + invoices (Edge).
+ * Zoho Books — contacts + invoices (Node / Next.js).
  * Invoices must use customer_id; inline customer_name/email often returns code 3008.
  */
 
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
 async function getAccessToken(): Promise<string> {
-  const staticToken = Deno.env.get('ZOHO_ACCESS_TOKEN')?.trim();
-  const refresh = Deno.env.get('ZOHO_REFRESH_TOKEN')?.trim();
-  const clientId = Deno.env.get('ZOHO_CLIENT_ID')?.trim();
-  const clientSecret = Deno.env.get('ZOHO_CLIENT_SECRET')?.trim();
+  const staticToken = process.env.ZOHO_ACCESS_TOKEN?.trim();
+  const refresh = process.env.ZOHO_REFRESH_TOKEN?.trim();
+  const clientId = process.env.ZOHO_CLIENT_ID?.trim();
+  const clientSecret = process.env.ZOHO_CLIENT_SECRET?.trim();
 
   if (staticToken && !refresh) {
     return staticToken;
@@ -32,15 +32,15 @@ async function getAccessToken(): Promise<string> {
     client_secret: clientSecret,
   });
 
-  const accountsHost = Deno.env.get('ZOHO_ACCOUNTS_HOST')?.trim() || 'https://accounts.zoho.com';
+  const accountsHost = process.env.ZOHO_ACCOUNTS_HOST?.trim() || 'https://accounts.zoho.com';
   const res = await fetch(`${accountsHost}/oauth/v2/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
   });
-  const data = await res.json();
+  const data = (await res.json()) as Record<string, unknown>;
   if (!res.ok || !data.access_token) {
-    throw new Error(data.error || data.message || 'Zoho token refresh failed');
+    throw new Error(String(data.error || data.message || 'Zoho token refresh failed'));
   }
 
   const expiresIn = Number(data.expires_in_sec || data.expires_in || 3600);
@@ -52,7 +52,11 @@ async function getAccessToken(): Promise<string> {
 }
 
 function booksApiHost(): string {
-  return Deno.env.get('ZOHO_BOOKS_API_HOST')?.trim() || 'https://www.zohoapis.com';
+  return process.env.ZOHO_BOOKS_API_HOST?.trim() || 'https://www.zohoapis.com';
+}
+
+export function isZohoBooksConfigured(): boolean {
+  return Boolean(process.env.ZOHO_BOOKS_ORGANIZATION_ID?.trim());
 }
 
 function zohoErrorDetail(data: { code?: number | string; message?: string }, status: number): string {
@@ -61,10 +65,11 @@ function zohoErrorDetail(data: { code?: number | string; message?: string }, sta
     .join(': ') || `Zoho request failed (HTTP ${status})`;
 }
 
+/** Valid email for Zoho; synthesize from booking id if missing. */
 function emailForZoho(customerEmail: string | null | undefined, bookingId: string): string {
   const e = customerEmail?.trim().toLowerCase();
   if (e && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return e;
-  const domain = Deno.env.get('SENDER_EMAIL')?.split('@')[1]?.trim() || 'shalean.co.za';
+  const domain = process.env.SENDER_EMAIL?.split('@')[1]?.trim() || 'shalean.co.za';
   const safe = bookingId.replace(/[^a-zA-Z0-9]/g, '') || 'guest';
   return `guest+${safe}@${domain}`;
 }
@@ -92,7 +97,7 @@ async function findContactIdByEmail(
   };
   const okCode = data.code === 0 || data.code === '0';
   if (!res.ok || !okCode) {
-    console.warn('[zoho] list contacts', zohoErrorDetail(data, res.status));
+    console.warn('[zoho-server] list contacts', zohoErrorDetail(data, res.status));
     return null;
   }
   const id = data.contacts?.[0]?.contact_id;
@@ -136,7 +141,7 @@ async function createContact(
   };
   const okCode = data.code === 0 || data.code === '0';
   if (!res.ok || !okCode) {
-    console.error('[zoho] create contact failed', res.status, data);
+    console.error('[zoho-server] create contact failed', res.status, data);
     throw new Error(zohoErrorDetail(data, res.status));
   }
   const id = data.contact?.contact_id;
@@ -167,6 +172,7 @@ async function getOrCreateCustomerContactId(params: {
   }
 }
 
+/** Zoho rejects invoices for inactive customers (code 3021). Reactivate via API. */
 async function ensureContactActive(token: string, orgId: string, contactId: string): Promise<void> {
   const url = `${booksApiHost()}/books/v3/contacts/${encodeURIComponent(contactId)}/active?organization_id=${encodeURIComponent(orgId)}`;
   const res = await fetch(url, {
@@ -181,16 +187,16 @@ async function ensureContactActive(token: string, orgId: string, contactId: stri
   throw new Error(zohoErrorDetail(data, res.status));
 }
 
-export async function createZohoBooksInvoice(params: {
+export async function createZohoBooksInvoiceServer(params: {
   customerName: string;
   customerEmail?: string | null;
   serviceName: string;
   amountZar: number;
   bookingId: string;
 }): Promise<string | null> {
-  const orgId = Deno.env.get('ZOHO_BOOKS_ORGANIZATION_ID')?.trim();
+  const orgId = process.env.ZOHO_BOOKS_ORGANIZATION_ID?.trim();
   if (!orgId) {
-    console.warn('[zoho] ZOHO_BOOKS_ORGANIZATION_ID not set — skipping invoice');
+    console.warn('[zoho-server] ZOHO_BOOKS_ORGANIZATION_ID not set — skipping invoice');
     return null;
   }
 
@@ -235,11 +241,16 @@ export async function createZohoBooksInvoice(params: {
     body: JSON.stringify(payload),
   });
 
-  const data = await res.json();
+  const data = (await res.json()) as {
+    code?: number | string;
+    message?: string;
+    invoice?: { invoice_id?: string };
+    invoice_id?: string;
+  };
   const okCode = data.code === 0 || data.code === '0';
   if (!res.ok || !okCode) {
-    console.error('[zoho] create invoice failed', data);
-    throw new Error(data.message || 'Zoho invoice creation failed');
+    console.error('[zoho-server] create invoice failed', res.status, data);
+    throw new Error(zohoErrorDetail(data, res.status));
   }
 
   const invoiceId = data?.invoice?.invoice_id ?? data?.invoice_id;

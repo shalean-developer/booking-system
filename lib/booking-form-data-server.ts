@@ -20,6 +20,8 @@ export interface BookingFormDataServer {
     extras: Record<string, number>;
     serviceFee: number;
     frequencyDiscounts: Record<string, number>;
+    equipmentChargeZar: number;
+    minimumBookingFeeZar: number;
   } | null;
   extras: {
     all: string[];

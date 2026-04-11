@@ -175,7 +175,7 @@ const PROPERTY_TYPES: { id: StepPropertyType; label: string; icon: React.ReactNo
   { id: 'studio', label: 'Studio', icon: <StudioIcon className="w-4 h-4" /> },
   { id: 'office', label: 'Office', icon: <Briefcase className="w-4 h-4" /> },
 ];
-/** Suburbs must match cleaner `areas` values in Supabase (see `/api/cleaners/available`). */
+/** Suburbs should match entries in cleaner `areas` in Supabase; `/api/cleaners/available` unions suburb+city and sorts by rating/reliability. */
 const AREAS: AreaOption[] = getAllSuburbsForCity('Cape Town')
   .map((s) => ({ label: s.name, suburb: s.name }))
   .sort((a, b) => a.label.localeCompare(b.label, 'en-ZA'));
@@ -631,6 +631,8 @@ export interface BookingStep1CleaningProps {
   /** Live total from API-backed pricing (ZAR) */
   liveTotalZar: number;
   durationLabel: string;
+  /** When set, sidebar line items come from `pricing_config` (not illustrative constants) */
+  dbPricingRows?: { id: string; label: string; value: number }[];
 }
 
 export function BookingStep1Cleaning({
@@ -640,6 +642,7 @@ export function BookingStep1Cleaning({
   onBack,
   liveTotalZar,
   durationLabel,
+  dbPricingRows,
 }: BookingStep1CleaningProps) {
   const selectedService = serviceToStepId(data.service);
   const propertyType = data.propertyType as StepPropertyType;
@@ -686,6 +689,7 @@ export function BookingStep1Cleaning({
   })();
 
   const displayTotal = liveTotalZar > 0 ? liveTotalZar : illustrativePrice;
+  const useDbBreakdown = Boolean(dbPricingRows && dbPricingRows.length > 0);
   const duration = durationLabel || calcDuration(selectedService, carpetRooms);
 
   const serviceError = attempted && !selectedService;
@@ -904,7 +908,7 @@ export function BookingStep1Cleaning({
 
   return (
     <div className="min-h-screen bg-[#f0f2f5] font-sans">
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3 min-w-0">
           {onBack ? (
             <button
@@ -923,7 +927,7 @@ export function BookingStep1Cleaning({
         <BookingFlowStepIndicator activeStep={1} />
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-8 flex flex-col lg:flex-row gap-6 items-start">
+      <div className="max-w-5xl mx-auto px-4 py-8 flex flex-col lg:flex-row gap-6 items-start pb-40 lg:pb-8">
         <div className="flex-1 min-w-0 flex flex-col gap-6 w-full">
           <p className="text-xs font-bold tracking-widest text-violet-600 uppercase">Step 1 of 4</p>
 
@@ -1224,7 +1228,10 @@ export function BookingStep1Cleaning({
           </AnimatePresence>
         </div>
 
-        <aside className="w-full lg:w-72 flex-shrink-0 sticky top-6 flex flex-col gap-4" aria-label="Pricing summary">
+        <aside
+          className="hidden lg:flex w-full lg:w-72 flex-shrink-0 lg:sticky lg:top-6 flex-col gap-4"
+          aria-label="Pricing summary"
+        >
           <div className="rounded-2xl overflow-hidden shadow-md">
             <div className="bg-gradient-to-br from-violet-600 to-violet-800 px-5 py-5">
               <p className="text-violet-200 text-xs font-semibold tracking-widest uppercase mb-1">Your Estimate</p>
@@ -1260,7 +1267,27 @@ export function BookingStep1Cleaning({
                   </div>
                 )}
 
-                {selectedServiceData && !isCarpet && isOffice && (
+                {useDbBreakdown && (
+                  <div className="space-y-2">
+                    {dbPricingRows!
+                      .filter((r) => r.value !== 0)
+                      .map((row) => (
+                        <div key={row.id} className="flex justify-between items-center">
+                          <span className="text-sm text-gray-500">{row.label}</span>
+                          <motion.span
+                            key={`${row.id}-${row.value}`}
+                            initial={{ opacity: 0.5, y: -2 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="text-sm font-semibold text-gray-900"
+                          >
+                            {formatPrice(row.value)}
+                          </motion.span>
+                        </div>
+                      ))}
+                  </div>
+                )}
+
+                {!useDbBreakdown && selectedServiceData && !isCarpet && isOffice && (
                   <div className="space-y-2">
                     {officeBreakdown
                       .filter((r) => r.value > 0)
@@ -1280,7 +1307,7 @@ export function BookingStep1Cleaning({
                   </div>
                 )}
 
-                {selectedServiceData && !isCarpet && !isOffice && (
+                {!useDbBreakdown && selectedServiceData && !isCarpet && !isOffice && (
                   <div className="space-y-2">
                     {residentialBreakdown
                       .filter((r) => r.value > 0)
@@ -1300,7 +1327,7 @@ export function BookingStep1Cleaning({
                   </div>
                 )}
 
-                {isCarpet && (
+                {!useDbBreakdown && isCarpet && (
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-500">
@@ -1389,6 +1416,74 @@ export function BookingStep1Cleaning({
             </div>
           </div>
         </aside>
+      </div>
+
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-[0_-4px_32px_rgba(0,0,0,0.08)]">
+        <AnimatePresence>
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pt-3 pb-1 flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1 pr-2 space-y-0.5">
+                <p className="text-xs text-gray-500 font-medium truncate">
+                  {selectedService ? (
+                    <>
+                      {serviceTitle}
+                      {displayTotal > 0 && duration !== '—' ? ` · ${duration}` : ''}
+                    </>
+                  ) : (
+                    'Select a service & property'
+                  )}
+                </p>
+                {propertyType ? (
+                  <p className="text-xs font-semibold text-violet-600 capitalize truncate">{propertyType}</p>
+                ) : (
+                  <p className="text-xs text-gray-400">Property &amp; area required</p>
+                )}
+              </div>
+              <div className="text-right flex-shrink-0">
+                <motion.p
+                  key={displayTotal}
+                  initial={{ y: -4, opacity: 0.6 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  className="text-lg font-extrabold text-gray-900"
+                >
+                  {displayTotal > 0 ? `R ${displayTotal.toLocaleString()}` : '—'}
+                </motion.p>
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide">estimated</p>
+              </div>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+
+        <div className="px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <motion.button
+            type="button"
+            onClick={handleContinue}
+            animate={isValid ? { opacity: 1 } : { opacity: 0.45 }}
+            whileTap={isValid ? { scale: 0.97 } : {}}
+            disabled={!isValid}
+            className={[
+              'w-full py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200',
+              isValid
+                ? 'bg-violet-600 text-white shadow-md shadow-violet-200 hover:bg-violet-700 cursor-pointer'
+                : 'bg-gray-100 text-gray-400 cursor-not-allowed',
+            ].join(' ')}
+          >
+            {isValid ? (
+              <>
+                Continue to Step 2 <ArrowRight size={18} />
+              </>
+            ) : (
+              <>Complete service, property & area to continue</>
+            )}
+          </motion.button>
+          {attempted && !isValid && (
+            <p className="text-xs text-red-500 text-center mt-2">{validationMessage}</p>
+          )}
+        </div>
       </div>
     </div>
   );

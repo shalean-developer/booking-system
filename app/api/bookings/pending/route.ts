@@ -7,6 +7,7 @@ import { calculateCleanerEarnings } from '@/lib/cleaner-earnings';
 import { generateUniqueBookingId } from '@/lib/booking-id';
 import { validateBookingDiscountAmount } from '@/lib/discount-booking-server';
 import { computeCheckoutPricing } from '@/lib/booking-checkout-pricing';
+import { computeServerPreSurgeTotalZar } from '@/lib/booking-server-pricing';
 
 /**
  * Create a booking without payment (status pending, no Paystack reference).
@@ -59,10 +60,40 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: discountCheck.error }, { status: discountCheck.status });
     }
 
+    let serverCart: Awaited<ReturnType<typeof computeServerPreSurgeTotalZar>>;
+    try {
+      serverCart = await computeServerPreSurgeTotalZar(supabase, {
+        service: body.service,
+        bedrooms: body.bedrooms,
+        bathrooms: body.bathrooms,
+        extras: body.extras,
+        extrasQuantities: body.extrasQuantities,
+        frequency: body.frequency || 'one-time',
+        tipAmount: tipAmountEarly,
+        discountAmount: discountAmountClaimed,
+        numberOfCleaners: body.numberOfCleaners,
+        provideEquipment: body.provideEquipment,
+        carpetDetails: body.carpetDetails ?? undefined,
+      });
+    } catch (e) {
+      console.error('[bookings/pending] server pricing', e);
+      return NextResponse.json(
+        { ok: false, error: 'Pricing is temporarily unavailable. Please try again.' },
+        { status: 503 },
+      );
+    }
+
+    if (Math.abs(serverCart.preSurgeTotalZar - preSurgeTotal) > 0.02) {
+      return NextResponse.json(
+        { ok: false, error: 'Price mismatch. Please refresh the page and try again.' },
+        { status: 400 },
+      );
+    }
+
     const checkoutPricing = await computeCheckoutPricing(supabase, {
       date: body.date,
       service: body.service,
-      preSurgeTotalZar: preSurgeTotal,
+      preSurgeTotalZar: serverCart.preSurgeTotalZar,
       selected_team: body.selected_team,
     });
     if (!checkoutPricing.ok) {
@@ -91,7 +122,12 @@ export async function POST(req: Request) {
 
     if (duplicate?.id) {
       return NextResponse.json(
-        { ok: false, error: 'You already have an unpaid booking for this slot. Complete or cancel it first.' },
+        {
+          ok: false,
+          code: 'DUPLICATE_UNPAID_SLOT',
+          existingBookingId: duplicate.id,
+          error: 'You already have an unpaid booking for this slot. Pay for it or cancel it, then try again.',
+        },
         { status: 409 },
       );
     }
@@ -188,13 +224,16 @@ export async function POST(req: Request) {
         numberOfCleaners,
       },
       extras: body.extras || [],
+      extras_quantities: body.extrasQuantities || {},
       frequency: frequencyForSnapshot,
-      service_fee: (body.serviceFee || 0) * 100,
-      frequency_discount: (body.frequencyDiscount || 0) * 100,
+      base_price: Math.round(serverCart.basePriceZar * 100),
+      extras_total: Math.round(serverCart.extrasTotalZar * 100),
+      service_fee: Math.round(serverCart.serviceFeeZar * 100),
+      frequency_discount: Math.round(serverCart.frequencyDiscountZar * 100),
       discount_code: body.discountCode || null,
       discount_amount: discountAmount,
       tip_amount: tipAmountInCents,
-      subtotal: serviceTotal ? (serviceTotal - (body.serviceFee || 0) + (body.frequencyDiscount || 0)) * 100 : 0,
+      subtotal: Math.round((serverCart.coreTotalZar - (body.discountAmount || 0)) * 100),
       total: adjustedTotalAmount * 100,
       snapshot_date: new Date().toISOString(),
     };
@@ -219,7 +258,7 @@ export async function POST(req: Request) {
         cleanerEarnings =
           calculateCleanerEarnings(
             adjustedTotalAmount ?? null,
-            body.serviceFee ?? null,
+            serverCart.serviceFeeZar ?? null,
             cleanerHireDate,
             tipAmount,
             body.service ?? null,
@@ -255,8 +294,8 @@ export async function POST(req: Request) {
         surge_pricing_applied: surgePricingApplied,
         surge_amount: Math.round(surgeAmount * 100),
         frequency: frequencyForDb,
-        service_fee: (body.serviceFee || 0) * 100,
-        frequency_discount: (body.frequencyDiscount || 0) * 100,
+        service_fee: Math.round(serverCart.serviceFeeZar * 100),
+        frequency_discount: Math.round(serverCart.frequencyDiscountZar * 100),
         price_snapshot: priceSnapshot,
         status: 'pending',
       })

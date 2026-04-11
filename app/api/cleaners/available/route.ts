@@ -15,21 +15,29 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const date = searchParams.get('date');
-    const city = searchParams.get('city');
+    const date = searchParams.get('date')?.trim();
+    const city = searchParams.get('city')?.trim() ?? '';
+    const suburb = searchParams.get('suburb')?.trim() ?? '';
+    const time = searchParams.get('time')?.trim() ?? '';
 
-    if (!date || !city) {
+    if (!date || (!city && !suburb)) {
       return NextResponse.json(
-        { ok: false, error: 'Date and city are required' },
+        { ok: false, error: 'Date and city or suburb are required' },
         { status: 400 }
       );
     }
 
+    const areas = [...new Set([suburb, city].filter(Boolean))];
+
     console.log('=== FETCHING AVAILABLE CLEANERS ===');
     console.log('Date:', date);
-    console.log('City:', city);
+    console.log('Areas (union):', areas);
+    console.log('Time (slot filter):', time || '(none)');
 
-    const cleaners = await getAvailableCleaners(date, city);
+    const cleaners = await getAvailableCleaners(date, {
+      areas,
+      bookingTime: time || null,
+    });
 
     console.log(`Found ${cleaners.length} available cleaners`);
 

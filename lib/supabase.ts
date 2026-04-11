@@ -293,9 +293,40 @@ export interface Database {
   }
 }
 
+/** Normalize "9:00", "09:00:00" to HH:MM for comparison */
+function normalizeTimeHm(value: string): string {
+  const m = String(value).trim().match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return String(value).trim();
+  const h = Math.min(23, Math.max(0, parseInt(m[1], 10)));
+  const min = Math.min(59, Math.max(0, parseInt(m[2], 10)));
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+}
+
+function timeSlotConflictsWithBooking(slotRaw: unknown, bookingTime: string): boolean {
+  if (slotRaw == null) return false;
+  return normalizeTimeHm(String(slotRaw)) === normalizeTimeHm(bookingTime);
+}
+
+export type GetAvailableCleanersOptions = {
+  /** Match cleaners whose `areas` contains any of these strings (union, deduped). */
+  areas: string[];
+  /**
+   * When set, exclude cleaners who already have a `cleaner_time_slots` row for this date+time.
+   * When omitted, do not exclude based on slots (avoid empty lists before a time is chosen).
+   */
+  bookingTime?: string | null;
+};
+
+const MAX_AVAILABLE_CLEANERS = 8;
+
 // Helper function to get available cleaners
-export async function getAvailableCleaners(date: string, city: string) {
+export async function getAvailableCleaners(date: string, options: GetAvailableCleanersOptions) {
   try {
+    const areaList = [...new Set(options.areas.map((a) => a.trim()).filter(Boolean))];
+    if (areaList.length === 0) {
+      return [];
+    }
+
     // Determine day of week from date
     const dateObj = new Date(date + 'T00:00:00'); // Force consistent parsing
     const dayOfWeek = dateObj.getDay(); // 0 = Sunday, 1 = Monday, etc.
@@ -310,29 +341,31 @@ export async function getAvailableCleaners(date: string, city: string) {
     ];
     const dayColumn = dayColumns[dayOfWeek];
 
-    console.log(`🗓️ Fetching cleaners for ${date} (${dayColumns[dayOfWeek]}) in ${city}`);
+    console.log(`🗓️ Fetching cleaners for ${date} (${dayColumns[dayOfWeek]}) in areas: ${areaList.join(', ')}`);
 
-    // Get cleaners who:
-    // 1. Work in the area
-    // 2. Are active
-    // 3. Have master toggle ON (is_available = true)
-    // 4. Work on this day of week
-    const { data: cleaners, error: cleanersError } = await supabase
-      .from('cleaners')
-      .select('*')
-      .contains('areas', [city])
-      .eq('is_active', true)
-      .eq('is_available', true)  // Master toggle must be ON
-      .eq(dayColumn, true);       // Must work on this day
+    const cleanerById = new Map<string, Database['public']['Tables']['cleaners']['Row']>();
 
-    if (cleanersError) {
-      console.error('Error fetching cleaners:', cleanersError);
-      return [];
+    for (const area of areaList) {
+      const { data: batch, error: cleanersError } = await supabase
+        .from('cleaners')
+        .select('*')
+        .contains('areas', [area])
+        .eq('is_active', true)
+        .eq('is_available', true)
+        .eq(dayColumn, true);
+
+      if (cleanersError) {
+        console.error('Error fetching cleaners:', cleanersError);
+        continue;
+      }
+      for (const c of batch || []) {
+        cleanerById.set(c.id, c);
+      }
     }
 
-    console.log(`✅ Found ${cleaners?.length || 0} cleaners available on ${dayColumn}`);
+    const cleaners = Array.from(cleanerById.values());
+    console.log(`✅ Found ${cleaners.length} cleaners (union by area) on ${dayColumn}`);
 
-    // Get booked time slots for this date
     const { data: bookedSlots, error: slotsError } = await supabase
       .from('cleaner_time_slots')
       .select('cleaner_id, time_slot')
@@ -341,57 +374,45 @@ export async function getAvailableCleaners(date: string, city: string) {
 
     if (slotsError) {
       console.error('Error fetching time slots:', slotsError);
-      return cleaners || [];
+      return cleaners;
     }
 
-    // Create a Set of cleaner IDs who have bookings on this date
-    const bookedCleanerIds = new Set(
-      bookedSlots?.map(slot => slot.cleaner_id) || []
-    );
+    const bookingTime = options.bookingTime?.trim() || '';
+    let unavailableIds: Set<string>;
 
-    console.log(`🚫 Found ${bookedCleanerIds.size} cleaners with bookings on ${date}`);
+    if (bookingTime) {
+      const conflicting = (bookedSlots || []).filter((slot) =>
+        timeSlotConflictsWithBooking(slot.time_slot, bookingTime)
+      );
+      unavailableIds = new Set(conflicting.map((s) => s.cleaner_id));
+      console.log(
+        `🚫 ${unavailableIds.size} cleaners already booked at ${bookingTime} on ${date}`
+      );
+    } else {
+      unavailableIds = new Set();
+      console.log(`🚫 Skipping slot filter (no booking time) — ${bookedSlots?.length || 0} booked rows ignored`);
+    }
 
-    // Filter out cleaners who have bookings on this date
-    let availableCleaners = cleaners?.filter(
-      cleaner => !bookedCleanerIds.has(cleaner.id)
-    ) || [];
+    let availableCleaners = cleaners.filter((c) => !unavailableIds.has(c.id));
 
-    console.log(`📋 Found ${availableCleaners.length} available cleaners (filtered out ${(cleaners?.length || 0) - availableCleaners.length} booked cleaners)`);
+    console.log(`📋 ${availableCleaners.length} cleaners after slot filter`);
 
-    // Filter by rating (>= 4.0 and not null)
-    availableCleaners = availableCleaners.filter(
-      cleaner => cleaner.rating !== null && cleaner.rating !== undefined && cleaner.rating >= 4.0
-    );
-
-    console.log(`⭐ Found ${availableCleaners.length} cleaners with rating >= 4.0`);
-
-    // Filter by reliability (>= 70%) using stored completion_rate
-    // completion_rate is automatically maintained by database triggers
-    availableCleaners = availableCleaners.filter(cleaner => {
-      const completionRate = cleaner.completion_rate ?? 0;
-      return completionRate >= 70;
-    });
-
-    console.log(`✅ Found ${availableCleaners.length} cleaners with reliability >= 70%`);
-
-    // Sort by recommended: rating (descending) then years_experience (descending)
+    // Prefer higher rating, completion rate, and experience — do not hard-drop low ratings
+    // (avoids empty UI when DB has new cleaners or thin metrics)
     availableCleaners.sort((a, b) => {
-      // First sort by rating (descending)
       const ratingA = a.rating ?? 0;
       const ratingB = b.rating ?? 0;
-      if (ratingB !== ratingA) {
-        return ratingB - ratingA;
-      }
-      // Then sort by years_experience (descending)
+      if (ratingB !== ratingA) return ratingB - ratingA;
+      const relA = a.completion_rate ?? 0;
+      const relB = b.completion_rate ?? 0;
+      if (relB !== relA) return relB - relA;
       const expA = a.years_experience ?? 0;
       const expB = b.years_experience ?? 0;
       return expB - expA;
     });
 
-    // Limit to first 4 cleaners
-    const topCleaners = availableCleaners.slice(0, 4);
-
-    console.log(`📋 Returning top ${topCleaners.length} cleaners (filtered and sorted by recommended)`);
+    const topCleaners = availableCleaners.slice(0, MAX_AVAILABLE_CLEANERS);
+    console.log(`📋 Returning top ${topCleaners.length} cleaners (max ${MAX_AVAILABLE_CLEANERS})`);
 
     return topCleaners;
   } catch (error) {

@@ -3,7 +3,6 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Star, ShieldCheck, Calendar, Home, Layers, Sparkles, Wind, RefreshCw, Loader2, Building2, Sofa, Award, User } from 'lucide-react';
-import { generateBookingId } from '@/lib/booking-id';
 import { useBookingFormData, type BookingFormData as BookingFormDataFromApi } from '@/lib/useBookingFormData';
 import type { Cleaner as ApiCleaner } from '@/types/booking';
 import { supabase } from '@/lib/supabase-client';
@@ -14,153 +13,26 @@ import { BookingStep4Confirmation } from '@/components/booking-step4-confirmatio
 import type { BookingFormData, ServiceType } from '@/components/booking-system-types';
 import { BOOKING_DEFAULT_CITY } from '@/lib/contact';
 import { logBookingFlowClient } from '@/lib/debug-booking-flow';
+import { calculateBookingPrice } from '@/lib/pricing';
+import {
+  aggregateExtraQuantitiesByName,
+  buildCarpetDetailsForPricing,
+  formServiceToApi,
+  getEffectiveRoomCounts,
+  slugifyExtraId,
+} from '@/lib/booking-pricing-input';
 
 export type { BookingFormData, PropertyType, ServiceType } from '@/components/booking-system-types';
 
-// --- TYPES ---
-
-interface Extra {
-  id: string;
-  label: string;
-  price: number;
-  icon: React.ReactNode;
-}
-// --- CONSTANTS ---
+// --- CONSTANTS (promo — validated server-side in `validateBookingDiscountAmount`) ---
 
 const PROMO_CODES: Record<string, number> = {
-  'SHALEAN10': 0.10,
-  'SAVE20': 0.20,
-  'SAVE50': 50,
-  'NEWCLIENT': 100,
-  'FIRSTCLEAN': 100
+  SHALEAN10: 0.1,
+  SAVE20: 0.2,
+  SAVE50: 50,
+  NEWCLIENT: 100,
+  FIRSTCLEAN: 100,
 };
-const SERVICES = [{
-  id: 'standard' as ServiceType,
-  title: 'Standard Clean',
-  description: 'Perfect for regular maintenance of your home.',
-  price: 450,
-  icon: <Sparkles className="w-6 h-6" />,
-  color: 'blue'
-}, {
-  id: 'deep' as ServiceType,
-  title: 'Deep Clean',
-  description: 'Intensive cleaning for seasonal or first-time visits.',
-  price: 850,
-  icon: <Layers className="w-6 h-6" />,
-  color: 'indigo'
-}, {
-  id: 'move' as ServiceType,
-  title: 'Move In / Out',
-  description: 'Full sanitization for moving into or out of a home.',
-  price: 1200,
-  icon: <Home className="w-6 h-6" />,
-  color: 'violet'
-}, {
-  id: 'airbnb' as ServiceType,
-  title: 'Airbnb Turn',
-  description: 'Rapid, hotel-standard turnover for your guests.',
-  price: 650,
-  icon: <Calendar className="w-6 h-6" />,
-  color: 'sky'
-}, {
-  id: 'carpet' as ServiceType,
-  title: 'Carpet Clean',
-  description: 'Steam cleaning and stain removal for all carpets.',
-  price: 350,
-  icon: <Wind className="w-6 h-6" />,
-  color: 'teal'
-}] as any[];
-const EXTRAS: Extra[] = [{
-  id: 'fridge',
-  label: 'Inside Fridge',
-  price: 150,
-  icon: <Wind className="w-5 h-5" />
-}, {
-  id: 'oven',
-  label: 'Inside Oven',
-  price: 150,
-  icon: <Sparkles className="w-5 h-5" />
-}, {
-  id: 'windows',
-  label: 'Interior Windows',
-  price: 200,
-  icon: <Layers className="w-5 h-5" />
-}, {
-  id: 'cabinets',
-  label: 'Inside Cabinets',
-  price: 180,
-  icon: <Home className="w-5 h-5" />
-}, {
-  id: 'walls',
-  label: 'Wall Spot Clean',
-  price: 120,
-  icon: <ShieldCheck className="w-5 h-5" />
-}, {
-  id: 'water_plants',
-  label: 'Water Plants',
-  price: 20,
-  icon: <Sparkles className="w-5 h-5" />
-}, {
-  id: 'ironing',
-  label: 'Ironing',
-  price: 40,
-  icon: <User className="w-5 h-5" />
-}, {
-  id: 'flatlet',
-  label: 'Small Flatlet',
-  price: 95,
-  icon: <Building2 className="w-5 h-5" />
-}, {
-  id: 'laundry',
-  label: 'Laundry Wash',
-  price: 250,
-  icon: <RefreshCw className="w-5 h-5" />
-}, {
-  id: 'extra_cleaner',
-  label: 'Extra Cleaner',
-  price: 350,
-  icon: <User className="w-5 h-5" />
-}, {
-  id: 'equipment',
-  label: 'Supplies Kit',
-  price: 200,
-  icon: <Award className="w-5 h-5" />
-}, {
-  id: 'balcony',
-  label: 'Balcony Cleaning',
-  price: 300,
-  icon: <Home className="w-5 h-5" />
-}, {
-  id: 'carpet_deep',
-  label: 'Carpet Cleaning',
-  price: 450,
-  icon: <Wind className="w-5 h-5" />
-}, {
-  id: 'ceiling',
-  label: 'Ceiling Cleaning',
-  price: 400,
-  icon: <Layers className="w-5 h-5" />
-}, {
-  id: 'couch',
-  label: 'Couch Cleaning',
-  price: 350,
-  icon: <Sofa className="w-5 h-5" />
-}, {
-  id: 'garage',
-  label: 'Garage Cleaning',
-  price: 500,
-  icon: <Building2 className="w-5 h-5" />
-}, {
-  id: 'mattress',
-  label: 'Mattress Cleaning',
-  price: 300,
-  icon: <Sparkles className="w-5 h-5" />
-}, {
-  id: 'exterior_windows',
-  label: 'Exterior Windows',
-  price: 350,
-  icon: <Layers className="w-5 h-5" />
-}];
 const DEFAULT_FORM: BookingFormData = {
   service: 'standard',
   bedrooms: 2,
@@ -194,14 +66,6 @@ const DEFAULT_FORM: BookingFormData = {
   carpetExtraCleaner: false,
 };
 
-// Map our service id to API ServiceType
-const SERVICE_TO_API: Record<ServiceType, 'Standard' | 'Deep' | 'Move In/Out' | 'Airbnb' | 'Carpet'> = {
-  standard: 'Standard',
-  deep: 'Deep',
-  move: 'Move In/Out',
-  airbnb: 'Airbnb',
-  carpet: 'Carpet'
-};
 const API_TYPE_TO_SERVICE_ID: Record<string, ServiceType> = {
   'Standard': 'standard',
   'Deep': 'deep',
@@ -244,10 +108,6 @@ const EXTRA_ICON_MAP: Record<string, React.ReactNode> = {
   'Exterior Windows': <Layers className="w-5 h-5" />,
   'Wall Spot Clean': <ShieldCheck className="w-5 h-5" />,
 };
-function slugify(name: string): string {
-  return name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
-}
-
 // Service id -> URL slug (move-in-out for move)
 const SERVICE_TO_URL_SLUG: Record<ServiceType, string> = {
   standard: 'standard',
@@ -300,101 +160,6 @@ const formatTimeDisplay = (t: string) => {
 
 const validateEmailFormat = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-/** Maps step-1 UI (office/carpet/studio) into bedroom/bathroom/extra counts for API pricing */
-function getEffectiveRoomCounts(data: BookingFormData): { bedrooms: number; bathrooms: number; extraRooms: number } {
-  if (data.service === 'carpet') {
-    return {
-      bedrooms: data.carpetRooms ?? data.bedrooms,
-      bathrooms: data.carpetRugs ?? data.bathrooms,
-      extraRooms: data.carpetExtraCleaner ? 1 : 0,
-    };
-  }
-  if (data.propertyType === 'office') {
-    const ob = data.officeBoardrooms ?? data.bathrooms;
-    const op = data.officePrivateOffices ?? data.bedrooms;
-    const ox =
-      (data.officeOpenAreas ?? 0) +
-      (data.officeKitchens ?? 0) +
-      (data.officeBathrooms ?? 0) +
-      (data.officeHasReception ? 1 : 0);
-    return { bedrooms: op, bathrooms: ob, extraRooms: ox };
-  }
-  if (data.propertyType === 'studio') {
-    return {
-      bedrooms: 0,
-      bathrooms: Math.max(1, data.bathrooms),
-      extraRooms: data.extraRooms,
-    };
-  }
-  return { bedrooms: data.bedrooms, bathrooms: data.bathrooms, extraRooms: data.extraRooms };
-}
-
-const useCalcTotal = (
-  data: BookingFormData,
-  formData: { pricing: NonNullable<ReturnType<typeof useBookingFormData>['data']>['pricing']; extras?: { prices: Record<string, number> }; equipmentCharge?: number } | null
-) => {
-  return useMemo(() => {
-    const apiService = SERVICE_TO_API[data.service];
-    const eff = getEffectiveRoomCounts(data);
-    let basePrice = 0;
-    let bedroomAdd = 0;
-    let bathroomAdd = 0;
-    const extraRoomAdd = eff.extraRooms * 75;
-
-    if (formData?.pricing?.services?.[apiService]) {
-      const s = formData.pricing.services[apiService];
-      basePrice = s.base ?? 0;
-      bedroomAdd = Math.max(0, eff.bedrooms - 1) * (s.bedroom ?? 0);
-      bathroomAdd = Math.max(0, eff.bathrooms - 1) * (s.bathroom ?? 0);
-    } else {
-      const svc = SERVICES.find(s => s.id === data.service);
-      basePrice = svc?.price ?? 0;
-      bedroomAdd = (eff.bedrooms - 1) * 100;
-      bathroomAdd = (eff.bathrooms - 1) * 50;
-    }
-
-    let extrasTotal = 0;
-    if (formData?.extras?.prices || formData?.equipmentCharge !== undefined) {
-      for (const id of data.extras) {
-        if (id === 'extra_cleaner') {
-          extrasTotal += formData.extras?.prices?.['Extra Cleaner'] ?? 350;
-        } else if (id === 'equipment') {
-          extrasTotal += formData.equipmentCharge ?? 500;
-        } else {
-          const price = (formData.extras?.prices && Object.entries(formData.extras.prices).find(([name]) => slugify(name) === id)?.[1]) ?? formData.extras?.prices?.[id];
-          extrasTotal += price ?? 0;
-        }
-      }
-    } else {
-      for (const id of data.extras) {
-        const e = EXTRAS.find(ex => ex.id === id);
-        extrasTotal += e?.price ?? 0;
-      }
-    }
-
-    const tipAmount = data.tipAmount;
-    const subtotal = basePrice + bedroomAdd + bathroomAdd + extraRoomAdd + extrasTotal;
-    let discountAmount = 0;
-    if (data.promoCode) {
-      const discount = PROMO_CODES[data.promoCode.toUpperCase()];
-      if (discount) {
-        discountAmount = discount <= 1 ? Math.round(subtotal * discount) : Math.min(subtotal, discount);
-      }
-    }
-    return {
-      basePrice,
-      bedroomAdd,
-      bathroomAdd,
-      extraRoomAdd,
-      extrasTotal,
-      tipAmount,
-      discountAmount,
-      subtotal,
-      total: Math.max(0, subtotal - discountAmount) + tipAmount
-    };
-  }, [data, formData]);
-};
-
 // --- COMPONENTS ---
 
 // @component: BookingSystem
@@ -444,7 +209,9 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
   const [errors, setErrors] = useState<Partial<Record<keyof BookingFormData, string>>>({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState('');
-  const [paystackLoaded, setPaystackLoaded] = useState(false);
+  /** Set when POST /api/bookings/pending returns 409 — user can pay that booking or cancel and retry */
+  const [unpaidDuplicateBookingId, setUnpaidDuplicateBookingId] = useState<string | null>(null);
+  const [duplicateUnpaidAction, setDuplicateUnpaidAction] = useState<'idle' | 'pay' | 'cancel'>('idle');
   const [promoInput, setPromoInput] = useState('');
   const [promoError, setPromoError] = useState('');
   const [session, setSession] = useState<{ user: { id: string; email?: string; user_metadata?: Record<string, unknown> } } | null>(null);
@@ -548,32 +315,25 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
 
   // Drop extras that do not apply to the selected service (ids must stay in sync with step-2 grid)
   useEffect(() => {
-    const standardAirbnb = new Set([
-      'fridge',
-      'oven',
-      'cabinets',
-      'windows',
-      'walls',
-      'water_plants',
-      'ironing',
-      'laundry',
-      'flatlet',
-      'equipment',
-      'extra_cleaner',
-    ]);
     const deepMove = new Set(['carpet_deep', 'ceiling', 'garage', 'balcony', 'couch', 'exterior_windows']);
     setData((prev) => {
-      const allowed =
-        prev.service === 'standard' || prev.service === 'airbnb'
-          ? standardAirbnb
-          : prev.service === 'deep' || prev.service === 'move'
-            ? deepMove
-            : new Set<string>();
+      let allowed: Set<string>;
+      if (prev.service === 'standard' || prev.service === 'airbnb') {
+        allowed = new Set([
+          ...(formData?.extras?.standardAndAirbnb ?? []).map((n) => slugifyExtraId(n)),
+          'extra_cleaner',
+          'equipment',
+        ]);
+      } else if (prev.service === 'deep' || prev.service === 'move') {
+        allowed = deepMove;
+      } else {
+        allowed = new Set();
+      }
       const next = prev.extras.filter((e) => allowed.has(e));
       if (next.length === prev.extras.length) return prev;
       return { ...prev, extras: next };
     });
-  }, [data.service]);
+  }, [data.service, formData?.extras?.standardAndAirbnb]);
 
   // Keep URL service slug in sync with selected service (preserve current step from pathname)
   useEffect(() => {
@@ -596,12 +356,12 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
           const id = API_TYPE_TO_SERVICE_ID[s.type];
           if (!id) return null;
           const icon = SERVICE_ICON_MAP[s.icon] ?? <Sparkles className="w-6 h-6" />;
-          const price = formData.pricing?.services?.[s.type]?.base ?? SERVICES.find((x) => x.id === id)?.price ?? 0;
+          const price = formData.pricing?.services?.[s.type]?.base ?? 0;
           return { id, title: s.label, description: s.description || s.subLabel, icon, price, color: 'blue' as const };
         })
         .filter(Boolean) as { id: ServiceType; title: string; description: string; icon: React.ReactNode; price: number; color: string }[];
     }
-    return SERVICES.map((s) => ({ id: s.id, title: s.title, description: s.description, icon: s.icon, price: s.price, color: s.color }));
+    return [];
   }, [formData]);
 
   const displayExtrasForService = useMemo(() => {
@@ -612,7 +372,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         ? formData.extras.deepAndMove
         : [];
     const fromApi = list.map((name) => ({
-      id: slugify(name),
+      id: slugifyExtraId(name),
       label: name,
       price: formData.extras.prices[name] ?? 0,
       icon: EXTRA_ICON_MAP[name] ?? <Wind className="w-5 h-5" />,
@@ -620,14 +380,137 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
     if (data.service === 'standard' || data.service === 'airbnb') {
       return [
         ...fromApi,
-        { id: 'extra_cleaner', label: 'Extra Cleaner', price: formData.extras.prices['Extra Cleaner'] ?? 350, icon: EXTRA_ICON_MAP['Extra Cleaner'] ?? <User className="w-5 h-5" /> },
-        { id: 'equipment', label: 'Supplies Kit', price: formData.equipment?.charge ?? 500, icon: EXTRA_ICON_MAP['Supplies Kit'] ?? <Award className="w-5 h-5" /> },
+        {
+          id: 'extra_cleaner',
+          label: 'Extra Cleaner',
+          price: formData.extras.prices['Extra Cleaner'] ?? 0,
+          icon: EXTRA_ICON_MAP['Extra Cleaner'] ?? <User className="w-5 h-5" />,
+        },
+        {
+          id: 'equipment',
+          label: 'Supplies Kit',
+          price: formData.equipment?.charge ?? 0,
+          icon: EXTRA_ICON_MAP['Supplies Kit'] ?? <Award className="w-5 h-5" />,
+        },
       ];
     }
     return fromApi;
   }, [formData, data.service]);
 
-  const pricing = useCalcTotal(data, formData ? { pricing: formData.pricing, extras: formData?.extras, equipmentCharge: formData?.equipment?.charge } : null);
+  const pricing = useMemo(() => {
+    if (!formData?.pricing) {
+      return {
+        basePrice: 0,
+        bedroomAdd: 0,
+        bathroomAdd: 0,
+        extraRoomAdd: 0,
+        extrasTotal: 0,
+        tipAmount: data.tipAmount,
+        discountAmount: 0,
+        subtotal: 0,
+        total: 0,
+        serviceFee: 0,
+        frequencyDiscount: 0,
+        dbPricingRows: [] as { id: string; label: string; value: number }[],
+      };
+    }
+    const eff = getEffectiveRoomCounts(data);
+    const extrasQuantitiesById: Record<string, number> = {};
+    data.extras.forEach((id) => {
+      extrasQuantitiesById[id] = (extrasQuantitiesById[id] || 0) + 1;
+    });
+    const extrasQuantities = aggregateExtraQuantitiesByName(
+      data.extras,
+      extrasQuantitiesById,
+      formData.extras.all
+    );
+    const calc = calculateBookingPrice(
+      formData.pricing,
+      {
+        service: formServiceToApi(data.service),
+        bedrooms: eff.bedrooms,
+        bathrooms: eff.bathrooms,
+        extras: Object.keys(extrasQuantities),
+        extrasQuantities,
+        carpetDetails: buildCarpetDetailsForPricing(data),
+        provideEquipment:
+          (data.service === 'standard' || data.service === 'airbnb') &&
+          data.scheduleEquipmentPref === 'bring',
+        equipmentChargeOverride: formData.equipment?.charge,
+        numberOfCleaners: 1,
+      },
+      'one-time'
+    );
+    let discountAmount = 0;
+    if (data.promoCode) {
+      const discount = PROMO_CODES[data.promoCode.toUpperCase()];
+      if (discount) {
+        discountAmount =
+          discount <= 1
+            ? Math.round(calc.total * discount)
+            : Math.min(calc.total, discount);
+      }
+    }
+    const total = Math.max(0, calc.total - discountAmount) + data.tipAmount;
+    const dbPricingRows: { id: string; label: string; value: number }[] = [
+      { id: 'base', label: 'Base rate', value: calc.breakdown.base },
+    ];
+    if (calc.breakdown.bedrooms > 0) {
+      dbPricingRows.push({
+        id: 'bed',
+        label: data.service === 'carpet' ? 'Fitted carpets' : 'Rooms / bedrooms',
+        value: calc.breakdown.bedrooms,
+      });
+    }
+    if (calc.breakdown.bathrooms > 0) {
+      dbPricingRows.push({
+        id: 'bath',
+        label: data.service === 'carpet' ? 'Loose rugs / items' : 'Bathrooms',
+        value: calc.breakdown.bathrooms,
+      });
+    }
+    if (data.service === 'carpet' && (calc.breakdown.carpetOccupiedFee ?? 0) > 0) {
+      dbPricingRows.push({
+        id: 'occ',
+        label: 'Occupied property',
+        value: calc.breakdown.carpetOccupiedFee ?? 0,
+      });
+    }
+    if (calc.breakdown.extrasTotal > 0) {
+      dbPricingRows.push({ id: 'extras', label: 'Extras', value: calc.breakdown.extrasTotal });
+    }
+    if (calc.breakdown.equipmentCharge > 0) {
+      dbPricingRows.push({
+        id: 'eq',
+        label: 'Equipment & supplies',
+        value: calc.breakdown.equipmentCharge,
+      });
+    }
+    if (calc.serviceFee > 0) {
+      dbPricingRows.push({ id: 'fee', label: 'Service fee', value: calc.serviceFee });
+    }
+    if (calc.frequencyDiscount > 0) {
+      dbPricingRows.push({
+        id: 'fdisc',
+        label: 'Frequency discount',
+        value: -calc.frequencyDiscount,
+      });
+    }
+    return {
+      basePrice: calc.breakdown.base,
+      bedroomAdd: calc.breakdown.bedrooms,
+      bathroomAdd: calc.breakdown.bathrooms,
+      extraRoomAdd: 0,
+      extrasTotal: calc.breakdown.extrasTotal,
+      tipAmount: data.tipAmount,
+      discountAmount,
+      subtotal: calc.subtotal,
+      total,
+      serviceFee: calc.serviceFee,
+      frequencyDiscount: calc.frequencyDiscount,
+      dbPricingRows,
+    };
+  }, [data, formData]);
 
   const effRoomCounts = useMemo(() => getEffectiveRoomCounts(data), [data]);
 
@@ -693,7 +576,13 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
     const city = data.workingArea;
     let cancelled = false;
     setCleanersLoading(true);
-    fetch(`/api/cleaners/available?date=${encodeURIComponent(data.date)}&city=${encodeURIComponent(city)}`)
+    const params = new URLSearchParams({
+      date: data.date,
+      city,
+      suburb: city,
+    });
+    if (data.time) params.set('time', data.time);
+    fetch(`/api/cleaners/available?${params.toString()}`)
       .then((res) => res.json())
       .then((json: { ok?: boolean; cleaners?: ApiCleaner[] }) => {
         if (cancelled) return;
@@ -706,36 +595,12 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         if (!cancelled) setCleanersLoading(false);
       });
     return () => { cancelled = true; };
-  }, [data.date, data.workingArea]);
+  }, [data.date, data.workingArea, data.time]);
 
-  // Load Paystack inline script (client-only)
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if ((window as any).PaystackPop) {
-      setPaystackLoaded(true);
-      return;
-    }
-    const script = document.createElement('script');
-    script.src = 'https://js.paystack.co/v1/inline.js';
-    script.async = true;
-    script.onload = () => setPaystackLoaded(true);
-    script.onerror = () => console.error('Failed to load Paystack script');
-    document.body.appendChild(script);
-    return () => {
-      const existing = document.querySelector('script[src="https://js.paystack.co/v1/inline.js"]');
-      if (existing?.parentNode) existing.parentNode.removeChild(existing);
-    };
-  }, []);
   const currentExtras = useMemo(() => {
     if (displayExtrasForService?.length) return displayExtrasForService;
-    if (data.service === 'standard' || data.service === 'airbnb') {
-      return EXTRAS.filter(e => ['fridge', 'oven', 'windows', 'cabinets', 'walls', 'laundry', 'extra_cleaner', 'equipment', 'water_plants', 'ironing', 'flatlet'].includes(e.id));
-    }
-    if (data.service === 'deep' || data.service === 'move') {
-      return EXTRAS.filter(e => ['balcony', 'carpet_deep', 'ceiling', 'couch', 'garage', 'mattress', 'exterior_windows'].includes(e.id));
-    }
     return [];
-  }, [data.service, displayExtrasForService]);
+  }, [displayExtrasForService]);
 
   const crewDisplayName = useMemo(() => {
     if (data.teamId) {
@@ -804,7 +669,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
       const nameParts = data.name.trim().split(/\s+/);
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
-      const apiService = SERVICE_TO_API[data.service];
+      const apiService = formServiceToApi(data.service);
       const requiresTeam = data.service === 'deep' || data.service === 'move';
       const cleanerId = data.cleanerId && UUID_REGEX.test(data.cleanerId) ? data.cleanerId : null;
       const selectedTeam = data.teamId && TEAM_ID_TO_NAME[data.teamId] ? TEAM_ID_TO_NAME[data.teamId] : undefined;
@@ -812,17 +677,22 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
       data.extras.forEach((id) => {
         extrasQuantities[id] = (extrasQuantities[id] || 0) + 1;
       });
+      const eff = getEffectiveRoomCounts(data);
       const totals = checkoutPricingRef.current;
       const totalAmount = totals?.finalTotal ?? pricing.total;
       const preSurgeTotal = totals?.preSurgeTotal ?? pricing.total;
       return {
         step: 4 as const,
         service: apiService,
-        bedrooms: data.bedrooms,
-        bathrooms: data.bathrooms,
+        bedrooms: eff.bedrooms,
+        bathrooms: eff.bathrooms,
         numberOfCleaners: 1,
         extras: data.extras,
         extrasQuantities,
+        carpetDetails: buildCarpetDetailsForPricing(data),
+        provideEquipment:
+          (data.service === 'standard' || data.service === 'airbnb') &&
+          data.scheduleEquipmentPref === 'bring',
         notes: data.instructions || '',
         date: data.date,
         time: data.time,
@@ -839,55 +709,139 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         expectedEndTime: expectedEndTime || undefined,
         totalAmount,
         preSurgeTotal,
-        serviceFee: 0,
-        frequencyDiscount: 0,
+        serviceFee: pricing.serviceFee,
+        frequencyDiscount: pricing.frequencyDiscount,
         discountCode: data.promoCode || undefined,
         discountAmount: pricing.discountAmount,
         tipAmount: data.tipAmount,
       };
     },
-    [data, pricing.total, pricing.discountAmount, expectedEndTime]
+    [data, pricing, expectedEndTime]
   );
 
-  const submitBooking = useCallback(
-    async (paymentReference: string) => {
+  type PaystackCheckoutResult =
+    | { ok: true; redirectUrl: string }
+    | { ok: false; duplicate: true; existingBookingId: string; message: string };
+
+  const runPaystackCheckoutFlow = useCallback(async (): Promise<PaystackCheckoutResult> => {
+    const apiService = formServiceToApi(data.service);
+    const selectedTeam =
+      data.teamId && TEAM_ID_TO_NAME[data.teamId] ? TEAM_ID_TO_NAME[data.teamId] : undefined;
+    const previewRes = await fetch('/api/booking/pricing-preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        date: data.date,
+        service: apiService,
+        preSurgeTotal: pricing.total,
+        selected_team: selectedTeam,
+      }),
+    });
+    const preview = await previewRes.json();
+    if (!previewRes.ok || !preview.ok) {
+      throw new Error(preview.error || 'Could not confirm pricing for this date.');
+    }
+    checkoutPricingRef.current = {
+      preSurgeTotal: preview.preSurgeTotalZar,
+      finalTotal: preview.finalTotalZar,
+    };
+    const pendingBody = buildBookingPayload(null);
+    const pendingRes = await fetch('/api/bookings/pending', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(pendingBody),
+    });
+    const pendingJson = (await pendingRes.json()) as {
+      ok?: boolean;
+      error?: string;
+      existingBookingId?: string;
+      bookingId?: string;
+    };
+    if (
+      pendingRes.status === 409 &&
+      typeof pendingJson.existingBookingId === 'string' &&
+      pendingJson.existingBookingId
+    ) {
+      return {
+        ok: false,
+        duplicate: true,
+        existingBookingId: pendingJson.existingBookingId,
+        message:
+          pendingJson.error ||
+          'You already have an unpaid booking for this slot. Pay for it or cancel it, then try again.',
+      };
+    }
+    if (!pendingRes.ok || !pendingJson.ok) {
+      throw new Error(pendingJson.error || 'Could not create booking for payment.');
+    }
+    const bookingId = pendingJson.bookingId as string;
+    const initRes = await fetch('/api/paystack/initialize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ booking_id: bookingId }),
+    });
+    const initData = await initRes.json();
+    if (!initRes.ok || !initData.authorization_url) {
+      throw new Error(initData.error || 'Could not start payment.');
+    }
+    return { ok: true, redirectUrl: initData.authorization_url as string };
+  }, [buildBookingPayload, data.date, data.service, data.teamId, pricing.total]);
+
+  const payExistingUnpaidBooking = useCallback(async () => {
+    if (!unpaidDuplicateBookingId) return;
+    setDuplicateUnpaidAction('pay');
+    setPaymentError('');
+    try {
+      const initRes = await fetch('/api/paystack/initialize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ booking_id: unpaidDuplicateBookingId }),
+      });
+      const initData = await initRes.json();
+      if (!initRes.ok || !initData.authorization_url) {
+        throw new Error(initData.error || 'Could not start payment.');
+      }
+      window.location.href = initData.authorization_url as string;
+    } catch (e) {
+      setPaymentError(e instanceof Error ? e.message : 'Failed to open payment.');
+      setDuplicateUnpaidAction('idle');
+    }
+  }, [unpaidDuplicateBookingId]);
+
+  const cancelUnpaidDuplicateAndCheckout = useCallback(async () => {
+    if (!unpaidDuplicateBookingId) return;
+    setDuplicateUnpaidAction('cancel');
+    setIsProcessing(true);
+    try {
+      const res = await fetch('/api/bookings/pending/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingId: unpaidDuplicateBookingId,
+          email: data.email.trim(),
+        }),
+      });
+      const json = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error || 'Could not cancel booking.');
+      }
+      setUnpaidDuplicateBookingId(null);
       setPaymentError('');
-      if (!data.date || !data.time) {
-        setPaymentError('Please select a date and time before confirming your booking.');
+      const result = await runPaystackCheckoutFlow();
+      if (!result.ok) {
+        setPaymentError(result.message);
+        setUnpaidDuplicateBookingId(result.existingBookingId);
         setIsProcessing(false);
         return;
       }
-      const body = buildBookingPayload(paymentReference);
-      try {
-        const res = await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        const result = await res.json();
-        if (!result.ok) {
-          // Prefer detailed message from API if available
-          const errorMessage = result.error || result.message || 'Failed to submit booking';
-          throw new Error(errorMessage);
-        }
-        const ref = result.bookingId || paymentReference;
-        setStep(5);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        const ct =
-          typeof result.confirmationToken === 'string' && result.confirmationToken
-            ? `&ct=${encodeURIComponent(result.confirmationToken)}`
-            : '';
-        const confirmPath = `/booking/confirmation?ref=${encodeURIComponent(ref)}${ct}`;
-        logBookingFlowClient('POST /api/bookings succeeded → redirect', {
-          ref,
-          hasConfirmationToken: Boolean(ct),
-          path: confirmPath,
-        });
-        router.push(confirmPath);
-      } catch (err) {
-        setPaymentError(err instanceof Error ? err.message : 'Failed to submit booking. Please try again.');
-      } finally {
-        setIsProcessing(false);
-      }
-    },
-    [buildBookingPayload, router, data.date, data.time]
-  );
+      window.location.href = result.redirectUrl;
+    } catch (e) {
+      setPaymentError(e instanceof Error ? e.message : 'Failed to continue checkout.');
+      setIsProcessing(false);
+    } finally {
+      setDuplicateUnpaidAction('idle');
+    }
+  }, [unpaidDuplicateBookingId, data.email, runPaystackCheckoutFlow]);
 
   const submitGuestBooking = useCallback(async () => {
     setPaymentError('');
@@ -897,7 +851,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
       return;
     }
     try {
-      const apiService = SERVICE_TO_API[data.service];
+      const apiService = formServiceToApi(data.service);
       const selectedTeam =
         data.teamId && TEAM_ID_TO_NAME[data.teamId] ? TEAM_ID_TO_NAME[data.teamId] : undefined;
       const previewRes = await fetch('/api/booking/pricing-preview', {
@@ -960,6 +914,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         return;
       }
       setPaymentError('');
+      setUnpaidDuplicateBookingId(null);
 
       const paystackKey = (process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '').trim();
       /** Local dev: guest booking API allows unpaid confirmation when Paystack key is missing */
@@ -977,10 +932,6 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         return;
       }
 
-      if (!paystackLoaded) {
-        setPaymentError('Payment system is loading. Please wait a moment and try again.');
-        return;
-      }
       if (!paystackKey) {
         setPaymentError(
           'Payment system is not configured. Add NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY to your environment (see .env.example) or contact support.'
@@ -988,47 +939,16 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         return;
       }
       setIsProcessing(true);
-      const paymentReference = generateBookingId();
       void (async () => {
         try {
-          const apiService = SERVICE_TO_API[data.service];
-          const selectedTeam =
-            data.teamId && TEAM_ID_TO_NAME[data.teamId] ? TEAM_ID_TO_NAME[data.teamId] : undefined;
-          const previewRes = await fetch('/api/booking/pricing-preview', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              date: data.date,
-              service: apiService,
-              preSurgeTotal: pricing.total,
-              selected_team: selectedTeam,
-            }),
-          });
-          const preview = await previewRes.json();
-          if (!previewRes.ok || !preview.ok) {
-            throw new Error(preview.error || 'Could not confirm pricing for this date.');
+          const result = await runPaystackCheckoutFlow();
+          if (!result.ok) {
+            setPaymentError(result.message);
+            setUnpaidDuplicateBookingId(result.existingBookingId);
+            setIsProcessing(false);
+            return;
           }
-          checkoutPricingRef.current = {
-            preSurgeTotal: preview.preSurgeTotalZar,
-            finalTotal: preview.finalTotalZar,
-          };
-          const handler = (window as any).PaystackPop.setup({
-            key: paystackKey,
-            email: data.email.trim(),
-            amount: Math.round(preview.finalTotalZar * 100),
-            currency: 'ZAR',
-            ref: paymentReference,
-            metadata: {
-              booking_service: data.service,
-              customer_email: data.email,
-              customer_name: data.name,
-            },
-            onClose: () => setIsProcessing(false),
-            callback: () => {
-              submitBooking(paymentReference);
-            },
-          });
-          handler.openIframe();
+          window.location.href = result.redirectUrl;
         } catch (e) {
           setPaymentError(e instanceof Error ? e.message : 'Failed to open payment. Please try again.');
           setIsProcessing(false);
@@ -1091,6 +1011,14 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         onContinue={handleNext}
         pricing={pricing}
         serviceTitle={displayServices.find((s) => s.id === data.service)?.title ?? 'Cleaning'}
+        addonTilesFromPricing={
+          data.service === 'deep' ||
+          data.service === 'move' ||
+          data.service === 'standard' ||
+          data.service === 'airbnb'
+            ? (displayExtrasForService ?? undefined)
+            : undefined
+        }
       />
     );
   }
@@ -1104,6 +1032,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         onContinue={handleNext}
         liveTotalZar={pricing.total}
         durationLabel={estimatedDuration.label}
+        dbPricingRows={pricing.dbPricingRows}
       />
     );
   }
@@ -1133,6 +1062,10 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         errors={errors}
         setErrors={setErrors}
         paymentError={paymentError}
+        unpaidDuplicateBookingId={unpaidDuplicateBookingId}
+        onPayExistingUnpaidBooking={payExistingUnpaidBooking}
+        onCancelUnpaidDuplicate={cancelUnpaidDuplicateAndCheckout}
+        duplicateUnpaidAction={duplicateUnpaidAction}
         promoInput={promoInput}
         setPromoInput={setPromoInput}
         promoError={promoError}

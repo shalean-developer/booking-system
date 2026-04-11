@@ -27,19 +27,17 @@ export async function finalizePaidBooking(params: {
 }): Promise<{ ok: boolean; duplicate?: boolean; zoho_invoice_id?: string | null; error?: string }> {
   const { supabase, booking, reference, paystackAmountKobo } = params;
 
-  if (
-    booking.status === 'paid' &&
-    (booking.paystack_ref === reference || booking.payment_reference === reference)
-  ) {
-    return { ok: true, duplicate: true, zoho_invoice_id: booking.zoho_invoice_id };
-  }
-
   const expectedKobo = Math.round(Number(booking.total_amount ?? 0));
   if (!Number.isFinite(paystackAmountKobo) || paystackAmountKobo !== expectedKobo) {
     return {
       ok: false,
       error: `Amount mismatch: expected ${expectedKobo} kobo, got ${paystackAmountKobo}`,
     };
+  }
+
+  // Webhook may finalize before this runs; refs should match but amount+Paystack verify is authoritative.
+  if (booking.status === 'paid') {
+    return { ok: true, duplicate: true, zoho_invoice_id: booking.zoho_invoice_id };
   }
 
   const unpaid =
@@ -60,8 +58,9 @@ export async function finalizePaidBooking(params: {
         bookingId: booking.id,
       });
     } catch (e) {
-      console.error('[finalizePaidBooking] Zoho error', e);
-      return { ok: false, error: e instanceof Error ? e.message : 'Zoho invoice failed' };
+      // Payment is already verified; do not block confirmation emails or DB update on accounting API failure.
+      console.error('[finalizePaidBooking] Zoho error (continuing without invoice)', e);
+      zohoId = null;
     }
   }
 

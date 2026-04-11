@@ -5,10 +5,11 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { CheckCircle2, Loader2, AlertCircle, Download } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Loader2, AlertCircle, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
 import { logBookingFlowClient } from '@/lib/debug-booking-flow';
+import { BookingFlowStepIndicator } from '@/components/booking-flow-step-indicator';
 
 interface BookingDetails {
   id: string;
@@ -28,12 +29,26 @@ interface BookingDetails {
 
 function ConfirmationContent() {
   const searchParams = useSearchParams();
-  const id = searchParams.get('ref') || searchParams.get('id');
+  const paystackRef = searchParams.get('reference') || searchParams.get('trxref');
+  const id =
+    searchParams.get('ref') ||
+    searchParams.get('id') ||
+    (paystackRef?.startsWith('booking-') ? paystackRef.slice('booking-'.length) : null);
   const ct = searchParams.get('ct');
 
   const [booking, setBooking] = useState<BookingDetails | null>(null);
   const [isProcessing, setIsProcessing] = useState(true);
   const [processingError, setProcessingError] = useState<string | null>(null);
+
+  // Single primitive dep so the dependency array length never changes between renders (React 19 / Strict).
+  const paymentVerifyKey = `${paystackRef ?? ''}|${id ?? ''}`;
+
+  useEffect(() => {
+    if (!paystackRef) return;
+    const params = new URLSearchParams({ reference: paystackRef });
+    if (id) params.set('booking_id', id);
+    fetch(`/api/payment/verify?${params.toString()}`).catch(() => {});
+  }, [paymentVerifyKey]);
 
   useEffect(() => {
     const fetchBooking = async () => {
@@ -80,9 +95,9 @@ function ConfirmationContent() {
 
   if (isProcessing) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#f0f2f5] font-sans flex items-center justify-center">
         <div className="text-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+          <Loader2 className="h-8 w-8 animate-spin text-violet-600 mx-auto" />
           <p className="text-gray-600">Loading your booking confirmation...</p>
         </div>
       </div>
@@ -91,17 +106,37 @@ function ConfirmationContent() {
 
   if (processingError || !booking) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardContent className="p-8 text-center">
-            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold mb-2">Booking Not Found</h1>
-            <p className="text-gray-600 mb-4">{processingError || 'Unable to load booking details'}</p>
-            <Button asChild>
-              <Link href="/">Return to Home</Link>
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-[#f0f2f5] font-sans flex flex-col">
+        <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3 min-w-0">
+            <Link
+              href="/"
+              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors flex-shrink-0"
+              aria-label="Go home"
+            >
+              <ArrowLeft size={18} className="text-gray-500" />
+            </Link>
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Shalean Cleaning Services</p>
+              <h1 className="text-lg font-bold text-gray-900 leading-tight">Confirmation</h1>
+            </div>
+          </div>
+        </header>
+        <div className="flex-1 flex items-center justify-center px-4 py-8">
+          <Card className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-gray-100">
+            <CardContent className="p-8 text-center">
+              <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+              <h2 className="text-xl font-bold text-gray-900 mb-2">Booking not found</h2>
+              <p className="text-gray-600 mb-6 text-sm">{processingError || 'Unable to load booking details'}</p>
+              <Button
+                asChild
+                className="rounded-full bg-violet-600 hover:bg-violet-700 text-white shadow-md shadow-violet-200"
+              >
+                <Link href="/">Return to home</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -115,46 +150,79 @@ function ConfirmationContent() {
       : `/api/bookings/${encodeURIComponent(referenceNumber)}/receipt`;
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12 flex items-center justify-center">
-      <div className="container mx-auto px-4 max-w-[576px]">
+    <div className="min-h-screen bg-[#f0f2f5] font-sans flex flex-col">
+      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3 min-w-0">
+          <Link
+            href="/"
+            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors flex-shrink-0"
+            aria-label="Go home"
+          >
+            <ArrowLeft size={18} className="text-gray-500" />
+          </Link>
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Shalean Cleaning Services</p>
+            <h1 className="text-lg font-bold text-gray-900 leading-tight">Confirmation</h1>
+          </div>
+        </div>
+        <BookingFlowStepIndicator activeStep={4} allComplete />
+      </header>
+
+      <div className="flex-1 max-w-5xl w-full mx-auto px-4 py-8">
+        <p className="text-xs font-bold tracking-widest text-violet-600 uppercase mb-6">Complete</p>
+
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="text-center"
+          transition={{ duration: 0.45 }}
+          className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-10 text-center"
         >
           <motion.div
-            initial={{ scale: 0 }}
+            initial={{ scale: 0.85 }}
             animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-            className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-100 border-2 border-green-200 mb-4"
+            transition={{ delay: 0.1, type: 'spring', stiffness: 220 }}
+            className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 rounded-full bg-green-500 text-white shadow-md shadow-green-200 mb-5"
+            aria-hidden
           >
-            <CheckCircle2 className="h-10 w-10 text-green-600" />
+            <CheckCircle2 className="h-9 w-9 md:h-10 md:w-10" strokeWidth={2.25} />
           </motion.div>
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Booking Confirmed!</h1>
-          <p className="text-gray-600 mb-6">
-            Your cleaning is scheduled for <span className="font-semibold text-gray-900">{displayDate}</span> at <span className="font-semibold text-gray-900">{displayTime}</span>.
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2 tracking-tight">Booking confirmed!</h2>
+          <p className="text-gray-600 text-sm md:text-base mb-8 max-w-md mx-auto leading-relaxed">
+            Your cleaning is scheduled for{' '}
+            <span className="font-semibold text-gray-900">{displayDate}</span> at{' '}
+            <span className="font-semibold text-gray-900">{displayTime}</span>.
           </p>
 
-          <div className="rounded-lg bg-blue-50 border border-blue-100 px-6 py-4 mb-6 text-center">
-            <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">REFERENCE NUMBER</p>
-            <p className="text-xl font-bold text-primary font-mono">{referenceNumber}</p>
+          <div className="rounded-2xl border border-violet-100 bg-violet-50/80 px-6 py-4 mb-8 text-center shadow-sm shadow-violet-100/50">
+            <p className="text-[10px] font-bold tracking-widest text-gray-500 uppercase mb-1.5">Reference number</p>
+            <p className="text-lg md:text-xl font-bold text-violet-800 font-mono tracking-tight">{referenceNumber}</p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
-            <Button asChild>
-              <Link href="/booking/service/standard/plan">Book New Session</Link>
+          <div className="flex flex-col sm:flex-row flex-wrap gap-3 justify-center mb-6">
+            <Button
+              asChild
+              className="rounded-full bg-violet-600 hover:bg-violet-700 text-white shadow-md shadow-violet-200"
+            >
+              <Link href="/booking/service/standard/plan">Book new session</Link>
             </Button>
-            <Button asChild variant="secondary">
-              <Link href="/dashboard">View in Dashboard</Link>
+            <Button
+              asChild
+              variant="outline"
+              className="rounded-full border-gray-200 hover:border-violet-300 hover:bg-violet-50/40"
+            >
+              <Link href="/dashboard">View in dashboard</Link>
             </Button>
             <a
               href={receiptHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex"
+              className="inline-flex w-full justify-center sm:w-auto"
             >
-              <Button type="button" variant="outline" className="w-full sm:w-auto">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full w-full sm:w-auto border-gray-200 hover:border-violet-300 hover:bg-violet-50/40"
+              >
                 <Download className="h-4 w-4" />
                 Receipt (PDF)
               </Button>
@@ -174,8 +242,8 @@ export default function ConfirmationPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="min-h-screen bg-[#f0f2f5] font-sans flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
         </div>
       }
     >

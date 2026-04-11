@@ -668,13 +668,13 @@ export async function POST(req: Request) {
 
         // Generate emails
         console.log('📧 Generating emails...');
-        const customerEmailData = generateBookingConfirmationEmail({
+        const customerEmailData = await generateBookingConfirmationEmail({
           ...body,
           bookingId,
           totalAmount: body.totalAmount, // Pass actual total amount paid (in rands)
           cleanerName
         });
-        const adminEmailData = generateAdminBookingNotificationEmail({
+        const adminEmailData = await generateAdminBookingNotificationEmail({
           ...body,
           bookingId,
           totalAmount: body.totalAmount // Pass actual total amount paid (in rands)

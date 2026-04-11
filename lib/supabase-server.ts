@@ -8,12 +8,24 @@
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 
+function requirePublicSupabaseEnv() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  if (!url || !anonKey) {
+    throw new Error(
+      'Supabase URL and anon key are missing. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local (copy from .env.example), then restart the dev server. Values are in Project Settings → API: https://supabase.com/dashboard/project/_/settings/api',
+    );
+  }
+  return { url, anonKey };
+}
+
 export async function createClient() {
   const cookieStore = await cookies();
+  const { url, anonKey } = requirePublicSupabaseEnv();
 
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    anonKey,
     {
       cookies: {
         get(name: string) {
@@ -40,9 +52,17 @@ export async function createClient() {
  * and perform operations that require elevated permissions
  */
 export function createServiceClient() {
+  const { url } = requirePublicSupabaseEnv();
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!serviceKey) {
+    throw new Error(
+      'SUPABASE_SERVICE_ROLE_KEY is missing. Add it to .env.local (server-only; never NEXT_PUBLIC_). Project Settings → API → service_role: https://supabase.com/dashboard/project/_/settings/api',
+    );
+  }
+
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    url,
+    serviceKey,
     {
       cookies: {
         get() {

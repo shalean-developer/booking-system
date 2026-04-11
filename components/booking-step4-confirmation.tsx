@@ -16,6 +16,7 @@ import {
   BadgeCheck,
   ChevronRight,
   Sparkles,
+  Ban,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { BookingFormData } from '@/components/booking-system-types';
@@ -56,6 +57,11 @@ export interface BookingStep4ConfirmationProps {
   errors: Partial<Record<keyof BookingFormData, string>>;
   setErrors: React.Dispatch<React.SetStateAction<Partial<Record<keyof BookingFormData, string>>>>;
   paymentError: string;
+  /** When checkout hits an unpaid duplicate slot, parent passes the existing booking id and handlers */
+  unpaidDuplicateBookingId?: string | null;
+  onPayExistingUnpaidBooking?: () => void;
+  onCancelUnpaidDuplicate?: () => void;
+  duplicateUnpaidAction?: 'idle' | 'pay' | 'cancel';
   promoInput: string;
   setPromoInput: (v: string) => void;
   promoError: string;
@@ -198,6 +204,10 @@ export function BookingStep4Confirmation({
   errors,
   setErrors,
   paymentError,
+  unpaidDuplicateBookingId = null,
+  onPayExistingUnpaidBooking,
+  onCancelUnpaidDuplicate,
+  duplicateUnpaidAction = 'idle',
   promoInput,
   setPromoInput,
   promoError,
@@ -305,7 +315,7 @@ export function BookingStep4Confirmation({
   return (
     <div className="min-h-screen bg-[#f0f2f5] font-sans">
       {/* ── Header (matches steps 1–3) ── */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
+      <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
@@ -327,9 +337,41 @@ export function BookingStep4Confirmation({
 
       {paymentError && (
         <div className="max-w-5xl mx-auto px-4 pt-4">
-          <div className="p-4 rounded-2xl bg-red-50 border border-red-100 flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
-            <p className="text-sm font-bold text-red-700">{paymentError}</p>
+          <div className="p-4 rounded-2xl bg-red-50 border border-red-100 flex flex-col sm:flex-row sm:items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1 space-y-3">
+              <p className="text-sm font-bold text-red-700">{paymentError}</p>
+              {unpaidDuplicateBookingId && onPayExistingUnpaidBooking && onCancelUnpaidDuplicate && (
+                <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={onPayExistingUnpaidBooking}
+                    disabled={duplicateUnpaidAction !== 'idle'}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 text-white text-sm font-bold px-4 py-2.5 hover:bg-violet-700 disabled:opacity-60 disabled:pointer-events-none transition-colors"
+                  >
+                    {duplicateUnpaidAction === 'pay' ? (
+                      <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+                    ) : (
+                      <CreditCard className="w-4 h-4" aria-hidden />
+                    )}
+                    Pay for existing booking
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onCancelUnpaidDuplicate}
+                    disabled={duplicateUnpaidAction !== 'idle'}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white text-red-700 text-sm font-bold px-4 py-2.5 hover:bg-red-50 disabled:opacity-60 disabled:pointer-events-none transition-colors"
+                  >
+                    {duplicateUnpaidAction === 'cancel' ? (
+                      <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+                    ) : (
+                      <Ban className="w-4 h-4 opacity-90" aria-hidden />
+                    )}
+                    Cancel &amp; replace with this one
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -795,7 +837,7 @@ export function BookingStep4Confirmation({
           </motion.div>
         </AnimatePresence>
 
-        <div className="px-4 py-3">
+        <div className="px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <motion.button
             type="button"
             whileTap={{ scale: 0.97 }}

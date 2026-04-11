@@ -1,6 +1,46 @@
 import { NextResponse } from 'next/server';
 import type { PaystackVerificationResponse } from '@/types/booking';
 import { validatePaymentEnv } from '@/lib/env-validation';
+import { edgeVerifyPayment } from '@/lib/payment-edge';
+
+export const dynamic = 'force-dynamic';
+
+/**
+ * Client-friendly verify after Paystack redirect: ?reference=booking-{uuid}
+ * Delegates to Edge finalize (Zoho + Resend + DB).
+ */
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const reference =
+      searchParams.get('reference')?.trim() ||
+      searchParams.get('trxref')?.trim() ||
+      '';
+    if (!reference) {
+      return NextResponse.json({ ok: false, error: 'reference is required' }, { status: 400 });
+    }
+
+    let booking_id = searchParams.get('booking_id')?.trim() || '';
+    if (!booking_id && reference.startsWith('booking-')) {
+      booking_id = reference.slice('booking-'.length);
+    }
+    if (!booking_id) {
+      return NextResponse.json({ ok: false, error: 'booking_id could not be derived from reference' }, { status: 400 });
+    }
+
+    const result = await edgeVerifyPayment({ reference, booking_id });
+    // Edge returns ok:false for benign idempotency cases only when duplicate handling is incomplete; prefer 200 if paid path succeeded.
+    const duplicate = 'duplicate' in result && result.duplicate === true;
+    const status = result.ok || duplicate ? 200 : 400;
+    return NextResponse.json(result, { status });
+  } catch (e) {
+    console.error('[api/payment/verify GET]', e);
+    return NextResponse.json(
+      { ok: false, error: e instanceof Error ? e.message : 'Verification failed' },
+      { status: 500 },
+    );
+  }
+}
 
 /**
  * Verify Paystack payment transaction

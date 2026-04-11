@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 import { BookingState, ServiceType } from '@/types/booking';
 import { calcTotalSync } from '@/lib/pricing';
+import { fetchActivePricing } from '@/lib/pricing-db';
 
 // Initialize Resend only when needed to avoid errors if API key is not configured
 function getResendInstance() {
@@ -41,6 +42,22 @@ export async function sendEmail({ to, subject, html }: EmailData) {
     return { success: true, messageId: data?.id };
   } catch (error) {
     console.error('Email sending failed:', error);
+    throw error;
+  }
+}
+
+export async function sendInvoiceEmail(email: string) {
+  const resend = getResendInstance();
+  const senderEmail = process.env.SENDER_EMAIL || 'noreply@shalean.co.za';
+  const fromAddress = `Shalean Cleaning <${senderEmail}>`;
+  const { error } = await resend.emails.send({
+    from: fromAddress,
+    to: [email],
+    subject: 'Booking Confirmed',
+    html: '<p>Your payment was successful</p>',
+  });
+  if (error) {
+    console.error('Email error:', error);
     throw error;
   }
 }
@@ -158,9 +175,9 @@ function calculateNextBookingDates(startDate: string, frequency: 'one-time' | 'w
   return dates;
 }
 
-export function generateBookingConfirmationEmail(
+export async function generateBookingConfirmationEmail(
   booking: BookingState & { bookingId: string; totalAmount?: number; cleanerName?: string }
-): EmailData {
+): Promise<EmailData> {
   // Use the actual totalAmount if provided (from database), otherwise recalculate
   // totalAmount from database is in cents, so divide by 100 to get rands
   let totalPrice: number;
@@ -169,14 +186,18 @@ export function generateBookingConfirmationEmail(
     // Otherwise it might already be in rands
     totalPrice = booking.totalAmount > 1000 ? booking.totalAmount / 100 : booking.totalAmount;
   } else {
-    // Fallback to recalculating if totalAmount not provided
-    const pricingDetails = calcTotalSync({
-      service: booking.service,
-      bedrooms: booking.bedrooms || 0,
-      bathrooms: booking.bathrooms || 0,
-      extras: booking.extras || [],
-      extrasQuantities: booking.extrasQuantities
-    }, booking.frequency || 'one-time');
+    const pricingData = await fetchActivePricing();
+    const pricingDetails = calcTotalSync(
+      {
+        service: booking.service,
+        bedrooms: booking.bedrooms || 0,
+        bathrooms: booking.bathrooms || 0,
+        extras: booking.extras || [],
+        extrasQuantities: booking.extrasQuantities,
+      },
+      booking.frequency || 'one-time',
+      pricingData
+    );
     totalPrice = pricingDetails.total;
   }
 
@@ -238,57 +259,75 @@ export function generateBookingConfirmationEmail(
       <title>Booking Confirmation - Shalean Cleaning</title>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; 
-          line-height: 1.6; 
-          color: #1e293b; 
-          background-color: #f1f5f9;
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          line-height: 1.6;
+          color: #111827;
+          background-color: #f0f2f5;
           padding: 20px;
+          -webkit-font-smoothing: antialiased;
         }
         .email-container {
-          max-width: 672px;
+          max-width: 600px;
           margin: 0 auto;
           background-color: #ffffff;
           border-radius: 16px;
           overflow: hidden;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-          border: 1px solid #e2e8f0;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+          border: 1px solid #f3f4f6;
         }
+        /* Matches booking flow header: white bar, brand kicker, title */
         .header {
-          background-color: #0C53ED;
-          color: white;
-          padding: 32px;
-          text-align: center;
+          background-color: #ffffff;
+          color: #111827;
+          padding: 24px 28px;
+          text-align: left;
+          border-bottom: 1px solid #e5e7eb;
         }
-        .header-icon-wrapper {
+        .header-brand {
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: 0.2em;
+          text-transform: uppercase;
+          color: #9ca3af;
+          margin-bottom: 14px;
+        }
+        .header-main {
           display: flex;
-          justify-content: center;
-          margin-bottom: 16px;
+          align-items: flex-start;
+          gap: 16px;
         }
         .header-icon-circle {
-          background-color: rgba(255, 255, 255, 0.2);
-          padding: 12px;
-          border-radius: 50%;
-          backdrop-filter: blur(4px);
-        }
-        .header-icon {
+          flex-shrink: 0;
           width: 48px;
           height: 48px;
-          color: white;
-        }
-        .header h1 {
-          font-size: 30px;
+          border-radius: 12px;
+          background-color: #22c55e;
+          color: #ffffff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 22px;
           font-weight: 700;
-          margin-bottom: 8px;
+          box-shadow: 0 4px 14px rgba(34, 197, 94, 0.35);
+        }
+        .header-text-wrap { min-width: 0; }
+        .header h1 {
+          font-size: 22px;
+          font-weight: 700;
+          margin-bottom: 6px;
+          color: #111827;
+          letter-spacing: -0.02em;
         }
         .header p {
-          color: rgba(255, 255, 255, 0.9);
-          font-size: 18px;
+          color: #6b7280;
+          font-size: 14px;
+          line-height: 1.5;
         }
         .status-banner {
-          background-color: #dbeafe;
-          padding: 16px 32px;
-          border-bottom: 1px solid #bfdbfe;
+          background-color: #f5f3ff;
+          padding: 14px 28px;
+          border-bottom: 1px solid #ede9fe;
           display: flex;
           align-items: center;
           justify-content: space-between;
@@ -297,53 +336,69 @@ export function generateBookingConfirmationEmail(
           display: flex;
           align-items: center;
           gap: 8px;
-          color: #1e40af;
+          color: #6d28d9;
           font-weight: 600;
+          font-size: 14px;
         }
         .status-badge {
-          font-size: 11px;
-          color: #1e40af;
-          background-color: white;
-          padding: 4px 8px;
+          font-size: 10px;
+          color: #6d28d9;
+          background-color: #ffffff;
+          padding: 5px 10px;
           border-radius: 9999px;
-          border: 1px solid #93c5fd;
+          border: 1px solid #ddd6fe;
           text-transform: uppercase;
-          letter-spacing: 0.05em;
+          letter-spacing: 0.08em;
           font-weight: 700;
         }
         .content {
-          padding: 32px;
+          padding: 28px;
         }
         .greeting {
-          margin-bottom: 32px;
+          margin-bottom: 28px;
         }
         .greeting h2 {
-          font-size: 20px;
+          font-size: 18px;
           font-weight: 700;
-          color: #0f172a;
+          color: #111827;
           margin-bottom: 8px;
         }
         .greeting p {
-          color: #475569;
-          line-height: 1.75;
+          color: #6b7280;
+          line-height: 1.65;
+          font-size: 14px;
         }
         .booking-summary-card {
-          background-color: #f8fafc;
-          border-radius: 12px;
-          padding: 24px;
-          margin-bottom: 32px;
-          border: 1px solid #e2e8f0;
+          background-color: #ffffff;
+          border-radius: 16px;
+          padding: 22px;
+          margin-bottom: 24px;
+          border: 1px solid #f3f4f6;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
         }
-        .section-header {
+        .section-header-row {
           display: flex;
           align-items: center;
-          gap: 8px;
-          color: #0C53ED;
+          gap: 12px;
+          margin-bottom: 18px;
+        }
+        .section-icon-box {
+          width: 36px;
+          height: 36px;
+          border-radius: 12px;
+          background-color: #7c3aed;
+          color: #ffffff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 15px;
+          flex-shrink: 0;
+        }
+        .section-heading {
+          font-size: 16px;
           font-weight: 700;
-          text-transform: uppercase;
-          font-size: 14px;
-          letter-spacing: 0.05em;
-          margin-bottom: 16px;
+          color: #111827;
+          letter-spacing: -0.02em;
         }
         .info-grid {
           display: grid;
@@ -356,28 +411,28 @@ export function generateBookingConfirmationEmail(
         }
         .info-label {
           font-size: 11px;
-          color: #64748b;
-          text-transform: uppercase;
-          font-weight: 700;
+          color: #6b7280;
+          font-weight: 600;
           margin-bottom: 4px;
           display: block;
         }
         .info-value {
-          color: #0f172a;
-          font-weight: 500;
-          font-family: monospace;
+          color: #111827;
+          font-weight: 600;
+          font-size: 14px;
         }
         .info-value-with-icon {
           display: flex;
           align-items: center;
           gap: 8px;
-          color: #0f172a;
-          font-weight: 500;
+          color: #111827;
+          font-weight: 600;
+          font-size: 14px;
         }
         .icon {
           width: 16px;
           height: 16px;
-          color: #64748b;
+          color: #9ca3af;
         }
         .full-width {
           grid-column: 1 / -1;
@@ -394,18 +449,14 @@ export function generateBookingConfirmationEmail(
         .section-title {
           display: flex;
           align-items: center;
-          gap: 8px;
-          color: #0C53ED;
-          font-weight: 700;
-          text-transform: uppercase;
-          font-size: 14px;
-          letter-spacing: 0.05em;
+          gap: 12px;
           margin-bottom: 16px;
         }
         .address-text {
-          color: #0f172a;
+          color: #111827;
           line-height: 1.6;
           margin-top: 4px;
+          font-size: 14px;
         }
         .details-row {
           display: flex;
@@ -427,14 +478,14 @@ export function generateBookingConfirmationEmail(
           padding: 4px 10px;
           border-radius: 9999px;
           font-size: 12px;
-          font-weight: 500;
-          background-color: #dbeafe;
-          color: #1e40af;
-          border: 1px solid #93c5fd;
+          font-weight: 600;
+          background-color: #f5f3ff;
+          color: #6d28d9;
+          border: 1px solid #ddd6fe;
         }
         .cleaner-assignment-card {
-          background-color: #fef3c7;
-          border-radius: 12px;
+          background-color: #fffbeb;
+          border-radius: 16px;
           padding: 20px;
           border: 1px solid #fde68a;
           height: fit-content;
@@ -442,13 +493,26 @@ export function generateBookingConfirmationEmail(
         .cleaner-header {
           display: flex;
           align-items: center;
-          gap: 8px;
-          color: #92400e;
-          font-weight: 700;
-          text-transform: uppercase;
-          font-size: 14px;
-          letter-spacing: 0.05em;
+          gap: 12px;
           margin-bottom: 12px;
+        }
+        .cleaner-header .section-icon-box-amber {
+          width: 36px;
+          height: 36px;
+          border-radius: 12px;
+          background-color: #f59e0b;
+          color: #ffffff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 15px;
+          flex-shrink: 0;
+        }
+        .cleaner-header-title {
+          font-size: 16px;
+          font-weight: 700;
+          color: #92400e;
+          letter-spacing: -0.02em;
         }
         .cleaner-content {
           display: flex;
@@ -477,52 +541,60 @@ export function generateBookingConfirmationEmail(
           margin-top: 4px;
         }
         .payment-section {
-          border-top: 1px solid #e2e8f0;
-          padding-top: 32px;
-          margin-bottom: 32px;
+          border-top: 1px solid #f3f4f6;
+          padding-top: 28px;
+          margin-bottom: 28px;
         }
         .payment-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
           margin-bottom: 16px;
+          gap: 16px;
+        }
+        .payment-header .section-header-row {
+          margin-bottom: 0;
         }
         .total-amount {
           font-size: 24px;
           font-weight: 700;
-          color: #0f172a;
+          color: #111827;
+          letter-spacing: -0.02em;
         }
         .payment-info {
-          background-color: #f8fafc;
-          border-radius: 8px;
+          background-color: #fafafa;
+          border-radius: 12px;
           padding: 16px;
-          font-size: 12px;
-          color: #64748b;
+          font-size: 13px;
+          color: #6b7280;
+          border: 1px solid #f3f4f6;
         }
         .payment-reference {
           margin-bottom: 4px;
         }
         .payment-ref-value {
-          font-family: monospace;
-          color: #334155;
+          font-family: ui-monospace, monospace;
+          color: #374151;
+          font-weight: 600;
         }
         .payment-status {
           display: flex;
           align-items: center;
-          gap: 4px;
-          color: #0C53ED;
+          gap: 6px;
+          color: #6d28d9;
           font-weight: 600;
-          margin-top: 4px;
+          margin-top: 6px;
+          font-size: 13px;
         }
         .actions-section {
-          margin-bottom: 32px;
+          margin-bottom: 28px;
         }
         .action-button {
           width: 100%;
-          background-color: #0f172a;
-          color: white;
+          background-color: #7c3aed;
+          color: #ffffff;
           font-weight: 700;
-          padding: 16px;
+          padding: 14px 18px;
           border-radius: 12px;
           text-decoration: none;
           display: flex;
@@ -530,10 +602,11 @@ export function generateBookingConfirmationEmail(
           justify-content: center;
           gap: 8px;
           margin-bottom: 16px;
-          transition: all 0.2s;
+          font-size: 15px;
+          box-shadow: 0 4px 14px rgba(124, 58, 237, 0.25);
         }
         .action-button:hover {
-          background-color: #1e293b;
+          background-color: #6d28d9;
         }
         .calendar-section {
           display: flex;
@@ -555,34 +628,40 @@ export function generateBookingConfirmationEmail(
           display: flex;
           align-items: center;
           gap: 4px;
-          color: #2563eb;
+          color: #7c3aed;
           text-decoration: none;
-          font-weight: 500;
+          font-weight: 600;
+          font-size: 14px;
         }
         .calendar-link:hover {
           text-decoration: underline;
+          color: #6d28d9;
         }
         .help-section {
-          background-color: #f8fafc;
-          border-radius: 12px;
-          padding: 24px;
-          border: 1px solid #cbd5e1;
+          background-color: #ffffff;
+          border-radius: 16px;
+          padding: 22px;
+          border: 1px solid #f3f4f6;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
         }
         .help-header {
           display: flex;
           align-items: center;
-          gap: 8px;
-          color: #334155;
+          gap: 12px;
+          margin-bottom: 14px;
+        }
+        .help-header .section-icon-box {
+          background-color: #7c3aed;
+        }
+        .help-heading-text {
+          font-size: 16px;
           font-weight: 700;
-          text-transform: uppercase;
-          font-size: 14px;
-          letter-spacing: 0.05em;
-          margin-bottom: 16px;
+          color: #111827;
         }
         .help-text {
           font-size: 14px;
-          color: #475569;
-          line-height: 1.75;
+          color: #6b7280;
+          line-height: 1.65;
           margin-bottom: 16px;
         }
         .contact-grid {
@@ -594,95 +673,100 @@ export function generateBookingConfirmationEmail(
           display: flex;
           align-items: center;
           gap: 12px;
-          padding: 12px;
-          background-color: white;
-          border: 1px solid #cbd5e1;
-          border-radius: 8px;
+          padding: 14px 14px;
+          background-color: #fafafa;
+          border: 1px solid #f3f4f6;
+          border-radius: 12px;
           text-decoration: none;
           transition: border-color 0.2s;
         }
         .contact-card:hover {
-          border-color: #0C53ED;
+          border-color: #ddd6fe;
         }
         .contact-icon {
-          background-color: #dbeafe;
+          background-color: #f5f3ff;
           padding: 8px;
-          border-radius: 50%;
-          color: #0C53ED;
+          border-radius: 12px;
+          color: #7c3aed;
+          font-size: 16px;
         }
         .contact-info {
           flex: 1;
         }
         .contact-label {
           font-size: 11px;
-          color: #64748b;
+          color: #9ca3af;
+          font-weight: 600;
+          letter-spacing: 0.06em;
           text-transform: uppercase;
-          font-weight: 700;
         }
         .contact-value {
           font-size: 14px;
-          color: #0f172a;
+          color: #111827;
           font-weight: 600;
         }
         .footer {
-          background-color: #0f172a;
-          padding: 32px;
+          background-color: #fafafa;
+          padding: 28px;
           text-align: center;
-          color: white;
+          color: #374151;
+          border-top: 1px solid #f3f4f6;
         }
         .footer-brand {
           font-weight: 700;
-          font-size: 20px;
+          font-size: 17px;
           margin-bottom: 8px;
+          color: #111827;
         }
         .footer-text {
-          color: #94a3b8;
-          font-size: 14px;
-          line-height: 1.75;
-          margin-bottom: 24px;
+          color: #6b7280;
+          font-size: 13px;
+          line-height: 1.65;
+          margin-bottom: 20px;
         }
         .footer-links {
           display: flex;
           flex-wrap: wrap;
           justify-content: center;
-          gap: 24px;
+          gap: 12px 20px;
           font-size: 14px;
-          font-weight: 500;
-          margin-bottom: 24px;
+          font-weight: 600;
+          margin-bottom: 20px;
         }
         .footer-link {
-          color: #60a5fa;
+          color: #7c3aed;
           text-decoration: none;
         }
         .footer-link:hover {
-          color: #93c5fd;
+          color: #6d28d9;
+          text-decoration: underline;
         }
         .footer-separator {
-          color: #334155;
+          color: #d1d5db;
         }
         .footer-footer {
-          padding-top: 24px;
-          border-top: 1px solid #1e293b;
+          padding-top: 20px;
+          border-top: 1px solid #f3f4f6;
         }
         .footer-info {
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 8px;
-          color: #64748b;
+          color: #9ca3af;
           font-size: 12px;
           margin-bottom: 8px;
         }
         .footer-booking-id {
-          color: #475569;
+          color: #6b7280;
           font-size: 10px;
           text-transform: uppercase;
-          letter-spacing: 0.1em;
+          letter-spacing: 0.08em;
           font-weight: 700;
         }
         .mobile-tip {
-          max-width: 672px;
-          margin: 24px auto 0;
+          max-width: 600px;
+          margin: 20px auto 0;
           padding: 0 16px;
           text-align: center;
         }
@@ -690,7 +774,7 @@ export function generateBookingConfirmationEmail(
           display: inline-flex;
           align-items: center;
           gap: 8px;
-          color: #64748b;
+          color: #9ca3af;
           font-size: 12px;
         }
         @media only screen and (max-width: 600px) {
@@ -698,22 +782,30 @@ export function generateBookingConfirmationEmail(
             padding: 10px;
           }
           .header {
-            padding: 24px 16px;
+            padding: 20px 18px;
           }
           .header h1 {
-            font-size: 24px;
+            font-size: 20px;
           }
           .header p {
-            font-size: 16px;
+            font-size: 13px;
+          }
+          .header-main {
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+          }
+          .header-text-wrap {
+            text-align: center;
           }
           .status-banner {
-            padding: 12px 16px;
+            padding: 12px 18px;
             flex-direction: column;
             align-items: flex-start;
             gap: 8px;
           }
           .content {
-            padding: 24px 16px;
+            padding: 22px 18px;
           }
           .info-grid {
             grid-template-columns: 1fr;
@@ -730,20 +822,28 @@ export function generateBookingConfirmationEmail(
             flex-direction: column;
             gap: 8px;
           }
+          .payment-header {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+          .total-amount {
+            align-self: flex-end;
+          }
         }
       </style>
     </head>
     <body>
       <div class="email-container">
-        <!-- Header Section -->
+        <!-- Header — matches booking flow (step 4) -->
         <div class="header">
-          <div class="header-icon-wrapper">
-            <div class="header-icon-circle">
-              <div class="header-icon">✓</div>
+          <p class="header-brand">Shalean Cleaning Services</p>
+          <div class="header-main">
+            <div class="header-icon-circle" aria-hidden="true">✓</div>
+            <div class="header-text-wrap">
+              <h1>Booking confirmed</h1>
+              <p>Thank you for choosing us — your clean is on the calendar.</p>
             </div>
           </div>
-          <h1>Booking Confirmed!</h1>
-          <p>Thank you for choosing Shalean Cleaning Services</p>
         </div>
 
         <!-- Status Banner -->
@@ -766,9 +866,9 @@ export function generateBookingConfirmationEmail(
 
           <!-- Booking Summary Card -->
           <div class="booking-summary-card">
-            <div class="section-header">
-              <span>📅</span>
-              <span>Booking Summary</span>
+            <div class="section-header-row">
+              <div class="section-icon-box" aria-hidden="true">📅</div>
+              <div class="section-heading">Booking summary</div>
             </div>
             
             <div class="info-grid">
@@ -805,8 +905,8 @@ export function generateBookingConfirmationEmail(
             <!-- Service Details -->
             <div class="service-details">
               <div class="section-title">
-                <span>📍</span>
-                <span>Service Details</span>
+                <div class="section-icon-box" aria-hidden="true">📍</div>
+                <div class="section-heading">Service details</div>
               </div>
               <div>
                 <span class="info-label">Address</span>
@@ -845,8 +945,8 @@ export function generateBookingConfirmationEmail(
             <!-- Cleaner Assignment -->
             <div class="cleaner-assignment-card">
               <div class="cleaner-header">
-                <span>👤</span>
-                <span>Cleaner Assignment</span>
+                <div class="section-icon-box-amber" aria-hidden="true">👤</div>
+                <div class="cleaner-header-title">Cleaner assignment</div>
               </div>
               ${booking.cleanerName ? `
               <div class="cleaner-content">
@@ -879,9 +979,9 @@ export function generateBookingConfirmationEmail(
           <!-- Payment Summary -->
           <div class="payment-section">
             <div class="payment-header">
-              <div class="section-title">
-                <span>💳</span>
-                <span>Payment Summary</span>
+              <div class="section-header-row">
+                <div class="section-icon-box" aria-hidden="true">💳</div>
+                <div class="section-heading">Payment summary</div>
               </div>
               <p class="total-amount">R${totalPrice.toFixed(2)}</p>
             </div>
@@ -922,8 +1022,8 @@ export function generateBookingConfirmationEmail(
           <!-- Help Section -->
           <div class="help-section">
             <div class="help-header">
-              <span>❓</span>
-              <span>Need Help?</span>
+              <div class="section-icon-box" aria-hidden="true">❓</div>
+              <div class="help-heading-text">Need help?</div>
             </div>
             <p class="help-text">If you have any questions or need to make changes to your booking, please contact us:</p>
             <div class="contact-grid">
@@ -982,21 +1082,27 @@ export function generateBookingConfirmationEmail(
   };
 }
 
-export function generateAdminBookingNotificationEmail(booking: BookingState & { bookingId: string; totalAmount?: number }): EmailData {
+export async function generateAdminBookingNotificationEmail(
+  booking: BookingState & { bookingId: string; totalAmount?: number }
+): Promise<EmailData> {
   // Use the actual totalAmount if provided (from database), otherwise recalculate
   // totalAmount is in rands (not cents)
   let totalPrice: number;
   if (booking.totalAmount !== undefined && booking.totalAmount > 0) {
     totalPrice = booking.totalAmount;
   } else {
-    // Fallback to recalculating if totalAmount not provided
-    const pricingDetails = calcTotalSync({
-      service: booking.service,
-      bedrooms: booking.bedrooms || 0,
-      bathrooms: booking.bathrooms || 0,
-      extras: booking.extras || [],
-      extrasQuantities: booking.extrasQuantities
-    }, booking.frequency || 'one-time');
+    const pricingData = await fetchActivePricing();
+    const pricingDetails = calcTotalSync(
+      {
+        service: booking.service,
+        bedrooms: booking.bedrooms || 0,
+        bathrooms: booking.bathrooms || 0,
+        extras: booking.extras || [],
+        extrasQuantities: booking.extrasQuantities,
+      },
+      booking.frequency || 'one-time',
+      pricingData
+    );
     totalPrice = pricingDetails.total;
   }
   
@@ -1596,14 +1702,19 @@ export function generateQuoteConfirmationEmail(quote: QuoteRequest): EmailData {
   };
 }
 
-export function generateAdminQuoteNotificationEmail(quote: QuoteRequest): EmailData {
-  const pricingDetails = calcTotalSync({
-    service: quote.service as ServiceType,
-    bedrooms: quote.bedrooms || 0,
-    bathrooms: quote.bathrooms || 0,
-    extras: quote.extras || [],
-    extrasQuantities: undefined // Quotes don't have quantities
-  }, 'one-time');
+export async function generateAdminQuoteNotificationEmail(quote: QuoteRequest): Promise<EmailData> {
+  const pricingData = await fetchActivePricing();
+  const pricingDetails = calcTotalSync(
+    {
+      service: quote.service as ServiceType,
+      bedrooms: quote.bedrooms || 0,
+      bathrooms: quote.bathrooms || 0,
+      extras: quote.extras || [],
+      extrasQuantities: undefined,
+    },
+    'one-time',
+    pricingData
+  );
   const totalPrice = pricingDetails.total;
   
   // Build carpet details section if service is Carpet
@@ -2142,5 +2253,64 @@ export function generateReviewRequestEmail(data: {
     subject: `⭐ How was your cleaning service? We'd love your feedback!`,
     html,
   };
+}
+
+/** Paid booking confirmation — aligns with Edge `sendBookingPaidEmail` copy. */
+export async function sendBookingPaidConfirmationEmail(params: {
+  to: string;
+  customerName: string;
+  serviceName: string;
+  amountZar: number;
+  bookingId: string;
+  zohoInvoiceId: string | null;
+}): Promise<{ ok: boolean; providerId?: string; error?: string }> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('[email] RESEND_API_KEY not set — skipping paid confirmation');
+    return { ok: false, error: 'RESEND_API_KEY missing' };
+  }
+  const senderEmail = process.env.SENDER_EMAIL || 'noreply@shalean.co.za';
+  const invoiceLine = params.zohoInvoiceId
+    ? `<p><strong>Invoice ID:</strong> ${escapeHtmlSimple(params.zohoInvoiceId)}</p>`
+    : '';
+  const html = `
+<!DOCTYPE html>
+<html>
+<body style="font-family: system-ui, sans-serif; line-height: 1.5; color: #111;">
+  <h1 style="color: #4f46e5;">Booking confirmed</h1>
+  <p>Hi ${escapeHtmlSimple(params.customerName)},</p>
+  <p>Thank you — your payment was received and your booking is confirmed.</p>
+  <ul>
+    <li><strong>Service:</strong> ${escapeHtmlSimple(params.serviceName)}</li>
+    <li><strong>Amount paid:</strong> R ${params.amountZar.toFixed(2)}</li>
+    <li><strong>Booking ID:</strong> ${escapeHtmlSimple(params.bookingId)}</li>
+  </ul>
+  ${invoiceLine}
+  <p style="margin-top: 24px; color: #666; font-size: 14px;">Shalean Cleaning Services</p>
+</body>
+</html>`;
+
+  try {
+    const resend = getResendInstance();
+    const { data, error } = await resend.emails.send({
+      from: `Shalean Cleaning <${senderEmail}>`,
+      to: [params.to],
+      subject: 'Booking Confirmed – Shalean Cleaning Services',
+      html,
+    });
+    if (error) {
+      return { ok: false, error: error.message };
+    }
+    return { ok: true, providerId: data?.id };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'send failed' };
+  }
+}
+
+function escapeHtmlSimple(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 

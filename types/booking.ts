@@ -2,6 +2,14 @@
 
 export type ServiceType = 'Standard' | 'Deep' | 'Move In/Out' | 'Airbnb' | 'Carpet';
 
+export interface BookingCarpetDetails {
+  hasFittedCarpets: boolean;
+  hasLooseCarpets: boolean;
+  numberOfRooms: number;
+  numberOfLooseCarpets: number;
+  roomStatus: 'empty' | 'hasProperty';
+}
+
 export interface BookingState {
   step: 1 | 2 | 3 | 4 | 5 | 6;
   service: ServiceType | null;
@@ -9,6 +17,10 @@ export interface BookingState {
   bathrooms: number;
   // For Standard/Airbnb multi-cleaner bookings (default 1)
   numberOfCleaners?: number;
+  /** When true, Standard/Airbnb equipment charge applies (DB `equipment_charge`) */
+  provideEquipment?: boolean;
+  /** Required for accurate Carpet pricing server-side */
+  carpetDetails?: BookingCarpetDetails | null;
   extras: string[];
   extrasQuantities: Record<string, number>;
   notes: string;

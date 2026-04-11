@@ -89,7 +89,7 @@ const CleanerCard = ({
           <h3 className="font-bold text-sm text-slate-900 truncate">{cleaner.name}</h3>
           <div className="flex items-center gap-1 mt-0.5">
             <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-            <span className="text-xs font-semibold text-slate-700">{cleaner.rating.toFixed(1)}</span>
+            <span className="text-xs font-semibold text-slate-700">{(cleaner.rating ?? 0).toFixed(1)}</span>
           </div>
         </div>
       </div>
@@ -207,6 +207,9 @@ export const WorkerSelection = () => {
           city: location,
           suburb: state.address.suburb || '',
         });
+        if (state.time) {
+          params.set('time', state.time);
+        }
 
         const response = await fetch(`/api/cleaners/available?${params}`, {
           signal: abortController.signal,
@@ -249,7 +252,7 @@ export const WorkerSelection = () => {
       clearTimeout(timeoutId);
       abortController.abort();
     };
-  }, [state.date, state.address.suburb, state.address.city, needsTeamByService, multiCleanerStandardAirbnb]);
+  }, [state.date, state.time, state.address.suburb, state.address.city, needsTeamByService, multiCleanerStandardAirbnb]);
 
   const sortedCleaners = useMemo(() => {
     let list = [...cleaners];
