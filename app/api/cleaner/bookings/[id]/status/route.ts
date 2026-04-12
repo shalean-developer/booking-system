@@ -8,6 +8,8 @@ import { incrementCustomerRewardsForCompletedBooking } from '@/lib/rewards-serve
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   pending: ['accepted', 'declined', 'reschedule_requested'],
+  /** Payment confirmed — same next steps as pending */
+  paid: ['accepted', 'declined', 'reschedule_requested'],
   accepted: ['on_my_way', 'declined', 'reschedule_requested'],
   confirmed: ['on_my_way', 'declined', 'reschedule_requested'], // legacy
   on_my_way: ['in-progress'],

@@ -234,7 +234,7 @@ export async function POST(req: Request) {
               price_snapshot: priceSnapshot,
               provide_equipment: (body as any).provideEquipment || false,
               equipment_charge: (body as any).equipmentCharge ? ((body as any).equipmentCharge * 100) : 0,
-              status: 'pending',
+              status: 'paid',
             })
             .select();
 

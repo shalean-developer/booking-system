@@ -1,5 +1,32 @@
 import { NextResponse } from 'next/server';
-import { createClient, getServerAuthUser } from '@/lib/supabase-server';
+import { createClient } from '@/lib/supabase-server';
+
+async function attachCleanerProfiles(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  rows: Record<string, unknown>[]
+) {
+  const cleanerIds = [
+    ...new Set(
+      rows
+        .map((r) => r.cleaner_id as string | null | undefined)
+        .filter((id): id is string => {
+          if (!id || id === 'manual') return false;
+          return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+        })
+    ),
+  ];
+  if (cleanerIds.length === 0) return rows;
+
+  const { data: cleaners } = await supabase.from('cleaners').select('id, name, phone').in('id', cleanerIds);
+
+  const map = new Map((cleaners || []).map((c) => [c.id, { name: c.name as string, phone: c.phone as string | null }]));
+
+  return rows.map((b) => {
+    const cid = b.cleaner_id as string | null | undefined;
+    const prof = cid && map.has(cid) ? map.get(cid)! : null;
+    return { ...b, cleaner_profile: prof };
+  });
+}
 
 /**
  * API endpoint to fetch bookings for authenticated user's dashboard
@@ -95,6 +122,8 @@ export async function GET(request: Request) {
         customer_email,
         customer_phone,
         payment_reference,
+        paystack_ref,
+        zoho_invoice_id,
         customer_reviewed,
         customer_review_id,
         cleaner_started_at,
@@ -105,11 +134,22 @@ export async function GET(request: Request) {
       .order('booking_date', { ascending: false })
       .limit(limit);
 
-    let { data: bookings, error: bookingsError } = await bookingsQuery;
+    let { data: bookingsRaw, error: bookingsError } = await bookingsQuery;
+
+    /** Loose row shape so retry/fallback mapping type-checks against Supabase variants. */
+    let bookings: Record<string, unknown>[] = Array.isArray(bookingsRaw)
+      ? (bookingsRaw as Record<string, unknown>[])
+      : [];
 
     // If the error indicates unknown column `notes`, retry without it
-    if (bookingsError && (bookingsError.message?.includes('notes') || bookingsError.details?.includes('notes'))) {
-      console.warn('Column `notes` not found on bookings; retrying without it');
+    if (
+      bookingsError &&
+      (bookingsError.message?.includes('notes') ||
+        bookingsError.details?.includes('notes') ||
+        bookingsError.message?.includes('paystack_ref') ||
+        bookingsError.message?.includes('zoho_invoice_id'))
+    ) {
+      console.warn('Retrying bookings select with a reduced column set');
       const retry = await supabase
         .from('bookings')
         .select(`
@@ -138,8 +178,19 @@ export async function GET(request: Request) {
         .eq('customer_id', customer.id)
         .order('booking_date', { ascending: false })
         .limit(limit);
-      // Ensure shape matches earlier select by adding notes: null for each row
-      bookings = (retry.data || []).map((b: any) => ({ ...b, notes: null, cleaner_started_at: b.cleaner_started_at ?? null, cleaner_completed_at: b.cleaner_completed_at ?? null, expected_end_time: b.expected_end_time ?? null }));
+      // Ensure shape matches earlier select by adding optional columns when missing
+      bookings = (retry.data || []).map((row) => {
+        const b = row as Record<string, unknown>;
+        return {
+          ...b,
+          notes: null,
+          paystack_ref: b.paystack_ref ?? null,
+          zoho_invoice_id: b.zoho_invoice_id ?? null,
+          cleaner_started_at: b.cleaner_started_at ?? null,
+          cleaner_completed_at: b.cleaner_completed_at ?? null,
+          expected_end_time: b.expected_end_time ?? null,
+        };
+      });
       bookingsError = retry.error || null;
     }
 
@@ -157,9 +208,12 @@ export async function GET(request: Request) {
 
     console.log(`✅ Found ${bookings?.length || 0} bookings`);
 
+    const rawRows = (bookings || []) as Record<string, unknown>[];
+    const withCleaners = await attachCleanerProfiles(supabase, rawRows);
+
     return NextResponse.json({
       ok: true,
-      bookings: bookings || [],
+      bookings: withCleaners,
       customer: {
         id: customer.id,
         email: customer.email,

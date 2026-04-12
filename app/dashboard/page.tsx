@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase-client';
-import { safeGetSession, safeLogout, handleRefreshTokenError } from '@/lib/logout-utils';
+import { safeGetSession, handleRefreshTokenError } from '@/lib/logout-utils';
 import { devLog } from '@/lib/dev-logger';
 import { toast } from 'sonner';
 import { AlertCircle } from 'lucide-react';
@@ -13,13 +13,6 @@ import { Button } from '@/components/ui/button';
 // New Components
 import { NewHeader } from '@/components/dashboard/new-header';
 import { CustomerDashboard } from '@/components/dashboard/customer-dashboard-ui';
-import type {
-  UserProfile,
-  UserProfileBooking,
-  ServiceType,
-} from '@/components/dashboard/customer-dashboard-ui';
-import { getTierFromPoints, computePointsFromCompletedBookings } from '@/lib/rewards';
-import { normalizeDisplayRef } from '@/lib/booking-id';
 import { useKeyboardShortcuts } from '@/lib/hooks/use-keyboard-shortcuts';
 import { usePullToRefresh } from '@/lib/hooks/use-pull-to-refresh';
 import { useOffline } from '@/lib/hooks/use-offline';
@@ -95,25 +88,6 @@ interface RecurringSchedule {
   start_date: string;
   end_date?: string | null;
   is_active: boolean;
-}
-
-// Map API service_type to dashboard ServiceType
-function mapServiceType(serviceType: string): ServiceType {
-  const normalized = (serviceType || '').toLowerCase().replace(/\s+/g, '_');
-  if (normalized.includes('standard')) return 'standard';
-  if (normalized.includes('deep')) return 'deep';
-  if (normalized.includes('move') || normalized.includes('move_in')) return 'move';
-  if (normalized.includes('airbnb')) return 'airbnb';
-  if (normalized.includes('carpet')) return 'carpet';
-  return 'standard';
-}
-
-// Map API status to dashboard booking status
-function mapBookingStatus(status: string): 'upcoming' | 'completed' | 'cancelled' {
-  const s = (status || '').toLowerCase();
-  if (s === 'cancelled' || s === 'canceled') return 'cancelled';
-  if (s === 'completed') return 'completed';
-  return 'upcoming';
 }
 
 export default function DashboardPage() {
@@ -483,72 +457,6 @@ export default function DashboardPage() {
     toast.success('Dashboard refreshed');
   }, [fetchDashboardData]);
 
-  // Map API customer + bookings to UserProfile for CustomerDashboard
-  const userProfile: UserProfile = useMemo(() => {
-    const firstName = customer?.firstName ?? (user as any)?.user_metadata?.first_name ?? '';
-    const lastName = customer?.lastName ?? (user as any)?.user_metadata?.last_name ?? '';
-    const name = [firstName, lastName].filter(Boolean).join(' ') || (user?.email ?? 'Customer');
-    const mappedBookings: UserProfileBooking[] = bookings.map((b) => {
-      const parts = [b.address_line1, b.address_suburb, b.address_city].filter(Boolean);
-      const address = parts.length > 0 ? parts.join(', ') : undefined;
-      return {
-        id: b.id,
-        ref: normalizeDisplayRef(b.payment_reference, b.id),
-        date: b.booking_date,
-        time: b.booking_time,
-        service: mapServiceType(b.service_type),
-        status: mapBookingStatus(b.status),
-        total: b.total_amount ?? 0,
-        address,
-        instructions: b.notes ?? undefined,
-        cleanerName: undefined,
-      };
-    });
-    const completedCount = mappedBookings.filter((b) => b.status === 'completed').length;
-    const points =
-      customer?.rewardsPoints ?? computePointsFromCompletedBookings(completedCount);
-    const tier = getTierFromPoints(points);
-    return {
-      name,
-      email: customer?.email ?? user?.email ?? '',
-      phone: customer?.phone ?? undefined,
-      avatar: (user as any)?.user_metadata?.avatar_url ?? (user as any)?.user_metadata?.photo_url,
-      bookings: mappedBookings,
-      points,
-      tier,
-    };
-  }, [customer, user, bookings]);
-
-  const handleCancelBooking = useCallback(
-    async (bookingId: string) => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          toast.error('Please log in to cancel bookings');
-          return;
-        }
-        const response = await fetch(`/api/dashboard/booking?id=${encodeURIComponent(bookingId)}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ status: 'cancelled' }),
-        });
-        const data = await response.json();
-        if (!response.ok || !data.ok) {
-          throw new Error(data.error || 'Failed to cancel booking');
-        }
-        toast.success('Booking cancelled successfully');
-        fetchDashboardData(false);
-      } catch (err) {
-        devLog.error('Error cancelling booking:', err);
-        toast.error(err instanceof Error ? err.message : 'Failed to cancel booking. Please try again.');
-      }
-    },
-    [fetchDashboardData]
-  );
-
   // Pull-to-refresh hook
   const pullToRefresh = usePullToRefresh({
     onRefresh: handleRefresh,
@@ -633,30 +541,30 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-teal-50/30 via-white to-white pb-20 lg:pb-8" ref={pullToRefresh.containerRef}>
-      <NewHeader user={user} customer={customer} onRefresh={handleRefresh} />
-
+    <div className="min-h-screen bg-[#f8f9fb]" ref={pullToRefresh.containerRef}>
       {isRefreshing && (
-        <div className="bg-teal-500 text-white text-center py-2 px-4 text-sm">Refreshing data...</div>
+        <div className="sticky top-0 z-[60] bg-teal-500 text-white text-center py-2 px-4 text-sm shadow-sm">
+          Refreshing data...
+        </div>
       )}
 
-      <main id="main-content" className="py-6 sm:py-8" role="main">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 min-w-0">
-          {isLoading ? (
-            <div className="flex items-center justify-center min-h-[40vh]">
-              <div className="text-slate-500 text-sm font-medium">Loading your dashboard...</div>
-            </div>
-          ) : (
-            <CustomerDashboard
-              user={userProfile}
-              onLogout={() => safeLogout(supabase, router, { redirectPath: '/' })}
-              onNewBooking={() => router.push('/booking/service/standard/plan')}
-              onAutoRebook={() => router.push('/booking/service/standard/plan')}
-              onReschedule={(booking) => router.push(`/booking/reschedule?id=${encodeURIComponent(booking.id)}`)}
-              onCancel={handleCancelBooking}
-            />
-          )}
-        </div>
+      <main id="main-content" className="min-w-0" role="main">
+        {isLoading ? (
+          <div className="flex items-center justify-center min-h-[40vh] px-4">
+            <div className="text-slate-500 text-sm font-medium">Loading your dashboard...</div>
+          </div>
+        ) : (
+          <CustomerDashboard
+            userEmail={user?.email ?? customer?.email ?? null}
+            firstName={customer?.firstName ?? null}
+            lastName={customer?.lastName ?? null}
+            addressLine={
+              [customer?.addressLine1, customer?.addressSuburb, customer?.addressCity]
+                .filter(Boolean)
+                .join(', ') || null
+            }
+          />
+        )}
       </main>
     </div>
   );
