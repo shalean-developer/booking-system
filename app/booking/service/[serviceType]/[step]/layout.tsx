@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { createMetadata, generateCanonical } from '@/lib/metadata';
+import StepGuardClient from './step-guard-client'; // ✅ NEW
 
 export async function generateMetadata({
   params,
@@ -13,12 +14,11 @@ export async function generateMetadata({
     return createMetadata({
       title: 'Book a Cleaning Plan | Shalean Cleaning Services',
       description:
-        'Plan and book home or office cleaning in Cape Town. Choose regular, deep, or one-off cleaning. Same-day options, transparent pricing, and vetted cleaners.',
+        'Plan and book home or office cleaning in Cape Town...',
       canonical: generateCanonical(path),
     });
   }
 
-  // Other steps use minimal metadata (parent booking layout provides defaults)
   return {
     title: 'Book Cleaning Service | Shalean',
     alternates: { canonical: generateCanonical(path) },
@@ -30,5 +30,10 @@ export default function ServiceStepLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return (
+    <>
+      <StepGuardClient /> {/* ✅ ADD THIS */}
+      {children}
+    </>
+  );
 }
