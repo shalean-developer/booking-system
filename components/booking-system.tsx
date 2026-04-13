@@ -214,6 +214,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
   const [duplicateUnpaidAction, setDuplicateUnpaidAction] = useState<'idle' | 'pay' | 'cancel'>('idle');
   const [promoInput, setPromoInput] = useState('');
   const [promoError, setPromoError] = useState('');
+  const [confirmedCheckoutTotalZar, setConfirmedCheckoutTotalZar] = useState<number | null>(null);
   const [session, setSession] = useState<{ user: { id: string; email?: string; user_metadata?: Record<string, unknown> } } | null>(null);
   const [customerProfile, setCustomerProfile] = useState<{ firstName?: string; lastName?: string; email?: string; phone?: string; rewardsPoints?: number } | null>(null);
 
@@ -313,9 +314,17 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
     setData((prev) => (prev.service === serviceFromUrl ? prev : { ...prev, service: serviceFromUrl }));
   }, [pathname]);
 
+  const standardAirbnbExtrasKey = useMemo(
+    () => (formData?.extras?.standardAndAirbnb ?? []).join('|'),
+    [formData?.extras?.standardAndAirbnb]
+  );
+  const deepMoveExtrasKey = useMemo(
+    () => (formData?.extras?.deepAndMove ?? []).join('|'),
+    [formData?.extras?.deepAndMove]
+  );
+
   // Drop extras that do not apply to the selected service (ids must stay in sync with step-2 grid)
   useEffect(() => {
-    const deepMove = new Set(['carpet_deep', 'ceiling', 'garage', 'balcony', 'couch', 'exterior_windows']);
     setData((prev) => {
       let allowed: Set<string>;
       if (prev.service === 'standard' || prev.service === 'airbnb') {
@@ -325,7 +334,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
           'equipment',
         ]);
       } else if (prev.service === 'deep' || prev.service === 'move') {
-        allowed = deepMove;
+        allowed = new Set((formData?.extras?.deepAndMove ?? []).map((n) => slugifyExtraId(n)));
       } else {
         allowed = new Set();
       }
@@ -333,7 +342,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
       if (next.length === prev.extras.length) return prev;
       return { ...prev, extras: next };
     });
-  }, [data.service, formData?.extras?.standardAndAirbnb]);
+  }, [data.service, standardAirbnbExtrasKey, deepMoveExtrasKey]);
 
   // Keep URL service slug in sync with selected service (preserve current step from pathname)
   useEffect(() => {
@@ -632,13 +641,18 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
   const extrasSummaryForStep4 = useMemo(() => {
     if (data.extras.length === 0) return 'None';
     const labels = data.extras.map((e) => currentExtras.find((ex) => ex.id === e)?.label ?? e);
+    const equipmentZar =
+      (data.service === 'standard' || data.service === 'airbnb') && data.scheduleEquipmentPref === 'bring'
+        ? (formData?.equipment?.charge ?? 0)
+        : 0;
+    const extrasDisplayTotal = pricing.extrasTotal + equipmentZar;
     const zar = new Intl.NumberFormat('en-ZA', {
       style: 'currency',
       currency: 'ZAR',
       minimumFractionDigits: 0
-    }).format(pricing.extrasTotal);
+    }).format(extrasDisplayTotal);
     return `${labels.join(' + ')} (+${zar})`;
-  }, [data.extras, currentExtras, pricing.extrasTotal]);
+  }, [data.extras, data.service, data.scheduleEquipmentPref, currentExtras, pricing.extrasTotal, formData?.equipment?.charge]);
 
   const dateTimeLabelForStep4 = useMemo(
     () => (data.date ? `${formatDate(data.date)} · ${formatTimeDisplay(data.time)}` : 'To be confirmed'),
@@ -671,6 +685,74 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }, [step, data]);
+
+  const fetchCheckoutPricingPreview = useCallback(async () => {
+    const apiService = formServiceToApi(data.service);
+    const selectedTeam =
+      data.teamId && TEAM_ID_TO_NAME[data.teamId] ? TEAM_ID_TO_NAME[data.teamId] : undefined;
+    const eff = getEffectiveRoomCounts(data);
+    const extrasQuantities: Record<string, number> = {};
+    data.extras.forEach((id) => {
+      extrasQuantities[id] = (extrasQuantities[id] || 0) + 1;
+    });
+    const previewRes = await fetch('/api/booking/pricing-preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        date: data.date,
+        service: apiService,
+        preSurgeTotal: pricing.total,
+        selected_team: selectedTeam,
+        bedrooms: eff.bedrooms,
+        bathrooms: eff.bathrooms,
+        extraRooms: eff.extraRooms,
+        extras: data.extras,
+        extrasQuantities,
+        frequency: 'one-time',
+        tipAmount: data.tipAmount,
+        discountAmount: pricing.discountAmount,
+        numberOfCleaners: 1,
+        provideEquipment:
+          (data.service === 'standard' || data.service === 'airbnb') &&
+          data.scheduleEquipmentPref === 'bring',
+        carpetDetails: buildCarpetDetailsForPricing(data),
+      }),
+    });
+    const preview = await previewRes.json();
+    if (!previewRes.ok || !preview.ok) {
+      throw new Error(preview.error || 'Could not confirm pricing for this date.');
+    }
+    checkoutPricingRef.current = {
+      preSurgeTotal: preview.preSurgeTotalZar,
+      finalTotal: preview.finalTotalZar,
+    };
+    setConfirmedCheckoutTotalZar(preview.finalTotalZar);
+    return preview as { preSurgeTotalZar: number; finalTotalZar: number };
+  }, [data, pricing.total, pricing.discountAmount]);
+
+  useEffect(() => {
+    if (step !== 4 || !data.date || !data.time) {
+      setConfirmedCheckoutTotalZar(null);
+      return;
+    }
+
+    let cancelled = false;
+    fetchCheckoutPricingPreview()
+      .then((preview) => {
+        if (!cancelled) {
+          setConfirmedCheckoutTotalZar(preview.finalTotalZar);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setConfirmedCheckoutTotalZar(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [step, data.date, data.time, fetchCheckoutPricingPreview]);
 
   const buildBookingPayload = useCallback(
     (paymentReference: string | null) => {
@@ -733,27 +815,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
     | { ok: false; duplicate: true; existingBookingId: string; message: string };
 
   const runPaystackCheckoutFlow = useCallback(async (): Promise<PaystackCheckoutResult> => {
-    const apiService = formServiceToApi(data.service);
-    const selectedTeam =
-      data.teamId && TEAM_ID_TO_NAME[data.teamId] ? TEAM_ID_TO_NAME[data.teamId] : undefined;
-    const previewRes = await fetch('/api/booking/pricing-preview', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        date: data.date,
-        service: apiService,
-        preSurgeTotal: pricing.total,
-        selected_team: selectedTeam,
-      }),
-    });
-    const preview = await previewRes.json();
-    if (!previewRes.ok || !preview.ok) {
-      throw new Error(preview.error || 'Could not confirm pricing for this date.');
-    }
-    checkoutPricingRef.current = {
-      preSurgeTotal: preview.preSurgeTotalZar,
-      finalTotal: preview.finalTotalZar,
-    };
+    await fetchCheckoutPricingPreview();
     const pendingBody = buildBookingPayload(null);
     const pendingRes = await fetch('/api/bookings/pending', {
       method: 'POST',
@@ -794,7 +856,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
       throw new Error(initData.error || 'Could not start payment.');
     }
     return { ok: true, redirectUrl: initData.authorization_url as string };
-  }, [buildBookingPayload, data.date, data.service, data.teamId, pricing.total]);
+  }, [buildBookingPayload, fetchCheckoutPricingPreview]);
 
   const payExistingUnpaidBooking = useCallback(async () => {
     if (!unpaidDuplicateBookingId) return;
@@ -860,27 +922,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
       return;
     }
     try {
-      const apiService = formServiceToApi(data.service);
-      const selectedTeam =
-        data.teamId && TEAM_ID_TO_NAME[data.teamId] ? TEAM_ID_TO_NAME[data.teamId] : undefined;
-      const previewRes = await fetch('/api/booking/pricing-preview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          date: data.date,
-          service: apiService,
-          preSurgeTotal: pricing.total,
-          selected_team: selectedTeam,
-        }),
-      });
-      const preview = await previewRes.json();
-      if (!previewRes.ok || !preview.ok) {
-        throw new Error(preview.error || 'Could not confirm pricing for this date.');
-      }
-      checkoutPricingRef.current = {
-        preSurgeTotal: preview.preSurgeTotalZar,
-        finalTotal: preview.finalTotalZar,
-      };
+      await fetchCheckoutPricingPreview();
       const body = buildBookingPayload(null);
       const res = await fetch('/api/bookings/guest', {
         method: 'POST',
@@ -908,7 +950,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
     } finally {
       setIsProcessing(false);
     }
-  }, [buildBookingPayload, router, data.date, data.time, data.service, data.teamId, pricing.total]);
+  }, [buildBookingPayload, router, data.date, data.time, fetchCheckoutPricingPreview]);
 
   const handleNext = () => {
     if (!validateStep()) return;
@@ -1103,7 +1145,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         shortDateLabel={shortDateLabelForStep4}
         cleanerLabel={crewDisplayName}
         extrasSummary={extrasSummaryForStep4}
-        totalZar={pricing.total}
+        totalZar={confirmedCheckoutTotalZar ?? pricing.total}
         discountAmount={pricing.discountAmount}
         appliedPromoCode={data.promoCode}
       />

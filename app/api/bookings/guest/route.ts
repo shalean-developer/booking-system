@@ -64,6 +64,7 @@ export async function POST(req: Request) {
         service: body.service,
         bedrooms: body.bedrooms,
         bathrooms: body.bathrooms,
+        extraRooms: body.extraRooms,
         extras: body.extras,
         extrasQuantities: body.extrasQuantities,
         frequency: body.frequency || 'one-time',
@@ -82,10 +83,10 @@ export async function POST(req: Request) {
     }
 
     if (Math.abs(serverCart.preSurgeTotalZar - preSurgeTotal) > 0.02) {
-      return NextResponse.json(
-        { ok: false, error: 'Price mismatch. Please refresh the page and try again.' },
-        { status: 400 }
-      );
+      console.warn('[bookings/guest] pre-surge mismatch; using server total', {
+        clientPreSurgeTotalZar: preSurgeTotal,
+        serverPreSurgeTotalZar: serverCart.preSurgeTotalZar,
+      });
     }
 
     const checkoutPricing = await computeCheckoutPricing(supabase, {
@@ -102,10 +103,10 @@ export async function POST(req: Request) {
     }
 
     if (Math.abs(checkoutPricing.finalTotalZar - body.totalAmount) > 0.02) {
-      return NextResponse.json(
-        { ok: false, error: 'Total does not match server pricing. Please refresh and try again.' },
-        { status: 400 }
-      );
+      console.warn('[bookings/guest] final total mismatch; using server total', {
+        clientFinalTotalZar: body.totalAmount,
+        serverFinalTotalZar: checkoutPricing.finalTotalZar,
+      });
     }
 
     const adjustedTotalAmount = checkoutPricing.finalTotalZar;

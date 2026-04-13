@@ -2304,6 +2304,12 @@ export async function sendBookingPaidConfirmationEmail(params: {
   amountZar: number;
   bookingId: string;
   zohoInvoiceId: string | null;
+  paymentReference?: string | null;
+  bookingDate?: string | null;
+  bookingTime?: string | null;
+  addressLine1?: string | null;
+  addressSuburb?: string | null;
+  addressCity?: string | null;
 }): Promise<{ ok: boolean; providerId?: string; error?: string }> {
   const cfg = validateResendConfig();
   if (!cfg.ok) {
@@ -2311,22 +2317,63 @@ export async function sendBookingPaidConfirmationEmail(params: {
   }
   const senderEmail = process.env.SENDER_EMAIL || 'noreply@shalean.co.za';
   const invoiceLine = params.zohoInvoiceId
-    ? `<p><strong>Invoice ID:</strong> ${escapeHtmlSimple(params.zohoInvoiceId)}</p>`
+    ? `<tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Invoice ID</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtmlSimple(params.zohoInvoiceId)}</td></tr>`
+    : '';
+  const referenceLine = params.paymentReference
+    ? `<tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Payment reference</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtmlSimple(params.paymentReference)}</td></tr>`
+    : '';
+  const dateLine = params.bookingDate
+    ? `<tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Date</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtmlSimple(params.bookingDate)}</td></tr>`
+    : '';
+  const timeLine = params.bookingTime
+    ? `<tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Time</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtmlSimple(params.bookingTime)}</td></tr>`
+    : '';
+  const addressText =
+    [params.addressLine1, params.addressSuburb, params.addressCity].filter(Boolean).join(', ') || null;
+  const addressLine = addressText
+    ? `<tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Address</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtmlSimple(addressText)}</td></tr>`
     : '';
   const html = `
 <!DOCTYPE html>
 <html>
-<body style="font-family: system-ui, sans-serif; line-height: 1.5; color: #111;">
-  <h1 style="color: #4f46e5;">Booking confirmed</h1>
-  <p>Hi ${escapeHtmlSimple(params.customerName)},</p>
-  <p>Thank you — your payment was received and your booking is confirmed.</p>
-  <ul>
-    <li><strong>Service:</strong> ${escapeHtmlSimple(params.serviceName)}</li>
-    <li><strong>Amount paid:</strong> R ${params.amountZar.toFixed(2)}</li>
-    <li><strong>Booking ID:</strong> ${escapeHtmlSimple(params.bookingId)}</li>
-  </ul>
-  ${invoiceLine}
-  <p style="margin-top: 24px; color: #666; font-size: 14px;">Shalean Cleaning Services</p>
+<body style="margin: 0; padding: 0; background: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding: 24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width: 600px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 14px; overflow: hidden;">
+          <tr>
+            <td style="padding: 24px 24px 16px 24px; border-bottom: 1px solid #e5e7eb;">
+              <p style="margin: 0 0 8px 0; color: #9ca3af; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700;">Shalean Cleaning Services</p>
+              <h1 style="margin: 0; color: #111827; font-size: 24px; line-height: 1.25;">Booking Confirmed</h1>
+              <p style="margin: 8px 0 0 0; color: #4b5563; font-size: 14px;">Your payment was successful and your booking is now secured.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 22px 24px;">
+              <p style="margin: 0 0 14px 0; color: #111827; font-size: 15px;">Hi ${escapeHtmlSimple(params.customerName)},</p>
+              <p style="margin: 0 0 20px 0; color: #4b5563; font-size: 14px; line-height: 1.6;">Thank you for your payment. Here are your booking details:</p>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb;">
+                <tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Booking ID</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtmlSimple(params.bookingId)}</td></tr>
+                <tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Service</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtmlSimple(params.serviceName)}</td></tr>
+                ${dateLine}
+                ${timeLine}
+                ${addressLine}
+                <tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Amount paid</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 700;">R ${params.amountZar.toFixed(2)}</td></tr>
+                ${referenceLine}
+                ${invoiceLine}
+              </table>
+              <p style="margin: 18px 0 0 0; color: #4b5563; font-size: 14px; line-height: 1.6;">Need help? Reply to this email or contact us at <a href="mailto:bookings@shalean.com" style="color: #4f46e5; text-decoration: none;">bookings@shalean.com</a>.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 14px 24px 22px 24px; border-top: 1px solid #f3f4f6; color: #9ca3af; font-size: 12px;">
+              This is an automated confirmation from Shalean Cleaning Services.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`;
 

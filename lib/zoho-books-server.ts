@@ -90,6 +90,36 @@ function splitDisplayName(name: string): { first: string; last: string } {
   return { first: parts[0], last: parts.slice(1).join(' ') };
 }
 
+function truncateForZoho(value: string, max = 100): string {
+  if (value.length <= max) return value;
+  return value.slice(0, max - 1).trimEnd() + '…';
+}
+
+function normalizeZohoText(value: string): string {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function buildZohoAddress(address?: {
+  line1?: string | null;
+  suburb?: string | null;
+  city?: string | null;
+}): { address?: string; city?: string; country?: string } | undefined {
+  const rawLine = normalizeZohoText([address?.line1, address?.suburb].filter(Boolean).join(', '));
+  const rawCity = normalizeZohoText(address?.city || '');
+  if (!rawLine && !rawCity) return undefined;
+
+  // Keep safely below Zoho's billing_address threshold.
+  const shortLine = rawLine ? truncateForZoho(rawLine, 80) : undefined;
+  const shortCity = rawCity ? truncateForZoho(rawCity, 40) : undefined;
+  const compactAddress = [shortLine, shortCity].filter(Boolean).join(', ');
+
+  return {
+    address: compactAddress ? truncateForZoho(compactAddress, 90) : undefined,
+    city: shortCity,
+    country: 'ZA',
+  };
+}
+
 async function findContactIdByEmail(
   token: string,
   orgId: string,
@@ -118,17 +148,26 @@ async function createContact(
   orgId: string,
   displayName: string,
   email: string,
+  phone?: string | null,
+  address?: {
+    line1?: string | null;
+    suburb?: string | null;
+    city?: string | null;
+  },
 ): Promise<string> {
   const { first, last } = splitDisplayName(displayName);
   const payload = {
     contact_name: displayName.trim() || `Booking ${email}`,
     contact_type: 'customer',
     customer_sub_type: 'individual',
+    phone: phone?.trim() || undefined,
+    billing_address: buildZohoAddress(address),
     contact_persons: [
       {
         first_name: first,
         last_name: last,
         email,
+        phone: phone?.trim() || undefined,
         is_primary_contact: true,
       },
     ],
@@ -163,6 +202,12 @@ async function getOrCreateCustomerContactId(params: {
   orgId: string;
   customerName: string;
   customerEmail: string | null | undefined;
+  customerPhone?: string | null;
+  customerAddress?: {
+    line1?: string | null;
+    suburb?: string | null;
+    city?: string | null;
+  };
   bookingId: string;
 }): Promise<string> {
   const email = emailForZoho(params.customerEmail, params.bookingId);
@@ -170,7 +215,14 @@ async function getOrCreateCustomerContactId(params: {
   if (existing) return existing;
 
   try {
-    return await createContact(params.token, params.orgId, params.customerName, email);
+    return await createContact(
+      params.token,
+      params.orgId,
+      params.customerName,
+      email,
+      params.customerPhone,
+      params.customerAddress,
+    );
   } catch (e) {
     const msg = e instanceof Error ? e.message : '';
     if (msg.includes('3063') || /duplicate|already exists/i.test(msg)) {
@@ -214,6 +266,12 @@ function extractInvoiceIdFromCreateResponse(data: Record<string, unknown>): stri
 export async function createZohoBooksInvoiceServer(params: {
   customerName: string;
   customerEmail?: string | null;
+  customerPhone?: string | null;
+  customerAddress?: {
+    line1?: string | null;
+    suburb?: string | null;
+    city?: string | null;
+  };
   serviceName: string;
   amountZar: number;
   bookingId: string;
@@ -232,6 +290,8 @@ export async function createZohoBooksInvoiceServer(params: {
     orgId,
     customerName: params.customerName,
     customerEmail: params.customerEmail,
+    customerPhone: params.customerPhone,
+    customerAddress: params.customerAddress,
     bookingId: params.bookingId,
   });
 
@@ -239,7 +299,6 @@ export async function createZohoBooksInvoiceServer(params: {
 
   const today = new Date().toISOString().slice(0, 10);
   const lineTotal = Math.round(params.amountZar * 100) / 100;
-
   const payload = {
     customer_id: customerId,
     date: today,
@@ -255,20 +314,34 @@ export async function createZohoBooksInvoiceServer(params: {
     ],
     reference_number: params.bookingId,
     notes: `Booking ID: ${params.bookingId}`,
+    billing_address: buildZohoAddress(params.customerAddress),
   };
 
   const url = `${booksApiHost()}/books/v3/invoices?organization_id=${encodeURIComponent(orgId)}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Zoho-oauthtoken ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  });
+  const createInvoice = async (bodyPayload: Record<string, unknown>) => {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Zoho-oauthtoken ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(bodyPayload),
+    });
+    const data = (await res.json()) as Record<string, unknown>;
+    return { res, data };
+  };
 
-  const data = (await res.json()) as Record<string, unknown>;
-  const okCode = data.code === 0 || data.code === '0';
+  let { res, data } = await createInvoice(payload as Record<string, unknown>);
+  let okCode = data.code === 0 || data.code === '0';
+  if (!res.ok || !okCode) {
+    const msg = String((data as { message?: string }).message || '').toLowerCase();
+    const billingAddressRejected = msg.includes('billing_address');
+    if (billingAddressRejected) {
+      const fallbackPayload = { ...payload, billing_address: undefined };
+      ({ res, data } = await createInvoice(fallbackPayload as Record<string, unknown>));
+      okCode = data.code === 0 || data.code === '0';
+    }
+  }
   if (!res.ok || !okCode) {
     console.error('[zoho-server] create invoice failed', res.status, data);
     throw new Error(zohoErrorDetail(data as { code?: number | string; message?: string }, res.status));

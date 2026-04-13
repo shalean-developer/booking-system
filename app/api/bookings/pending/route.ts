@@ -66,6 +66,7 @@ export async function POST(req: Request) {
         service: body.service,
         bedrooms: body.bedrooms,
         bathrooms: body.bathrooms,
+        extraRooms: body.extraRooms,
         extras: body.extras,
         extrasQuantities: body.extrasQuantities,
         frequency: body.frequency || 'one-time',
@@ -84,10 +85,10 @@ export async function POST(req: Request) {
     }
 
     if (Math.abs(serverCart.preSurgeTotalZar - preSurgeTotal) > 0.02) {
-      return NextResponse.json(
-        { ok: false, error: 'Price mismatch. Please refresh the page and try again.' },
-        { status: 400 },
-      );
+      console.warn('[bookings/pending] pre-surge mismatch; using server total', {
+        clientPreSurgeTotalZar: preSurgeTotal,
+        serverPreSurgeTotalZar: serverCart.preSurgeTotalZar,
+      });
     }
 
     const checkoutPricing = await computeCheckoutPricing(supabase, {
@@ -101,10 +102,10 @@ export async function POST(req: Request) {
     }
 
     if (Math.abs(checkoutPricing.finalTotalZar - body.totalAmount) > 0.02) {
-      return NextResponse.json(
-        { ok: false, error: 'Total does not match server pricing. Please refresh and try again.' },
-        { status: 400 },
-      );
+      console.warn('[bookings/pending] final total mismatch; using server total', {
+        clientFinalTotalZar: body.totalAmount,
+        serverFinalTotalZar: checkoutPricing.finalTotalZar,
+      });
     }
 
     const authUser = await getServerAuthUser();
@@ -267,6 +268,7 @@ export async function POST(req: Request) {
     }
 
     const frequencyForDb = body.frequency === 'one-time' ? null : body.frequency;
+    const bookingNotes = body.notes?.trim() ? body.notes.trim() : null;
 
     const { data: bookingRows, error: bookingError } = await supabase
       .from('bookings')
@@ -294,6 +296,7 @@ export async function POST(req: Request) {
         surge_pricing_applied: surgePricingApplied,
         surge_amount: Math.round(surgeAmount * 100),
         frequency: frequencyForDb,
+        notes: bookingNotes,
         service_fee: Math.round(serverCart.serviceFeeZar * 100),
         frequency_discount: Math.round(serverCart.frequencyDiscountZar * 100),
         price_snapshot: priceSnapshot,

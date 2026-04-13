@@ -14,6 +14,10 @@ type BookingRow = {
   service_type: string | null;
   customer_name: string | null;
   customer_email: string | null;
+  customer_phone: string | null;
+  address_line1: string | null;
+  address_suburb: string | null;
+  address_city: string | null;
   total_amount: number | null;
   status: string | null;
   payment_reference: string | null;
@@ -105,7 +109,7 @@ export async function POST(req: NextRequest) {
     let query = supabase
       .from('bookings')
       .select(
-        'id, service_type, customer_name, customer_email, total_amount, status, payment_reference, paystack_ref, zoho_invoice_id',
+        'id, service_type, customer_name, customer_email, customer_phone, address_line1, address_suburb, address_city, total_amount, status, payment_reference, paystack_ref, zoho_invoice_id',
       )
       .is('zoho_invoice_id', null);
 
@@ -161,6 +165,12 @@ export async function POST(req: NextRequest) {
         zohoId = await createZohoBooksInvoiceServer({
           customerName: booking.customer_name || 'Customer',
           customerEmail: booking.customer_email,
+          customerPhone: booking.customer_phone,
+          customerAddress: {
+            line1: booking.address_line1,
+            suburb: booking.address_suburb,
+            city: booking.address_city,
+          },
           serviceName: booking.service_type || 'Cleaning',
           amountZar,
           bookingId: booking.id,

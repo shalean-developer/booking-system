@@ -33,7 +33,6 @@ import {
 
 import type { BookingFormData } from './booking-system-types';
 import { BookingFlowStepIndicator } from '@/components/booking-flow-step-indicator';
-import { getAllSuburbsForCity } from '@/lib/location-data';
 
 type ServiceId = 'standard' | 'deep' | 'airbnb' | 'moveinout' | 'carpet';
 type StepPropertyType = 'apartment' | 'house' | 'studio' | 'office';
@@ -217,8 +216,147 @@ const PROPERTY_TYPES: { id: StepPropertyType; label: string; icon: React.ReactNo
   { id: 'office', label: 'Office', icon: <Briefcase className="w-4 h-4" /> },
 ];
 /** Suburbs should match entries in cleaner `areas` in Supabase; `/api/cleaners/available` unions suburb+city and sorts by rating/reliability. */
-const AREAS: AreaOption[] = getAllSuburbsForCity('Cape Town')
-  .map((s) => ({ label: s.name, suburb: s.name }))
+const STEP1_LOCATION_OPTIONS = [
+  'House Cleaning Amandelrug',
+  'House Cleaning Athlone',
+  'House Cleaning Bantry Bay',
+  'House Cleaning Belhar',
+  'House Cleaning Bellville',
+  'House Cleaning Bellville South',
+  'House Cleaning Bergvliet',
+  'House Cleaning Bishopscourt',
+  'House Cleaning Bloubergrant',
+  'House Cleaning Bloubergstrand',
+  'House Cleaning Bo-Kaap',
+  'House Cleaning Bothasig',
+  'House Cleaning Brackenfell',
+  'House Cleaning Brooklyn',
+  'House Cleaning Camps Bay',
+  'House Cleaning Cape gate',
+  'House Cleaning Cape Town',
+  'House Cleaning Century City',
+  'House Cleaning Chempet',
+  'House Cleaning City Bowl',
+  'House Cleaning Clareinch',
+  'House Cleaning Claremont',
+  'House Cleaning Clifton',
+  'House Cleaning Clovelly',
+  'House Cleaning Constantia',
+  'House Cleaning Crawford',
+  "House Cleaning D'urbanvale",
+  'House Cleaning De Waterkant',
+  "House Cleaning Devil's Peak Estate",
+  'House Cleaning Diep River',
+  'House Cleaning Durbanville',
+  'House Cleaning Edgemead',
+  'House Cleaning Epping',
+  'House Cleaning Faure',
+  'House Cleaning Firgrove',
+  'House Cleaning Fish Hoek',
+  'House Cleaning Foreshore',
+  'House Cleaning Fresnaye',
+  'House Cleaning Gardens',
+  'House Cleaning Glencairn',
+  'George',
+  'House Cleaning Glosderry',
+  'House Cleaning Goodwood',
+  'House Cleaning Green Point',
+  'House Cleaning Groote Schuur',
+  'House Cleaning Harfield Village',
+  'House Cleaning Heathfield',
+  'House Cleaning Helderberg',
+  'Hermanus',
+  'House Cleaning Higgovale',
+  'House Cleaning Hout Bay',
+  'House Cleaning Howard Place',
+  'House Cleaning Kalk Bay',
+  'House Cleaning Kenilworth',
+  'House Cleaning Kensington',
+  'House Cleaning Kenwyn',
+  'House Cleaning Kirstenhof',
+  'House Cleaning Kommetjie',
+  'Knysna',
+  'House Cleaning Kraaifontein',
+  'House Cleaning Kreupelbosch',
+  'House Cleaning Kuils River',
+  'Langebaan',
+  'House Cleaning Lansdowne',
+  'House Cleaning Llandudno',
+  'House Cleaning Lower Vrede',
+  'House Cleaning Macassar',
+  'House Cleaning Maitland',
+  'House Cleaning Marconi Beam',
+  'House Cleaning Meadowridge',
+  'House Cleaning Milnerton',
+  'House Cleaning Monte Vista',
+  'Mossel Bay',
+  'House Cleaning Mouille Point',
+  'House Cleaning Mowbray',
+  'House Cleaning Mutual Park',
+  'House Cleaning Newlands',
+  'House Cleaning Noordhoek',
+  'House Cleaning Observatory',
+  'House Cleaning Old Oak',
+  'House Cleaning Oranjezicht',
+  'House Cleaning Ottery',
+  'Oudshoorn',
+  'House Cleaning Paarden Island',
+  'House Cleaning Paarl',
+  'House Cleaning Panorama',
+  'House Cleaning Parow',
+  'House Cleaning Parow East',
+  'House Cleaning Pinelands',
+  'House Cleaning Plattekloof',
+  'Plettenberg Bay',
+  'House Cleaning Plumstead',
+  'House Cleaning Ravensmead',
+  'House Cleaning Retreat',
+  'House Cleaning Rhodes',
+  'House Cleaning Rondebosch',
+  'House Cleaning Rondebosch East',
+  'House Cleaning Salt River',
+  'House Cleaning Scarborough',
+  'House Cleaning Schotse Kloof',
+  'House Cleaning Sea Point',
+  "House Cleaning Simon's Town",
+  'House Cleaning Southfield',
+  'House Cleaning St James',
+  'House Cleaning Steenberg',
+  'House Cleaning Stellenbosch',
+  'House Cleaning Sun Valley',
+  'House Cleaning Sunnyside',
+  'House Cleaning Sunset Beach',
+  'House Cleaning Tableview',
+  'House Cleaning Tamboerskloof',
+  'House Cleaning Thornton',
+  'House Cleaning Three Anchor Bay',
+  'House Cleaning Tokai',
+  'House Cleaning Tyger Valley',
+  'House Cleaning Tygerberg',
+  'House Cleaning University Estate',
+  'House Cleaning Van Riebeeckshof',
+  'House Cleaning Vredehoek',
+  'House Cleaning Walmer Estate',
+  'House Cleaning Waterfront',
+  'House Cleaning Welgemoed',
+  'House Cleaning West Beach',
+  'House Cleaning Wetton',
+  'House Cleaning Wittebome',
+  'House Cleaning Woodstock',
+  'Worcester',
+  'House Cleaning Wynberg',
+  'House Cleaning Ysterplaat',
+  'House Cleaning Zonnebloem',
+] as const;
+
+const AREAS: AreaOption[] = Array.from(
+  new Set(
+    STEP1_LOCATION_OPTIONS.map((entry) =>
+      entry.replace(/^House Cleaning\s+/i, '').trim()
+    ).filter(Boolean)
+  )
+)
+  .map((name) => ({ label: name, suburb: name }))
   .sort((a, b) => a.label.localeCompare(b.label, 'en-ZA'));
 const EXTRA_CLEANER_PRICE = 40;
 const OFFICE_BATHROOM_PRICE = 25;
@@ -1123,6 +1261,11 @@ export function BookingStep1Cleaning({
                 <p className="text-xs text-gray-400 mt-1.5 ml-1">
                   Cape Town and surrounds — pick the suburb closest to your address (we use it to match cleaners).
                 </p>
+                {location && (
+                  <p className="text-xs text-gray-500 mt-2 ml-1">
+                    House Cleaning in {location} available with trusted local cleaners.
+                  </p>
+                )}
               </div>
             </div>
           </section>

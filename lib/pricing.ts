@@ -87,6 +87,12 @@ function resolveExtraUnitPrice(
     );
     if (key) unit = pricing.extras[key] ?? 0;
   }
+  if (unit === 0) {
+    const normalizeToken = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const wanted = normalizeToken(normalized);
+    const key = Object.keys(pricing.extras).find((k) => normalizeToken(k) === wanted);
+    if (key) unit = pricing.extras[key] ?? 0;
+  }
   return unit;
 }
 

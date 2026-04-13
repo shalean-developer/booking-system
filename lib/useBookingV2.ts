@@ -20,6 +20,7 @@ export interface BookingStateV2 {
   // Step 2
   bedrooms: number;
   bathrooms: number;
+  extraRooms: number;
   // Standard/Airbnb only (default 1)
   numberOfCleaners: number;
   extras: string[];
@@ -74,6 +75,7 @@ const initial: BookingStateV2 = {
   service: null,
   bedrooms: 2,
   bathrooms: 1,
+  extraRooms: 0,
   numberOfCleaners: 1,
   extras: [],
   extrasQuantities: {},
@@ -160,6 +162,7 @@ export function useBookingV2() {
             service: template.service_type || null,
             bedrooms: template.bedrooms || 2,
             bathrooms: template.bathrooms || 1,
+            extraRooms: 0,
             extras: template.extras || [],
             extrasQuantities: template.extras_quantities || {},
             notes: template.notes || '',
@@ -203,6 +206,10 @@ export function useBookingV2() {
               typeof loadedState.numberOfCleaners === 'number' && loadedState.numberOfCleaners >= 1
                 ? Math.round(loadedState.numberOfCleaners)
                 : globalState.numberOfCleaners,
+            extraRooms:
+              typeof loadedState.extraRooms === 'number' && loadedState.extraRooms >= 0
+                ? Math.round(loadedState.extraRooms)
+                : globalState.extraRooms,
             discountCode: loadedState.discountCode ?? globalState.discountCode,
             discountAmount: typeof loadedState.discountAmount === 'number' ? loadedState.discountAmount : globalState.discountAmount,
             discountDescription: loadedState.discountDescription ?? globalState.discountDescription,
