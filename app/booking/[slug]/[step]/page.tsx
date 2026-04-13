@@ -1,18 +1,35 @@
-import { redirect } from 'next/navigation';
+import { redirect } from "next/navigation";
 
-const VALID_SLUGS = ['standard', 'deep', 'move-in-out', 'airbnb', 'carpet'];
-const VALID_STEPS = ['plan', 'time', 'crew', 'final'];
+const VALID_SLUGS = ["standard", "deep", "move-in-out", "airbnb", "carpet"];
+const STEPS = ["plan", "time", "crew", "final"];
 
-export default async function SlugStepBookingPage({
+type Params = {
+  slug: string;
+  step: string;
+};
+
+export default function BookingStepPage({
   params,
 }: {
-  params: Promise<{ slug: string; step: string }>;
+  params: Params;
 }) {
-  const { slug, step } = await params;
-  const validSlug = slug && VALID_SLUGS.includes(slug);
-  const validStep = step && VALID_STEPS.includes(step);
-  if (!validSlug || !validStep) {
-    redirect(validSlug ? `/booking/service/${slug}/plan` : '/booking/service/standard/plan');
+  const { slug, step } = params;
+
+  // Safety check
+  if (!slug || !step) {
+    redirect("/booking/standard/plan");
   }
-  redirect(`/booking/service/${slug}/${step}`);
+
+  // Validate service
+  if (!VALID_SLUGS.includes(slug)) {
+    redirect("/booking/standard/plan");
+  }
+
+  // Validate step
+  if (!STEPS.includes(step)) {
+    redirect(`/booking/${slug}/plan`);
+  }
+
+  // ✅ Valid route → allow rendering
+  return null;
 }
