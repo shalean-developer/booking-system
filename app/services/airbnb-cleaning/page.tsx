@@ -2,6 +2,7 @@ import { ServicePageTemplate } from "@/components/service-page-template";
 import { Calendar, Clock, Shield, Users } from "lucide-react";
 import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
+import { getServicePageFromPrice } from "@/lib/service-pages-pricing";
 
 export const metadata: Metadata = createMetadata({
   title: "Airbnb Cleaning Services Cape Town | Turnover Cleaning | Shalean",
@@ -50,7 +51,8 @@ const relatedServices = [
   }
 ];
 
-export default function AirbnbCleaningPage() {
+export default async function AirbnbCleaningPage() {
+  const pricingDisplay = await getServicePageFromPrice("airbnb-cleaning");
   return (
     <ServicePageTemplate
       title="Airbnb Cleaning Services in Cape Town"
@@ -66,7 +68,7 @@ export default function AirbnbCleaningPage() {
         "Flexible scheduling",
         "Emergency cleaning services"
       ]}
-      pricing="From R230"
+      pricing={pricingDisplay}
       pricingNote="Pricing based on property size and cleaning requirements"
       highlights={[
         "Same-day Airbnb cleaning available across Cape Town",

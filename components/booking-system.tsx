@@ -430,6 +430,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         service: formServiceToApi(data.service),
         bedrooms: eff.bedrooms,
         bathrooms: eff.bathrooms,
+        extraRooms: eff.extraRooms,
         extras: Object.keys(extrasQuantities),
         extrasQuantities,
         carpetDetails: buildCarpetDetailsForPricing(data),
@@ -469,6 +470,13 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         value: calc.breakdown.bathrooms,
       });
     }
+    if (!['carpet'].includes(data.service) && calc.breakdown.extraRooms > 0) {
+      dbPricingRows.push({
+        id: 'xroom',
+        label: 'Extra rooms',
+        value: calc.breakdown.extraRooms,
+      });
+    }
     if (data.service === 'carpet' && (calc.breakdown.carpetOccupiedFee ?? 0) > 0) {
       dbPricingRows.push({
         id: 'occ',
@@ -500,7 +508,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
       basePrice: calc.breakdown.base,
       bedroomAdd: calc.breakdown.bedrooms,
       bathroomAdd: calc.breakdown.bathrooms,
-      extraRoomAdd: 0,
+      extraRoomAdd: calc.breakdown.extraRooms,
       extrasTotal: calc.breakdown.extrasTotal,
       tipAmount: data.tipAmount,
       discountAmount,
@@ -686,6 +694,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         service: apiService,
         bedrooms: eff.bedrooms,
         bathrooms: eff.bathrooms,
+        extraRooms: eff.extraRooms,
         numberOfCleaners: 1,
         extras: data.extras,
         extrasQuantities,
@@ -1033,6 +1042,13 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         liveTotalZar={pricing.total}
         durationLabel={estimatedDuration.label}
         dbPricingRows={pricing.dbPricingRows}
+        servicePricing={formData?.pricing?.services}
+        extraCleanerPriceZar={
+          formData?.extras?.prices?.['Carpet occupied property'] ??
+          formData?.extras?.prices?.['Carpet property occupied'] ??
+          formData?.extras?.prices?.['Carpet extra cleaner'] ??
+          formData?.extras?.prices?.['Extra Cleaner']
+        }
       />
     );
   }

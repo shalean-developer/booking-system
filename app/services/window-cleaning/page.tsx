@@ -2,6 +2,7 @@ import { ServicePageTemplate } from "@/components/service-page-template";
 import { Sparkles, Clock, Shield, Users } from "lucide-react";
 import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
+import { getServicePageFromPrice } from "@/lib/service-pages-pricing";
 
 export const metadata: Metadata = createMetadata({
   title: "Window Cleaning Services Cape Town | Professional Window Cleaners | Shalean",
@@ -54,7 +55,8 @@ const relatedServices = [
   }
 ];
 
-export default function WindowCleaningPage() {
+export default async function WindowCleaningPage() {
+  const pricingDisplay = await getServicePageFromPrice("window-cleaning");
   return (
     <ServicePageTemplate
       title="Window Cleaning Services in Cape Town"
@@ -70,7 +72,7 @@ export default function WindowCleaningPage() {
         "Regular maintenance programs",
         "Emergency window cleaning"
       ]}
-      pricing="From R150"
+      pricing={pricingDisplay}
       pricingNote="Pricing based on number of windows and accessibility"
       highlights={[
         "Streak-free guarantee for all Cape Town properties",

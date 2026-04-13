@@ -57,12 +57,13 @@ import { useAdminBookings } from '@/hooks/use-admin-bookings';
 import { useAdminCleaners } from '@/hooks/use-admin-cleaners';
 import { mapAdminBookingApiToRow } from '@/lib/admin-ui-mappers';
 import useSWR from 'swr';
+import { useRouter } from 'next/navigation';
 import { fetcher } from '@/lib/swr-config';
 import { getDateRange } from '@/lib/utils/formatting';
 import { useDashboardStats } from '@/hooks/use-dashboard-stats';
 import { formatCurrency } from '@/lib/utils/formatting';
 
-// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Types ---
 
 type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
 type PaymentStatus = 'paid' | 'pending' | 'failed' | 'refunded';
@@ -138,7 +139,7 @@ interface Payment {
 }
 
 
-// â”€â”€â”€ Mock Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Mock Data ---
 
 const formatZAR = (n: number) =>
   new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 0 }).format(n);
@@ -155,7 +156,7 @@ const stagger = {
   show: { transition: { staggerChildren: 0.06 } },
 };
 
-// â”€â”€â”€ Shared Components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Shared Components ---
 
 const BookingStatusBadge = ({ status }: { status: BookingStatus }) => {
   const map: Record<BookingStatus, { label: string; cls: string }> = {
@@ -388,16 +389,17 @@ const BookingDrawer = ({
 };
 
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// â”€â”€ BOOKINGS PAGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// --- BOOKINGS PAGE ---
 
 export const BookingsPage = ({
   onNewBooking,
   newBookings,
+  syncSearch = '',
 }: {
   onNewBooking: () => void;
   newBookings: NewBookingRecord[];
+  /** Synced from the admin shell search (e.g. top bar on /admin). */
+  syncSearch?: string;
 }) => {
   const { bookings: raw, loading, error, mutate } = useAdminBookings(500);
   const apiRows = useMemo(() => {
@@ -415,6 +417,9 @@ export const BookingsPage = ({
   }, [apiRows, newBookings]);
 
   const [search, setSearch] = useState('');
+  useEffect(() => {
+    setSearch(syncSearch);
+  }, [syncSearch]);
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
@@ -481,7 +486,7 @@ export const BookingsPage = ({
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search bookings, clients, servicesâ€¦"
+              placeholder="Search bookings, clients, services..."
               className="flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
               aria-label="Search bookings"
             />
@@ -612,7 +617,7 @@ export const BookingsPage = ({
                   </div>
                   <p className="mt-0.5 text-xs text-gray-500">
                     <span>{booking.service}</span>
-                    <span className="mx-1">Â·</span>
+                    <span className="mx-1">{'\u00B7'}</span>
                     <span>{booking.date}</span>
                   </p>
                   <div className="mt-1 flex items-center gap-2">
@@ -648,18 +653,28 @@ export const BookingsPage = ({
 };
 
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// â”€â”€ CUSTOMERS PAGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// --- CUSTOMERS PAGE ---
 
 export const CustomersPage = () => {
   const [search, setSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
-  const { data, isLoading } = useSWR<{ ok: boolean; customers?: Record<string, unknown>[] }>(
-    '/api/admin/customers?limit=400',
-    fetcher
-  );
+  const { data, isLoading, mutate: mutateCustomers } = useSWR<{
+    ok: boolean;
+    customers?: Record<string, unknown>[];
+  }>('/api/admin/customers?limit=400', fetcher);
+
+  const [customerEditOpen, setCustomerEditOpen] = useState(false);
+  const [customerEditLoading, setCustomerEditLoading] = useState(false);
+  const [customerEditSaving, setCustomerEditSaving] = useState(false);
+  const [customerEditForm, setCustomerEditForm] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    address_suburb: '',
+    address_city: '',
+  });
 
   const customers = useMemo(() => {
     const rows = data?.ok ? data.customers ?? [] : [];
@@ -705,6 +720,85 @@ export const CustomersPage = () => {
     return raw.map((row) => mapAdminBookingApiToRow(row as Parameters<typeof mapAdminBookingApiToRow>[0]));
   }, [custBookingsRes]);
 
+  const openCustomerEdit = useCallback(async () => {
+    if (!selectedCustomer) return;
+    setCustomerEditOpen(true);
+    setCustomerEditLoading(true);
+    try {
+      const res = await fetch(`/api/admin/customers/${selectedCustomer.id}`, { credentials: 'include' });
+      const j = await res.json();
+      if (j.ok && j.customer) {
+        const c = j.customer as Record<string, unknown>;
+        setCustomerEditForm({
+          first_name: String(c.first_name ?? ''),
+          last_name: String(c.last_name ?? ''),
+          email: String(c.email ?? ''),
+          phone: String(c.phone ?? ''),
+          address_suburb: String(c.address_suburb ?? ''),
+          address_city: String(c.address_city ?? ''),
+        });
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setCustomerEditLoading(false);
+    }
+  }, [selectedCustomer]);
+
+  const saveCustomerEdit = useCallback(() => {
+    if (!selectedCustomer) return;
+    setCustomerEditSaving(true);
+    void (async () => {
+      try {
+        const res = await fetch(`/api/admin/customers/${selectedCustomer.id}`, {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            first_name: customerEditForm.first_name.trim(),
+            last_name: customerEditForm.last_name.trim(),
+            email: customerEditForm.email.trim(),
+            phone: customerEditForm.phone.trim() || undefined,
+            address_suburb: customerEditForm.address_suburb.trim() || undefined,
+            address_city: customerEditForm.address_city.trim() || undefined,
+          }),
+        });
+        const j = await res.json();
+        if (!res.ok || !j?.ok) throw new Error(j?.error || 'Failed to save');
+        await mutateCustomers();
+        const c = j.customer as Record<string, unknown>;
+        const first = String(c.first_name ?? '');
+        const last = String(c.last_name ?? '');
+        const name = `${first} ${last}`.trim() || String(c.email ?? 'Customer');
+        setSelectedCustomer({
+          id: String(c.id),
+          name,
+          email: String(c.email ?? ''),
+          phone: String(c.phone ?? ''),
+          suburb: String(c.address_suburb ?? ''),
+          city: String(c.address_city ?? ''),
+          totalBookings: selectedCustomer.totalBookings,
+          totalSpent: selectedCustomer.totalSpent,
+          lastBooking: selectedCustomer.lastBooking,
+          status: selectedCustomer.status,
+          initials: name
+            .split(/\s+/)
+            .filter(Boolean)
+            .map((w) => w[0])
+            .join('')
+            .slice(0, 2)
+            .toUpperCase(),
+          color: selectedCustomer.color,
+        });
+        setCustomerEditOpen(false);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setCustomerEditSaving(false);
+      }
+    })();
+  }, [selectedCustomer, customerEditForm, mutateCustomers]);
+
   return (
     <div>
       <PageHeader
@@ -730,7 +824,7 @@ export const CustomersPage = () => {
                 type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search customersâ€¦"
+                placeholder="Search customers..."
                 className="flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
                 aria-label="Search customers"
               />
@@ -775,7 +869,7 @@ export const CustomersPage = () => {
                     </div>
                     <p className="mt-0.5 text-xs text-gray-400">
                       <span>{customer.email}</span>
-                      <span className="mx-1">Â·</span>
+                      <span className="mx-1">{'\u00B7'}</span>
                       <span>{customer.suburb}</span>
                     </p>
                   </div>
@@ -881,6 +975,7 @@ export const CustomersPage = () => {
               <div className="flex gap-2 px-5 pb-5">
                 <button
                   type="button"
+                  onClick={() => void openCustomerEdit()}
                   className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white transition-colors hover:bg-indigo-700"
                 >
                   <Edit3 className="h-3.5 w-3.5" />
@@ -888,6 +983,9 @@ export const CustomersPage = () => {
                 </button>
                 <button
                   type="button"
+                  onClick={() => {
+                    if (selectedCustomer?.email) window.location.href = `mailto:${selectedCustomer.email}`;
+                  }}
                   className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-gray-100 py-2.5 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-200"
                 >
                   <Mail className="h-3.5 w-3.5" />
@@ -908,15 +1006,91 @@ export const CustomersPage = () => {
           )}
         </AnimatePresence>
       </div>
+
+      <AnimatePresence>
+        {customerEditOpen && selectedCustomer && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setCustomerEditOpen(false)}
+              className="fixed inset-0 bg-black/40"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              className="relative w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-2xl"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-extrabold text-gray-900">Edit customer</h3>
+                <button
+                  type="button"
+                  onClick={() => setCustomerEditOpen(false)}
+                  className="flex h-7 w-7 items-center justify-center rounded-xl bg-gray-100 text-gray-400"
+                  aria-label="Close"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              {customerEditLoading ? (
+                <p className="text-sm text-gray-500">Loading…</p>
+              ) : (
+                <>
+                  {(
+                    [
+                      { label: 'First name', key: 'first_name' as const, type: 'text' },
+                      { label: 'Last name', key: 'last_name' as const, type: 'text' },
+                      { label: 'Email', key: 'email' as const, type: 'email' },
+                      { label: 'Phone', key: 'phone' as const, type: 'tel' },
+                      { label: 'Suburb', key: 'address_suburb' as const, type: 'text' },
+                      { label: 'City', key: 'address_city' as const, type: 'text' },
+                    ] as const
+                  ).map((field) => (
+                    <div key={field.key}>
+                      <label className="mb-1.5 block text-xs font-bold text-gray-700">{field.label}</label>
+                      <input
+                        type={field.type}
+                        value={customerEditForm[field.key]}
+                        onChange={(e) =>
+                          setCustomerEditForm((prev) => ({ ...prev, [field.key]: e.target.value }))
+                        }
+                        className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-700 outline-none transition-all focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                      />
+                    </div>
+                  ))}
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setCustomerEditOpen(false)}
+                      className="flex-1 rounded-xl bg-gray-100 py-2.5 text-sm font-semibold text-gray-700"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveCustomerEdit}
+                      disabled={customerEditSaving}
+                      className="flex-1 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 py-2.5 text-sm font-bold text-white shadow-md disabled:opacity-60"
+                    >
+                      {customerEditSaving ? 'Saving…' : 'Save'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// â”€â”€ CLEANERS PAGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// --- CLEANERS PAGE ---
 
 export const CleanersPage = () => {
+  const router = useRouter();
   const { cleaners: rawCleaners, loading: cleanersLoading, error: cleanersError, mutate: mutateCleaners } =
     useAdminCleaners(300);
 
@@ -950,6 +1124,10 @@ export const CleanersPage = () => {
 
   const [search, setSearch] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editCleanerId, setEditCleanerId] = useState<string | null>(null);
+  const [editCleaner, setEditCleaner] = useState({ name: '', email: '', phone: '', suburb: '' });
+  const [editSaving, setEditSaving] = useState(false);
   const [newCleaner, setNewCleaner] = useState({ name: '', email: '', phone: '', suburb: '' });
 
   const filtered = cleaners.filter(
@@ -993,6 +1171,35 @@ export const CleanersPage = () => {
         setShowAddForm(false);
       } catch (e) {
         console.error(e);
+      }
+    })();
+  };
+
+  const handleEditCleaner = () => {
+    if (!editCleanerId || !editCleaner.name.trim() || !editCleaner.phone.trim() || !editCleaner.suburb.trim()) return;
+    setEditSaving(true);
+    void (async () => {
+      try {
+        const res = await fetch(`/api/admin/cleaners/${editCleanerId}`, {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: editCleaner.name.trim(),
+            email: editCleaner.email.trim() || undefined,
+            phone: editCleaner.phone,
+            areas: [editCleaner.suburb.trim()],
+          }),
+        });
+        const j = await res.json();
+        if (!res.ok || !j?.ok) throw new Error(j?.error || 'Failed to update cleaner');
+        await mutateCleaners();
+        setShowEditForm(false);
+        setEditCleanerId(null);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setEditSaving(false);
       }
     })();
   };
@@ -1083,6 +1290,85 @@ export const CleanersPage = () => {
         )}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {showEditForm && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setShowEditForm(false);
+                setEditCleanerId(null);
+              }}
+              className="fixed inset-0 bg-black/40"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              className="relative w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-2xl"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-extrabold text-gray-900">Edit cleaner</h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditForm(false);
+                    setEditCleanerId(null);
+                  }}
+                  className="flex h-7 w-7 items-center justify-center rounded-xl bg-gray-100 text-gray-400"
+                  aria-label="Close"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              {(
+                [
+                  { label: 'Full Name', key: 'name' as const, placeholder: 'Thembi Sithole', type: 'text' },
+                  { label: 'Email', key: 'email' as const, placeholder: 'thembi@shalean.co.za', type: 'email' },
+                  { label: 'Phone', key: 'phone' as const, placeholder: '+27 82 000 0000', type: 'tel' },
+                  { label: 'Suburb', key: 'suburb' as const, placeholder: 'Khayelitsha', type: 'text' },
+                ] as const
+              ).map((field) => (
+                <div key={field.key}>
+                  <label className="mb-1.5 block text-xs font-bold text-gray-700">
+                    <span>{field.label}</span>
+                  </label>
+                  <input
+                    type={field.type}
+                    value={editCleaner[field.key]}
+                    onChange={(e) => setEditCleaner((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                    placeholder={field.placeholder}
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-700 outline-none transition-all focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </div>
+              ))}
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditForm(false);
+                    setEditCleanerId(null);
+                  }}
+                  className="flex-1 rounded-xl bg-gray-100 py-2.5 text-sm font-semibold text-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleEditCleaner}
+                  disabled={editSaving}
+                  className="flex-1 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 py-2.5 text-sm font-bold text-white shadow-md disabled:opacity-60"
+                >
+                  {editSaving ? 'Saving…' : 'Save changes'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <motion.div variants={fadeUp} initial="hidden" animate="show" className="mb-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
         <div className="flex items-center gap-2.5 rounded-xl bg-gray-100 px-3 py-2">
           <Search className="h-3.5 w-3.5 text-gray-400" />
@@ -1090,7 +1376,7 @@ export const CleanersPage = () => {
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search cleanersâ€¦"
+            placeholder="Search cleaners..."
             className="flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
             aria-label="Search cleaners"
           />
@@ -1117,11 +1403,14 @@ export const CleanersPage = () => {
                   <p className="text-sm font-bold text-gray-900">{cleaner.name}</p>
                   <div className="mt-0.5 flex items-center gap-1">
                     {cleaner.rating > 0 ? (
-                      <span className="text-[10px] font-bold text-amber-600">â˜… {cleaner.rating}</span>
+                      <span className="text-[10px] font-bold text-amber-600">
+                      <Star className="mb-0.5 mr-0.5 inline h-3 w-3 text-amber-500" aria-hidden />
+                      {cleaner.rating}
+                    </span>
                     ) : (
                       <span className="text-[10px] text-gray-400">No ratings yet</span>
                     )}
-                    <span className="mx-0.5 text-gray-300">Â·</span>
+                    <span className="mx-0.5 text-gray-300">{'\u00B7'}</span>
                     <span className="text-[10px] text-gray-500">{cleaner.suburb}</span>
                   </div>
                 </div>
@@ -1159,9 +1448,9 @@ export const CleanersPage = () => {
                 { label: 'Jobs', value: cleaner.jobs },
                 {
                   label: 'Revenue',
-                  value: cleaner.revenue > 0 ? `R${(cleaner.revenue / 1000).toFixed(0)}k` : 'â€”',
+                  value: cleaner.revenue > 0 ? `R${(cleaner.revenue / 1000).toFixed(0)}k` : '—',
                 },
-                { label: 'Rating', value: cleaner.rating > 0 ? cleaner.rating : 'â€”' },
+                { label: 'Rating', value: cleaner.rating > 0 ? cleaner.rating : '—' },
               ].map((stat) => (
                 <div key={stat.label} className="rounded-xl bg-gray-50 p-2 text-center">
                   <p className="text-sm font-extrabold text-gray-900">{stat.value}</p>
@@ -1184,6 +1473,16 @@ export const CleanersPage = () => {
             <div className="flex gap-2">
               <button
                 type="button"
+                onClick={() => {
+                  setEditCleanerId(cleaner.id);
+                  setEditCleaner({
+                    name: cleaner.name,
+                    email: cleaner.email,
+                    phone: cleaner.phone,
+                    suburb: cleaner.suburb,
+                  });
+                  setShowEditForm(true);
+                }}
                 className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-indigo-50 py-2 text-xs font-bold text-indigo-700 transition-colors hover:bg-indigo-100"
               >
                 <Edit3 className="h-3.5 w-3.5" />
@@ -1191,6 +1490,11 @@ export const CleanersPage = () => {
               </button>
               <button
                 type="button"
+                onClick={() =>
+                  router.push(
+                    `/admin/schedule?cleanerId=${encodeURIComponent(cleaner.id)}&cleanerName=${encodeURIComponent(cleaner.name)}`
+                  )
+                }
                 className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-gray-100 py-2 text-xs font-bold text-gray-600 transition-colors hover:bg-gray-200"
               >
                 <Calendar className="h-3.5 w-3.5" />
@@ -1205,9 +1509,7 @@ export const CleanersPage = () => {
 };
 
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// â”€â”€ QUOTES PAGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// --- QUOTES PAGE ---
 
 export const QuotesPage = ({ onNewBooking }: { onNewBooking: () => void }) => {
   const { data: quotesRes, mutate: mutateQuotes } = useSWR<{ ok: boolean; quotes?: Record<string, unknown>[] }>(
@@ -1369,7 +1671,7 @@ export const QuotesPage = ({ onNewBooking }: { onNewBooking: () => void }) => {
                 <textarea
                   value={newQuote.notes}
                   onChange={(e) => setNewQuote((prev) => ({ ...prev, notes: e.target.value }))}
-                  placeholder="Scope of work, special requirementsâ€¦"
+                  placeholder="Scope of work, special requirements..."
                   rows={2}
                   className="w-full resize-none rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-700 outline-none transition-all focus:border-indigo-400"
                 />
@@ -1414,7 +1716,7 @@ export const QuotesPage = ({ onNewBooking }: { onNewBooking: () => void }) => {
                   </div>
                   <p className="mt-0.5 text-xs text-gray-400">
                     <span>{quote.service}</span>
-                    <span className="mx-1">Â·</span>
+                    <span className="mx-1">{'\u00B7'}</span>
                     <span>{quote.email}</span>
                   </p>
                 </div>
@@ -1483,16 +1785,14 @@ export const QuotesPage = ({ onNewBooking }: { onNewBooking: () => void }) => {
   );
 };
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// â”€â”€ PAYMENTS PAGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// --- PAYMENTS PAGE ---
 
 export const PaymentsPage = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<PaymentStatus | 'all'>('all');
 
   const { data: payRes } = useSWR<{ ok: boolean; payments?: Record<string, unknown>[] }>(
-    '/api/admin/payments?limit=400',
+    '/api/admin/payments?limit=400&skip_verify=1',
     fetcher
   );
 
@@ -1590,7 +1890,7 @@ export const PaymentsPage = () => {
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by client, referenceâ€¦"
+              placeholder="Search by client, reference..."
               className="flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
               aria-label="Search payments"
             />
@@ -1675,7 +1975,9 @@ export const PaymentsPage = () => {
                 <div>
                   <p className="text-sm font-semibold text-gray-900">{pay.client}</p>
                   <p className="text-xs text-gray-400">
-                    {pay.service} Â· {pay.date}
+                    {pay.service}
+                    {' \u00B7 '}
+                    {pay.date}
                   </p>
                 </div>
                 <div className="text-right">
@@ -1693,9 +1995,7 @@ export const PaymentsPage = () => {
 };
 
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// â”€â”€ REPORTS PAGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// --- REPORTS PAGE ---
 
 export const ReportsPage = () => {
   const [period, setPeriod] = useState<'month' | 'quarter' | 'year'>('year');
@@ -2035,16 +2335,14 @@ export const ReportsPage = () => {
   );
 };
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// â”€â”€ SETTINGS PAGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// --- SETTINGS PAGE ---
 
 export const SettingsPage = () => {
   const [activeTab, setActiveTab] = useState('profile');
   const [saved, setSaved] = useState(false);
-  const [paystackKey, setPaystackKey] = useState('pk_live_â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢');
-  const [zohoToken, setZohoToken] = useState('â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢');
-  const [resendKey, setResendKey] = useState('re_â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢');
+  const [paystackKey, setPaystackKey] = useState('pk_live_••••••••••••••••••••••••');
+  const [zohoToken, setZohoToken] = useState('••••••••••••••••••••••••••••••••');
+  const [resendKey, setResendKey] = useState('re_••••••••••••••••••••••••');
   const [emailFrom, setEmailFrom] = useState('bookings@shalean.co.za');
   const [notifications, setNotifications] = useState({
     newBooking: true,
@@ -2158,7 +2456,7 @@ export const SettingsPage = () => {
                   <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-green-600" />
                   <div>
                     <p className="text-xs font-bold text-green-800">Connected to Paystack</p>
-                    <p className="text-[10px] text-green-600">Live mode Â· Last verified 20 Jun 2025</p>
+                    <p className="text-[10px] text-green-600">Live mode · Last verified 20 Jun 2025</p>
                   </div>
                 </div>
                 <div className="space-y-4">
@@ -2166,7 +2464,7 @@ export const SettingsPage = () => {
                     { label: 'Public Key', value: paystackKey, onChange: setPaystackKey },
                     {
                       label: 'Secret Key (encrypted)',
-                      value: 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢',
+                      value: '••••••••••••••••••••••••••••••••',
                       onChange: () => {},
                     },
                   ].map((field) => (
@@ -2388,9 +2686,9 @@ export const SettingsPage = () => {
                 </div>
                 <div className="space-y-4">
                   {[
-                    { label: 'Current Password', placeholder: 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢' },
-                    { label: 'New Password', placeholder: 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢' },
-                    { label: 'Confirm New Password', placeholder: 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢' },
+                    { label: 'Current Password', placeholder: '••••••••' },
+                    { label: 'New Password', placeholder: '••••••••' },
+                    { label: 'Confirm New Password', placeholder: '••••••••' },
                   ].map((field) => (
                     <div key={field.label}>
                       <label className="mb-1.5 block text-xs font-bold text-gray-700">
@@ -2408,7 +2706,7 @@ export const SettingsPage = () => {
                   <ShieldCheck className="h-5 w-5 flex-shrink-0 text-indigo-600" />
                   <div>
                     <p className="text-xs font-bold text-indigo-800">Two-Factor Authentication</p>
-                    <p className="text-[10px] text-indigo-600">Not enabled Â· Strongly recommended for admin accounts</p>
+                    <p className="text-[10px] text-indigo-600">Not enabled · Strongly recommended for admin accounts</p>
                   </div>
                   <button
                     type="button"

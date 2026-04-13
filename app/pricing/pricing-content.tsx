@@ -34,7 +34,7 @@ export function PricingContent() {
     const p = activePricing;
     const sf = p.serviceFee;
     const svc = (key: string) =>
-      p.services[key] ?? { base: 0, bedroom: 0, bathroom: 0 };
+      p.services[key] ?? { base: 0, bedroom: 0, bathroom: 0, extraRoom: 0 };
     const std = svc('Standard');
     const deep = svc('Deep');
     const move = svc('Move In/Out');

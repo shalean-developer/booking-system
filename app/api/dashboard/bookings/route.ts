@@ -28,6 +28,43 @@ async function attachCleanerProfiles(
   });
 }
 
+async function attachReviewRatings(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  rows: Record<string, unknown>[]
+): Promise<Record<string, unknown>[]> {
+  const ids = [
+    ...new Set(
+      rows
+        .map((r) => r.customer_review_id as string | null | undefined)
+        .filter((id): id is string => Boolean(id))
+    ),
+  ];
+  if (ids.length === 0) {
+    return rows.map((r) => ({ ...r, review_overall_rating: null }));
+  }
+
+  const { data: reviews } = await supabase
+    .from('cleaner_reviews')
+    .select('id, overall_rating')
+    .in('id', ids);
+
+  const ratingById = new Map(
+    (reviews || []).map((rev: { id: string; overall_rating: number | null }) => [
+      rev.id,
+      typeof rev.overall_rating === 'number' ? rev.overall_rating : null,
+    ])
+  );
+
+  return rows.map((r) => {
+    const rid = r.customer_review_id as string | null | undefined;
+    const raw = rid ? ratingById.get(rid) : null;
+    return {
+      ...r,
+      review_overall_rating: raw != null && !Number.isNaN(raw) ? raw : null,
+    };
+  });
+}
+
 /**
  * API endpoint to fetch bookings for authenticated user's dashboard
  * Requires authentication
@@ -210,10 +247,11 @@ export async function GET(request: Request) {
 
     const rawRows = (bookings || []) as Record<string, unknown>[];
     const withCleaners = await attachCleanerProfiles(supabase, rawRows);
+    const withRatings = await attachReviewRatings(supabase, withCleaners);
 
     return NextResponse.json({
       ok: true,
-      bookings: withCleaners,
+      bookings: withRatings,
       customer: {
         id: customer.id,
         email: customer.email,

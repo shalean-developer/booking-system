@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bell,
@@ -15,17 +16,37 @@ import {
   Headphones,
   Sparkles,
   Check,
+  UserPlus,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
+import { getReferralSignupPath } from '@/lib/referral-url';
 import { cn } from '@/lib/utils';
 import { BookingFlow } from '@/components/dashboard/booking-flow/booking-flow';
-import { useNotifications, useProfile, CustomerPortalProvider } from './hooks';
+import { usePullToRefresh } from '@/lib/hooks/use-pull-to-refresh';
+import { useKeyboardShortcuts } from '@/lib/hooks/use-keyboard-shortcuts';
+import { useOffline } from '@/lib/hooks/use-offline';
+import {
+  useNotifications,
+  useProfile,
+  useBookings,
+  useRefreshDashboard,
+  CustomerPortalProvider,
+} from './hooks';
 import { DashboardHome } from './dashboard-home';
 import { SubPages } from './sub-pages';
 import type { PageId } from './types';
 
+/** Bottom nav includes pseudo-id `refer` (opens referral signup in a new tab). */
+type BottomNavId = PageId | 'refer';
+
 interface NavItem {
   id: PageId;
+  label: string;
+  shortLabel: string;
+}
+
+interface BottomNavItem {
+  id: BottomNavId;
   label: string;
   shortLabel: string;
 }
@@ -40,15 +61,18 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'profile', label: 'Profile', shortLabel: 'Profile' },
 ];
 
-const BOTTOM_NAV_ITEMS: NavItem[] = [
+const BOTTOM_NAV_ITEMS: BottomNavItem[] = [
   { id: 'dashboard', label: 'Dashboard', shortLabel: 'Home' },
   { id: 'book', label: 'Book Cleaning', shortLabel: 'Book' },
   { id: 'bookings', label: 'My Bookings', shortLabel: 'Bookings' },
+  { id: 'payments', label: 'Payments & Invoices', shortLabel: 'Pay' },
   { id: 'rewards', label: 'Rewards', shortLabel: 'Rewards' },
+  { id: 'support', label: 'Support', shortLabel: 'Help' },
+  { id: 'refer', label: 'Refer & Earn', shortLabel: 'Earn' },
   { id: 'profile', label: 'Profile', shortLabel: 'Profile' },
 ];
 
-function NavIcon({ id, active }: { id: PageId; active: boolean }) {
+function NavIcon({ id, active }: { id: BottomNavId; active: boolean }) {
   const cls = active ? 'text-blue-600' : 'text-gray-400';
   if (id === 'dashboard') return <LayoutDashboard className={cn('w-5 h-5', cls)} />;
   if (id === 'book') return <CalendarPlus className={cn('w-5 h-5', cls)} />;
@@ -56,6 +80,7 @@ function NavIcon({ id, active }: { id: PageId; active: boolean }) {
   if (id === 'payments') return <CreditCard className={cn('w-5 h-5', cls)} />;
   if (id === 'rewards') return <Gift className={cn('w-5 h-5', cls)} />;
   if (id === 'support') return <Headphones className={cn('w-5 h-5', cls)} />;
+  if (id === 'refer') return <UserPlus className={cn('w-5 h-5', cls)} />;
   if (id === 'profile') return <User className={cn('w-5 h-5', cls)} />;
   return null;
 }
@@ -121,6 +146,60 @@ export interface CustomerDashboardProps {
   firstName?: string | null;
   lastName?: string | null;
   addressLine?: string | null;
+}
+
+function CustomerDashboardChrome({ addressLine }: { addressLine?: string | null }) {
+  const refreshDashboard = useRefreshDashboard();
+  const { loading } = useBookings();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { isOnline } = useOffline({});
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshDashboard();
+      toast.success('Dashboard refreshed');
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [refreshDashboard]);
+
+  const pullToRefresh = usePullToRefresh({
+    onRefresh: handleRefresh,
+    threshold: 80,
+    disabled: loading || isRefreshing || !isOnline,
+  });
+
+  useKeyboardShortcuts({
+    shortcuts: [
+      {
+        key: '/',
+        handler: () => {
+          const searchInput = document.querySelector(
+            'input[type="search"], input[placeholder*="Search"]'
+          ) as HTMLInputElement | null;
+          if (searchInput) {
+            searchInput.focus();
+          } else {
+            toast.info('Pull down on mobile to refresh your dashboard.');
+          }
+        },
+        description: 'Focus search',
+      },
+    ],
+    enabled: !loading,
+  });
+
+  return (
+    <div ref={pullToRefresh.containerRef} className="min-h-screen bg-[#f8f9fb]">
+      {isRefreshing && (
+        <div className="sticky top-0 z-[60] bg-teal-500 text-white text-center py-2 px-4 text-sm shadow-sm">
+          Refreshing data...
+        </div>
+      )}
+      <CustomerDashboardInner addressLine={addressLine} />
+    </div>
+  );
 }
 
 function CustomerDashboardInner({
@@ -189,15 +268,18 @@ function CustomerDashboardInner({
       </AnimatePresence>
 
       <aside
-        className="hidden lg:flex flex-col w-60 bg-white border-r border-gray-200 min-h-screen sticky top-0 flex-shrink-0"
+        className={cn(
+          'hidden lg:flex flex-col w-60 shrink-0 bg-white border-r border-gray-200',
+          'h-[100dvh] max-h-screen sticky top-0 overflow-hidden'
+        )}
         aria-label="Main navigation"
       >
-        <div className="px-5 py-5 border-b border-gray-100">
+        <div className="px-5 py-5 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center flex-shrink-0">
               <Sparkles className="w-4 h-4 text-white" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest leading-none">
                 Shalean
               </p>
@@ -206,26 +288,51 @@ function CustomerDashboardInner({
           </div>
         </div>
 
-        <nav className="flex-1 py-4 px-3 space-y-1">
+        <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain py-4 px-3 space-y-1">
           {NAV_ITEMS.map((item) => (
             <button
               key={item.id}
               type="button"
+              title={item.id === 'payments' ? 'Payments & invoices' : item.label}
               onClick={() => handleNavigate(item.id)}
               className={cn(
-                'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150',
+                'w-full flex items-start gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150 text-left',
                 activePage === item.id
                   ? 'bg-blue-50 text-blue-600'
                   : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
               )}
             >
-              <NavIcon id={item.id} active={activePage === item.id} />
-              <span>{item.label}</span>
+              <span className="flex-shrink-0 mt-0.5" aria-hidden>
+                <NavIcon id={item.id} active={activePage === item.id} />
+              </span>
+              <span className="flex-1 min-w-0 leading-snug break-words">{item.label}</span>
               {activePage === item.id && (
-                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+                <span
+                  className="flex-shrink-0 mt-1.5 w-1.5 h-1.5 rounded-full bg-blue-600"
+                  aria-hidden
+                />
               )}
             </button>
           ))}
+          {user.customerId ? (
+            <a
+              href={getReferralSignupPath(user.customerId)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-start gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-800"
+              title="Opens the signup page in a new tab — your referral is included so new users can register and you both qualify for rewards."
+            >
+              <span className="flex-shrink-0 mt-0.5 text-gray-400" aria-hidden>
+                <UserPlus className="w-5 h-5" />
+              </span>
+              <span className="flex-1 min-w-0 leading-snug">
+                Refer &amp; Earn
+                <span className="mt-0.5 block text-[11px] font-medium text-gray-400 normal-case">
+                  {user.rewardPoints} pts · invite friends
+                </span>
+              </span>
+            </a>
+          ) : null}
         </nav>
 
         <div className="px-4 py-4 border-t border-gray-100">
@@ -461,31 +568,55 @@ function CustomerDashboardInner({
       </div>
 
       <nav
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 flex pb-[env(safe-area-inset-bottom)]"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 flex overflow-x-auto scrollbar-hide pb-[env(safe-area-inset-bottom)]"
         aria-label="Mobile navigation"
       >
-        {BOTTOM_NAV_ITEMS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => handleNavigate(item.id)}
-            className={cn(
-              'flex-1 flex flex-col items-center justify-center py-2.5 gap-1 transition-all',
-              activePage === item.id ? 'text-blue-600' : 'text-gray-400'
-            )}
-            aria-label={item.label}
-          >
-            <NavIcon id={item.id} active={activePage === item.id} />
-            <span
-              className={cn(
-                'text-[10px] font-bold leading-none',
-                activePage === item.id ? 'text-blue-600' : 'text-gray-400'
-              )}
+        {BOTTOM_NAV_ITEMS.map((item) => {
+          const isRefer = item.id === 'refer';
+          const active = !isRefer && activePage === item.id;
+          const commonClass = cn(
+            'flex-shrink-0 min-w-[3.65rem] flex flex-col items-center justify-center py-2.5 gap-1 transition-all',
+            active ? 'text-blue-600' : 'text-gray-400'
+          );
+          if (isRefer) {
+            if (!user.customerId) return null;
+            return (
+              <a
+                key={item.id}
+                href={getReferralSignupPath(user.customerId)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={commonClass}
+                aria-label={item.label}
+              >
+                <NavIcon id="refer" active={false} />
+                <span className="text-[10px] font-bold leading-none text-gray-400">{item.shortLabel}</span>
+              </a>
+            );
+          }
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => {
+                if (item.id === 'refer') return;
+                handleNavigate(item.id);
+              }}
+              className={commonClass}
+              aria-label={item.label}
             >
-              {item.shortLabel}
-            </span>
-          </button>
-        ))}
+              <NavIcon id={item.id} active={active} />
+              <span
+                className={cn(
+                  'text-[10px] font-bold leading-none',
+                  active ? 'text-blue-600' : 'text-gray-400'
+                )}
+              >
+                {item.shortLabel}
+              </span>
+            </button>
+          );
+        })}
       </nav>
     </div>
   );
@@ -499,7 +630,7 @@ export function CustomerDashboard({
 }: CustomerDashboardProps) {
   return (
     <CustomerPortalProvider email={userEmail} firstName={firstName} lastName={lastName}>
-      <CustomerDashboardInner addressLine={addressLine} />
+      <CustomerDashboardChrome addressLine={addressLine} />
     </CustomerPortalProvider>
   );
 }

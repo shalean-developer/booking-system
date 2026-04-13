@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { fetcher } from '@/lib/swr-config';
 import { useDashboardStats } from '@/hooks/use-dashboard-stats';
@@ -16,43 +16,87 @@ function todayYmd(): string {
 
 type ChartPoint = { date: string; revenue: number; bookings: number };
 
+function joinErrors(parts: (string | null | undefined)[]): string | null {
+  const s = parts.filter(Boolean).join(' ');
+  return s.length > 0 ? s : null;
+}
+
 export function useAdminDashboardHomeData() {
   const { dateFrom, dateTo } = useMemo(() => getDateRange('month'), []);
   const qs = `date_from=${encodeURIComponent(dateFrom)}&date_to=${encodeURIComponent(dateTo)}`;
 
-  const { stats, isLoading: statsLoading } = useDashboardStats('month');
+  const {
+    stats,
+    isLoading: statsLoading,
+    isError: statsHookError,
+    error: statsHookErrMsg,
+  } = useDashboardStats('month');
 
-  const { data: chartRes, isLoading: chartLoading } = useSWR<{ ok: boolean; data: ChartPoint[] }>(
-    `/api/admin/stats/chart?${qs}`,
-    fetcher
-  );
+  const {
+    data: chartRes,
+    error: chartErr,
+    isLoading: chartLoading,
+  } = useSWR<{ ok: boolean; data?: ChartPoint[]; error?: string }>(`/api/admin/stats/chart?${qs}`, fetcher);
 
-  const { data: svcRes, isLoading: svcLoading } = useSWR<{ ok: boolean; data: { name: string; value: number }[] }>(
+  const {
+    data: svcRes,
+    error: svcErr,
+    isLoading: svcLoading,
+  } = useSWR<{ ok: boolean; data?: { name: string; value: number }[]; error?: string }>(
     `/api/admin/stats/service-breakdown?${qs}`,
     fetcher
   );
 
-  const { data: pipeRes, isLoading: pipeLoading } = useSWR<{ ok: boolean; pipeline: Record<string, number> }>(
+  const {
+    data: pipeRes,
+    error: pipeErr,
+    isLoading: pipeLoading,
+  } = useSWR<{ ok: boolean; pipeline?: Record<string, number>; error?: string }>(
     `/api/admin/stats/booking-pipeline?${qs}`,
     fetcher
   );
 
-  const { data: upcomingRes, isLoading: upcomingLoading } = useSWR<{
-    ok: boolean;
-    bookings: Array<Record<string, unknown>>;
-  }>(`/api/admin/stats/upcoming-bookings?limit=8`, fetcher);
+  const {
+    data: upcomingRes,
+    error: upcomingErr,
+    isLoading: upcomingLoading,
+  } = useSWR<{ ok: boolean; bookings?: Array<Record<string, unknown>>; error?: string }>(
+    `/api/admin/stats/upcoming-bookings?limit=8`,
+    fetcher
+  );
 
-  const today = useMemo(() => todayYmd(), []);
+  const [todayKey, setTodayKey] = useState(todayYmd);
+  useEffect(() => {
+    const sync = () => {
+      const n = todayYmd();
+      setTodayKey((prev) => (prev !== n ? n : prev));
+    };
+    const id = setInterval(sync, 60_000);
+    const onFocus = () => sync();
+    window.addEventListener('focus', onFocus);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, []);
 
-  const { data: todayBookingsRes, isLoading: todayLoading } = useSWR<{
-    ok: boolean;
-    bookings: Array<Record<string, unknown>>;
-  }>(`/api/admin/bookings?start=${today}&end=${today}&limit=50`, fetcher);
+  const {
+    data: todayBookingsRes,
+    error: todayErr,
+    isLoading: todayLoading,
+  } = useSWR<{ ok: boolean; bookings?: Array<Record<string, unknown>>; error?: string }>(
+    `/api/admin/bookings?start=${todayKey}&end=${todayKey}&limit=50&skip_count=1&fields=schedule`,
+    fetcher
+  );
 
-  const { data: cleanersRes, isLoading: cleanersLoading } = useSWR<{
-    ok: boolean;
-    cleaners: Array<Record<string, unknown>>;
-  }>(`/api/admin/cleaners?limit=5&active=true`, fetcher);
+  const {
+    data: cleanersRes,
+    error: cleanersErr,
+    isLoading: cleanersLoading,
+  } = useSWR<{ ok: boolean; cleaners?: Array<Record<string, unknown>>; error?: string }>(
+    `/api/admin/cleaners?limit=5&active=true&sort=completed_bookings`,
+    fetcher
+  );
 
   const chartData = chartRes?.ok ? chartRes.data ?? [] : [];
   const serviceRows = svcRes?.ok ? svcRes.data ?? [] : [];
@@ -110,6 +154,20 @@ export function useAdminDashboardHomeData() {
     todayLoading ||
     cleanersLoading;
 
+  const statsMissingAfterLoad = stats === null && !statsLoading && !statsHookError;
+
+  const loadError = joinErrors([
+    statsHookErrMsg ?? (statsHookError ? 'Dashboard stats failed to load.' : null),
+    statsMissingAfterLoad ? 'Stats data was invalid or incomplete.' : null,
+    chartErr?.message ?? (!chartRes?.ok && chartRes !== undefined ? chartRes.error ?? 'Chart unavailable.' : null),
+    svcErr?.message ?? (!svcRes?.ok && svcRes !== undefined ? svcRes.error ?? 'Service breakdown unavailable.' : null),
+    pipeErr?.message ?? (!pipeRes?.ok && pipeRes !== undefined ? pipeRes.error ?? 'Pipeline unavailable.' : null),
+    upcomingErr?.message ??
+      (!upcomingRes?.ok && upcomingRes !== undefined ? upcomingRes.error ?? 'Upcoming list unavailable.' : null),
+    todayErr?.message ?? (!todayBookingsRes?.ok && todayBookingsRes !== undefined ? todayBookingsRes.error ?? null : null),
+    cleanersErr?.message ?? (!cleanersRes?.ok && cleanersRes !== undefined ? cleanersRes.error ?? null : null),
+  ]);
+
   return {
     dateFrom,
     dateTo,
@@ -123,5 +181,6 @@ export function useAdminDashboardHomeData() {
     todayRows,
     topCleaners,
     loading,
+    loadError,
   };
 }

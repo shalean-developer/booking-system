@@ -1737,6 +1737,8 @@ const BATHROOM_OPTIONS = [
 
 export const PriceCalculator = () => {
   const [services, setServices] = useState(() => pricingStore.getData().services);
+  const [rules, setRules] = useState(() => pricingStore.getData().rules);
+  const [bathroomRules, setBathroomRules] = useState(() => pricingStore.getData().bathroomRules);
   const [extras, setExtras] = useState(() => pricingStore.getData().extras);
   const [extraRooms, setExtraRooms] = useState(() => pricingStore.getData().extraRooms);
   const [serviceId, setServiceId] = useState(services[0]?.id ?? '');
@@ -1752,6 +1754,8 @@ export const PriceCalculator = () => {
     return pricingStore.subscribe(() => {
       const d = pricingStore.getData();
       setServices(d.services);
+      setRules(d.rules);
+      setBathroomRules(d.bathroomRules);
       setExtras(d.extras);
       setExtraRooms(d.extraRooms);
     });
@@ -1768,6 +1772,30 @@ export const PriceCalculator = () => {
   });
 
   const selectedSvc = services.find((s) => s.id === serviceId);
+  const selectedRules = rules.filter((r) => r.serviceId === serviceId);
+  const baseRule = selectedRules.find((r) => r.label.trim().toLowerCase() === 'base');
+  const perBedroomRule = selectedRules.find((r) => r.label.trim().toLowerCase() === 'per bedroom');
+  const perBathroomRule = selectedRules.find((r) => r.label.trim().toLowerCase() === 'per bathroom');
+  const bedroomNum = Math.max(1, parseInt(bedrooms, 10) || 1);
+  const bathroomNum = Math.max(1, parseInt(bathrooms, 10) || 1);
+  const baseLine = baseRule?.price ?? selectedSvc?.basePrice ?? 0;
+  const bedroomsLine = perBedroomRule ? Math.max(0, bedroomNum - 1) * perBedroomRule.price : 0;
+  const bathroomsLine = perBathroomRule
+    ? Math.max(0, bathroomNum - 1) * perBathroomRule.price
+    : (() => {
+        const sorted = bathroomRules
+          .filter((b) => b.active)
+          .sort((a, b) => (parseInt(a.label, 10) || 0) - (parseInt(b.label, 10) || 0));
+        let matched = sorted[sorted.length - 1];
+        for (const rule of sorted) {
+          const n = parseInt(rule.label, 10) || 0;
+          if (bathroomNum <= n) {
+            matched = rule;
+            break;
+          }
+        }
+        return matched?.price ?? 0;
+      })();
   const activeExtras = extras.filter((e) => e.active !== false);
   const activeExtraRooms = extraRooms.filter((r) => r.active !== false);
 
@@ -1817,30 +1845,28 @@ export const PriceCalculator = () => {
                     </div>
                   </div>
 
-                  {selectedSvc?.priceType === 'per_room' && (
-                    <div>
-                      <label className="mb-2 block text-xs font-bold text-gray-700">
-                        <span>Bedrooms</span>
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        {BEDROOM_OPTIONS.map((opt) => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => setBedrooms(opt.value)}
-                            className={cn(
-                              'rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition-all',
-                              bedrooms === opt.value
-                                ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                                : 'border-gray-200 text-gray-500 hover:border-gray-300'
-                            )}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
+                  <div>
+                    <label className="mb-2 block text-xs font-bold text-gray-700">
+                      <span>Bedrooms</span>
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {BEDROOM_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setBedrooms(opt.value)}
+                          className={cn(
+                            'rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition-all',
+                            bedrooms === opt.value
+                              ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                              : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
                     </div>
-                  )}
+                  </div>
 
                   <div>
                     <label className="mb-2 block text-xs font-bold text-gray-700">
@@ -1993,7 +2019,19 @@ export const PriceCalculator = () => {
                     {selectedSvc && (
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-gray-600">{selectedSvc.name}</span>
-                        <span className="text-xs font-bold text-gray-900">{formatZAR(selectedSvc.basePrice)}</span>
+                        <span className="text-xs font-bold text-gray-900">{formatZAR(baseLine)}</span>
+                      </div>
+                    )}
+                    {bedroomsLine > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-600">Bedrooms</span>
+                        <span className="text-xs font-bold text-gray-900">+{formatZAR(bedroomsLine)}</span>
+                      </div>
+                    )}
+                    {bathroomsLine > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-600">Bathrooms</span>
+                        <span className="text-xs font-bold text-gray-900">+{formatZAR(bathroomsLine)}</span>
                       </div>
                     )}
                     {selectedExtraRooms.map((rid) => {

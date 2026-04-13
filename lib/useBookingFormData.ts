@@ -26,7 +26,7 @@ export interface BookingFormExtras {
 export interface BookingFormData {
   services: BookingFormService[];
   pricing: {
-    services: Record<string, { base: number; bedroom: number; bathroom: number }>;
+    services: Record<string, { base: number; bedroom: number; bathroom: number; extraRoom: number }>;
     extras: Record<string, number>;
     serviceFee: number;
     frequencyDiscounts: Record<string, number>;
@@ -42,7 +42,7 @@ export interface BookingFormData {
   allowPayLater?: boolean;
 }
 
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 60 * 1000; // 1 minute — closer to server `booking-form-data` revalidation after admin pricing saves
 let cachedData: BookingFormData | null = null;
 let cacheTimestamp = 0;
 let fetchingPromise: Promise<BookingFormData> | null = null;

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { createClient } from '@/lib/supabase-server';
 import { isAdmin } from '@/lib/supabase-server';
+import { clearPricingCache } from '@/lib/pricing-db';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,6 +12,7 @@ interface ServicePricing {
   base: { id: string; price: number; effective_date: string; end_date: string | null } | null;
   bedroom: { id: string; price: number; effective_date: string; end_date: string | null } | null;
   bathroom: { id: string; price: number; effective_date: string; end_date: string | null } | null;
+  extra_room: { id: string; price: number; effective_date: string; end_date: string | null } | null;
 }
 
 interface ExtraPricing {
@@ -111,6 +114,7 @@ export async function GET(request: NextRequest) {
         case 'base':
         case 'bedroom':
         case 'bathroom':
+        case 'extra_room':
           if (record.service_type) {
             const key = `${record.service_type}-${record.price_type}`;
             // Only use the first (most recent) record for each service-price_type combination
@@ -127,11 +131,12 @@ export async function GET(request: NextRequest) {
                   base: null as any,
                   bedroom: null as any,
                   bathroom: null as any,
+                  extra_room: null as any,
                 };
                 organizedPricing.services.push(serviceEntry);
               }
-              const priceType = record.price_type as 'base' | 'bedroom' | 'bathroom';
-              if (priceType === 'base' || priceType === 'bedroom' || priceType === 'bathroom') {
+              const priceType = record.price_type as 'base' | 'bedroom' | 'bathroom' | 'extra_room';
+              if (priceType === 'base' || priceType === 'bedroom' || priceType === 'bathroom' || priceType === 'extra_room') {
                 serviceEntry[priceType] = {
                   id: record.id,
                   price: price,
@@ -273,6 +278,9 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    clearPricingCache();
+    revalidateTag('booking-form-data', 'max');
 
     return NextResponse.json({
       ok: true,

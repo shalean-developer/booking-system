@@ -2,6 +2,7 @@ import { ServicePageTemplate } from "@/components/service-page-template";
 import { Building } from "lucide-react";
 import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
+import { getServicePageFromPrice } from "@/lib/service-pages-pricing";
 
 export const metadata: Metadata = createMetadata({
   title: "Post-Construction Cleaning Cape Town | Builders Clean",
@@ -74,14 +75,15 @@ const relatedServices = [
   }
 ];
 
-export default function PostConstructionCleaningServicePage() {
+export default async function PostConstructionCleaningServicePage() {
+  const pricingDisplay = await getServicePageFromPrice("post-construction-cleaning");
   return (
     <ServicePageTemplate
       title="Professional Post-Construction Cleaning Services in Cape Town"
       description="Transform your construction site into a pristine space with Shalean's post-construction cleaning in Cape Town, Johannesburg, Pretoria, Durban, East London, Port Elizabeth, Jeffreys Bay, Grahamstown, and throughout South Africa. Our professional team removes all dust, debris, and construction residue. Trusted cleaners ensuring your property is move-in ready."
       icon={Building}
       features={features}
-      pricing="From R500"
+      pricing={pricingDisplay}
       pricingNote="Quoted based on property size and construction scope"
       highlights={highlights}
       serviceType="Post-Construction Cleaning"

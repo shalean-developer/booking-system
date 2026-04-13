@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -17,7 +17,6 @@ import {
   LayoutDashboard,
   Repeat,
   FileEdit,
-  Bell,
   Package,
   Tag,
   Clock,
@@ -27,7 +26,6 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 
 interface NavItem {
   name: string;
@@ -92,7 +90,6 @@ const navigationSections: NavSection[] = [
   {
     title: 'System',
     items: [
-      { name: 'Notifications', href: '/admin/notifications', icon: Bell },
       { name: 'Check Services', href: '/admin/check-services', icon: Server },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
     ],
@@ -102,27 +99,6 @@ const navigationSections: NavSection[] = [
 export function AdminSidebar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
-  const [badges, setBadges] = useState<Record<string, number>>({});
-
-  useEffect(() => {
-    // Fetch badge counts for notifications and blog
-    const fetchBadges = async () => {
-      try {
-        // Fetch notification count
-        const notifRes = await fetch('/api/admin/notifications/unread-count');
-        if (notifRes.ok) {
-          const notifData = await notifRes.json();
-          if (notifData.count) {
-            setBadges((prev) => ({ ...prev, notifications: notifData.count }));
-          }
-        }
-      } catch (error) {
-        // Silently fail - badges are optional
-      }
-    };
-
-    fetchBadges();
-  }, []);
 
   const isActive = (href: string) => {
     if (href === '/admin') {
@@ -170,7 +146,6 @@ export function AdminSidebar() {
                 {section.items.map((item) => {
                   const active = isActive(item.href);
             const Icon = item.icon;
-                  const badgeCount = badges[item.name.toLowerCase()] || item.badge;
 
             return (
               <Link
@@ -178,27 +153,14 @@ export function AdminSidebar() {
                 href={item.href}
                 onClick={() => setIsOpen(false)}
                 className={cn(
-                        'flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                        'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                         active
                     ? 'bg-[#3b82f6] text-white'
                     : 'text-gray-700 hover:bg-gray-100'
                 )}
               >
-                      <div className="flex items-center gap-3">
                 <Icon className="h-5 w-5" />
                 <span>{item.name}</span>
-                      </div>
-                      {badgeCount !== null && badgeCount !== undefined && badgeCount > 0 && (
-                        <Badge
-                          variant={active ? 'secondary' : 'default'}
-                          className={cn(
-                            'h-5 min-w-5 px-1.5 text-xs',
-                            active ? 'bg-white/20 text-white' : 'bg-blue-600 text-white'
-                          )}
-                        >
-                          {badgeCount > 99 ? '99+' : badgeCount}
-                        </Badge>
-                      )}
               </Link>
             );
           })}

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { PRICING } from '@/lib/pricing';
 
 const featuredServices = [
   {
@@ -31,8 +32,8 @@ const featuredServices = [
 
 export function HomeFeaturedServices() {
   const [prices, setPrices] = useState<Record<string, string>>({
-    Standard: 'From R250',
-    Deep: 'From R450',
+    Standard: `From R${Math.round(PRICING.services.Standard.base)}`,
+    Deep: `From R${Math.round(PRICING.services.Deep.base)}`,
   });
 
   useEffect(() => {
@@ -42,7 +43,7 @@ export function HomeFeaturedServices() {
         if (data.success && data.services) {
           const priceMap: Record<string, string> = {};
           data.services.forEach((service: { service_type: string; base: number }) => {
-            priceMap[service.service_type] = `From R${service.base}`;
+            priceMap[service.service_type] = `From R${Math.round(service.base ?? 0)}`;
           });
           setPrices(priceMap);
         }
@@ -77,11 +78,12 @@ export function HomeFeaturedServices() {
         <div className="space-y-8 lg:space-y-12">
           {featuredServices.map((service) => {
             const serviceType = service.serviceType;
-            const price: string = serviceType && prices[serviceType] 
-              ? prices[serviceType] 
-              : serviceType === 'Deep' 
-                ? 'From R450' 
-                : 'From R250';
+            const price: string =
+              serviceType && prices[serviceType]
+                ? prices[serviceType]
+                : serviceType === 'Deep'
+                  ? `From R${Math.round(PRICING.services.Deep.base)}`
+                  : `From R${Math.round(PRICING.services.Standard.base)}`;
             
             return (
             <div

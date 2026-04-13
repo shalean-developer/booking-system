@@ -30,6 +30,8 @@ export interface Booking {
   pipelineStatus?: string;
   price: string;
   priceNumber: number;
+  /** True when the customer has submitted a review for this booking. */
+  customerReviewed?: boolean;
   rating?: number;
   invoiceId: string;
   zohoInvoiceId?: string | null;
@@ -111,11 +113,13 @@ export interface UserProfile {
   initial: string;
   email: string;
   phone: string;
+  customerId?: string | null;
   referralCode: string;
   rewardPoints: number;
   rewardTier: string;
   rewardTarget: number;
   rewardProgress: number;
+  nextTierName?: string | null;
 }
 
 export interface BookingStep {

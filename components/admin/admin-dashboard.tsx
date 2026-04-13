@@ -1,10 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import useSWR from 'swr';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
   CalendarDays,
+  Clock,
   Users,
   Sparkles,
   BarChart3,
@@ -15,12 +19,16 @@ import {
   X,
   ChevronRight,
   LogOut,
-  ChevronDown,
   FileText,
-  DollarSign,
+  Banknote,
+  Tags,
   CheckCircle2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase-client';
+import { safeLogout } from '@/lib/logout-utils';
+import { fetcher } from '@/lib/swr-config';
+import { useUser } from '@/hooks/use-user';
 import { BookingModal, type BookingSuccessPayload } from './BookingModal';
 import {
   BookingsPage,
@@ -40,10 +48,14 @@ import type { NavId } from '@/components/admin/types';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface NavItem {
-  id: NavId;
+  /** `schedule` is a full-page route under `/admin/schedule`, not an SPA panel */
+  id: NavId | 'schedule';
   label: string;
   icon: React.ReactNode;
   badge?: number;
+  badgeTitle?: string;
+  /** When set, navigate with Next.js Link instead of swapping SPA view */
+  href?: string;
 }
 
 // ─── Toast Notification ───────────────────────────────────────────────────────
@@ -68,18 +80,38 @@ const Toast = ({ message, onDone }: { message: string; onDone: () => void }) => 
 
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
 
+function initialsFromEmail(email: string | undefined): string {
+  if (!email) return 'AD';
+  const local = email.split('@')[0] ?? '';
+  const parts = local.split(/[._-]/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase().slice(0, 2);
+  }
+  return local.slice(0, 2).toUpperCase() || 'AD';
+}
+
 const Sidebar = ({
   activeNav,
   setActiveNav,
   isOpen,
   onClose,
   navItems,
+  userLabel,
+  userEmail,
+  userInitials,
+  onLogout,
+  pathname,
 }: {
   activeNav: NavId;
   setActiveNav: (id: NavId) => void;
+  pathname: string;
   isOpen: boolean;
   onClose: () => void;
   navItems: NavItem[];
+  userLabel: string;
+  userEmail: string;
+  userInitials: string;
+  onLogout: () => void;
 }) => (
   <aside
     className={cn(
@@ -111,46 +143,73 @@ const Sidebar = ({
 
     <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-2" aria-label="Main navigation">
       <p className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-white/30">Menu</p>
-      {navItems.map((item) => (
-        <button
-          key={item.id}
-          type="button"
-          onClick={() => {
-            setActiveNav(item.id);
-            onClose();
-          }}
-          className={cn(
-            'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-all duration-200',
-            activeNav === item.id
-              ? 'bg-white/15 text-white shadow-sm'
-              : 'text-white/60 hover:bg-white/8 hover:text-white/90'
-          )}
-        >
-          <span className={cn('flex-shrink-0', activeNav === item.id ? 'text-white' : 'text-white/50')}>
-            {item.icon}
-          </span>
-          <span className="flex-1">{item.label}</span>
-          {item.badge !== undefined && (
-            <span className="min-w-[18px] flex-shrink-0 rounded-full bg-white/20 px-1.5 py-0.5 text-center text-[10px] font-bold text-white">
-              {item.badge}
-            </span>
-          )}
-          {activeNav === item.id && <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-white/60" />}
-        </button>
-      ))}
+      {navItems.map((item) => {
+        const isScheduleLink = Boolean(item.href);
+        const scheduleActive = isScheduleLink && pathname.startsWith('/admin/schedule');
+        const spaActive = !isScheduleLink && activeNav === item.id;
+        const isActive = scheduleActive || spaActive;
+        const className = cn(
+          'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-all duration-200',
+          isActive
+            ? 'bg-white/15 text-white shadow-sm'
+            : 'text-white/60 hover:bg-white/8 hover:text-white/90'
+        );
+        const iconWrap = cn('flex-shrink-0', isActive ? 'text-white' : 'text-white/50');
+        if (item.href) {
+          return (
+            <Link
+              key={item.id}
+              href={item.href}
+              onClick={onClose}
+              className={className}
+            >
+              <span className={iconWrap}>{item.icon}</span>
+              <span className="flex-1">{item.label}</span>
+              {scheduleActive && <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-white/60" />}
+            </Link>
+          );
+        }
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => {
+              setActiveNav(item.id as NavId);
+              onClose();
+            }}
+            className={className}
+          >
+            <span className={iconWrap}>{item.icon}</span>
+            <span className="flex-1">{item.label}</span>
+            {item.badge !== undefined && (
+              <span
+                title={item.badgeTitle}
+                className="min-w-[18px] flex-shrink-0 rounded-full bg-white/20 px-1.5 py-0.5 text-center text-[10px] font-bold text-white"
+              >
+                {item.badge}
+              </span>
+            )}
+            {spaActive && <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-white/60" />}
+          </button>
+        );
+      })}
     </nav>
 
     <div className="flex-shrink-0 border-t border-white/10 px-3 pb-5 pt-3">
-      <div className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-white/8">
+      <button
+        type="button"
+        onClick={onLogout}
+        className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-white/8"
+      >
         <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-white/30 to-white/10">
-          <span className="text-xs font-bold text-white">SA</span>
+          <span className="text-xs font-bold text-white">{userInitials}</span>
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-bold text-white">Shalean Admin</p>
-          <p className="truncate text-[10px] text-white/40">admin@shalean.co.za</p>
+          <p className="truncate text-xs font-bold text-white">{userLabel}</p>
+          <p className="truncate text-[10px] text-white/40">{userEmail}</p>
         </div>
-        <LogOut className="h-3.5 w-3.5 flex-shrink-0 text-white/30" />
-      </div>
+        <LogOut className="h-3.5 w-3.5 flex-shrink-0 text-white/50" aria-hidden />
+      </button>
     </div>
   </aside>
 );
@@ -159,15 +218,23 @@ const Sidebar = ({
 
 const TopBar = ({
   onMenuClick,
-  onSearch,
+  searchQuery,
+  onSearchChange,
+  onSearchSubmit,
   activeNav,
+  userInitials,
+  notificationCount,
 }: {
   onMenuClick: () => void;
-  onSearch?: (q: string) => void;
+  searchQuery: string;
+  onSearchChange: (q: string) => void;
+  onSearchSubmit: () => void;
   activeNav: NavId;
+  userInitials: string;
+  notificationCount: number;
 }) => {
   const [todayLabel, setTodayLabel] = useState('');
-  useEffect(() => {
+  const refreshToday = useCallback(() => {
     setTodayLabel(
       new Date().toLocaleDateString('en-ZA', {
         day: 'numeric',
@@ -176,6 +243,11 @@ const TopBar = ({
       })
     );
   }, []);
+  useEffect(() => {
+    refreshToday();
+    const id = setInterval(refreshToday, 60_000);
+    return () => clearInterval(id);
+  }, [refreshToday]);
 
   const PAGE_LABELS: Record<NavId, string> = {
     dashboard: 'Dashboard',
@@ -207,7 +279,14 @@ const TopBar = ({
             <Search className="h-3.5 w-3.5 flex-shrink-0 text-gray-400" />
             <input
               type="search"
-              onChange={(e) => onSearch?.(e.target.value)}
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  onSearchSubmit();
+                }
+              }}
               placeholder="Search bookings, clients…"
               className="min-w-0 flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
               aria-label="Search"
@@ -216,21 +295,28 @@ const TopBar = ({
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          <div className="hidden cursor-pointer items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 transition-colors hover:bg-gray-200 sm:flex">
-            <CalendarDays className="h-3.5 w-3.5 text-gray-500" />
+          <div
+            className="hidden items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 sm:flex"
+            title="Today (local time)"
+          >
+            <CalendarDays className="h-3.5 w-3.5 text-gray-500" aria-hidden />
             <span className="text-xs font-semibold text-gray-700">{todayLabel || '—'}</span>
-            <ChevronDown className="h-3 w-3 text-gray-400" />
           </div>
-          <button
-            type="button"
+          <Link
+            href="/admin"
             className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200"
-            aria-label="Notifications"
+            title="Admin dashboard"
+            aria-label={notificationCount > 0 ? `Notifications, ${notificationCount} unread` : 'Admin dashboard'}
           >
             <Bell className="h-4 w-4" />
-            <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full border-2 border-white bg-red-500" />
-          </button>
-          <div className="flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600">
-            <span className="text-xs font-bold text-white">SA</span>
+            {notificationCount > 0 && (
+              <span className="absolute right-1 top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                {notificationCount > 99 ? '99+' : notificationCount}
+              </span>
+            )}
+          </Link>
+          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600">
+            <span className="text-xs font-bold text-white">{userInitials}</span>
           </div>
         </div>
       </div>
@@ -241,13 +327,34 @@ const TopBar = ({
 // ─── Main AdminDashboard ──────────────────────────────────────────────────────
 
 export function AdminDashboard() {
+  const router = useRouter();
+  const pathname = usePathname() ?? '';
+  const { user } = useUser();
   const [activeNav, setActiveNav] = useState<NavId>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [newBookings, setNewBookings] = useState<NewBookingRecord[]>([]);
+  const [headerSearch, setHeaderSearch] = useState('');
 
   const { stats: navStats } = useDashboardStats('month');
+
+  const { data: notifData } = useSWR<{ ok: boolean; count?: number }>(
+    '/api/admin/notifications/unread-count',
+    fetcher
+  );
+  const notificationCount = notifData?.ok ? notifData.count ?? 0 : 0;
+
+  const userEmail = user?.email ?? '';
+  const userLabel =
+    (typeof user?.user_metadata?.full_name === 'string' && user.user_metadata.full_name.trim()) ||
+    userEmail.split('@')[0] ||
+    'Admin';
+  const userInitials = initialsFromEmail(userEmail);
+
+  const handleLogout = useCallback(() => {
+    void safeLogout(supabase, router, { redirectPath: '/login?returnTo=/admin' });
+  }, [router]);
 
   const navItems = useMemo((): NavItem[] => {
     const b = navStats?.pendingBookings;
@@ -256,15 +363,32 @@ export function AdminDashboard() {
     return [
       { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-4.5 w-4.5" /> },
       { id: 'bookings', label: 'Bookings', icon: <CalendarDays className="h-4.5 w-4.5" />, badge: b },
+      {
+        id: 'schedule',
+        label: 'Schedule',
+        icon: <Clock className="h-4.5 w-4.5" />,
+        href: '/admin/schedule',
+      },
       { id: 'customers', label: 'Customers', icon: <Users className="h-4.5 w-4.5" /> },
-      { id: 'cleaners', label: 'Cleaners', icon: <Sparkles className="h-4.5 w-4.5" />, badge: a },
+      {
+        id: 'cleaners',
+        label: 'Cleaners',
+        icon: <Sparkles className="h-4.5 w-4.5" />,
+        badge: a,
+        badgeTitle: a ? 'Pending cleaner applications' : undefined,
+      },
       { id: 'quotes', label: 'Quotes', icon: <FileText className="h-4.5 w-4.5" />, badge: q },
-      { id: 'payments', label: 'Payments', icon: <DollarSign className="h-4.5 w-4.5" /> },
-      { id: 'pricing', label: 'Pricing', icon: <DollarSign className="h-4.5 w-4.5" /> },
+      { id: 'payments', label: 'Payments', icon: <Banknote className="h-4.5 w-4.5" /> },
+      { id: 'pricing', label: 'Pricing', icon: <Tags className="h-4.5 w-4.5" /> },
       { id: 'reports', label: 'Reports', icon: <BarChart3 className="h-4.5 w-4.5" /> },
       { id: 'settings', label: 'Settings', icon: <Settings className="h-4.5 w-4.5" /> },
     ];
   }, [navStats]);
+
+  const handleSearchSubmit = useCallback(() => {
+    setActiveNav('bookings');
+    setSidebarOpen(false);
+  }, []);
 
   const handleBookingSuccess = (booking: BookingSuccessPayload) => {
     const cleanerName = booking.cleanerLabel ?? booking.cleanerId ?? '—';
@@ -302,7 +426,11 @@ export function AdminDashboard() {
     if (activeNav === 'bookings') {
       return (
         <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
-          <BookingsPage onNewBooking={() => setBookingModalOpen(true)} newBookings={newBookings} />
+          <BookingsPage
+            onNewBooking={() => setBookingModalOpen(true)}
+            newBookings={newBookings}
+            syncSearch={headerSearch}
+          />
         </main>
       );
     }
@@ -369,9 +497,14 @@ export function AdminDashboard() {
       <Sidebar
         activeNav={activeNav}
         setActiveNav={handleNavigate}
+        pathname={pathname}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         navItems={navItems}
+        userLabel={userLabel}
+        userEmail={userEmail || '—'}
+        userInitials={userInitials}
+        onLogout={handleLogout}
       />
 
       <AnimatePresence>
@@ -388,7 +521,15 @@ export function AdminDashboard() {
       </AnimatePresence>
 
       <div className="flex min-w-0 flex-1 flex-col lg:ml-64">
-        <TopBar onMenuClick={() => setSidebarOpen(true)} activeNav={activeNav} />
+        <TopBar
+          onMenuClick={() => setSidebarOpen(true)}
+          searchQuery={headerSearch}
+          onSearchChange={setHeaderSearch}
+          onSearchSubmit={handleSearchSubmit}
+          activeNav={activeNav}
+          userInitials={userInitials}
+          notificationCount={notificationCount}
+        />
 
         <AnimatePresence mode="wait">
           <motion.div

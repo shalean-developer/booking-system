@@ -15,15 +15,24 @@ export async function fetcher<T>(url: string): Promise<T> {
     let controller: AbortController | null = null;
     let timeoutId: NodeJS.Timeout | null = null;
     
+    // Heavy admin list endpoints (cold DB, aggregations, optional Paystack checks) need a longer abort window.
+    const longTimeout =
+      url.includes('/api/admin/bookings') ||
+      url.includes('/api/admin/payments') ||
+      url.includes('/api/admin/cleaners') ||
+      url.includes('/api/admin/stats') ||
+      url.includes('/api/admin/notifications/unread-count');
+    const timeoutMs = longTimeout ? 90_000 : 30_000;
+
     // Check if AbortController is supported
     if (typeof AbortController !== 'undefined') {
       controller = new AbortController();
       timeoutId = setTimeout(() => {
         if (controller) {
           controller.abort();
-          console.error('[SWR Fetcher] Request timeout after 30s:', url);
+          console.error(`[SWR Fetcher] Request timeout after ${timeoutMs / 1000}s:`, url);
         }
-      }, 30000); // 30 second timeout
+      }, timeoutMs);
     }
 
     const fetchOptions: RequestInit = {

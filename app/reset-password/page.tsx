@@ -53,10 +53,40 @@ function ResetPasswordForm() {
       try {
         // First, check if there's a hash fragment with tokens (Supabase sends tokens in hash)
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const queryParams = new URLSearchParams(window.location.search);
         const accessToken = hashParams.get('access_token');
         const type = hashParams.get('type');
+        const code = queryParams.get('code');
+        const tokenHash = queryParams.get('token_hash');
+        const queryType = queryParams.get('type');
         
-        if (accessToken && type === 'recovery') {
+        if (code) {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeError) {
+            console.error('Error exchanging recovery code:', exchangeError);
+            setIsValidToken(false);
+            setError('Invalid or expired reset link. Please request a new password reset.');
+            return;
+          }
+
+          setIsValidToken(true);
+          window.history.replaceState(null, '', window.location.pathname);
+        } else if (tokenHash && queryType === 'recovery') {
+          const { error: verifyError } = await supabase.auth.verifyOtp({
+            type: 'recovery',
+            token_hash: tokenHash,
+          });
+
+          if (verifyError) {
+            console.error('Error verifying recovery token:', verifyError);
+            setIsValidToken(false);
+            setError('Invalid or expired reset link. Please request a new password reset.');
+            return;
+          }
+
+          setIsValidToken(true);
+          window.history.replaceState(null, '', window.location.pathname);
+        } else if (accessToken && type === 'recovery') {
           // We have a recovery token in the URL, set the session
           const { error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,

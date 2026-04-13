@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
   Calendar,
+  CalendarPlus,
   RefreshCw,
   MapPin,
   ChevronRight,
@@ -42,6 +43,7 @@ import {
   ReviewModal,
 } from './dashboard-home-modals';
 import type { Booking, PageId, FilterId } from './types';
+import { getAbsoluteReferralSignupUrl, getReferralSignupPath } from '@/lib/referral-url';
 
 interface DashboardHomeProps {
   onNavigate: (page: PageId) => void;
@@ -71,6 +73,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
   const upcomingBooking = bookings.find((b) => b.status === 'upcoming');
   const filteredBookings =
     filter === 'all' ? bookings.slice(0, 3) : bookings.filter((b) => b.status === filter).slice(0, 3);
+  const supportWaHref = supportWhatsAppHref();
 
   const displayFirstName = () => {
     const part = user.name?.split(/\s+/)[0];
@@ -79,7 +82,10 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
   };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(user.referralCode).catch(() => {});
+    const payload = user.customerId
+      ? getAbsoluteReferralSignupUrl(user.customerId)
+      : user.referralCode;
+    navigator.clipboard.writeText(payload).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -187,7 +193,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
                     )}
                   >
                     {action.id === 'qa-upcoming' && <Calendar className="w-5 h-5" />}
-                    {action.id === 'qa-book' && <RefreshCw className="w-5 h-5" />}
+                    {action.id === 'qa-book' && <CalendarPlus className="w-5 h-5" />}
                     {action.id === 'qa-rewards' && <Star className="w-5 h-5" />}
                   </div>
                   <div className="text-left min-w-0">
@@ -292,7 +298,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
                             <MapPin className="w-3 h-3 flex-shrink-0" />
                             <span>{booking.address}</span>
                           </p>
-                          {booking.rating !== undefined && (
+                          {booking.rating !== undefined && booking.rating > 0 && (
                             <div className="flex items-center gap-1 mt-1.5">
                               {[1, 2, 3, 4, 5].map((i) => (
                                 <Star
@@ -413,7 +419,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
                           </motion.button>
                         </div>
                       )}
-                      {booking.status === 'completed' && booking.rating === undefined && (
+                      {booking.status === 'completed' && !booking.customerReviewed && (
                         <div className="mt-3 pt-3 border-t border-gray-100">
                           <button
                             type="button"
@@ -463,7 +469,9 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
               <div>
                 <p className="text-sm font-bold text-gray-900">{user.rewardTier} Member</p>
                 <p className="text-xs text-gray-400">
-                  {user.rewardPoints} / {user.rewardTarget} pts to Silver
+                  {user.nextTierName
+                    ? `${user.rewardPoints} / ${user.rewardTarget} pts to ${user.nextTierName}`
+                    : `${user.rewardPoints} pts`}
                 </p>
               </div>
               <div className="ml-auto flex-shrink-0">
@@ -482,7 +490,9 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
             </div>
             <div className="flex justify-between mt-1.5">
               <p className="text-[10px] text-gray-400">{user.rewardTier}</p>
-              <p className="text-[10px] text-gray-400">Silver at {user.rewardTarget} pts</p>
+              <p className="text-[10px] text-gray-400">
+                {user.nextTierName ? `${user.nextTierName} at ${user.rewardTarget} pts` : 'Top tier'}
+              </p>
             </div>
             <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -507,17 +517,23 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
             <p className="text-xs text-slate-400 leading-relaxed mb-4">
               As a valued member, you get access to priority support — reach us 24/7 via WhatsApp.
             </p>
-            <motion.a
-              href={supportWhatsAppHref() || '#'}
-              target="_blank"
-              rel="noopener noreferrer"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors"
-            >
-              <MessageCircle className="w-4 h-4" />
-              <span>Chat on WhatsApp</span>
-            </motion.a>
+            {supportWaHref ? (
+              <motion.a
+                href={supportWaHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>Chat on WhatsApp</span>
+              </motion.a>
+            ) : (
+              <p className="text-[11px] text-slate-500 text-center">
+                Set <span className="font-mono">NEXT_PUBLIC_SUPPORT_PHONE</span> in your environment to enable WhatsApp chat.
+              </p>
+            )}
           </div>
 
           <div className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl p-5">
@@ -535,7 +551,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
                 whileTap={{ scale: 0.9 }}
                 onClick={handleCopy}
                 className="flex-shrink-0 w-7 h-7 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
-                aria-label="Copy referral code"
+                aria-label={user.customerId ? 'Copy referral signup link' : 'Copy referral code'}
               >
                 <AnimatePresence mode="wait">
                   {copied ? (
@@ -555,16 +571,30 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
                 ✓ Copied to clipboard!
               </p>
             )}
-            <motion.button
-              type="button"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => onNavigate('rewards')}
-              className="mt-3 w-full py-2.5 rounded-xl bg-white text-blue-600 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-blue-50 transition-colors"
-            >
-              <span>Share with a friend</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </motion.button>
+            {user.customerId ? (
+              <motion.a
+                href={getReferralSignupPath(user.customerId)}
+                target="_blank"
+                rel="noopener noreferrer"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="mt-3 w-full py-2.5 rounded-xl bg-white text-blue-600 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-blue-50 transition-colors"
+              >
+                <span>Friend signup link</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </motion.a>
+            ) : (
+              <motion.button
+                type="button"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => onNavigate('rewards')}
+                className="mt-3 w-full py-2.5 rounded-xl bg-white text-blue-600 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-blue-50 transition-colors"
+              >
+                <span>Rewards &amp; referral</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </motion.button>
+            )}
           </div>
 
           <div className="space-y-2 px-1">

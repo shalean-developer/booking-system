@@ -6,32 +6,25 @@ import { generateUniqueBookingId } from '@/lib/booking-id';
 
 export const dynamic = 'force-dynamic';
 
+const SCHEDULE_SELECT =
+  'id, customer_name, customer_email, customer_phone, address_line1, address_suburb, booking_date, booking_time, service_type, status, total_amount, cleaner_id, requires_team, created_at, updated_at';
+
 export async function GET(request: NextRequest) {
   try {
     const adminCheck = await isAdmin();
-    console.log('Admin check result:', adminCheck);
-    
+
     if (!adminCheck) {
-      // Get more details about why admin check failed
       const supabase = await createClient();
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
-      console.log('Auth user:', user ? user.email : 'null');
-      console.log('Auth error:', authError?.message);
-      
+      const { data: { user } } = await supabase.auth.getUser();
+
       if (user) {
-        // Check if customer record exists
-        const { data: customer, error: customerError } = await supabase
+        await supabase
           .from('customers')
           .select('id, role, auth_user_id')
           .eq('auth_user_id', user.id)
           .maybeSingle();
-        
-        console.log('Customer record:', customer ? { id: customer.id, role: customer.role } : 'not found');
-        console.log('Customer error:', customerError?.message);
       }
-      
-      console.log('Unauthorized access attempt to bookings API');
+
       return NextResponse.json(
         { ok: false, error: 'Unauthorized - Admin access required' },
         { status: 403 }
@@ -39,7 +32,6 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await createClient();
-    console.log('Fetching bookings from database...');
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = parseInt(searchParams.get('offset') || '0');
@@ -49,11 +41,14 @@ export async function GET(request: NextRequest) {
     const start = searchParams.get('start');
     const end = searchParams.get('end');
     const excludeRecurring = searchParams.get('exclude_recurring') === 'true';
+    const skipCount =
+      searchParams.get('skip_count') === '1' || searchParams.get('skip_count') === 'true';
+    const fieldsSchedule = searchParams.get('fields') === 'schedule';
+
+    const selectCols = fieldsSchedule ? SCHEDULE_SELECT : '*';
 
     // Build base query without join
-    let query = supabase
-      .from('bookings')
-      .select('*');
+    let query = supabase.from('bookings').select(selectCols);
 
     // Date range filtering (for schedule view) - MUST come before pagination
     if (start) {
@@ -113,49 +108,46 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log(`Fetched ${bookings?.length || 0} bookings from database`);
-
     // Ensure bookings is an array
     const safeBookings = Array.isArray(bookings) ? bookings : [];
 
-    // Get count - apply same filters as main query
-    let countQuery = supabase
-      .from('bookings')
-      .select('id', { count: 'exact', head: true });
+    let count: number | null = null;
+    if (!skipCount) {
+      let countQuery = supabase.from('bookings').select('id', { count: 'exact', head: true });
 
-    // Date range filtering (for schedule view) - MUST come first
-    if (start) {
-      const startDate = start.includes('T') ? start.split('T')[0] : start;
-      countQuery = countQuery.gte('booking_date', startDate);
-    }
-    if (end) {
-      const endDate = end.includes('T') ? end.split('T')[0] : end;
-      countQuery = countQuery.lte('booking_date', endDate);
-    }
+      if (start) {
+        const startDate = start.includes('T') ? start.split('T')[0] : start;
+        countQuery = countQuery.gte('booking_date', startDate);
+      }
+      if (end) {
+        const endDate = end.includes('T') ? end.split('T')[0] : end;
+        countQuery = countQuery.lte('booking_date', endDate);
+      }
 
-    if (status && status !== 'all') {
-      countQuery = countQuery.eq('status', status);
-    }
+      if (status && status !== 'all') {
+        countQuery = countQuery.eq('status', status);
+      }
 
-    // Filter by customer ID if provided
-    if (customerId) {
-      countQuery = countQuery.eq('customer_id', customerId);
-    }
+      if (customerId) {
+        countQuery = countQuery.eq('customer_id', customerId);
+      }
 
-    if (search) {
-      countQuery = countQuery.or(
-        `customer_name.ilike.%${search}%,customer_email.ilike.%${search}%,customer_phone.ilike.%${search}%,service_type.ilike.%${search}%`
-      );
-    }
+      if (search) {
+        countQuery = countQuery.or(
+          `customer_name.ilike.%${search}%,customer_email.ilike.%${search}%,customer_phone.ilike.%${search}%,service_type.ilike.%${search}%`
+        );
+      }
 
-    if (excludeRecurring) {
-      countQuery = countQuery.is('recurring_schedule_id', null);
-    }
+      if (excludeRecurring) {
+        countQuery = countQuery.is('recurring_schedule_id', null);
+      }
 
-    const { count, error: countError } = await countQuery;
-    
-    if (countError) {
-      console.error('Error fetching booking count:', countError);
+      const { count: c, error: countError } = await countQuery;
+
+      if (countError) {
+        console.error('Error fetching booking count:', countError);
+      }
+      count = c;
     }
 
     // Extract all cleaner IDs (including team bookings)
@@ -181,7 +173,7 @@ export async function GET(request: NextRequest) {
     if (bookingIds.length > 0) {
       const { data: teams } = await supabase
         .from('booking_teams')
-        .select('booking_id, team_name, supervisor_id')
+        .select('id, booking_id, team_name, supervisor_id')
         .in('booking_id', bookingIds);
 
       if (teams && teams.length > 0) {
@@ -277,29 +269,15 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    const totalPages = Math.ceil((count || 0) / limit);
+    const totalForPages = count ?? formattedBookings.length;
+    const totalPages = Math.max(1, Math.ceil((totalForPages || 0) / limit));
 
-    console.log(`Returning ${formattedBookings.length} formatted bookings, total: ${count || 0}, pages: ${totalPages}`);
-    
-    // Log sample booking for debugging
-    if (formattedBookings.length > 0) {
-      console.log('Sample booking:', JSON.stringify(formattedBookings[0], null, 2));
-    }
-
-    // Ensure we always return a valid response structure
     const response = {
       ok: true,
       bookings: Array.isArray(formattedBookings) ? formattedBookings : [],
-      total: typeof count === 'number' ? count : 0,
-      totalPages: typeof totalPages === 'number' ? totalPages : 1,
+      total: typeof count === 'number' ? count : formattedBookings.length,
+      totalPages: skipCount ? 1 : totalPages,
     };
-
-    console.log('Final response:', {
-      ok: response.ok,
-      bookingsCount: response.bookings.length,
-      total: response.total,
-      totalPages: response.totalPages,
-    });
 
     return NextResponse.json(response, {
       headers: {

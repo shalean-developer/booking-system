@@ -16,18 +16,32 @@ import {
 import type { Metadata } from "next";
 import { createMetadata } from "@/lib/metadata";
 import { getSeoConfig } from "@/lib/seo-config";
+import { fetchActivePricing } from "@/lib/pricing-db";
+import { formatFromBaseZar } from "@/lib/display-pricing";
 
 // Services page metadata
 export const metadata: Metadata = createMetadata(getSeoConfig("services"));
 
-export default function ServicesPage() {
+export default async function ServicesPage() {
+  let pricing = null;
+  try {
+    pricing = await fetchActivePricing();
+  } catch {
+    pricing = null;
+  }
+
+  const fromStandard = formatFromBaseZar(pricing, "Standard");
+  const fromDeep = formatFromBaseZar(pricing, "Deep");
+  const fromMove = formatFromBaseZar(pricing, "Move In/Out");
+  const fromAirbnb = formatFromBaseZar(pricing, "Airbnb");
+
   const services = [
     {
       title: "Regular Cleaning",
       icon: Home,
       description: "Regular upkeep for your home. Perfect for ongoing maintenance.",
       features: ["Dusting & vacuuming", "Kitchen & bathroom cleaning", "Floor mopping", "Surface sanitization"],
-      pricing: "From R250",
+      pricing: fromStandard,
       link: "/services/regular-cleaning",
       color: "bg-amber-50",
       iconColor: "text-amber-600"
@@ -37,7 +51,7 @@ export default function ServicesPage() {
       icon: Star,
       description: "Intensive cleaning for every corner. Ideal for seasonal refreshes.",
       features: ["Detailed scrubbing", "Hard-to-reach areas", "Appliance deep clean", "Comprehensive sanitisation"],
-      pricing: "From R450",
+      pricing: fromDeep,
       link: "/services/deep-cleaning",
       color: "bg-teal-50",
       iconColor: "text-teal-600"
@@ -47,7 +61,7 @@ export default function ServicesPage() {
       icon: Building,
       description: "Perfect for switching homes. Make your space move-in ready or get your deposit back.",
       features: ["Empty space cleaning", "All surfaces detailed", "Appliances inside-out", "Windows & walls"],
-      pricing: "From R980",
+      pricing: fromMove,
       link: "/services/move-turnover",
       color: "bg-orange-50",
       iconColor: "text-orange-500"
@@ -57,7 +71,7 @@ export default function ServicesPage() {
       icon: Calendar,
       description: "Professional rental preparation. Fast, reliable service between guests.",
       features: ["Quick turnaround", "Linen change", "Guest-ready standards", "Quality inspection"],
-      pricing: "From R230",
+      pricing: fromAirbnb,
       link: "/services/airbnb-cleaning",
       color: "bg-teal-50",
       iconColor: "text-teal-600"
@@ -67,7 +81,7 @@ export default function ServicesPage() {
       icon: Building,
       description: "Professional commercial cleaning services for offices and workplaces. Keep your business environment clean.",
       features: ["Desk cleaning", "Reception maintenance", "Kitchen cleaning", "Restroom sanitization"],
-      pricing: "From R180",
+      pricing: fromStandard,
       link: "/services/office-cleaning",
       color: "bg-blue-50",
       iconColor: "text-blue-600"
@@ -77,7 +91,7 @@ export default function ServicesPage() {
       icon: Users,
       description: "Specialized cleaning services for apartments and condos. Understanding apartment layouts and strata requirements.",
       features: ["Compact space optimization", "Strata-compliant cleaning", "Balcony cleaning", "Built-in storage"],
-      pricing: "From R200",
+      pricing: fromStandard,
       link: "/services/apartment-cleaning",
       color: "bg-purple-50",
       iconColor: "text-purple-600"
@@ -87,7 +101,7 @@ export default function ServicesPage() {
       icon: Sparkles,
       description: "Professional window cleaning for crystal clear results. Streak-free, spotless windows every time.",
       features: ["Interior & exterior cleaning", "Window frame cleaning", "Screen maintenance", "Streak-free guarantee"],
-      pricing: "From R150",
+      pricing: fromStandard,
       link: "/services/window-cleaning",
       color: "bg-cyan-50",
       iconColor: "text-cyan-600"
@@ -97,7 +111,7 @@ export default function ServicesPage() {
       icon: Home,
       description: "Comprehensive home maintenance cleaning services. Keep your home in perfect condition year-round.",
       features: ["Regular maintenance", "Seasonal cleaning", "Appliance care", "Deep sanitization"],
-      pricing: "From R300",
+      pricing: fromStandard,
       link: "/services/home-maintenance",
       color: "bg-green-50",
       iconColor: "text-green-600"

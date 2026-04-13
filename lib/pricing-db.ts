@@ -20,7 +20,16 @@ export interface ServiceMetadata {
 export interface PricingRecord {
   id: string;
   service_type: string | null;
-  price_type: 'base' | 'bedroom' | 'bathroom' | 'extra' | 'service_fee' | 'frequency_discount';
+  price_type:
+    | 'base'
+    | 'bedroom'
+    | 'bathroom'
+    | 'extra_room'
+    | 'extra'
+    | 'service_fee'
+    | 'frequency_discount'
+    | 'equipment_charge'
+    | 'minimum_booking';
   item_name: string | null;
   price: number;
   effective_date: string;
@@ -50,6 +59,7 @@ export interface ServicePricing {
   base: number;
   bedroom: number;
   bathroom: number;
+  extraRoom: number;
 }
 
 export interface PricingData {
@@ -92,6 +102,109 @@ export function clearPricingCache(): void {
 }
 
 /**
+ * Collapse raw `pricing_config` rows into a single snapshot.
+ * Uses the same rule as `/api/admin/pricing/manage`: **most recent `effective_date` wins**
+ * per (service_type + price_type), extra name, service_fee, etc.
+ */
+export function buildPricingDataFromConfigRows(rows: any[]): PricingData {
+  const sorted = [...rows].sort((a, b) => {
+    const da = String(a.effective_date ?? '');
+    const db = String(b.effective_date ?? '');
+    if (db !== da) return db.localeCompare(da);
+    const ca = String(a.updated_at ?? a.created_at ?? '');
+    const cb = String(b.updated_at ?? b.created_at ?? '');
+    return cb.localeCompare(ca);
+  });
+
+  const pricing: PricingData = {
+    services: {},
+    extras: {},
+    serviceFee: 0,
+    frequencyDiscounts: {},
+    equipmentChargeZar: 0,
+    minimumBookingFeeZar: 0,
+  };
+
+  const seenServiceCombo = new Set<string>();
+  const seenExtra = new Set<string>();
+  const seenFreq = new Set<string>();
+  let equipmentDone = false;
+  let minimumDone = false;
+  let serviceFeeDone = false;
+
+  for (const record of sorted) {
+    const { service_type, price_type, item_name, price } = record;
+    const numericPrice = Number(price);
+
+    switch (price_type) {
+      case 'equipment_charge':
+        if (!equipmentDone) {
+          pricing.equipmentChargeZar = numericPrice;
+          equipmentDone = true;
+        }
+        break;
+      case 'minimum_booking':
+        if (!minimumDone) {
+          pricing.minimumBookingFeeZar = numericPrice;
+          minimumDone = true;
+        }
+        break;
+      case 'base':
+      case 'bedroom':
+      case 'bathroom':
+        if (service_type) {
+          const combo = `${service_type}\u0000${price_type}`;
+          if (seenServiceCombo.has(combo)) break;
+          seenServiceCombo.add(combo);
+          if (!pricing.services[service_type]) {
+            pricing.services[service_type] = { base: 0, bedroom: 0, bathroom: 0, extraRoom: 0 };
+          }
+          pricing.services[service_type][price_type as keyof ServicePricing] = numericPrice;
+        }
+        break;
+      case 'extra_room':
+        if (service_type) {
+          const combo = `${service_type}\u0000${price_type}`;
+          if (seenServiceCombo.has(combo)) break;
+          seenServiceCombo.add(combo);
+          if (!pricing.services[service_type]) {
+            pricing.services[service_type] = { base: 0, bedroom: 0, bathroom: 0, extraRoom: 0 };
+          }
+          pricing.services[service_type].extraRoom = numericPrice;
+        }
+        break;
+      case 'extra':
+        if (item_name) {
+          const key = String(item_name).trim();
+          if (seenExtra.has(key)) {
+            console.warn(`⚠️ Skipping older duplicate extra row: ${key}`);
+            break;
+          }
+          seenExtra.add(key);
+          pricing.extras[key] = numericPrice;
+        }
+        break;
+      case 'service_fee':
+        if (!serviceFeeDone) {
+          pricing.serviceFee = numericPrice;
+          serviceFeeDone = true;
+        }
+        break;
+      case 'frequency_discount':
+        if (item_name) {
+          const fk = String(item_name).trim();
+          if (seenFreq.has(fk)) break;
+          seenFreq.add(fk);
+          pricing.frequencyDiscounts[fk] = numericPrice;
+        }
+        break;
+    }
+  }
+
+  return pricing;
+}
+
+/**
  * Fetch active pricing from database with caching
  */
 export async function fetchActivePricing(forceRefresh = false): Promise<PricingData> {
@@ -112,12 +225,15 @@ export async function fetchActivePricing(forceRefresh = false): Promise<PricingD
   // Create and store the fetch promise to prevent duplicate parallel fetches
   fetchingPromise = (async () => {
     try {
+      const today = new Date().toISOString().split('T')[0];
       const { data, error } = await supabase
         .from('pricing_config')
         .select('*')
         .eq('is_active', true)
-        .lte('effective_date', new Date().toISOString().split('T')[0])
-        .or('end_date.is.null,end_date.gt.' + new Date().toISOString().split('T')[0]);
+        .lte('effective_date', today)
+        .or('end_date.is.null,end_date.gt.' + today)
+        .order('effective_date', { ascending: false })
+        .order('updated_at', { ascending: false });
 
       if (error) {
         const errorMessage = error?.message || error?.toString() || 'Unknown error';
@@ -129,79 +245,8 @@ export async function fetchActivePricing(forceRefresh = false): Promise<PricingD
         throw new Error('No active pricing configuration found');
       }
 
-      // Transform database records into structured pricing data
-      const pricing: PricingData = {
-        services: {},
-        extras: {},
-        serviceFee: 0,
-        frequencyDiscounts: {},
-        equipmentChargeZar: 0,
-        minimumBookingFeeZar: 0,
-      };
+      const pricing = buildPricingDataFromConfigRows(data);
 
-      // Track duplicates and validate prices
-      const seenExtras = new Set<string>();
-      const seenServiceFees: number[] = [];
-      const servicePricingTracker: Record<string, { base: number[], bedroom: number[], bathroom: number[] }> = {};
-
-      data.forEach((record: any) => {
-        const { service_type, price_type, item_name, price } = record;
-        const numericPrice = Number(price);
-
-        switch (price_type) {
-          case 'equipment_charge':
-            pricing.equipmentChargeZar = numericPrice;
-            break;
-          case 'minimum_booking':
-            pricing.minimumBookingFeeZar = numericPrice;
-            break;
-          case 'base':
-          case 'bedroom':
-          case 'bathroom':
-            if (service_type) {
-              if (!pricing.services[service_type]) {
-                pricing.services[service_type] = { base: 0, bedroom: 0, bathroom: 0 };
-                servicePricingTracker[service_type] = { base: [], bedroom: [], bathroom: [] };
-              }
-              
-              // Track all values to detect duplicates
-              servicePricingTracker[service_type][price_type as 'base' | 'bedroom' | 'bathroom'].push(numericPrice);
-              
-              // Use the last value (most recent effective date)
-              pricing.services[service_type][price_type as keyof ServicePricing] = numericPrice;
-            }
-            break;
-
-          case 'extra':
-            if (item_name) {
-              // Check for duplicates
-              if (seenExtras.has(item_name)) {
-                console.warn(`⚠️ Duplicate extra found in database: ${item_name}. Previous: ${pricing.extras[item_name]}, New: ${numericPrice}`);
-              }
-              seenExtras.add(item_name);
-              pricing.extras[item_name] = numericPrice;
-            }
-            break;
-
-          case 'service_fee':
-            seenServiceFees.push(numericPrice);
-            // Use the last value (most recent)
-            pricing.serviceFee = numericPrice;
-            break;
-
-          case 'frequency_discount':
-            if (item_name) {
-              pricing.frequencyDiscounts[item_name] = numericPrice;
-            }
-            break;
-        }
-      });
-
-      if (seenServiceFees.length > 1) {
-        console.warn(`⚠️ Multiple service_fee rows found; using last: R${pricing.serviceFee}`);
-      }
-
-      // Log detailed pricing breakdown
       console.log('📊 Database pricing snapshot:', {
         services: Object.keys(pricing.services).length,
         extras: Object.keys(pricing.extras).length,
@@ -211,7 +256,6 @@ export async function fetchActivePricing(forceRefresh = false): Promise<PricingD
         frequencyDiscounts: pricing.frequencyDiscounts,
       });
 
-      // Update cache
       cachedPricing = pricing;
       cacheTimestamp = Date.now();
 
@@ -224,14 +268,12 @@ export async function fetchActivePricing(forceRefresh = false): Promise<PricingD
 
       return pricing;
     } catch (error) {
-      // Re-throw if it's already an Error with message, otherwise wrap it
       if (error instanceof Error) {
         throw error;
       }
       const errorMessage = error?.toString() || 'Unknown error occurred while fetching pricing';
       throw new Error(errorMessage);
     } finally {
-      // Clear the fetching promise so future calls can fetch fresh data
       fetchingPromise = null;
     }
   })();

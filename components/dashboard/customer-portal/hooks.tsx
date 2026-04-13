@@ -11,6 +11,8 @@ import React, {
 } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase-client';
+import { useOffline } from '@/lib/hooks/use-offline';
+import { offlineQueue } from '@/lib/utils/offline-queue';
 import { getBookingPipelineLabel } from '@/lib/booking-status-labels';
 import type {
   Booking,
@@ -36,11 +38,16 @@ export interface PortalUser {
   name: string;
   initial: string;
   phone: string;
+  /** DB customer id — used for referral signup links. */
+  customerId: string | null;
   referralCode: string;
   rewardTier: string;
   rewardPoints: number;
+  /** Points threshold for the next tier (matches STATIC_TIERS). */
   rewardTarget: number;
   rewardProgress: number;
+  /** Name of the next tier (null if already at the highest). */
+  nextTierName: string | null;
 }
 
 type PortalValue = {
@@ -51,11 +58,13 @@ type PortalValue = {
   bookings: Booking[];
   bookingsLoading: boolean;
   payments: PaymentRow[];
+  paymentsLoading: boolean;
   cancelBooking: (id: string) => Promise<void>;
   rateBooking: (id: string, rating: number) => void;
   rescheduleBooking: (id: string, newDate: string, newTime: string, newCleaner?: string) => Promise<void>;
   stats: StatItem[];
   statsLoading: boolean;
+  refreshDashboard: () => Promise<void>;
   pointsHistory: PointsHistoryItem[];
   tiers: TierRow[];
   faqs: FaqItem[];
@@ -254,6 +263,7 @@ type ApiBooking = {
   paystack_ref?: string | null;
   zoho_invoice_id?: string | null;
   cleaner_profile?: { name: string; phone: string | null } | null;
+  review_overall_rating?: number | null;
 };
 
 function mapApiBooking(b: ApiBooking): Booking {
@@ -268,6 +278,11 @@ function mapApiBooking(b: ApiBooking): Booking {
       ? Math.round(b.total_amount / 100)
       : Math.round(Number(b.total_amount) || 0);
   const reviewed = Boolean(b.customer_reviewed);
+  const rawRating = b.review_overall_rating;
+  const stars =
+    typeof rawRating === 'number' && !Number.isNaN(rawRating)
+      ? Math.min(5, Math.max(1, Math.round(rawRating)))
+      : undefined;
   const payRef = (b.paystack_ref || b.payment_reference || '').toString();
   const ref = payRef.replace(/[^a-zA-Z0-9]/g, '');
   const zoho = b.zoho_invoice_id?.trim();
@@ -294,7 +309,8 @@ function mapApiBooking(b: ApiBooking): Booking {
     priceNumber: amount,
     invoiceId,
     zohoInvoiceId: zoho || null,
-    rating: uiStatus === 'completed' && reviewed ? 5 : undefined,
+    customerReviewed: reviewed,
+    rating: uiStatus === 'completed' && reviewed && stars !== undefined ? stars : undefined,
   };
 }
 
@@ -340,16 +356,83 @@ function buildStats(customer: ApiCustomer | null): StatItem[] {
   ];
 }
 
-function rewardMeta(customer: ApiCustomer | null) {
+/** Aggregated KPIs from `GET /api/dashboard/stats` (same shape as API route). */
+type ApiStatsPayload = {
+  upcomingAppointments: number;
+  activeCleaningPlans: number;
+  lastCleaningCompleted: string | null;
+  balanceDue: number;
+};
+
+function buildStatsMerged(
+  customer: ApiCustomer | null,
+  apiStats: ApiStatsPayload | null
+): StatItem[] {
   const pts = customer?.rewardsPoints ?? 0;
-  const target = 500;
-  const tier = pts >= target ? 'Silver' : 'Bronze';
+  if (apiStats) {
+    return [
+      {
+        id: 'stat-upcoming',
+        label: 'Upcoming',
+        value: apiStats.upcomingAppointments,
+        suffix: '',
+        color: 'text-blue-600',
+      },
+      {
+        id: 'stat-plans',
+        label: 'Active Plans',
+        value: apiStats.activeCleaningPlans,
+        suffix: '',
+        color: 'text-indigo-600',
+      },
+      {
+        id: 'stat-rewards',
+        label: 'Reward Points',
+        value: pts,
+        suffix: 'pts',
+        color: 'text-amber-500',
+      },
+    ];
+  }
+  return buildStats(customer);
+}
+
+function rewardMeta(customer: ApiCustomer | null) {
+  const pts = Math.max(0, Math.round(Number(customer?.rewardsPoints) || 0));
+  const tiersAsc = [...STATIC_TIERS].sort((a, b) => a.minPoints - b.minPoints);
+
+  let currentTierName = tiersAsc[0]?.name ?? 'Bronze';
+  for (const t of tiersAsc) {
+    if (pts >= t.minPoints) {
+      currentTierName = t.name;
+    }
+  }
+
+  const nextTier = tiersAsc.find((t) => t.minPoints > pts);
+  const currentFloor =
+    [...tiersAsc].reverse().find((t) => t.minPoints <= pts)?.minPoints ?? 0;
+
+  let rewardProgress = 100;
+  let rewardTarget = tiersAsc[tiersAsc.length - 1]?.minPoints ?? 500;
+
+  if (nextTier) {
+    rewardTarget = nextTier.minPoints;
+    const span = nextTier.minPoints - currentFloor;
+    rewardProgress =
+      span > 0
+        ? Math.min(100, Math.round(((pts - currentFloor) / span) * 100))
+        : 100;
+  }
+
   return {
-    referralCode: customer?.id ? `SHL-${customer.id.replace(/-/g, '').slice(0, 8).toUpperCase()}` : 'SHL-REFERRAL',
-    rewardTier: tier,
+    referralCode: customer?.id
+      ? `SHL-${customer.id.replace(/-/g, '').slice(0, 8).toUpperCase()}`
+      : '—',
+    rewardTier: currentTierName,
     rewardPoints: pts,
-    rewardTarget: target,
-    rewardProgress: Math.min(100, Math.round((pts / target) * 100)),
+    rewardTarget,
+    rewardProgress,
+    nextTierName: nextTier?.name ?? null,
   };
 }
 
@@ -383,7 +466,7 @@ export function CustomerPortalProvider({
   lastName?: string | null;
   children: React.ReactNode;
 }) {
-  const baseUser = useMemo((): Omit<PortalUser, 'referralCode' | 'rewardTier' | 'rewardPoints' | 'rewardTarget' | 'rewardProgress'> => {
+  const baseUser = useMemo((): Omit<PortalUser, 'customerId' | 'referralCode' | 'rewardTier' | 'rewardPoints' | 'rewardTarget' | 'rewardProgress' | 'nextTierName'> => {
     const em = email?.trim() || '';
     const fn = firstName?.trim();
     const ln = lastName?.trim();
@@ -394,6 +477,8 @@ export function CustomerPortalProvider({
 
   const [rewardExtras, setRewardExtras] = useState(() => rewardMeta(null));
   const [userBase, setUserBase] = useState(baseUser);
+  const [portalCustomerId, setPortalCustomerId] = useState<string | null>(null);
+
   useEffect(() => {
     setUserBase((prev) => ({
       ...baseUser,
@@ -405,8 +490,9 @@ export function CustomerPortalProvider({
     (): PortalUser => ({
       ...userBase,
       ...rewardExtras,
+      customerId: portalCustomerId,
     }),
-    [userBase, rewardExtras]
+    [userBase, rewardExtras, portalCustomerId]
   );
 
   const [notifications, setNotifications] = useState<PortalNotification[]>([]);
@@ -419,7 +505,6 @@ export function CustomerPortalProvider({
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
-  const [portalCustomerId, setPortalCustomerId] = useState<string | null>(null);
 
   const loadDashboard = useCallback(async () => {
     setBookingsLoading(true);
@@ -446,7 +531,16 @@ export function CustomerPortalProvider({
       ]);
 
       const bookJson = await bookRes.json();
-      await statsRes.json();
+
+      let apiStats: ApiStatsPayload | null = null;
+      try {
+        const statsJson = await statsRes.json();
+        if (statsRes.ok && statsJson?.ok && statsJson.stats) {
+          apiStats = statsJson.stats as ApiStatsPayload;
+        }
+      } catch {
+        apiStats = null;
+      }
 
       const apiCustomer = bookJson?.customer as ApiCustomer | null | undefined;
       setPortalCustomerId(apiCustomer?.id ?? null);
@@ -498,11 +592,12 @@ export function CustomerPortalProvider({
       const recent = Array.isArray(payJson?.recentPayments) ? payJson.recentPayments : [];
       setPayments(recent.map((p: ApiPaymentRow) => mapApiPayment(p, serviceById)));
 
-      setStats(buildStats(apiCustomer ?? null));
+      setStats(buildStatsMerged(apiCustomer ?? null, apiStats));
     } catch {
       toast.error('Could not load dashboard data');
       setBookings([]);
       setPayments([]);
+      setStats(buildStats(null));
     } finally {
       setBookingsLoading(false);
       setStatsLoading(false);
@@ -512,9 +607,41 @@ export function CustomerPortalProvider({
   const loadDashboardRef = useRef(loadDashboard);
   loadDashboardRef.current = loadDashboard;
 
+  const refreshDashboard = useCallback(async () => {
+    await loadDashboard();
+  }, [loadDashboard]);
+
+  const { isOnline } = useOffline({
+    onOnline: async () => {
+      if (offlineQueue) {
+        await offlineQueue.sync();
+      }
+      loadDashboardRef.current();
+    },
+  });
+
   useEffect(() => {
     loadDashboard();
   }, [loadDashboard]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isOnline) {
+        loadDashboardRef.current();
+      }
+    }, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [isOnline]);
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible' && isOnline) {
+        loadDashboardRef.current();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [isOnline]);
 
   useEffect(() => {
     if (!portalCustomerId) return;
@@ -527,6 +654,8 @@ export function CustomerPortalProvider({
         ? crypto.randomUUID()
         : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
+    let debounce: ReturnType<typeof setTimeout> | undefined;
+
     const channel = supabase
       .channel(`customer-bookings-${portalCustomerId}-${instanceId}`)
       .on(
@@ -538,12 +667,16 @@ export function CustomerPortalProvider({
           filter: `customer_id=eq.${portalCustomerId}`,
         },
         () => {
-          loadDashboardRef.current();
+          clearTimeout(debounce);
+          debounce = setTimeout(() => {
+            loadDashboardRef.current();
+          }, 400);
         }
       )
       .subscribe();
 
     return () => {
+      clearTimeout(debounce);
       void supabase.removeChannel(channel);
     };
   }, [portalCustomerId]);
@@ -626,7 +759,9 @@ export function CustomerPortalProvider({
 
   const rateBooking = useCallback((id: string, rating: number) => {
     setBookings((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, rating } : b))
+      prev.map((b) =>
+        b.id === id ? { ...b, rating, customerReviewed: true } : b
+      )
     );
     toast.success('Thanks for your review!');
   }, []);
@@ -678,33 +813,39 @@ export function CustomerPortalProvider({
     []
   );
 
-  const redeemPoints = useCallback((cost: number, description: string) => {
-    setRewardExtras((prev) => {
-      const nextPts = Math.max(0, prev.rewardPoints - cost);
-      const target = prev.rewardTarget;
-      return {
-        ...prev,
-        rewardPoints: nextPts,
-        rewardTier: nextPts >= target ? 'Silver' : 'Bronze',
-        rewardProgress: Math.min(100, Math.round((nextPts / target) * 100)),
-      };
-    });
-    setPointsHistory((h) => [
-      {
-        id: `ph-${Date.now()}`,
-        description,
-        date: new Date().toLocaleDateString('en-ZA', {
-          day: 'numeric',
-          month: 'short',
-          year: 'numeric',
-        }),
-        points: cost,
-        type: 'redeemed',
-      },
-      ...h,
-    ]);
-    toast.success('Reward redeemed');
-  }, []);
+  const redeemPoints = useCallback(
+    (cost: number, description: string) => {
+      setRewardExtras((prev) => {
+        const nextPts = Math.max(0, prev.rewardPoints - cost);
+        const meta = rewardMeta(
+          portalCustomerId
+            ? { id: portalCustomerId, rewardsPoints: nextPts }
+            : ({ rewardsPoints: nextPts } as ApiCustomer)
+        );
+        return {
+          ...prev,
+          ...meta,
+          referralCode: prev.referralCode,
+        };
+      });
+      setPointsHistory((h) => [
+        {
+          id: `ph-${Date.now()}`,
+          description,
+          date: new Date().toLocaleDateString('en-ZA', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          }),
+          points: cost,
+          type: 'redeemed',
+        },
+        ...h,
+      ]);
+      toast.success('Reward redeemed');
+    },
+    [portalCustomerId]
+  );
 
   const saveUser = useCallback(async (updates: { name: string; phone: string }) => {
     setProfileSaving(true);
@@ -778,11 +919,13 @@ export function CustomerPortalProvider({
       bookings,
       bookingsLoading,
       payments,
+      paymentsLoading: bookingsLoading,
       cancelBooking,
       rateBooking,
       rescheduleBooking,
       stats,
       statsLoading,
+      refreshDashboard,
       pointsHistory,
       tiers: STATIC_TIERS,
       faqs: STATIC_FAQS,
@@ -807,6 +950,7 @@ export function CustomerPortalProvider({
       rescheduleBooking,
       stats,
       statsLoading,
+      refreshDashboard,
       pointsHistory,
       redeemPoints,
       addresses,
@@ -875,8 +1019,14 @@ export function usePayments() {
   if (!ctx) throw new Error('CustomerPortalProvider is required for usePayments');
   return {
     payments: ctx.payments,
-    loading: ctx.bookingsLoading,
+    loading: ctx.paymentsLoading,
   };
+}
+
+export function useRefreshDashboard() {
+  const ctx = useContext(PortalContext);
+  if (!ctx) throw new Error('CustomerPortalProvider is required for useRefreshDashboard');
+  return ctx.refreshDashboard;
 }
 
 export function useRewards() {

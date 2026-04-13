@@ -4,11 +4,18 @@ import { usePathname } from 'next/navigation';
 import { AdminNavbar } from '@/components/admin/navigation/navbar';
 import { AdminSidebar } from '@/components/admin/navigation/sidebar';
 
+/** Routes that ship their own full layout (aligned with `/admin` SPA) — skip legacy navbar + sidebar. */
+function usesStandaloneAdminChrome(pathname: string | null) {
+  if (!pathname) return false;
+  if (pathname === '/admin') return true;
+  if (pathname === '/admin/schedule' || pathname.startsWith('/admin/schedule/')) return true;
+  return false;
+}
+
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isAdminHome = pathname === '/admin';
 
-  if (isAdminHome) {
+  if (usesStandaloneAdminChrome(pathname)) {
     return <>{children}</>;
   }
 

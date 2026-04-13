@@ -15,6 +15,7 @@ export interface BookingState {
   service: ServiceType | null;
   bedrooms: number;
   bathrooms: number;
+  extraRooms?: number;
   // For Standard/Airbnb multi-cleaner bookings (default 1)
   numberOfCleaners?: number;
   /** When true, Standard/Airbnb equipment charge applies (DB `equipment_charge`) */

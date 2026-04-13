@@ -36,12 +36,13 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
 import { cn } from '@/lib/utils';
+import { getAbsoluteReferralSignupUrl, getReferralSignupPath } from '@/lib/referral-url';
 import { useBookings, usePayments, useRewards, useFaqs, useProfile } from './hooks';
 import { RescheduleDatePickerModal } from './reschedule-date-picker-modal';
 import type { Booking, FilterId, PageId } from './types';
 import { cleanerTelHref, cleanerWhatsAppHref, supportTelHref, supportWhatsAppHref } from './booking-contact';
 
-// â”€â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Constants ---
 
 const STATUS_FILTER_OPTIONS: Array<{
   id: FilterId;
@@ -76,15 +77,16 @@ function getSupportChannels(): Array<{
 }> {
   const supportEmail = process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || 'support@example.com';
   const phone = process.env.NEXT_PUBLIC_SUPPORT_PHONE?.trim();
+  const wa = supportWhatsAppHref();
   return [
     {
       id: 'ch-whatsapp',
       icon: 'whatsapp',
       title: 'WhatsApp Chat',
       sub: phone ? `Quick replies on ${phone}` : 'Set NEXT_PUBLIC_SUPPORT_PHONE',
-      action: 'Chat Now',
-      style: 'bg-emerald-500 text-white hover:bg-emerald-600',
-      href: supportWhatsAppHref() || '#',
+      action: wa ? 'Chat Now' : 'Email us',
+      style: wa ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-white border border-gray-200 text-gray-700 hover:border-gray-300',
+      href: wa || `mailto:${supportEmail}?subject=Support`,
     },
     {
       id: 'ch-email',
@@ -102,12 +104,12 @@ function getSupportChannels(): Array<{
       sub: phone ? `${phone} · Mon–Fri` : 'Set NEXT_PUBLIC_SUPPORT_PHONE',
       action: 'Call Now',
       style: 'bg-white border border-gray-200 text-gray-700 hover:border-gray-300',
-      href: supportTelHref() || '#',
+      href: supportTelHref() || `mailto:${supportEmail}?subject=Call%20request`,
     },
   ];
 }
 
-// â”€â”€â”€ Shared Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Shared helpers ---
 
 function StatusBadge({ status }: { status: Booking['status'] }) {
   const map = {
@@ -152,7 +154,7 @@ function PageHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   );
 }
 
-// â”€â”€â”€ Shared Modals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Shared modals ---
 
 function TrackCleanerModal({ booking, onClose }: { booking: Booking; onClose: () => void }) {
   return (
@@ -605,7 +607,7 @@ function RedeemModal({
                 <p className="text-xs font-bold text-amber-800">Discount voucher</p>
                 <p className="text-xs font-bold text-amber-600">R20 off</p>
               </div>
-              <p className="text-xs text-amber-600">Use 100 pts â†’ get R20 off your next booking</p>
+              <p className="text-xs text-amber-600">Use 100 pts → get R20 off your next booking</p>
             </div>
             {!canRedeem && (
               <p className="text-xs text-red-500 text-center mb-3">You need at least 100 pts to redeem.</p>
@@ -700,14 +702,14 @@ function AddAddressModal({
   );
 }
 
-// â”€â”€â”€ Props â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Props ---
 
 interface SubPagesProps {
   page: Exclude<PageId, 'dashboard' | 'book'>;
   onNavigate: (page: PageId) => void;
 }
 
-// â”€â”€â”€ BOOKINGS PAGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Bookings page ---
 
 function BookingsPage({ onNavigate }: { onNavigate: (page: PageId) => void }) {
   const { bookings, loading, cancelBooking, rateBooking, rescheduleBooking } = useBookings();
@@ -833,7 +835,7 @@ function BookingsPage({ onNavigate }: { onNavigate: (page: PageId) => void }) {
                           <MapPin className="w-3 h-3 flex-shrink-0" />
                           <span>{booking.address}</span>
                         </p>
-                        {booking.rating !== undefined && (
+                        {booking.rating !== undefined && booking.rating > 0 && (
                           <div className="flex items-center gap-1 mt-1.5">
                             {[1, 2, 3, 4, 5].map((i) => (
                               <Star
@@ -956,7 +958,7 @@ function BookingsPage({ onNavigate }: { onNavigate: (page: PageId) => void }) {
                       </motion.button>
                     </div>
                   )}
-                  {booking.status === 'completed' && !booking.rating && (
+                  {booking.status === 'completed' && !booking.customerReviewed && (
                     <div className="mt-3 pt-3 border-t border-gray-100">
                       <button
                         type="button"
@@ -1006,7 +1008,7 @@ function BookingsPage({ onNavigate }: { onNavigate: (page: PageId) => void }) {
   );
 }
 
-// â”€â”€â”€ PAYMENTS PAGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Payments page ---
 
 function PaymentsPage() {
   const { payments, loading } = usePayments();
@@ -1136,7 +1138,7 @@ function PaymentsPage() {
   );
 }
 
-// â”€â”€â”€ REWARDS PAGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Rewards page ---
 
 function RewardsPage() {
   const { pointsHistory, tiers, redeemPoints } = useRewards();
@@ -1144,7 +1146,10 @@ function RewardsPage() {
   const [showRedeemModal, setShowRedeemModal] = useState(false);
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
-    navigator.clipboard.writeText(user.referralCode).catch(() => {});
+    const payload = user.customerId
+      ? getAbsoluteReferralSignupUrl(user.customerId)
+      : user.referralCode;
+    navigator.clipboard.writeText(payload).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -1185,7 +1190,11 @@ function RewardsPage() {
           </div>
           <div className="flex justify-between">
             <p className="text-blue-200 text-xs">{user.rewardPoints} pts earned</p>
-            <p className="text-blue-200 text-xs">{user.rewardTarget} pts for Silver</p>
+            <p className="text-blue-200 text-xs">
+              {user.nextTierName
+                ? `${user.rewardTarget} pts for ${user.nextTierName}`
+                : 'Max tier'}
+            </p>
           </div>
           <div className="mt-5 flex gap-3">
             <div className="flex-1 bg-white/15 border border-white/20 rounded-2xl p-3 text-center">
@@ -1194,9 +1203,13 @@ function RewardsPage() {
             </div>
             <div className="flex-1 bg-white/15 border border-white/20 rounded-2xl p-3 text-center">
               <p className="text-xl font-extrabold text-white">
-                {Math.max(0, user.rewardTarget - user.rewardPoints)}
+                {user.nextTierName
+                  ? Math.max(0, user.rewardTarget - user.rewardPoints)
+                  : '—'}
               </p>
-              <p className="text-blue-200 text-xs mt-0.5">pts to Silver</p>
+              <p className="text-blue-200 text-xs mt-0.5">
+                {user.nextTierName ? `pts to ${user.nextTierName}` : 'Top tier'}
+              </p>
             </div>
           </div>
         </div>
@@ -1282,25 +1295,39 @@ function RewardsPage() {
             </motion.button>
           </div>
           {copied && (
-            <p className="text-[11px] text-blue-200 mt-2 text-center font-semibold">âœ“ Copied to clipboard!</p>
+            <p className="text-[11px] text-blue-200 mt-2 text-center font-semibold">Copied to clipboard!</p>
           )}
-          <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {user.customerId ? (
+              <a
+                href={getReferralSignupPath(user.customerId)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white text-blue-600 text-xs font-bold hover:bg-blue-50 transition-colors sm:col-span-1"
+              >
+                <span>Friend signup</span>
+              </a>
+            ) : null}
             <a
-              href={`https://wa.me/?text=${encodeURIComponent(`Use my Shalean referral code ${user.referralCode} to get R50 off your first clean!`)}`}
+              href={`https://wa.me/?text=${encodeURIComponent(
+                user.customerId
+                  ? `Join Shalean with my link: ${getAbsoluteReferralSignupUrl(user.customerId)}`
+                  : `Use my Shalean referral code ${user.referralCode} to get R50 off your first clean!`
+              )}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-colors"
             >
               <MessageCircle className="w-3.5 h-3.5" />
-              <span>Share via WhatsApp</span>
+              <span>WhatsApp</span>
             </a>
             <button
               type="button"
               onClick={handleCopy}
-              className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white text-blue-600 text-xs font-bold hover:bg-blue-50 transition-colors"
+              className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-colors"
             >
               <Copy className="w-3.5 h-3.5" />
-              <span>Copy Code</span>
+              <span>Copy link</span>
             </button>
           </div>
         </div>
@@ -1326,7 +1353,7 @@ function RewardsPage() {
   );
 }
 
-// â”€â”€â”€ SUPPORT PAGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Support page ---
 
 function SupportPage() {
   const { faqs } = useFaqs();
@@ -1481,7 +1508,7 @@ function SupportPage() {
   );
 }
 
-// â”€â”€â”€ PROFILE PAGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Profile page ---
 
 function ProfilePage() {
   const router = useRouter();
@@ -1772,7 +1799,7 @@ function ProfilePage() {
   );
 }
 
-// â”€â”€â”€ Main Export â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Main export ---
 
 export function SubPages({ page, onNavigate }: SubPagesProps) {
   return (

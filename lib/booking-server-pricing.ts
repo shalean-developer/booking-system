@@ -13,6 +13,7 @@ export type BookingBodyForPricing = Pick<
   | 'service'
   | 'bedrooms'
   | 'bathrooms'
+  | 'extraRooms'
   | 'extras'
   | 'extrasQuantities'
   | 'frequency'
@@ -58,6 +59,7 @@ export async function computeServerPreSurgeTotalZar(
     service: body.service,
     bedrooms: body.bedrooms ?? 0,
     bathrooms: body.bathrooms ?? 0,
+    extraRooms: body.extraRooms ?? 0,
     extras: extrasNames,
     extrasQuantities,
     carpetDetails: body.carpetDetails ?? null,

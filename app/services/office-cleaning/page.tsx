@@ -2,6 +2,7 @@ import { ServicePageTemplate } from "@/components/service-page-template";
 import { Building, Clock, Shield, Users } from "lucide-react";
 import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
+import { getServicePageFromPrice } from "@/lib/service-pages-pricing";
 
 export const metadata: Metadata = createMetadata({
   title: "Office Cleaning Services Cape Town | Commercial Cleaning | Shalean",
@@ -54,7 +55,8 @@ const relatedServices = [
   }
 ];
 
-export default function OfficeCleaningPage() {
+export default async function OfficeCleaningPage() {
+  const pricingDisplay = await getServicePageFromPrice("office-cleaning");
   return (
     <ServicePageTemplate
       title="Office Cleaning Services in Cape Town"
@@ -70,7 +72,7 @@ export default function OfficeCleaningPage() {
         "Window cleaning",
         "Meeting room preparation"
       ]}
-      pricing="From R180"
+      pricing={pricingDisplay}
       pricingNote="Custom pricing based on office size and cleaning frequency"
       highlights={[
         "After-hours cleaning available",

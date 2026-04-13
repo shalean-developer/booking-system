@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Bell, LogOut } from 'lucide-react';
+import { Bell, CalendarDays, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -15,6 +15,7 @@ import {
 export function AdminNavbar() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
+  const [todayLabel, setTodayLabel] = useState('');
 
   const fetchUnreadCount = async () => {
     try {
@@ -49,22 +50,31 @@ export function AdminNavbar() {
   useEffect(() => {
     try {
       setIsMounted(true);
-      
-      // Only fetch if we're on the client side
-      if (typeof window !== 'undefined') {
-        // Initial fetch after a short delay to let page load
-        const initialTimeout = setTimeout(() => {
-        fetchUnreadCount();
-        }, 1000);
 
-        // Refresh every 60 seconds (reduced frequency to reduce load)
-        const interval = setInterval(fetchUnreadCount, 60000);
-        
-        return () => {
-          clearTimeout(initialTimeout);
-          clearInterval(interval);
-        };
-      }
+      const tickDate = () => {
+        setTodayLabel(
+          new Date().toLocaleDateString('en-ZA', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          })
+        );
+      };
+      tickDate();
+      const dateInterval = setInterval(tickDate, 60_000);
+
+      // Initial fetch after a short delay to let page load
+      const initialTimeout = setTimeout(() => {
+        fetchUnreadCount();
+      }, 1000);
+
+      const interval = setInterval(fetchUnreadCount, 60000);
+
+      return () => {
+        clearInterval(dateInterval);
+        clearTimeout(initialTimeout);
+        clearInterval(interval);
+      };
     } catch (error) {
       console.error('Error in AdminNavbar useEffect:', error);
     }
@@ -95,10 +105,19 @@ export function AdminNavbar() {
             </Link>
           </div>
 
-          <div className="flex items-center gap-4">
-            {/* Notifications */}
+          <div className="flex items-center gap-3 sm:gap-4">
             {isMounted && (
-              <Link href="/admin/notifications">
+              <div
+                className="flex max-w-[11rem] items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs font-medium text-gray-800 sm:max-w-none sm:gap-2 sm:px-3 sm:text-sm"
+                title="Today (local time)"
+              >
+                <CalendarDays className="h-3.5 w-3.5 shrink-0 text-gray-500 sm:h-4 sm:w-4" aria-hidden />
+                <span className="truncate">{todayLabel || '…'}</span>
+              </div>
+            )}
+            {/* Notifications — list page removed; bell goes to main admin dashboard */}
+            {isMounted && (
+              <Link href="/admin" title="Admin dashboard">
                 <Button variant="ghost" size="icon" className="relative">
                   <Bell className="h-5 w-5" />
                   {unreadCount > 0 && (

@@ -11,9 +11,9 @@ export async function POST(req: Request) {
   
   try {
     const body = await req.json();
-    const { email, auth_user_id, profile } = body;
+    const { email, auth_user_id, profile, referred_by_customer_id } = body;
 
-    console.log('Link request:', { email, auth_user_id });
+    console.log('Link request:', { email, auth_user_id, referred_by_customer_id });
 
     // Create server client
     const supabase = await createClient();
@@ -41,6 +41,23 @@ export async function POST(req: Request) {
       lastName: resolvedLastName,
       fullName: profile?.fullName ?? `${resolvedFirstName} ${resolvedLastName}`.trim(),
     };
+
+    let validReferrerId: string | null = null;
+    if (typeof referred_by_customer_id === 'string') {
+      const rid = referred_by_customer_id.trim();
+      const uuidRe =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (rid && uuidRe.test(rid)) {
+        const { data: refRow } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('id', rid)
+          .maybeSingle();
+        if (refRow?.id) {
+          validReferrerId = refRow.id as string;
+        }
+      }
+    }
 
     // Search for existing customer with matching email (case insensitive)
     console.log('Searching for existing customer profile...');
@@ -120,14 +137,16 @@ export async function POST(req: Request) {
 
     console.log('ℹ️ No existing customer profile found - creating one now');
 
+    const insertPayload: Record<string, unknown> = {
+      email,
+      auth_user_id,
+      first_name: profileDetails.firstName,
+      last_name: profileDetails.lastName,
+    };
+
     const { data: createdCustomer, error: createError } = await supabase
       .from('customers')
-      .insert({
-        email,
-        auth_user_id,
-        first_name: profileDetails.firstName,
-        last_name: profileDetails.lastName,
-      })
+      .insert(insertPayload)
       .select('id')
       .single();
 
@@ -141,6 +160,22 @@ export async function POST(req: Request) {
         },
         { status: 500 }
       );
+    }
+
+    if (
+      createdCustomer?.id &&
+      validReferrerId &&
+      validReferrerId !== createdCustomer.id
+    ) {
+      const { error: refErr } = await supabase
+        .from('customers')
+        .update({ referred_by_customer_id: validReferrerId })
+        .eq('id', createdCustomer.id);
+      if (refErr?.message?.includes('referred_by') || refErr?.code === 'PGRST204') {
+        console.log('ℹ️ referred_by_customer_id column not on customers; skipping DB link');
+      } else if (refErr) {
+        console.warn('Could not store referral on customer:', refErr.message);
+      }
     }
 
     console.log('✅ Customer profile created successfully!');

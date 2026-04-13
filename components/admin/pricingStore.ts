@@ -336,14 +336,112 @@ let _data: PricingData = {
 type Subscriber = () => void;
 const subscribers: Set<Subscriber> = new Set();
 
+const SERVICE_TYPE_BY_ID: Record<string, string> = {
+  standard: 'Standard',
+  deep: 'Deep',
+  movein: 'Move In/Out',
+  office: 'Office',
+  window: 'Window',
+  airbnb: 'Airbnb',
+  carpet: 'Carpet',
+};
+
+const PRICE_TYPE_BY_RULE_LABEL: Record<string, 'base' | 'bedroom' | 'bathroom' | 'extra_room'> = {
+  base: 'base',
+  'per bedroom': 'bedroom',
+  'per bathroom': 'bathroom',
+  'per extra room': 'extra_room',
+};
+
 function notify() {
   subscribers.forEach((fn) => fn());
+}
+
+function resolveServiceType(serviceId: string): string | null {
+  return SERVICE_TYPE_BY_ID[serviceId] ?? null;
+}
+
+function resolvePriceTypeFromRuleLabel(label: string): 'base' | 'bedroom' | 'bathroom' | 'extra_room' | null {
+  const key = label.trim().toLowerCase();
+  return PRICE_TYPE_BY_RULE_LABEL[key] ?? null;
+}
+
+async function persistPricingUpdate(input: {
+  id?: string | null;
+  service_type?: string | null;
+  price_type: 'base' | 'bedroom' | 'bathroom' | 'extra_room' | 'extra';
+  item_name?: string | null;
+  price: number;
+}): Promise<void> {
+  try {
+    const response = await fetch('/api/admin/pricing/manage', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: input.id || undefined,
+        service_type: input.service_type || null,
+        price_type: input.price_type,
+        item_name: input.item_name || null,
+        price: input.price,
+        effective_date: new Date().toISOString().split('T')[0],
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.error || 'Failed to persist pricing update');
+    }
+  } catch (error) {
+    console.error('pricingStore persistence failed:', error);
+  }
+}
+
+async function persistServiceActive(input: { service_type: string; is_active: boolean }): Promise<void> {
+  try {
+    const response = await fetch('/api/admin/services', {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.error || 'Failed to persist service active state');
+    }
+  } catch (error) {
+    console.error('pricingStore service active persistence failed:', error);
+  }
+}
+
+async function persistPageConfigMutation(input: {
+  entity: 'cleanerPricing' | 'bathroomRules' | 'extraRoomRules' | 'promoCodes';
+  action: 'upsert' | 'delete';
+  payload: Record<string, unknown>;
+}): Promise<void> {
+  try {
+    const response = await fetch('/api/admin/pricing/page-config', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.error || 'Failed to persist page config update');
+    }
+  } catch (error) {
+    console.error('pricingStore page-config persistence failed:', error);
+  }
 }
 
 export const pricingStore = {
   // ── Read ─────────────────────────────────────────────────────────────
   getData(): PricingData {
     return _data;
+  },
+  replaceData(next: PricingData): void {
+    _data = next;
+    notify();
   },
   subscribe(fn: Subscriber): () => void {
     subscribers.add(fn);
@@ -377,12 +475,30 @@ export const pricingStore = {
     const service = _data.services.find((s) => s.id === params.serviceId);
     if (!service) return 0;
     let total = service.basePrice;
+    const serviceRules = _data.rules.filter((r) => r.serviceId === params.serviceId);
+    const byRuleLabel = new Map(serviceRules.map((r) => [r.label.trim().toLowerCase(), r]));
+
+    const baseRule = byRuleLabel.get('base');
+    const perBedroomRule = byRuleLabel.get('per bedroom');
+    const perBathroomRule = byRuleLabel.get('per bathroom');
+    const hasPerUnitRules = !!(baseRule || perBedroomRule || perBathroomRule);
+
+    if (hasPerUnitRules) {
+      total = baseRule?.price ?? service.basePrice;
+      const bedroomNum = Math.max(1, parseInt(params.bedrooms || '1', 10) || 1);
+      if (perBedroomRule) {
+        total += Math.max(0, bedroomNum - 1) * perBedroomRule.price;
+      }
+      if (perBathroomRule) {
+        const bathroomNum = Math.max(1, parseInt(params.bathrooms || '1', 10) || 1);
+        total += Math.max(0, bathroomNum - 1) * perBathroomRule.price;
+      }
+    }
 
     // Apply room-based rule if available
-    if (service.priceType === 'per_room' && params.bedrooms) {
+    if (!hasPerUnitRules && service.priceType === 'per_room' && params.bedrooms) {
       const bedroomNum = parseInt(params.bedrooms, 10) || 1;
-      const rules = _data.rules
-        .filter((r) => r.serviceId === params.serviceId)
+      const rules = serviceRules
         .sort((a, b) => {
           const aNum = parseInt(a.label, 10) || 0;
           const bNum = parseInt(b.label, 10) || 0;
@@ -410,7 +526,7 @@ export const pricingStore = {
     }
 
     // Apply bathroom surcharge
-    if (params.bathrooms) {
+    if (!perBathroomRule && params.bathrooms) {
       const bathroomNum = parseInt(params.bathrooms, 10) || 1;
       const activeRules = _data.bathroomRules
         .filter((b) => b.active)
@@ -468,11 +584,33 @@ export const pricingStore = {
   },
   // ── Update services ───────────────────────────────────────────────────
   updateService(id: string, updates: Partial<ServiceRecord>): void {
+    const target = _data.services.find((s) => s.id === id);
     _data = {
       ..._data,
       services: _data.services.map((s) => (s.id === id ? { ...s, ...updates } : s)),
     };
     notify();
+    if (target && typeof updates.basePrice === 'number') {
+      const serviceType = resolveServiceType(id);
+      const baseRule = _data.rules.find((r) => r.serviceId === id && r.label.trim().toLowerCase() === 'base');
+      if (serviceType) {
+        void persistPricingUpdate({
+          id: baseRule?.id || null,
+          service_type: serviceType,
+          price_type: 'base',
+          price: updates.basePrice,
+        });
+      }
+    }
+    if (target && typeof updates.active === 'boolean') {
+      const serviceType = resolveServiceType(id);
+      if (serviceType) {
+        void persistServiceActive({
+          service_type: serviceType,
+          is_active: updates.active,
+        });
+      }
+    }
   },
   addService(service: Omit<ServiceRecord, 'id'>): void {
     const newService: ServiceRecord = {
@@ -487,11 +625,24 @@ export const pricingStore = {
   },
   // ── Update rules ──────────────────────────────────────────────────────
   updateRule(id: string, updates: Partial<PricingRule>): void {
+    const existing = _data.rules.find((r) => r.id === id);
     _data = {
       ..._data,
       rules: _data.rules.map((r) => (r.id === id ? { ...r, ...updates } : r)),
     };
     notify();
+    const nextRule = _data.rules.find((r) => r.id === id) ?? existing;
+    const priceType = nextRule ? resolvePriceTypeFromRuleLabel(nextRule.label) : null;
+    const serviceType = nextRule ? resolveServiceType(nextRule.serviceId) : null;
+    const nextPrice = typeof updates.price === 'number' ? updates.price : nextRule?.price;
+    if (nextRule && priceType && serviceType && typeof nextPrice === 'number') {
+      void persistPricingUpdate({
+        id,
+        service_type: serviceType,
+        price_type: priceType,
+        price: nextPrice,
+      });
+    }
   },
   addRule(rule: Omit<PricingRule, 'id'>): void {
     const newRule: PricingRule = {
@@ -513,11 +664,22 @@ export const pricingStore = {
   },
   // ── Update extras ─────────────────────────────────────────────────────
   updateExtra(id: string, updates: Partial<ExtraRecord>): void {
+    const existing = _data.extras.find((e) => e.id === id);
     _data = {
       ..._data,
       extras: _data.extras.map((e) => (e.id === id ? { ...e, ...updates } : e)),
     };
     notify();
+    const nextExtra = _data.extras.find((e) => e.id === id) ?? existing;
+    const nextPrice = typeof updates.price === 'number' ? updates.price : nextExtra?.price;
+    if (nextExtra && typeof nextPrice === 'number') {
+      void persistPricingUpdate({
+        id,
+        price_type: 'extra',
+        item_name: nextExtra.name,
+        price: nextPrice,
+      });
+    }
   },
   addExtra(extra: Omit<ExtraRecord, 'id'>): void {
     const newExtra: ExtraRecord = {
@@ -529,6 +691,11 @@ export const pricingStore = {
       extras: [..._data.extras, newExtra],
     };
     notify();
+    void persistPricingUpdate({
+      price_type: 'extra',
+      item_name: newExtra.name,
+      price: newExtra.price,
+    });
   },
   deleteExtra(id: string): void {
     _data = {
@@ -539,45 +706,124 @@ export const pricingStore = {
   },
   // ── Update cleaner pricing ────────────────────────────────────────────
   updateCleanerPricing(id: string, updates: Partial<CleanerPricing>): void {
+    const existing = _data.cleanerPricing.find((cp) => cp.id === id);
     _data = {
       ..._data,
       cleanerPricing: _data.cleanerPricing.map((cp) => (cp.id === id ? { ...cp, ...updates } : cp)),
     };
     notify();
+    const next = _data.cleanerPricing.find((cp) => cp.id === id) ?? existing;
+    if (next) {
+      void persistPageConfigMutation({
+        entity: 'cleanerPricing',
+        action: 'upsert',
+        payload: {
+          id: next.id,
+          type: next.type,
+          baseRate: next.baseRate,
+          additionalCleanerRate: next.additionalCleanerRate,
+          label: next.label,
+          description: next.description,
+          active: true,
+        },
+      });
+    }
   },
   // ── Update bathroom rules ─────────────────────────────────────────────
   updateBathroomRule(id: string, updates: Partial<BathroomRule>): void {
+    const existing = _data.bathroomRules.find((b) => b.id === id);
     _data = {
       ..._data,
       bathroomRules: _data.bathroomRules.map((b) => (b.id === id ? { ...b, ...updates } : b)),
     };
     notify();
+    const next = _data.bathroomRules.find((b) => b.id === id) ?? existing;
+    if (next) {
+      void persistPageConfigMutation({
+        entity: 'bathroomRules',
+        action: 'upsert',
+        payload: {
+          id: next.id,
+          label: next.label,
+          price: next.price,
+          description: next.description,
+          active: next.active,
+        },
+      });
+    }
   },
   addBathroomRule(rule: Omit<BathroomRule, 'id'>): void {
     const newRule: BathroomRule = { ...rule, id: `br-${Date.now()}` };
     _data = { ..._data, bathroomRules: [..._data.bathroomRules, newRule] };
     notify();
+    void persistPageConfigMutation({
+      entity: 'bathroomRules',
+      action: 'upsert',
+      payload: {
+        label: newRule.label,
+        price: newRule.price,
+        description: newRule.description,
+        active: newRule.active,
+      },
+    });
   },
   deleteBathroomRule(id: string): void {
     _data = { ..._data, bathroomRules: _data.bathroomRules.filter((b) => b.id !== id) };
     notify();
+    void persistPageConfigMutation({
+      entity: 'bathroomRules',
+      action: 'delete',
+      payload: { id },
+    });
   },
   // ── Update extra rooms ────────────────────────────────────────────────
   updateExtraRoom(id: string, updates: Partial<ExtraRoomRecord>): void {
+    const existing = _data.extraRooms.find((r) => r.id === id);
     _data = {
       ..._data,
       extraRooms: _data.extraRooms.map((r) => (r.id === id ? { ...r, ...updates } : r)),
     };
     notify();
+    const next = _data.extraRooms.find((r) => r.id === id) ?? existing;
+    if (next) {
+      void persistPageConfigMutation({
+        entity: 'extraRoomRules',
+        action: 'upsert',
+        payload: {
+          id: next.id,
+          name: next.name,
+          price: next.price,
+          description: next.description,
+          icon: next.icon,
+          active: next.active,
+        },
+      });
+    }
   },
   addExtraRoom(room: Omit<ExtraRoomRecord, 'id'>): void {
     const newRoom: ExtraRoomRecord = { ...room, id: `er-${Date.now()}` };
     _data = { ..._data, extraRooms: [..._data.extraRooms, newRoom] };
     notify();
+    void persistPageConfigMutation({
+      entity: 'extraRoomRules',
+      action: 'upsert',
+      payload: {
+        name: newRoom.name,
+        price: newRoom.price,
+        description: newRoom.description,
+        icon: newRoom.icon,
+        active: newRoom.active,
+      },
+    });
   },
   deleteExtraRoom(id: string): void {
     _data = { ..._data, extraRooms: _data.extraRooms.filter((r) => r.id !== id) };
     notify();
+    void persistPageConfigMutation({
+      entity: 'extraRoomRules',
+      action: 'delete',
+      payload: { id },
+    });
   },
   // ── Promo Codes ───────────────────────────────────────────────────────
   getActivePromoCodes(): PromoCode[] {
@@ -594,13 +840,48 @@ export const pricingStore = {
       promoCodes: [..._data.promoCodes, newPromo],
     };
     notify();
+    void persistPageConfigMutation({
+      entity: 'promoCodes',
+      action: 'upsert',
+      payload: {
+        code: newPromo.code,
+        description: newPromo.description,
+        discountType: newPromo.discountType,
+        discountValue: newPromo.discountValue,
+        minOrderValue: newPromo.minOrderValue,
+        maxUses: newPromo.maxUses,
+        active: newPromo.active,
+        expiresAt: newPromo.expiresAt,
+        appliesTo: newPromo.appliesTo,
+      },
+    });
   },
   updatePromoCode(id: string, updates: Partial<PromoCode>): void {
+    const existing = _data.promoCodes.find((p) => p.id === id);
     _data = {
       ..._data,
       promoCodes: _data.promoCodes.map((p) => (p.id === id ? { ...p, ...updates } : p)),
     };
     notify();
+    const next = _data.promoCodes.find((p) => p.id === id) ?? existing;
+    if (next) {
+      void persistPageConfigMutation({
+        entity: 'promoCodes',
+        action: 'upsert',
+        payload: {
+          id: next.id,
+          code: next.code,
+          description: next.description,
+          discountType: next.discountType,
+          discountValue: next.discountValue,
+          minOrderValue: next.minOrderValue,
+          maxUses: next.maxUses,
+          active: next.active,
+          expiresAt: next.expiresAt,
+          appliesTo: next.appliesTo,
+        },
+      });
+    }
   },
   deletePromoCode(id: string): void {
     _data = {
@@ -608,6 +889,11 @@ export const pricingStore = {
       promoCodes: _data.promoCodes.filter((p) => p.id !== id),
     };
     notify();
+    void persistPageConfigMutation({
+      entity: 'promoCodes',
+      action: 'delete',
+      payload: { id },
+    });
   },
   applyPromoCode(
     code: string,

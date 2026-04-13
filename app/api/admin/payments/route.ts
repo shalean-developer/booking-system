@@ -32,6 +32,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || '';
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = parseInt(searchParams.get('offset') || '0');
+    /** Bulk lists should not fan out to Paystack (can time out); detail views can omit this. */
+    const skipPaystackVerify = searchParams.get('skip_verify') === '1';
 
     let query = supabase
       .from('bookings')
@@ -178,7 +180,7 @@ export async function GET(request: NextRequest) {
         const bookingDate = new Date(booking.created_at);
         const hoursSinceBooking = (Date.now() - bookingDate.getTime()) / (1000 * 60 * 60);
         
-        if (hoursSinceBooking <= 24) {
+        if (hoursSinceBooking <= 24 && !skipPaystackVerify) {
           // Recent booking - verify with Paystack
           const paystackStatus = await verifyPaymentStatus(booking.payment_reference);
           if (paystackStatus === 'success') {
@@ -208,7 +210,7 @@ export async function GET(request: NextRequest) {
             paymentStatus = 'processing';
           }
         } else {
-          // Old booking - assume processing (webhook should have fired by now, but show as processing to be safe)
+          // Old booking, or bulk list with skip_verify — assume processing (no live Paystack check)
           paymentStatus = 'processing';
         }
       } else if (['pending', 'confirmed'].includes(bookingStatus)) {

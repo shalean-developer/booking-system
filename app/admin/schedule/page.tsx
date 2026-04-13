@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { PageHeader } from '@/components/admin/shared/page-header';
 import { Button } from '@/components/ui/button';
 import { Calendar, ChevronLeft, ChevronRight, Repeat } from 'lucide-react';
@@ -13,6 +15,7 @@ interface Booking {
   booking_date: string;
   booking_time: string;
   status: string;
+  cleaner_id?: string | null;
   cleaner_name?: string;
   recurring_schedule_id?: string | null;
 }
@@ -36,11 +39,20 @@ function getBookingColors(status: string) {
   return statusColors[status] || defaultColors;
 }
 
-export default function AdminSchedulePage() {
+function AdminSchedulePageInner() {
+  const searchParams = useSearchParams();
+  const cleanerId = searchParams.get('cleanerId');
+  const cleanerName = searchParams.get('cleanerName');
+
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<'week' | 'month'>('week');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const bookingsForView = useMemo(() => {
+    if (!cleanerId) return bookings;
+    return bookings.filter((b) => b.cleaner_id === cleanerId);
+  }, [bookings, cleanerId]);
 
   useEffect(() => {
     fetchBookings();
@@ -98,7 +110,7 @@ export default function AdminSchedulePage() {
   });
 
   const getBookingsForDay = (day: Date) => {
-    return bookings.filter((booking) => {
+    return bookingsForView.filter((booking) => {
       const bookingDate = new Date(booking.booking_date);
       return isSameDay(bookingDate, day);
     });
@@ -109,7 +121,21 @@ export default function AdminSchedulePage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-[#f5f6f8]">
+      <header className="sticky top-0 z-30 border-b border-gray-200 bg-white">
+        <div className="mx-auto flex max-w-7xl items-center px-4 py-3 sm:px-6">
+          <Link
+            href="/admin"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 transition-colors hover:text-indigo-800"
+          >
+            <ChevronLeft className="h-4 w-4" aria-hidden />
+            Back to dashboard
+          </Link>
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+        <div className="space-y-6">
       <PageHeader
         title="Schedule"
         description="View and manage all bookings calendar (recurring and one-time)"
@@ -136,6 +162,18 @@ export default function AdminSchedulePage() {
           </div>
         }
       />
+
+      {cleanerId && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-950">
+          <p>
+            Showing bookings for{' '}
+            <span className="font-semibold">{cleanerName || 'this cleaner'}</span>
+          </p>
+          <Button variant="outline" size="sm" className="border-indigo-200 bg-white" asChild>
+            <Link href="/admin/schedule">Show all cleaners</Link>
+          </Button>
+        </div>
+      )}
 
       <div className="bg-white border rounded-lg p-4">
         <div className="flex items-center justify-between mb-4">
@@ -331,7 +369,16 @@ export default function AdminSchedulePage() {
           );
         })()}
       </div>
+        </div>
+      </div>
     </div>
   );
 }
 
+export default function AdminSchedulePage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-sm text-gray-500">Loading schedule…</div>}>
+      <AdminSchedulePageInner />
+    </Suspense>
+  );
+}

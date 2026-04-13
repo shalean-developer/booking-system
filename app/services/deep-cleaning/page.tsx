@@ -2,6 +2,7 @@ import { ServicePageTemplate } from "@/components/service-page-template";
 import { Sparkles } from "lucide-react";
 import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
+import { getServicePageFromPrice } from "@/lib/service-pages-pricing";
 
 export const metadata: Metadata = createMetadata({
   title: "Deep Cleaning Services Cape Town | Professional Deep Clean | Shalean",
@@ -74,14 +75,15 @@ const relatedServices = [
   }
 ];
 
-export default function DeepCleaningServicePage() {
+export default async function DeepCleaningServicePage() {
+  const pricingDisplay = await getServicePageFromPrice("deep-cleaning");
   return (
     <ServicePageTemplate
       title="Deep Cleaning Services in Cape Town"
       description="Reset your Cape Town home or office with a floor-to-ceiling deep clean that removes built-up grime, allergens, and hidden dust. Professional deep cleaning services across Sea Point, Claremont, Constantia, and all Cape Town suburbs."
       icon={Sparkles}
       features={features}
-      pricing="From R450"
+      pricing={pricingDisplay}
       pricingNote="Quoted based on property size, condition, and add-ons"
       highlights={highlights}
       serviceType="Deep Cleaning"

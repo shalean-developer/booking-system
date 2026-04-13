@@ -34,6 +34,8 @@ import {
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/utils/formatting';
 import { useAdminDashboardHomeData } from '@/hooks/use-admin-dashboard-home';
+import { useUser } from '@/hooks/use-user';
+import { getAdminMonthlyRevenueGoalCents } from '@/lib/admin-dashboard-config';
 import { formatTimeSafe } from '@/lib/date-utils';
 import { normalizeBookingStatusForUi } from '@/lib/booking-status-ui';
 import type { NavId } from '@/components/admin/types';
@@ -54,6 +56,13 @@ const fadeUp = {
 
 const formatZAR = (n: number) =>
   new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 0 }).format(n);
+
+function adminGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
 
 const StatusBadge = ({
   status,
@@ -99,9 +108,16 @@ export function DashboardHome({
     todayRows,
     topCleaners,
     loading,
+    loadError,
   } = useAdminDashboardHomeData();
 
-  const revenueGoalCents = 500_000_00;
+  const { user } = useUser();
+  const displayName =
+    (typeof user?.user_metadata?.full_name === 'string' && user.user_metadata.full_name.trim()) ||
+    user?.email?.split('@')[0] ||
+    'Admin';
+
+  const revenueGoalCents = getAdminMonthlyRevenueGoalCents();
   const currentRevenueCents = stats?.totalRevenue ?? 0;
   const goalPct = Math.min(100, Math.round((currentRevenueCents / Math.max(1, revenueGoalCents)) * 100));
 
@@ -246,7 +262,9 @@ export function DashboardHome({
         className="flex items-start justify-between gap-4"
       >
         <div>
-          <h1 className="text-xl font-extrabold tracking-tight text-gray-900">Good morning, Admin 👋</h1>
+          <h1 className="text-xl font-extrabold tracking-tight text-gray-900">
+            {adminGreeting()}, {displayName} <span aria-hidden="true">👋</span>
+          </h1>
           <p className="mt-0.5 text-sm text-gray-400">
             <span>Here&apos;s what&apos;s happening today.</span>
             {loading && <span className="ml-2 text-indigo-500">Loading live stats…</span>}
@@ -269,18 +287,34 @@ export function DashboardHome({
         </motion.button>
       </motion.div>
 
+      {loadError && (
+        <div
+          className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 shadow-sm"
+          role="alert"
+        >
+          {loadError}
+        </div>
+      )}
+
       <motion.div
         variants={staggerContainer}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
+        className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
       >
-        {kpiCards.map((card) => (
+        {loading && !stats
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={`kpi-skel-${i}`}
+                className="h-40 animate-pulse rounded-2xl border border-gray-200 bg-gray-100"
+              />
+            ))
+          : kpiCards.map((card) => (
           <motion.div
             key={card.id}
             variants={fadeUp}
             whileHover={{ y: -4 }}
-            className="cursor-pointer rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+            className="min-w-0 cursor-pointer rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
           >
             <div className="mb-3 flex items-start justify-between gap-2">
               <div>
@@ -294,7 +328,7 @@ export function DashboardHome({
                 <TrendingUp className="h-4 w-4" style={{ color: card.color }} />
               </div>
             </div>
-            <div className="mb-3 h-10">
+            <div className="mb-3 h-10 w-full min-w-0">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={card.sparkData} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
                   <defs>
@@ -327,16 +361,16 @@ export function DashboardHome({
               <span className="text-xs text-gray-400">vs previous period</span>
             </div>
           </motion.div>
-        ))}
+            ))}
       </motion.div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_340px]">
+      <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[1fr_340px]">
         <motion.div
           variants={fadeUp}
           initial="hidden"
           animate="show"
           whileHover={{ y: -4 }}
-          className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+          className="min-w-0 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
         >
           <div className="mb-5 flex items-center justify-between">
             <div>
@@ -358,7 +392,7 @@ export function DashboardHome({
               </button>
             </div>
           </div>
-          <div className="h-52">
+          <div className="h-52 w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                 <defs>
@@ -410,7 +444,7 @@ export function DashboardHome({
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-bold text-gray-900">Revenue Goal</h2>
-                <p className="mt-0.5 text-xs text-gray-400">Target (configurable)</p>
+                <p className="mt-0.5 text-xs text-gray-400">Monthly target</p>
               </div>
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50">
                 <Target className="h-4 w-4 text-indigo-600" />
@@ -468,13 +502,13 @@ export function DashboardHome({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_300px]">
+      <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[1fr_300px]">
         <motion.div
           variants={fadeUp}
           initial="hidden"
           animate="show"
           whileHover={{ y: -4 }}
-          className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+          className="min-w-0 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
         >
           <div className="mb-5 flex items-center justify-between">
             <div>
@@ -486,7 +520,7 @@ export function DashboardHome({
               <span className="text-[10px] font-medium text-gray-400">Bookings</span>
             </div>
           </div>
-          <div className="h-44">
+          <div className="h-44 w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }} barSize={18}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />

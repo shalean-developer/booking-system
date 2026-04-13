@@ -2,6 +2,7 @@ import { ServicePageTemplate } from "@/components/service-page-template";
 import { Sparkles } from "lucide-react";
 import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
+import { getServicePageFromPrice } from "@/lib/service-pages-pricing";
 
 export const metadata: Metadata = createMetadata({
   title: "Carpet Cleaning Services Cape Town | Professional Carpet Clean",
@@ -74,14 +75,15 @@ const relatedServices = [
   }
 ];
 
-export default function CarpetCleaningServicePage() {
+export default async function CarpetCleaningServicePage() {
+  const pricingDisplay = await getServicePageFromPrice("carpet-cleaning");
   return (
     <ServicePageTemplate
       title="Professional Carpet Cleaning Services in Cape Town"
       description="Revive your carpets with Shalean's professional carpet cleaning in Cape Town. Our trusted team uses advanced steam cleaning and shampoo methods to remove deep-seated dirt, stains, and odours. Professional results for homes and offices."
       icon={Sparkles}
       features={features}
-      pricing="From R300"
+      pricing={pricingDisplay}
       pricingNote="Quoted based on carpet area and condition"
       highlights={highlights}
       serviceType="Carpet Cleaning"

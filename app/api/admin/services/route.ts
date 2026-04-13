@@ -74,6 +74,7 @@ export async function GET(request: NextRequest) {
     // Transform services with pricing
     const transformedServices = (servicesData || []).map((service: any) => ({
       id: service.id,
+      service_type: service.service_type,
       name: service.display_name || service.service_type,
       description: service.description || null,
       base_price: pricingMap[service.service_type] || 0,
@@ -100,6 +101,57 @@ export async function GET(request: NextRequest) {
         status: 500,
         headers: jsonHeaders
       }
+    );
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  const jsonHeaders = { 'Content-Type': 'application/json' };
+  try {
+    if (!await isAdmin()) {
+      return NextResponse.json(
+        { ok: false, error: 'Unauthorized' },
+        { status: 403, headers: jsonHeaders }
+      );
+    }
+
+    const body = await request.json();
+    const serviceType = typeof body?.service_type === 'string' ? body.service_type : '';
+    const isActive = typeof body?.is_active === 'boolean' ? body.is_active : null;
+
+    if (!serviceType || isActive === null) {
+      return NextResponse.json(
+        { ok: false, error: 'service_type and is_active are required' },
+        { status: 400, headers: jsonHeaders }
+      );
+    }
+
+    const supabase = createServiceClient();
+    const { data, error } = await supabase
+      .from('services')
+      .update({ is_active: isActive, updated_at: new Date().toISOString() })
+      .ilike('service_type', serviceType)
+      .select('id, service_type, display_name, is_active');
+
+    if (error) {
+      return NextResponse.json(
+        { ok: false, error: 'Failed to update service status' },
+        { status: 500, headers: jsonHeaders }
+      );
+    }
+
+    if (!data || data.length === 0) {
+      return NextResponse.json(
+        { ok: false, error: `Service not found for type: ${serviceType}` },
+        { status: 404, headers: jsonHeaders }
+      );
+    }
+
+    return NextResponse.json({ ok: true, service: data[0] }, { headers: jsonHeaders });
+  } catch (error: any) {
+    return NextResponse.json(
+      { ok: false, error: error?.message || 'Internal server error' },
+      { status: 500, headers: jsonHeaders }
     );
   }
 }

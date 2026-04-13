@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { useBookingFormData, type BookingFormData } from '@/lib/useBookingFormData';
+import { PRICING } from '@/lib/pricing';
 import type { FlowCleaner, FlowExtra, FlowService, FlowTimeSlot } from './types';
 
 const FALLBACK_SERVICES: FlowService[] = [
@@ -10,21 +11,21 @@ const FALLBACK_SERVICES: FlowService[] = [
     name: 'Standard Clean',
     description: 'Regular maintenance cleaning for your home',
     duration: '2–3 hrs',
-    price: 'R225',
+    price: `R${Math.round(PRICING.services.Standard.base)}`,
   },
   {
     id: 'Deep',
     name: 'Deep Clean',
     description: 'Detailed top-to-bottom clean',
     duration: '4–5 hrs',
-    price: 'R380',
+    price: `R${Math.round(PRICING.services.Deep.base)}`,
   },
   {
     id: 'Airbnb',
     name: 'Airbnb Turnover',
     description: 'Fast turnaround for guests',
     duration: '2–4 hrs',
-    price: 'R290',
+    price: `R${Math.round(PRICING.services.Airbnb.base)}`,
   },
 ];
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircle2,
@@ -77,7 +77,8 @@ interface BreakdownRow {
   value: number;
 }
 
-const SERVICES: ServiceOption[] = [
+/** Default illustrative rates when `pricing_config` is unavailable (aligned with `lib/pricing` PRICING fallback). */
+const SERVICE_DEFAULTS: ServiceOption[] = [
   {
     id: 'standard',
     label: 'Standard Clean',
@@ -155,8 +156,8 @@ const SERVICES: ServiceOption[] = [
     label: 'Carpet Cleaning',
     tagline: 'Steam-clean carpets back to perfection',
     basePrice: 0,
-    bedroomPrice: 0,
-    bathroomPrice: 0,
+    bedroomPrice: 55,
+    bathroomPrice: 35,
     extraRoomPrice: 0,
     boardroomPrice: 0,
     privateOfficePrice: 0,
@@ -169,6 +170,46 @@ const SERVICES: ServiceOption[] = [
     accentBg: 'bg-teal-600',
   },
 ];
+
+const SERVICE_ID_TO_API_TYPE: Record<ServiceId, string> = {
+  standard: 'Standard',
+  deep: 'Deep',
+  airbnb: 'Airbnb',
+  moveinout: 'Move In/Out',
+  carpet: 'Carpet',
+};
+
+function mergeServicesWithPricing(
+  pricing: Record<string, { base: number; bedroom: number; bathroom: number; extraRoom: number }> | null | undefined
+): ServiceOption[] {
+  return SERVICE_DEFAULTS.map((template) => {
+    const apiKey = SERVICE_ID_TO_API_TYPE[template.id];
+    const p = pricing?.[apiKey];
+    if (!p) return { ...template };
+
+    if (template.id === 'carpet') {
+      return {
+        ...template,
+        basePrice: p.base,
+        bedroomPrice: p.bedroom,
+        bathroomPrice: p.bathroom,
+        extraRoomPrice: 0,
+      };
+    }
+
+    const factor = template.basePrice > 0 ? p.base / template.basePrice : 1;
+    return {
+      ...template,
+      basePrice: p.base,
+      bedroomPrice: p.bedroom,
+      bathroomPrice: p.bathroom,
+      extraRoomPrice: p.extraRoom > 0 ? p.extraRoom : p.bedroom,
+      boardroomPrice: Math.round(template.boardroomPrice * factor),
+      privateOfficePrice: Math.round(template.privateOfficePrice * factor),
+      openAreaPrice: Math.round(template.openAreaPrice * factor),
+    };
+  });
+}
 const PROPERTY_TYPES: { id: StepPropertyType; label: string; icon: React.ReactNode }[] = [
   { id: 'apartment', label: 'Apartment', icon: <Building2 className="w-4 h-4" /> },
   { id: 'house', label: 'House', icon: <Home className="w-4 h-4" /> },
@@ -179,8 +220,6 @@ const PROPERTY_TYPES: { id: StepPropertyType; label: string; icon: React.ReactNo
 const AREAS: AreaOption[] = getAllSuburbsForCity('Cape Town')
   .map((s) => ({ label: s.name, suburb: s.name }))
   .sort((a, b) => a.label.localeCompare(b.label, 'en-ZA'));
-const CARPET_PRICE_PER_ROOM = 55;
-const CARPET_PRICE_PER_RUG = 35;
 const EXTRA_CLEANER_PRICE = 40;
 const OFFICE_BATHROOM_PRICE = 25;
 const OFFICE_KITCHEN_PRICE = 40;
@@ -227,18 +266,25 @@ const calcOfficePrice = (
   openAreas: number,
   officeBathrooms: number,
   kitchens: number,
-  hasReception: boolean
+  hasReception: boolean,
+  officeExtras: { bath: number; kitchen: number; reception: number }
 ): number =>
   service.basePrice +
   boardrooms * service.boardroomPrice +
   privateOffices * service.privateOfficePrice +
   openAreas * service.openAreaPrice +
-  officeBathrooms * OFFICE_BATHROOM_PRICE +
-  kitchens * OFFICE_KITCHEN_PRICE +
-  (hasReception ? OFFICE_RECEPTION_PRICE : 0);
+  officeBathrooms * officeExtras.bath +
+  kitchens * officeExtras.kitchen +
+  (hasReception ? officeExtras.reception : 0);
 
-const calcCarpetPrice = (rooms: number, rugs: number, extra: boolean): number =>
-  rooms * CARPET_PRICE_PER_ROOM + rugs * CARPET_PRICE_PER_RUG + (extra ? EXTRA_CLEANER_PRICE : 0);
+const calcCarpetPrice = (
+  rooms: number,
+  rugs: number,
+  extra: boolean,
+  pricePerRoom: number,
+  pricePerRug: number,
+  extraCleanerZar: number
+): number => rooms * pricePerRoom + rugs * pricePerRug + (extra ? extraCleanerZar : 0);
 
 const calcDuration = (serviceId: ServiceId | null, carpetRooms: number): string => {
   if (!serviceId) return '—';
@@ -287,8 +333,8 @@ const ServiceCard = ({
       <p className="text-xs text-gray-500 mt-0.5 leading-snug">{service.tagline}</p>
       <p className={['text-xs font-bold mt-1', selected ? service.selectedColor : 'text-gray-600'].join(' ')}>
         {service.id === 'carpet'
-          ? `From ${formatPrice(CARPET_PRICE_PER_ROOM)}/room`
-          : `From ${formatPrice(service.basePrice + service.bedroomPrice)}`}
+          ? `From ${formatPrice(service.bedroomPrice)}/room`
+          : `From ${formatPrice(service.basePrice)}`}
       </p>
     </div>
     <AnimatePresence>
@@ -633,6 +679,10 @@ export interface BookingStep1CleaningProps {
   durationLabel: string;
   /** When set, sidebar line items come from `pricing_config` (not illustrative constants) */
   dbPricingRows?: { id: string; label: string; value: number }[];
+  /** From `/api/booking/form-data` — replaces hardcoded service card and stepper amounts */
+  servicePricing?: Record<string, { base: number; bedroom: number; bathroom: number; extraRoom: number }> | null;
+  /** DB extra price for carpet “extra cleaner”, when configured */
+  extraCleanerPriceZar?: number;
 }
 
 export function BookingStep1Cleaning({
@@ -643,6 +693,8 @@ export function BookingStep1Cleaning({
   liveTotalZar,
   durationLabel,
   dbPricingRows,
+  servicePricing,
+  extraCleanerPriceZar,
 }: BookingStep1CleaningProps) {
   const selectedService = serviceToStepId(data.service);
   const propertyType = data.propertyType as StepPropertyType;
@@ -667,14 +719,41 @@ export function BookingStep1Cleaning({
   const isCarpet = selectedService === 'carpet';
   const isOffice = propertyType === 'office';
   const isStudio = propertyType === 'studio';
-  const selectedServiceData = selectedService ? SERVICES.find((s) => s.id === selectedService) : null;
+
+  const servicesResolved = useMemo(() => mergeServicesWithPricing(servicePricing), [servicePricing]);
+
+  const selectedServiceData = selectedService
+    ? servicesResolved.find((s) => s.id === selectedService)
+    : null;
+
+  const extraCleanerUnitZar = extraCleanerPriceZar ?? EXTRA_CLEANER_PRICE;
+
+  const officeFactor =
+    selectedServiceData && selectedService && !isCarpet
+      ? (() => {
+          const tmpl = SERVICE_DEFAULTS.find((s) => s.id === selectedService);
+          if (!tmpl || tmpl.basePrice <= 0) return 1;
+          return selectedServiceData.basePrice / tmpl.basePrice;
+        })()
+      : 1;
+  const scaledOfficeBathroom = Math.round(OFFICE_BATHROOM_PRICE * officeFactor);
+  const scaledOfficeKitchen = Math.round(OFFICE_KITCHEN_PRICE * officeFactor);
+  const scaledOfficeReception = Math.round(OFFICE_RECEPTION_PRICE * officeFactor);
 
   const effectiveBedrooms = isStudio ? 0 : bedrooms;
   const effectiveBathrooms = isStudio ? Math.max(1, bathrooms) : bathrooms;
 
   const illustrativePrice = (() => {
     if (!selectedServiceData) return 0;
-    if (isCarpet) return calcCarpetPrice(carpetRooms, carpetRugs, extraCleaner);
+    if (isCarpet)
+      return calcCarpetPrice(
+        carpetRooms,
+        carpetRugs,
+        extraCleaner,
+        selectedServiceData.bedroomPrice,
+        selectedServiceData.bathroomPrice,
+        extraCleanerUnitZar
+      );
     if (isOffice)
       return calcOfficePrice(
         selectedServiceData,
@@ -683,7 +762,12 @@ export function BookingStep1Cleaning({
         openAreas,
         officeBathrooms,
         kitchens,
-        hasReception
+        hasReception,
+        {
+          bath: scaledOfficeBathroom,
+          kitchen: scaledOfficeKitchen,
+          reception: scaledOfficeReception,
+        }
       );
     return calcResidentialPrice(selectedServiceData, effectiveBedrooms, effectiveBathrooms, extraRooms);
   })();
@@ -846,7 +930,7 @@ export function BookingStep1Cleaning({
     {
       id: 'officeBathrooms',
       label: 'Bathrooms',
-      sublabel: `${formatPrice(OFFICE_BATHROOM_PRICE)} each`,
+      sublabel: `${formatPrice(scaledOfficeBathroom)} each`,
       icon: <Bath className="w-4 h-4" />,
       value: officeBathrooms,
       onChange: (v) => patch({ officeBathrooms: v }),
@@ -857,7 +941,7 @@ export function BookingStep1Cleaning({
     {
       id: 'kitchens',
       label: 'Kitchen / Breakroom',
-      sublabel: `${formatPrice(OFFICE_KITCHEN_PRICE)} each`,
+      sublabel: `${formatPrice(scaledOfficeKitchen)} each`,
       icon: <Coffee className="w-4 h-4" />,
       value: kitchens,
       onChange: (v) => patch({ officeKitchens: v }),
@@ -892,9 +976,9 @@ export function BookingStep1Cleaning({
             value: privateOffices * selectedServiceData.privateOfficePrice,
           },
           { id: 'open', label: `Open areas (${openAreas})`, value: openAreas * selectedServiceData.openAreaPrice },
-          { id: 'obath', label: `Bathrooms (${officeBathrooms})`, value: officeBathrooms * OFFICE_BATHROOM_PRICE },
-          { id: 'kit', label: `Kitchen / Breakroom (${kitchens})`, value: kitchens * OFFICE_KITCHEN_PRICE },
-          { id: 'recep', label: 'Reception area', value: hasReception ? OFFICE_RECEPTION_PRICE : 0 },
+          { id: 'obath', label: `Bathrooms (${officeBathrooms})`, value: officeBathrooms * scaledOfficeBathroom },
+          { id: 'kit', label: `Kitchen / Breakroom (${kitchens})`, value: kitchens * scaledOfficeKitchen },
+          { id: 'recep', label: 'Reception area', value: hasReception ? scaledOfficeReception : 0 },
         ]
       : [];
 
@@ -958,7 +1042,7 @@ export function BookingStep1Cleaning({
               )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-              {SERVICES.map((service) => (
+              {servicesResolved.map((service) => (
                 <ServiceCard
                   key={service.id}
                   service={service}
@@ -1066,7 +1150,7 @@ export function BookingStep1Cleaning({
                 <div className="px-5 py-2">
                   <Stepper
                     label="Carpeted rooms"
-                    sublabel={`${formatPrice(CARPET_PRICE_PER_ROOM)} per room`}
+                    sublabel={`${formatPrice(selectedServiceData?.bedroomPrice ?? 0)} per room`}
                     icon={<Layers className="w-4 h-4" />}
                     value={carpetRooms}
                     onChange={(v) => patch({ carpetRooms: v })}
@@ -1076,7 +1160,7 @@ export function BookingStep1Cleaning({
                   />
                   <Stepper
                     label="Loose rugs"
-                    sublabel={`${formatPrice(CARPET_PRICE_PER_RUG)} per rug`}
+                    sublabel={`${formatPrice(selectedServiceData?.bathroomPrice ?? 0)} per rug`}
                     icon={<LayoutGrid className="w-4 h-4" />}
                     value={carpetRugs}
                     onChange={(v) => patch({ carpetRugs: v })}
@@ -1086,7 +1170,7 @@ export function BookingStep1Cleaning({
                   />
                   <ToggleRow
                     label="Extra cleaner"
-                    sublabel={`Faster service · ${formatPrice(EXTRA_CLEANER_PRICE)} add-on`}
+                    sublabel={`Faster service · ${formatPrice(extraCleanerUnitZar)} add-on`}
                     icon={<Star className="w-4 h-4" />}
                     value={extraCleaner}
                     onChange={(v) => patch({ carpetExtraCleaner: v })}
@@ -1131,7 +1215,7 @@ export function BookingStep1Cleaning({
                   ))}
                   <ToggleRow
                     label="Reception Area"
-                    sublabel={`Include reception · ${formatPrice(OFFICE_RECEPTION_PRICE)} add-on`}
+                    sublabel={`Include reception · ${formatPrice(scaledOfficeReception)} add-on`}
                     icon={<PhoneCall className="w-4 h-4" />}
                     value={hasReception}
                     onChange={(v) => patch({ officeHasReception: v })}
@@ -1339,7 +1423,7 @@ export function BookingStep1Cleaning({
                         animate={{ opacity: 1, y: 0 }}
                         className="text-sm font-semibold text-gray-900"
                       >
-                        {formatPrice(carpetRooms * CARPET_PRICE_PER_ROOM)}
+                        {formatPrice(carpetRooms * (selectedServiceData?.bedroomPrice ?? 0))}
                       </motion.span>
                     </div>
                     {carpetRugs > 0 && (
@@ -1351,14 +1435,14 @@ export function BookingStep1Cleaning({
                           animate={{ opacity: 1, y: 0 }}
                           className="text-sm font-semibold text-gray-900"
                         >
-                          {formatPrice(carpetRugs * CARPET_PRICE_PER_RUG)}
+                          {formatPrice(carpetRugs * (selectedServiceData?.bathroomPrice ?? 0))}
                         </motion.span>
                       </div>
                     )}
                     {extraCleaner && (
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-gray-500">Extra cleaner</span>
-                        <span className="text-sm font-semibold text-gray-900">{formatPrice(EXTRA_CLEANER_PRICE)}</span>
+                        <span className="text-sm font-semibold text-gray-900">{formatPrice(extraCleanerUnitZar)}</span>
                       </div>
                     )}
                   </div>

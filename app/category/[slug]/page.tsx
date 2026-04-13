@@ -15,6 +15,8 @@ import {
 import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
 import { notFound } from "next/navigation";
+import { fetchActivePricing, type PricingData } from "@/lib/pricing-db";
+import { formatFromBaseZar, formatCarpetPerRoomFrom } from "@/lib/display-pricing";
 
 const categoryData: Record<string, {
   title: string;
@@ -196,6 +198,41 @@ const categoryData: Record<string, {
   },
 };
 
+const HREF_TO_CORE_SERVICE: Record<string, "Standard" | "Deep" | "Move In/Out" | "Airbnb" | "Carpet"> = {
+  "/services/regular-cleaning": "Standard",
+  "/services/deep-cleaning": "Deep",
+  "/services/move-turnover": "Move In/Out",
+  "/services/apartment-cleaning": "Standard",
+  "/services/home-maintenance": "Standard",
+  "/services/office-cleaning": "Standard",
+  "/services/airbnb-cleaning": "Airbnb",
+  "/services/post-construction-cleaning": "Deep",
+  "/services/window-cleaning": "Standard",
+  "/services/one-time-cleaning": "Standard",
+};
+
+function withDynamicPricing(
+  category: (typeof categoryData)[string],
+  pricing: PricingData | null
+): (typeof categoryData)[string] {
+  return {
+    ...category,
+    services: category.services.map((svc) => {
+      if (svc.pricing === "Custom Quote" && svc.href !== "/services/carpet-cleaning") {
+        return svc;
+      }
+      if (svc.href === "/services/carpet-cleaning") {
+        return { ...svc, pricing: formatCarpetPerRoomFrom(pricing) };
+      }
+      const key = HREF_TO_CORE_SERVICE[svc.href];
+      if (!key) {
+        return svc;
+      }
+      return { ...svc, pricing: formatFromBaseZar(pricing, key) };
+    }),
+  };
+}
+
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
@@ -219,11 +256,20 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function CategoryPage({ params }: PageProps) {
   const { slug } = await params;
-  const category = categoryData[slug];
+  const baseCategory = categoryData[slug];
 
-  if (!category) {
+  if (!baseCategory) {
     notFound();
   }
+
+  let pricing: PricingData | null = null;
+  try {
+    pricing = await fetchActivePricing();
+  } catch {
+    pricing = null;
+  }
+
+  const category = withDynamicPricing(baseCategory, pricing);
 
   const Icon = category.icon;
 

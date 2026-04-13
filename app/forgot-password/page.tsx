@@ -11,7 +11,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Header } from '@/components/header';
-import { supabase } from '@/lib/supabase-client';
 import { 
   Mail,
   ArrowRight,
@@ -52,20 +51,17 @@ function ForgotPasswordForm() {
     setSuccess(false);
 
     try {
-      // Get the current origin for the redirect URL
-      const origin = window.location.origin;
-      const redirectTo = `${origin}/reset-password`;
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: data.email }),
+      });
 
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-        data.email,
-        {
-          redirectTo,
-        }
-      );
-
-      if (resetError) {
-        console.error('❌ Password reset error:', resetError);
-        setError(resetError.message || 'Failed to send password reset email');
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => ({}))) as { error?: string };
+        setError(payload.error || 'Failed to send password reset email');
         setIsLoading(false);
         return;
       }

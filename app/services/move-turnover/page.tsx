@@ -2,6 +2,7 @@ import { ServicePageTemplate } from "@/components/service-page-template";
 import { Calendar, Clock, Shield, Home } from "lucide-react";
 import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
+import { getServicePageFromPrice } from "@/lib/service-pages-pricing";
 
 export const metadata: Metadata = createMetadata({
   title: "Move In/Out Cleaning Cape Town | End of Lease Cleaning | Shalean",
@@ -54,7 +55,8 @@ const relatedServices = [
   }
 ];
 
-export default function MoveTurnoverPage() {
+export default async function MoveTurnoverPage() {
+  const pricingDisplay = await getServicePageFromPrice("move-turnover");
   return (
     <ServicePageTemplate
       title="Move In/Out & Turnover Cleaning in Cape Town"
@@ -70,7 +72,7 @@ export default function MoveTurnoverPage() {
         "Window and frame cleaning",
         "Deposit-securing guarantee"
       ]}
-      pricing="From R980"
+      pricing={pricingDisplay}
       pricingNote="Pricing based on property size and cleaning requirements"
       highlights={[
         "Same-day move-in/out cleaning available across Cape Town",

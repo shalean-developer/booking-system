@@ -16,7 +16,7 @@ export interface BookingFormDataServer {
     displayOrder: number;
   }>;
   pricing: {
-    services: Record<string, { base: number; bedroom: number; bathroom: number }>;
+    services: Record<string, { base: number; bedroom: number; bathroom: number; extraRoom: number }>;
     extras: Record<string, number>;
     serviceFee: number;
     frequencyDiscounts: Record<string, number>;
@@ -175,6 +175,6 @@ export async function getBookingFormData(): Promise<BookingFormDataServer> {
   return unstable_cache(
     getBookingFormDataUncached,
     ['booking-form-data'],
-    { revalidate: 60 }
+    { revalidate: 60, tags: ['booking-form-data'] }
   )();
 }

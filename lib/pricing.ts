@@ -8,11 +8,11 @@ export type { PricingData };
 /** Fallback / marketing defaults when DB pricing is unavailable (ZAR). */
 export const PRICING: PricingData = {
   services: {
-    Standard: { base: 250, bedroom: 50, bathroom: 75 },
-    Deep: { base: 450, bedroom: 80, bathroom: 120 },
-    'Move In/Out': { base: 980, bedroom: 100, bathroom: 150 },
-    Airbnb: { base: 280, bedroom: 55, bathroom: 80 },
-    Carpet: { base: 55, bedroom: 55, bathroom: 35 },
+    Standard: { base: 250, bedroom: 50, bathroom: 75, extraRoom: 50 },
+    Deep: { base: 450, bedroom: 80, bathroom: 120, extraRoom: 80 },
+    'Move In/Out': { base: 980, bedroom: 100, bathroom: 150, extraRoom: 100 },
+    Airbnb: { base: 280, bedroom: 55, bathroom: 80, extraRoom: 55 },
+    Carpet: { base: 55, bedroom: 55, bathroom: 35, extraRoom: 0 },
   },
   extras: {},
   serviceFee: 49,
@@ -31,6 +31,8 @@ export type CalculateBookingPriceInput = {
   service: ServiceType | null;
   bedrooms: number;
   bathrooms: number;
+  /** Additional rooms (kitchen/lounge/etc.) priced same as bedroom when no dedicated DB column exists. */
+  extraRooms?: number;
   extras: string[];
   extrasQuantities?: Record<string, number>;
   carpetDetails?: {
@@ -58,6 +60,7 @@ export type BookingPriceResult = {
     base: number;
     bedrooms: number;
     bathrooms: number;
+    extraRooms: number;
     carpetFitted: number;
     carpetLoose: number;
     carpetOccupiedFee: number;
@@ -106,6 +109,7 @@ export function calculateBookingPrice(
       base: 0,
       bedrooms: 0,
       bathrooms: 0,
+      extraRooms: 0,
       carpetFitted: 0,
       carpetLoose: 0,
       carpetOccupiedFee: 0,
@@ -125,6 +129,8 @@ export function calculateBookingPrice(
   const carpetOccupiedFee =
     pricing.extras['Carpet occupied property'] ??
     pricing.extras['Carpet property occupied'] ??
+    pricing.extras['Extra Cleaner'] ??
+    pricing.extras['Carpet extra cleaner'] ??
     0;
 
   // --- Carpet ---
@@ -167,6 +173,7 @@ export function calculateBookingPrice(
         base,
         bedrooms: fitted,
         bathrooms: loose,
+        extraRooms: 0,
         carpetFitted: fitted,
         carpetLoose: loose,
         carpetOccupiedFee: occupied,
@@ -182,6 +189,8 @@ export function calculateBookingPrice(
   const base = servicePricing.base;
   const beds = (input.bedrooms || 0) * servicePricing.bedroom;
   const baths = (input.bathrooms || 0) * servicePricing.bathroom;
+  const extraRoomUnit = servicePricing.extraRoom > 0 ? servicePricing.extraRoom : servicePricing.bedroom;
+  const extraRooms = (input.extraRooms || 0) * extraRoomUnit;
 
   const uniqueExtras = Array.from(new Set(input.extras.map((e) => e.trim())));
   let extrasTotal = 0;
@@ -195,7 +204,7 @@ export function calculateBookingPrice(
     equipmentCharge = input.equipmentChargeOverride ?? equipmentChargeDefault;
   }
 
-  const laborSubtotalOneCleaner = base + beds + baths + extrasTotal;
+  const laborSubtotalOneCleaner = base + beds + baths + extraRooms + extrasTotal;
   const numberOfCleaners = Math.max(1, Math.round(input.numberOfCleaners ?? 1));
   const laborScaled =
     input.service === 'Standard' || input.service === 'Airbnb'
@@ -225,6 +234,7 @@ export function calculateBookingPrice(
         base,
         bedrooms: beds,
         bathrooms: baths,
+        extraRooms,
         carpetFitted: 0,
         carpetLoose: 0,
         carpetOccupiedFee: 0,

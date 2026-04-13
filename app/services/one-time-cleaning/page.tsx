@@ -2,6 +2,7 @@ import { ServicePageTemplate } from "@/components/service-page-template";
 import { Calendar } from "lucide-react";
 import type { Metadata } from "next";
 import { createMetadata, generateCanonical } from "@/lib/metadata";
+import { getServicePageFromPrice } from "@/lib/service-pages-pricing";
 
 export const metadata: Metadata = createMetadata({
   title: "One-Time Cleaning Services Cape Town | Single Clean Service",
@@ -74,14 +75,15 @@ const relatedServices = [
   }
 ];
 
-export default function OneTimeCleaningServicePage() {
+export default async function OneTimeCleaningServicePage() {
+  const pricingDisplay = await getServicePageFromPrice("one-time-cleaning");
   return (
     <ServicePageTemplate
       title="Professional One-Time Cleaning Services in Cape Town"
       description="Need a single deep clean? Shalean Cleaning Services offers professional one-time cleaning in Cape Town, Johannesburg, Pretoria, Durban, East London, Port Elizabeth, Jeffreys Bay, Grahamstown, and throughout South Africa. Our trusted team provides comprehensive cleaning for homes and offices. Perfect for special occasions, spring cleaning, or when you need extra help."
       icon={Calendar}
       features={features}
-      pricing="From R250"
+      pricing={pricingDisplay}
       pricingNote="Quoted based on property size and cleaning requirements"
       highlights={highlights}
       serviceType="One-Time Cleaning"
