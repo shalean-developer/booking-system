@@ -9,6 +9,7 @@ import { BlogPostHero } from "@/components/blog-post-hero";
 import { BlogPostContent } from "@/components/blog-post-content";
 import { BlogPostSchema } from "@/components/blog-post-schema";
 import dynamic from "next/dynamic";
+import { ViewTracker } from "./view-tracker";
 
 // Lazy load below-fold sections for better performance
 const BlogPostRelated = dynamic(() => import("@/components/blog-post-related").then(mod => ({ default: mod.BlogPostRelated })), {
@@ -467,6 +468,7 @@ export default async function BlogPostPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-white">
+      <ViewTracker slug={slug} />
       {/* JSON-LD Schema */}
       <BlogPostSchema post={post} />
 

@@ -1,5 +1,7 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
+import { createServiceClient } from "@/lib/supabase-server";
+import { sendCronAlert } from "@/lib/cron-alert";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
@@ -64,6 +66,30 @@ Requirements:
   return res.choices[0].message.content;
 }
 
+async function logCronRun({
+  type,
+  status,
+  message,
+  slug
+}: {
+  type: "blog" | "update";
+  status: "success" | "failed";
+  message: string;
+  slug?: string;
+}) {
+  try {
+    const supabase = createServiceClient();
+    await supabase.from("cron_logs").insert({
+      type,
+      status,
+      message,
+      slug: slug ?? null
+    });
+  } catch (logError) {
+    console.error("[Cron] Failed to write cron log:", logError);
+  }
+}
+
 export async function GET(req: Request) {
   try {
     if (!API_SECRET) {
@@ -126,12 +152,38 @@ export async function GET(req: Request) {
 
     const data = await res.json();
 
+    if (!res.ok) {
+      throw new Error(data?.error || "Failed to publish blog content");
+    }
+
+    await logCronRun({
+      type: "blog",
+      status: "success",
+      message: `Created blog: ${topic.title}`,
+      slug: topic.slug
+    });
+
     return NextResponse.json({
       success: true,
       topic,
       result: data
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const errorMessage = err?.message ?? "Unknown cron error";
+
+    await logCronRun({
+      type: "blog",
+      status: "failed",
+      message: errorMessage
+    });
+
+    // Alert only on failures to avoid noisy inbox spam.
+    await sendCronAlert({
+      type: "blog",
+      status: "failed",
+      message: errorMessage
+    });
+
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

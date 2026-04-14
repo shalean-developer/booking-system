@@ -75,6 +75,8 @@ const navigationSections: NavSection[] = [
     title: 'Content',
     items: [
       { name: 'Blog', href: '/admin/blog', icon: BookOpen },
+      { name: 'SEO Dashboard', href: '/admin/seo', icon: FileText },
+      { name: 'Cron Logs', href: '/admin/cron-logs', icon: FileText },
       { name: 'CMS', href: '/admin/cms', icon: FileEdit },
   { name: 'Reviews', href: '/admin/reviews', icon: MessageSquare },
     ],
