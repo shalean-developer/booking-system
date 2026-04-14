@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { PageHeader } from '@/components/admin/shared/page-header';
 import { FilterBar, FilterConfig } from '@/components/admin/shared/filter-bar';
 import { DataTable, Column } from '@/components/admin/shared/data-table';
@@ -8,7 +9,7 @@ import { EmptyState } from '@/components/admin/shared/empty-state';
 import { LoadingState } from '@/components/admin/shared/loading-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { BookOpen, Plus, Edit, Eye } from 'lucide-react';
+import { BookOpen, Plus, Edit, Eye, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 
@@ -16,22 +17,24 @@ interface BlogPost {
   id: string;
   slug: string;
   title: string;
-  author: string;
-  status: string;
+  content: string;
+  status: 'draft' | 'published';
   published_at?: string;
-  views: number;
+  meta_description?: string | null;
+  keywords?: string | null;
+  featured_image?: string | null;
   created_at: string;
 }
 
 const statusColors: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-800 border-gray-200',
   published: 'bg-green-100 text-green-800 border-green-200',
-  archived: 'bg-yellow-100 text-yellow-800 border-yellow-200',
 };
 
 export default function AdminBlogPage() {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMutating, setIsMutating] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebouncedValue(searchQuery, 500);
@@ -66,57 +69,15 @@ export default function AdminBlogPage() {
       }
 
       const url = `/api/admin/blog?${params.toString()}`;
-      console.log('[Blog Page] Fetching posts from:', url);
       const response = await fetch(url, {
         credentials: 'include',
         headers: {
           'Accept': 'application/json',
         },
       });
-
-      // Check content type first
-      const contentType = response.headers.get('content-type') || '';
-      
-      // Handle non-JSON responses
-      if (!contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('Non-JSON response received:', {
-          status: response.status,
-          statusText: response.statusText,
-          contentType,
-          preview: text.substring(0, 200),
-        });
-        
-        // If it's HTML (likely a 404 or error page), provide helpful message
-        if (contentType.includes('text/html') || text.trim().startsWith('<!DOCTYPE')) {
-          if (response.status === 403) {
-            throw new Error('Access denied. Please ensure you are logged in as an admin user and have the correct permissions.');
-          }
-          throw new Error(`API endpoint returned HTML instead of JSON. Status: ${response.status}. This may indicate a routing or authentication issue.`);
-        }
-        
-        throw new Error(`Invalid response format. Expected JSON but got ${contentType}. Status: ${response.status}`);
-      }
-
-      // Parse JSON response
-      let data;
-      try {
-        data = await response.json();
-      } catch (parseError: any) {
-        console.error('Failed to parse JSON response:', parseError);
-        throw new Error(`Failed to parse API response as JSON. Status: ${response.status}`);
-      }
-
-      // Handle error responses
+      const data = await response.json();
       if (!response.ok) {
-        const errorMessage = data.error || `API returned ${response.status}`;
-        
-        // Special handling for 403 - admin access required
-        if (response.status === 403) {
-          throw new Error(`Access denied: ${errorMessage}. Please ensure you are logged in as an admin user.`);
-        }
-        
-        throw new Error(errorMessage);
+        throw new Error(data.error || `API returned ${response.status}`);
       }
 
       if (data.ok) {
@@ -124,25 +85,74 @@ export default function AdminBlogPage() {
         setTotal(data.total || 0);
         setTotalPages(data.totalPages || 1);
       } else {
-        console.error('API returned error:', data.error);
         setPosts([]);
         setTotal(0);
         setTotalPages(1);
-        
-        // Show user-friendly error message for common issues
-        if (data.code === 'TABLE_NOT_FOUND') {
-          alert('Blog posts table not found. Please run the database migration:\n\n1. Go to Supabase Dashboard → SQL Editor\n2. Copy contents of supabase/blog-schema.sql\n3. Run the SQL script');
-        } else if (data.code === 'RLS_PERMISSION_DENIED') {
-          alert('Permission denied. Please run the RLS fix script:\n\n1. Go to Supabase Dashboard → SQL Editor\n2. Copy contents of supabase/fix-blog-admin-access.sql\n3. Run the SQL script');
-        }
+        toast.error(data.error || 'Failed to load blog posts');
       }
-    } catch (error) {
-      console.error('Error fetching blog posts:', error);
+    } catch (error: any) {
       setPosts([]);
       setTotal(0);
       setTotalPages(1);
+      toast.error(error.message || 'Failed to load blog posts');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    const confirmed = window.confirm('Delete this blog post permanently?');
+    if (!confirmed) return;
+
+    setIsMutating(id);
+    try {
+      const response = await fetch('/api/admin/blog/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || `Delete failed (${response.status})`);
+      }
+      toast.success('Post deleted');
+      await fetchPosts();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete post');
+    } finally {
+      setIsMutating(null);
+    }
+  };
+
+  const handleTogglePublish = async (post: BlogPost) => {
+    setIsMutating(post.id);
+    try {
+      const response = await fetch('/api/admin/blog/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          id: post.id,
+          title: post.title,
+          slug: post.slug,
+          content: post.content,
+          meta_description: post.meta_description,
+          keywords: post.keywords,
+          featured_image: post.featured_image,
+          status: post.status === 'published' ? 'draft' : 'published',
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || `Update failed (${response.status})`);
+      }
+      toast.success(post.status === 'published' ? 'Post unpublished' : 'Post published');
+      await fetchPosts();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update post');
+    } finally {
+      setIsMutating(null);
     }
   };
 
@@ -162,7 +172,6 @@ export default function AdminBlogPage() {
       options: [
         { label: 'Draft', value: 'draft' },
         { label: 'Published', value: 'published' },
-        { label: 'Archived', value: 'archived' },
       ],
     },
   ];
@@ -176,13 +185,6 @@ export default function AdminBlogPage() {
       ),
     },
     {
-      id: 'author',
-      header: 'Author',
-      accessor: (row) => (
-        <span className="text-sm text-gray-600">{row.author}</span>
-      ),
-    },
-    {
       id: 'status',
       header: 'Status',
       accessor: (row) => (
@@ -192,26 +194,27 @@ export default function AdminBlogPage() {
       ),
     },
     {
-      id: 'published',
-      header: 'Published',
+      id: 'created',
+      header: 'Created',
       accessor: (row) => (
         <span className="text-sm text-gray-600">
-          {row.published_at ? formatDate(row.published_at) : 'Not published'}
+          {formatDate(row.created_at)}
         </span>
-      ),
-    },
-    {
-      id: 'views',
-      header: 'Views',
-      accessor: (row) => (
-        <span className="font-semibold text-gray-900">{row.views || 0}</span>
       ),
     },
     {
       id: 'actions',
       header: 'Actions',
       accessor: (row) => (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            variant={row.status === 'published' ? 'secondary' : 'default'}
+            disabled={isMutating === row.id}
+            onClick={() => handleTogglePublish(row)}
+          >
+            {row.status === 'published' ? 'Unpublish' : 'Publish'}
+          </Button>
           <Button 
             variant="ghost" 
             size="sm" 
@@ -222,6 +225,16 @@ export default function AdminBlogPage() {
             <Link href={`/admin/blog/${row.id}`} aria-label="Edit blog post">
               <Edit className="h-4 w-4 text-gray-600 hover:text-gray-900" />
             </Link>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0 hover:bg-gray-100"
+            onClick={() => handleDelete(row.id)}
+            disabled={isMutating === row.id}
+            title="Delete post"
+          >
+            <Trash2 className="h-4 w-4 text-red-600 hover:text-red-700" />
           </Button>
           {row.status === 'published' && row.slug && (
             <Button 
@@ -266,7 +279,7 @@ export default function AdminBlogPage() {
       />
 
       <FilterBar
-        searchPlaceholder="Search by title or author..."
+        searchPlaceholder="Search by title..."
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
         filters={filterConfigs}
@@ -285,7 +298,7 @@ export default function AdminBlogPage() {
       />
 
       {isLoading ? (
-        <LoadingState rows={5} columns={6} variant="table" />
+        <LoadingState rows={5} columns={4} variant="table" />
       ) : posts.length === 0 ? (
         <EmptyState
           icon={BookOpen}

@@ -11,6 +11,7 @@ import { SITE_PHONE_DISPLAY, SITE_PHONE_E164, SOCIAL_PROFILE_URLS } from "@/lib/
 const quickLinks = [
   { label: "About Us", href: "/about" },
   { label: "Services", href: "/services" },
+  { label: "Locations", href: "/location" },
   { label: "Pricing", href: "/pricing" },
   { label: "Help", href: "/help" },
   { label: "Blog", href: "/blog" },

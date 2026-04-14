@@ -55,7 +55,7 @@ export default async function BlogPage() {
   ];
   
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50/50 via-white to-white">
+    <div className="min-h-screen bg-white">
       {/* Header */}
       <Header />
       
@@ -70,7 +70,7 @@ export default async function BlogPage() {
         {/* Newsletter Section */}
         <section className="pb-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <div className="relative overflow-hidden rounded-3xl border border-emerald-100 bg-gradient-to-r from-primary via-emerald-500 to-emerald-400 text-white shadow-xl">
+            <div className="relative overflow-hidden rounded-3xl border border-emerald-100/80 bg-gradient-to-r from-primary via-emerald-600 to-emerald-500 text-white shadow-lg">
               <div className="grid gap-8 lg:grid-cols-[1.1fr,0.9fr]">
                 <div className="flex flex-col gap-6 p-10 sm:p-12">
                   <h2 className="text-3xl font-semibold leading-tight sm:text-4xl">

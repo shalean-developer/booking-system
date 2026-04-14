@@ -23,6 +23,7 @@ import {
   Banknote,
   Tags,
   CheckCircle2,
+  BookOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase-client';
@@ -145,9 +146,11 @@ const Sidebar = ({
       <p className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-white/30">Menu</p>
       {navItems.map((item) => {
         const isScheduleLink = Boolean(item.href);
-        const scheduleActive = isScheduleLink && pathname.startsWith('/admin/schedule');
+        const routeActive = isScheduleLink && item.href
+          ? pathname === item.href || pathname.startsWith(`${item.href}/`)
+          : false;
         const spaActive = !isScheduleLink && activeNav === item.id;
-        const isActive = scheduleActive || spaActive;
+        const isActive = routeActive || spaActive;
         const className = cn(
           'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-all duration-200',
           isActive
@@ -158,14 +161,14 @@ const Sidebar = ({
         if (item.href) {
           return (
             <Link
-              key={item.id}
+              key={item.href}
               href={item.href}
               onClick={onClose}
               className={className}
             >
               <span className={iconWrap}>{item.icon}</span>
               <span className="flex-1">{item.label}</span>
-              {scheduleActive && <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-white/60" />}
+              {routeActive && <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-white/60" />}
             </Link>
           );
         }
@@ -380,6 +383,12 @@ export function AdminDashboard() {
       { id: 'quotes', label: 'Quotes', icon: <FileText className="h-4.5 w-4.5" />, badge: q },
       { id: 'payments', label: 'Payments', icon: <Banknote className="h-4.5 w-4.5" /> },
       { id: 'pricing', label: 'Pricing', icon: <Tags className="h-4.5 w-4.5" /> },
+      {
+        id: 'settings',
+        label: 'Blog Management',
+        icon: <BookOpen className="h-4.5 w-4.5" />,
+        href: '/admin/blog',
+      },
       { id: 'reports', label: 'Reports', icon: <BarChart3 className="h-4.5 w-4.5" /> },
       { id: 'settings', label: 'Settings', icon: <Settings className="h-4.5 w-4.5" /> },
     ];

@@ -111,6 +111,7 @@ const FALLBACK_POSTS: Record<string, BlogPostWithDetails> = {
     created_at: "2025-10-12T00:00:00Z",
     updated_at: "2025-10-12T00:00:00Z",
     tags: ["eco-friendly", "cleaning"],
+    keywords: "eco-friendly cleaning, green cleaning, South Africa",
   },
 };
 
@@ -379,6 +380,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     // If still too short after adding suffix, it's acceptable (user-provided meta_title)
   }
 
+  const keywordList = post.keywords
+    ? post.keywords
+        .split(/[,;]/)
+        .map((k) => k.trim())
+        .filter(Boolean)
+    : undefined;
+
   const blogMetadata = {
     title: pageTitle,
     description: post.meta_description || post.excerpt || 'Read our latest blog post about cleaning services. Expert cleaning tips, industry insights, and practical guides from professional cleaners to help you maintain a spotless home and office space.',
@@ -391,6 +399,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     publishedTime: post.published_at || undefined,
     author: "Shalean Cleaning Services",
     generatedMeta: !post.meta_title || !post.meta_description,
+    ...(keywordList && keywordList.length > 0 && { keywords: keywordList }),
   };
 
   // Validate metadata

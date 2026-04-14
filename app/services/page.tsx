@@ -18,9 +18,12 @@ import { createMetadata } from "@/lib/metadata";
 import { getSeoConfig } from "@/lib/seo-config";
 import { fetchActivePricing } from "@/lib/pricing-db";
 import { formatFromBaseZar } from "@/lib/display-pricing";
+import { getPublishedLocationPagesSummary } from "@/lib/location-pages-server";
 
 // Services page metadata
 export const metadata: Metadata = createMetadata(getSeoConfig("services"));
+
+export const revalidate = 3600;
 
 export default async function ServicesPage() {
   let pricing = null;
@@ -29,6 +32,8 @@ export default async function ServicesPage() {
   } catch {
     pricing = null;
   }
+
+  const locationGuides = await getPublishedLocationPagesSummary();
 
   const fromStandard = formatFromBaseZar(pricing, "Standard");
   const fromDeep = formatFromBaseZar(pricing, "Deep");
@@ -275,6 +280,36 @@ export default async function ServicesPage() {
           </div>
         </div>
       </section>
+
+      {locationGuides.length > 0 && (
+        <section
+          className="border-y border-slate-100 bg-slate-50/80 py-16"
+          aria-label="Local cleaning guides"
+        >
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="mb-8 text-center">
+              <h2 className="text-3xl font-semibold tracking-tight text-slate-900">
+                Local service guides
+              </h2>
+              <p className="mt-2 text-lg text-slate-600">
+                Tailored info for booking cleaning in your area
+              </p>
+            </div>
+            <ul className="flex flex-wrap justify-center gap-3">
+              {locationGuides.map((p) => (
+                <li key={p.slug}>
+                  <Link
+                    href={`/services/${p.slug}`}
+                    className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 shadow-sm transition hover:border-primary/40 hover:text-primary"
+                  >
+                    {p.city}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
 
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-r from-primary/10 to-primary/20" aria-label="Call to action">

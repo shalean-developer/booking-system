@@ -279,6 +279,9 @@ export function createBlogPostMetadata(metadata: BlogPostMetadata): Metadata {
       description: finalDescription,
       images: metadata.ogImage ? [metadata.ogImage.url] : [`${SITE_URL}/assets/og/home-1200x630.jpg`],
     },
+    ...(metadata.keywords && metadata.keywords.length > 0 && {
+      keywords: metadata.keywords,
+    }),
   };
 }
 

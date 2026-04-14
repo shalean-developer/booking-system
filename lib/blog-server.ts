@@ -35,6 +35,8 @@ export interface BlogPost {
   status: BlogPostStatus;
   meta_title: string | null;
   meta_description: string | null;
+  /** Comma-separated SEO keywords (optional DB column; see migration 20260414120000) */
+  keywords?: string | null;
   read_time: number;
   published_at: string | null;
   created_at: string;
@@ -294,6 +296,12 @@ export function generateSlug(title: string): string {
 export function truncateExcerpt(text: string, maxLength: number = 160): string {
   if (text.length <= maxLength) return text;
   return text.substring(0, maxLength).trim() + '...';
+}
+
+/** Plain-text excerpt from HTML body for DB excerpt / meta fallbacks */
+export function excerptFromHtml(html: string, maxLength: number = 160): string {
+  const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  return truncateExcerpt(text, maxLength);
 }
 
 // Generate JSON-LD Schema for blog post

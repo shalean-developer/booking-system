@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Calendar, Clock } from "lucide-react";
 
 interface BlogPost {
@@ -47,9 +48,26 @@ export function BlogPostHero({ post }: BlogPostHeroProps) {
               </Badge>
             )}
           </div>
-          <h1 className="mb-6 text-4xl md:text-[2.75rem] font-bold text-gray-900 leading-tight">
+          <h1 className="mb-6 text-4xl font-semibold tracking-tight text-slate-900 md:text-[2.75rem] leading-tight">
             {post.title}
           </h1>
+          <div className="mb-8 flex flex-wrap gap-3">
+            <Button
+              asChild
+              size="lg"
+              className="h-12 rounded-xl px-8 text-base font-semibold shadow-sm"
+            >
+              <Link href="/booking/service/standard/plan">Book Now</Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              size="lg"
+              className="h-12 rounded-xl border-slate-200 bg-white px-6 text-base font-semibold"
+            >
+              <Link href="/services">Services</Link>
+            </Button>
+          </div>
           <div className="flex flex-wrap items-center gap-5 text-gray-600 mb-10">
             <span className="flex items-center gap-2 text-sm">
               <Calendar className="h-4 w-4 text-primary" />

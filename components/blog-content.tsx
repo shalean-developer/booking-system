@@ -14,21 +14,37 @@ export function BlogContent({ categories }: { categories: string[] }) {
 
   return (
     <>
-      {/* Hero Section */}
-      <section className="relative py-16 sm:py-20">
-        <div className="absolute inset-x-0 top-0 h-64 bg-gradient-to-b from-emerald-100/70 via-white to-transparent" />
+      {/* Hero Section — clean marketing layout (inspired by modern home-service brands) */}
+      <section className="relative border-b border-slate-100 bg-gradient-to-b from-slate-50/90 to-white py-14 sm:py-20">
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-12">
             <div className="max-w-3xl">
-              <Badge className="mb-4 border-primary/30 bg-primary/10 text-primary">
-                Sustainable Cleaning Insights
+              <Badge className="mb-4 border-slate-200 bg-white px-3 py-1 text-slate-700 shadow-sm">
+                Sustainable cleaning insights
               </Badge>
-              <h1 className="text-4xl font-bold text-gray-900 sm:text-5xl lg:text-6xl">
+              <h1 className="text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl lg:text-[3.25rem] lg:leading-tight">
                 Fresh stories for a cleaner, greener lifestyle
               </h1>
-              <p className="mt-4 text-lg text-gray-600 sm:text-xl">
+              <p className="mt-5 max-w-2xl text-lg leading-relaxed text-slate-600 sm:text-xl">
                 Explore practical tips, expert advice, and inspiring stories from the Shalean community. Discover how sustainable habits can transform every space.
               </p>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Button
+                  asChild
+                  size="lg"
+                  className="h-12 rounded-xl px-8 text-base font-semibold shadow-sm"
+                >
+                  <Link href="/booking/service/standard/plan">Book Now</Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="lg"
+                  className="h-12 rounded-xl border-slate-200 bg-white px-6 text-base font-semibold"
+                >
+                  <Link href="/services">Browse services</Link>
+                </Button>
+              </div>
             </div>
 
             {featuredPost ? (
@@ -163,7 +179,7 @@ export function BlogContent({ categories }: { categories: string[] }) {
       </section>
 
       {/* Category Strip */}
-      <section className="border-y border-emerald-100 bg-white py-10">
+      <section className="border-y border-slate-100 bg-white py-10">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {/* Top Row: Heading and Search */}
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between mb-6">
@@ -175,7 +191,7 @@ export function BlogContent({ categories }: { categories: string[] }) {
               <input
                 type="search"
                 placeholder="Search blogs"
-                className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 pr-10 text-sm text-gray-500 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30"
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-10 text-sm text-slate-600 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/25"
               />
             </div>
           </div>
@@ -187,7 +203,7 @@ export function BlogContent({ categories }: { categories: string[] }) {
       </section>
 
       {/* Articles Grid */}
-      <section className="py-16 sm:py-20">
+      <section className="bg-slate-50/40 py-16 sm:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {gridPosts.length === 0 ? (
             // Only show empty state if there are 3 or fewer posts total

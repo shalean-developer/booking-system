@@ -151,23 +151,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Transform the data to match the expected format
-    // For now, we'll use "Admin" as the author name since fetching user details
-    // from auth.users requires special permissions. This can be enhanced later
-    // by creating a users profile table or using a service role key.
     const posts = (data || []).map((post: any) => {
-      // Default to "Admin" for author name
-      // TODO: Enhance this to fetch actual user names from a users table or profile
-      const authorName = post.author_id ? 'Admin' : 'Unknown';
-
       return {
         id: post.id,
         slug: post.slug,
         title: post.title,
-        author: authorName,
+        content: post.content,
         status: post.status,
         published_at: post.published_at,
-        views: 0, // Views field doesn't exist in schema yet, defaulting to 0
+        meta_description: post.meta_description,
+        keywords: post.keywords,
+        featured_image: post.featured_image,
         created_at: post.created_at,
       };
     });
