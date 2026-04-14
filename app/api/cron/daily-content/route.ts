@@ -5,12 +5,22 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-const API_SECRET = process.env.SEO_CONTENT_API_SECRET!;
+const API_SECRET = process.env.SEO_CONTENT_API_SECRET;
+const CRON_SECRET = process.env.CRON_SECRET;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL;
 
-// protect route
+// Vercel Cron cannot attach custom Authorization headers, so we accept a shared
+// secret via query param for scheduled calls, while keeping Bearer auth for manual/API tests.
 function isAuthorized(req: Request) {
   const auth = req.headers.get("authorization");
-  return auth === `Bearer ${API_SECRET}`;
+  const url = new URL(req.url);
+  const querySecret = url.searchParams.get("secret");
+
+  const isManualAuthorized = Boolean(API_SECRET) && auth === `Bearer ${API_SECRET}`;
+  const isCronAuthorized = Boolean(CRON_SECRET) && querySecret === CRON_SECRET;
+
+  return isManualAuthorized || isCronAuthorized;
 }
 
 // generate topic
@@ -56,6 +66,34 @@ Requirements:
 
 export async function GET(req: Request) {
   try {
+    if (!API_SECRET) {
+      return NextResponse.json(
+        { error: "Missing SEO_CONTENT_API_SECRET environment variable" },
+        { status: 500 }
+      );
+    }
+
+    if (!OPENAI_API_KEY) {
+      return NextResponse.json(
+        { error: "Missing OPENAI_API_KEY environment variable" },
+        { status: 500 }
+      );
+    }
+
+    if (!CRON_SECRET) {
+      return NextResponse.json(
+        { error: "Missing CRON_SECRET environment variable" },
+        { status: 500 }
+      );
+    }
+
+    if (!SITE_URL) {
+      return NextResponse.json(
+        { error: "Missing NEXT_PUBLIC_SITE_URL environment variable" },
+        { status: 500 }
+      );
+    }
+
     if (!isAuthorized(req)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -67,7 +105,7 @@ export async function GET(req: Request) {
 
     // call your own API
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_SITE_URL}/api/content/create`,
+      `${SITE_URL}/api/content/create`,
       {
         method: "POST",
         headers: {

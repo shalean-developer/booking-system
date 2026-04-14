@@ -5,7 +5,7 @@
       "schedule": "10 16 * * *"
     },
     {
-      "path": "/api/cron/daily-content",
+      "path": "/api/cron/daily-content?secret=YOUR_CRON_SECRET",
       "schedule": "0 9 * * *"
     }
   ]
