@@ -21,6 +21,7 @@ import {
   getEffectiveRoomCounts,
   slugifyExtraId,
 } from '@/lib/booking-pricing-input';
+import { BOOKING_FORM_SESSION_KEY } from '@/lib/booking-form-session';
 
 export type { BookingFormData, PropertyType, ServiceType } from '@/components/booking-system-types';
 
@@ -135,7 +136,7 @@ const SLUG_TO_STEP: Record<string, number> = {
   crew: 3,
   final: 4,
 };
-const BOOKING_STORAGE_KEY = 'shalean-booking-form-v1';
+const BOOKING_STORAGE_KEY = BOOKING_FORM_SESSION_KEY;
 
 // --- HELPERS ---
 
