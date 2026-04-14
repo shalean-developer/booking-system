@@ -47,10 +47,6 @@ const EXTRA_UI_ID_TO_BOOKING: Record<string, string> = {
   windows: 'exterior_windows',
 };
 
-const BOOKING_TO_UI_ID: Record<string, string> = Object.fromEntries(
-  Object.entries(EXTRA_UI_ID_TO_BOOKING).map(([ui, booking]) => [booking, ui])
-);
-
 const TODAY = new Date();
 TODAY.setHours(0, 0, 0, 0);
 
@@ -136,10 +132,6 @@ function parseDateStr(dateStr: string): Date | null {
   const [y, mo, d] = dateStr.split('-').map(Number);
   if (!y || !mo || !d) return null;
   return new Date(y, mo - 1, d);
-}
-
-function uiExtrasFromBookingExtras(extras: string[]): string[] {
-  return extras.map((id) => BOOKING_TO_UI_ID[id]).filter((x): x is string => !!x);
 }
 
 /** Furthest day (inclusive) from today that can be booked in this UI. */
@@ -245,7 +237,12 @@ export function BookingStep2Schedule({
     if (data.service === 'standard' || data.service === 'airbnb') {
       return data.extras.filter((id) => addonTiles.some((t) => t.id === id));
     }
-    return uiExtrasFromBookingExtras(data.extras);
+    if (data.service === 'deep' || data.service === 'move') {
+      return addonTiles
+        .filter((t) => data.extras.includes(EXTRA_UI_ID_TO_BOOKING[t.id] ?? t.id))
+        .map((t) => t.id);
+    }
+    return [];
   }, [data.service, data.extras, addonTiles]);
 
   const addonsLine = pricing.bedroomAdd + pricing.bathroomAdd + pricing.extraRoomAdd;
@@ -308,15 +305,16 @@ export function BookingStep2Schedule({
       });
       return;
     }
-    const bookingId = EXTRA_UI_ID_TO_BOOKING[id];
-    if (!bookingId) return;
-    setData((prev) => {
-      const has = prev.extras.includes(bookingId);
-      if (has) {
-        return { ...prev, extras: prev.extras.filter((e) => e !== bookingId) };
-      }
-      return { ...prev, extras: [...prev.extras, bookingId] };
-    });
+    if (data.service === 'deep' || data.service === 'move') {
+      const storageKey = EXTRA_UI_ID_TO_BOOKING[id] ?? id;
+      setData((prev) => {
+        const has = prev.extras.includes(storageKey);
+        if (has) {
+          return { ...prev, extras: prev.extras.filter((e) => e !== storageKey) };
+        }
+        return { ...prev, extras: [...prev.extras, storageKey] };
+      });
+    }
   };
 
   const handleDateSelect = (date: Date) => {
@@ -378,7 +376,7 @@ export function BookingStep2Schedule({
           <p className="text-xs font-bold tracking-widest text-violet-600 uppercase">Step 2 of 4</p>
 
           {showEnhanceSection && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
+            <div className="relative z-10 bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
               <div className="flex items-start gap-3 mb-5">
                 <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center flex-shrink-0">
                   <Zap size={18} className="text-white" />
@@ -391,7 +389,7 @@ export function BookingStep2Schedule({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 pointer-events-auto">
                 {addonTiles.map((extra) => {
                   const isSelected = selectedAddonUiIds.includes(extra.id);
                   return (
@@ -399,6 +397,7 @@ export function BookingStep2Schedule({
                       key={extra.id}
                       type="button"
                       onClick={() => toggleExtra(extra.id)}
+                      onPointerDown={(e) => e.stopPropagation()}
                       whileTap={{ scale: 0.94 }}
                       className={[
                         'flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-2 cursor-pointer transition-all duration-200',

@@ -2,7 +2,27 @@
 
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Star, ShieldCheck, Calendar, Home, Layers, Sparkles, Wind, RefreshCw, Loader2, Building2, Sofa, Award, User } from 'lucide-react';
+import {
+  Star,
+  ShieldCheck,
+  Calendar,
+  Home,
+  Layers,
+  Sparkles,
+  Wind,
+  RefreshCw,
+  Loader2,
+  Building2,
+  Sofa,
+  Award,
+  User,
+  AppWindow,
+  Warehouse,
+  Flame,
+  Shirt,
+  PawPrint,
+  Snowflake,
+} from 'lucide-react';
 import { useBookingFormData, type BookingFormData as BookingFormDataFromApi } from '@/lib/useBookingFormData';
 import type { Cleaner as ApiCleaner } from '@/types/booking';
 import { supabase } from '@/lib/supabase-client';
@@ -81,6 +101,16 @@ const TEAM_ID_TO_NAME: Record<string, 'Team A' | 'Team B' | 'Team C'> = {
 };
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** Legacy step-2 tile ids → stored `BookingFormData.extras` values (`booking-step2-schedule` static EXTRAS). */
+const DEEP_MOVE_LEGACY_EXTRA_STORAGE_IDS: readonly string[] = [
+  'carpet_deep',
+  'ceiling',
+  'garage',
+  'balcony',
+  'couch',
+  'exterior_windows',
+];
+
 // Icon name (from API) to React node for services
 const SERVICE_ICON_MAP: Record<string, React.ReactNode> = {
   Home: <Home className="w-6 h-6" />,
@@ -109,6 +139,28 @@ const EXTRA_ICON_MAP: Record<string, React.ReactNode> = {
   'Exterior Windows': <Layers className="w-5 h-5" />,
   'Wall Spot Clean': <ShieldCheck className="w-5 h-5" />,
 };
+
+/** Icons for DB extra names that don't match `EXTRA_ICON_MAP` keys exactly. */
+function resolveExtraIcon(label: string): React.ReactNode {
+  const direct = EXTRA_ICON_MAP[label];
+  if (direct) return direct;
+  const n = label.toLowerCase();
+  if (n.includes('balcony') || n.includes('patio')) return <Home className="w-5 h-5" />;
+  if (n.includes('garage')) return <Warehouse className="w-5 h-5" />;
+  if (n.includes('carpet')) return <Wind className="w-5 h-5" />;
+  if (n.includes('couch') || n.includes('sofa')) return <Sofa className="w-5 h-5" />;
+  if (n.includes('ceiling')) return <Layers className="w-5 h-5" />;
+  if (n.includes('window')) return <AppWindow className="w-5 h-5" />;
+  if (n.includes('oven')) return <Flame className="w-5 h-5" />;
+  if (n.includes('fridge')) return <Snowflake className="w-5 h-5" />;
+  if (n.includes('laundry') || n.includes('folding')) return <RefreshCw className="w-5 h-5" />;
+  if (n.includes('iron')) return <Shirt className="w-5 h-5" />;
+  if (n.includes('mattress')) return <Sparkles className="w-5 h-5" />;
+  if (n.includes('pet')) return <PawPrint className="w-5 h-5" />;
+  if (n.includes('wall')) return <ShieldCheck className="w-5 h-5" />;
+  return <Sparkles className="w-5 h-5" />;
+}
+
 // Service id -> URL slug (move-in-out for move)
 const SERVICE_TO_URL_SLUG: Record<ServiceType, string> = {
   standard: 'standard',
@@ -335,7 +387,10 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
           'equipment',
         ]);
       } else if (prev.service === 'deep' || prev.service === 'move') {
-        allowed = new Set((formData?.extras?.deepAndMove ?? []).map((n) => slugifyExtraId(n)));
+        allowed = new Set([
+          ...(formData?.extras?.deepAndMove ?? []).map((n) => slugifyExtraId(n)),
+          ...DEEP_MOVE_LEGACY_EXTRA_STORAGE_IDS,
+        ]);
       } else {
         allowed = new Set();
       }
@@ -385,7 +440,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
       id: slugifyExtraId(name),
       label: name,
       price: formData.extras.prices[name] ?? 0,
-      icon: EXTRA_ICON_MAP[name] ?? <Wind className="w-5 h-5" />,
+      icon: resolveExtraIcon(name),
     }));
     if (data.service === 'standard' || data.service === 'airbnb') {
       return [
