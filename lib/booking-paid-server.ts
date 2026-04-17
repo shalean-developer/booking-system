@@ -475,8 +475,27 @@ export async function finalizePaidBookingServer(params: {
           throw new Error(sendResult.error || 'Failed to send booking confirmation email');
         }
         console.log('✅ EMAIL CALL FINISHED', { providerId: sendResult.providerId });
+        await supabase.from('email_send_logs').insert({
+          booking_id: booking.id,
+          template: 'booking_paid',
+          recipient: to,
+          status: 'sent',
+          provider_id: sendResult.providerId ?? null,
+          error_message: null,
+        });
       } catch (e) {
         console.error('❌ EMAIL FAILED (duplicate path):', e);
+        const to = booking.customer_email?.trim();
+        if (to) {
+          await supabase.from('email_send_logs').insert({
+            booking_id: booking.id,
+            template: 'booking_paid',
+            recipient: to,
+            status: 'failed',
+            provider_id: null,
+            error_message: e instanceof Error ? e.message : String(e),
+          });
+        }
       }
     }
     return { ok: true, duplicate: true, zoho_invoice_id: booking.zoho_invoice_id };
