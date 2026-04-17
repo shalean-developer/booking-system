@@ -1,6 +1,5 @@
--- Check Date Availability Function
--- Purpose: Check if a date is available for a given service type and return availability details
--- Returns availability status, remaining slots, and surge pricing information
+-- Fix: PL/pgSQL RETURNS TABLE defines OUT vars named uses_teams, etc.; unqualified
+-- uses_teams in SELECT ... INTO was ambiguous with service_scheduling_limits.uses_teams.
 
 CREATE OR REPLACE FUNCTION check_date_availability(
   p_service_type TEXT,
@@ -25,7 +24,6 @@ DECLARE
   v_surge_active BOOLEAN := false;
   v_surge_pct DECIMAL := NULL;
 BEGIN
-  -- Get scheduling limits for this service type (qualify columns: RETURNS TABLE creates `uses_teams` OUT var)
   SELECT 
     ssl.max_bookings_per_date,
     ssl.uses_teams,
@@ -36,7 +34,6 @@ BEGIN
   FROM service_scheduling_limits ssl
   WHERE ssl.service_type = p_service_type;
 
-  -- If no limit record found, default to unavailable
   IF v_limit_record IS NULL THEN
     RETURN QUERY SELECT 
       false::BOOLEAN,
@@ -50,9 +47,7 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Check if service uses teams
   IF v_limit_record.uses_teams THEN
-    -- For team-based services, check which teams are booked
     SELECT 
       COUNT(DISTINCT bt.team_name) as booked_teams,
       array_agg(DISTINCT bt.team_name) as booked_team_names
@@ -65,7 +60,6 @@ BEGIN
 
     v_booking_count := COALESCE(v_team_bookings.booked_teams, 0);
     
-    -- Calculate available teams
     IF v_team_bookings.booked_team_names IS NOT NULL THEN
       SELECT array_agg(team) INTO v_available_teams
       FROM unnest(v_all_teams) AS team
@@ -74,18 +68,16 @@ BEGIN
       v_available_teams := v_all_teams;
     END IF;
 
-    -- Available if at least one team slot is free
     RETURN QUERY SELECT 
       (v_booking_count < 3)::BOOLEAN,
       (3 - v_booking_count)::INTEGER,
       v_booking_count::INTEGER,
       3::INTEGER,
-      false::BOOLEAN, -- Teams don't use surge pricing
+      false::BOOLEAN,
       NULL::DECIMAL,
       true::BOOLEAN,
       v_available_teams;
   ELSE
-    -- For non-team services, count bookings
     SELECT COUNT(*)
     INTO v_booking_count
     FROM bookings
@@ -93,7 +85,6 @@ BEGIN
       AND service_type = p_service_type
       AND status != 'cancelled';
 
-    -- Check if surge pricing is active
     v_surge_active := false;
     v_surge_pct := NULL;
     
@@ -104,7 +95,6 @@ BEGIN
       v_surge_pct := v_limit_record.surge_percentage;
     END IF;
 
-    -- Available if under max bookings
     RETURN QUERY SELECT 
       (v_booking_count < v_limit_record.max_bookings_per_date)::BOOLEAN,
       GREATEST(0, v_limit_record.max_bookings_per_date - v_booking_count)::INTEGER,
@@ -118,6 +108,4 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Add comment for documentation
 COMMENT ON FUNCTION check_date_availability IS 'Checks date availability for a service type, returns availability status, remaining slots, and surge pricing information';
-

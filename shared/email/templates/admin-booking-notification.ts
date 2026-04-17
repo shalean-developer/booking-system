@@ -1,3 +1,4 @@
+import { SUPPORT_WHATSAPP_URL } from '@/lib/contact';
 import { escapeHtml } from '../escape-html';
 import { emailBrandedDocument } from './email-shell';
 
@@ -139,7 +140,7 @@ export function adminBookingNotificationTemplate(data: AdminBookingNotificationD
         </ol>
 
         <p style="margin-top:24px;font-size:14px;">
-          <a href="https://wa.me/27871535250" style="color:${LINK};text-decoration:none;font-weight:600;">
+          <a href="${SUPPORT_WHATSAPP_URL}" style="color:${LINK};text-decoration:none;font-weight:600;">
              Contact on WhatsApp
           </a>
         </p>

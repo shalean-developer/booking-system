@@ -12,10 +12,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SUPPORT_WHATSAPP_URL } from '@/lib/contact';
 
 const brandBlue = "#2B59FF";
 const brandTeal = "#26B99A";
-const WHATSAPP_URL = "https://wa.me/27825915525";
+const WHATSAPP_URL = SUPPORT_WHATSAPP_URL;
 
 const fallbackServiceOptions: {
   id: string;

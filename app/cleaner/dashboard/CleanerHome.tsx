@@ -17,13 +17,11 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { cn } from '../../../lib/utils';
+import { SUPPORT_PHONE_HREF, SUPPORT_WHATSAPP_URL } from '@/lib/contact';
 import { useJobs, useEarnings } from './cleanerHooks';
 import type { Job, CleanerPageId } from './cleanerTypes';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const WHATSAPP_NUMBER = '27215550000';
-const SUPPORT_PHONE = '+27215550000';
 
 // ─── Job Detail Modal ─────────────────────────────────────────────────────────
 
@@ -128,14 +126,14 @@ function JobDetailModal({
 
           <div className="flex gap-2">
             <a
-              href={`tel:${SUPPORT_PHONE}`}
+              href={SUPPORT_PHONE_HREF}
               className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl border-2 border-gray-200 text-gray-600 text-xs font-bold hover:border-gray-300 transition-colors"
             >
               <Phone className="w-3.5 h-3.5" />
               <span>Call</span>
             </a>
             <a
-              href={`https://wa.me/${WHATSAPP_NUMBER}`}
+              href={SUPPORT_WHATSAPP_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 transition-colors"

@@ -1,3 +1,4 @@
+import { SUPPORT_WHATSAPP_DISPLAY, supportWhatsAppUrlWithText } from '@/lib/contact';
 import { validateResendConfig, sendEmail } from '@/lib/email/send';
 import { escapeHtml } from '@/shared/email/escape-html';
 import { formatBookingDateDisplay, formatBookingTimeDisplay } from '@/shared/email/datetime';
@@ -44,7 +45,7 @@ export async function sendBookingCancelledNotice(to: string | null | undefined):
       html: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
         <p>Your booking has been cancelled.</p>
         <p style="color:#666;font-size:14px">If this was a mistake, reply to this email or WhatsApp 
-        <a href="https://wa.me/27871535250">+27 87 153 5250</a>.</p>
+        <a href="${supportWhatsAppUrlWithText('Hi Shalean')}">${SUPPORT_WHATSAPP_DISPLAY}</a>.</p>
       </div>`,
     });
   } catch (e) {

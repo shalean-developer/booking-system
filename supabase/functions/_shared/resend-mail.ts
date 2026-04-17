@@ -3,6 +3,13 @@ import type { BookingEmailData } from '../../../shared/email/types.ts';
 import { resolveAdminNotificationEmail } from './admin-email.ts';
 import { resendSendEmail, sendBookingEmailDeno } from './send-email.ts';
 
+function supportWhatsAppUrlWithTextEdge(prefill: string): string {
+  const e164 =
+    (Deno.env.get('NEXT_PUBLIC_SUPPORT_WHATSAPP_E164') || '27825915525').replace(/\D/g, '') ||
+    '27825915525';
+  return `https://wa.me/${e164}?text=${encodeURIComponent(prefill)}`;
+}
+
 function normalizePublicSiteBase(raw: string): string {
   const trimmed = raw.trim().replace(/\/$/, '');
   return trimmed.replace(/^https?:\/\/shalean\.com(?=\/|$)/i, 'https://shalean.co.za');
@@ -63,9 +70,7 @@ export async function sendBookingPaidEmail(params: {
     siteBaseUrl: siteUrl,
     manageToken: params.manageToken ?? undefined,
     invoiceUrl: params.invoiceUrl?.trim() || undefined,
-    whatsappUrl: `https://wa.me/27871535250?text=${encodeURIComponent(
-      `Hi Shalean, regarding booking #${displayId}`,
-    )}`,
+    whatsappUrl: supportWhatsAppUrlWithTextEdge(`Hi Shalean, regarding booking #${displayId}`),
   };
 
   const pdf = params.invoicePdf;

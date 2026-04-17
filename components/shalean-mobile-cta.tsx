@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { MessageSquare } from "lucide-react";
 import { ShaleanButtonLink } from "@/components/shalean-ui";
+import { SUPPORT_WHATSAPP_URL } from '@/lib/contact';
 
 const HIDE_PATHS = ["/booking", "/admin", "/dashboard"];
 const HIDE_PREFIX = "/cleaner";
@@ -23,7 +24,7 @@ export function ShaleanMobileCta() {
         Book Now
       </ShaleanButtonLink>
       <a
-        href="https://wa.me/27825915525"
+        href={SUPPORT_WHATSAPP_URL}
         target="_blank"
         rel="noopener noreferrer"
         className="bg-emerald-500 text-white p-4 rounded-full shadow-lg flex items-center justify-center"

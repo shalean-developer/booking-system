@@ -5,12 +5,17 @@ import Link from "next/link";
 import Image from "next/image";
 import { Facebook, Twitter, Instagram, ChevronRight } from "lucide-react";
 import { ShaleanWordmark } from "@/components/shalean-wordmark";
+import {
+  SUPPORT_PHONE_DISPLAY,
+  SUPPORT_PHONE_HREF,
+  SUPPORT_WHATSAPP_URL,
+} from '@/lib/contact';
 import { SITE_SUPPORT_EMAIL, SOCIAL_PROFILE_URLS } from "@/lib/site-config";
 
 // Contact email - ensure consistency between server and client
 // IMPORTANT: This must match exactly on server and client to prevent hydration errors
 const CONTACT_EMAIL = SITE_SUPPORT_EMAIL;
-const CONTACT_PHONE = '+27 87 153 5250';
+const CONTACT_PHONE = SUPPORT_PHONE_DISPLAY;
 
 export function HomeFooter() {
   const [currentYear, setCurrentYear] = useState(2024);
@@ -183,10 +188,10 @@ export function HomeFooter() {
                 <ul className="space-y-3">
                   <li>
                     <a 
-                      href={`tel:${CONTACT_PHONE.replace(/\s/g, '')}`}
+                      href={SUPPORT_PHONE_HREF}
                       className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
                     >
-                      (+27) 87 153 5250
+                      {CONTACT_PHONE}
                     </a>
                   </li>
                   <li>
@@ -263,7 +268,7 @@ export function HomeFooter() {
 
       {/* WhatsApp Floating Action Button */}
       <a
-        href="https://wa.me/27825915525"
+        href={SUPPORT_WHATSAPP_URL}
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-6 right-6 w-14 h-14 bg-[#25D366] hover:bg-[#20BA5A] text-white rounded-full shadow-lg flex items-center justify-center z-50 transition-all hover:scale-110"

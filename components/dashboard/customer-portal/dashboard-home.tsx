@@ -519,23 +519,17 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
             <p className="text-xs text-slate-400 leading-relaxed mb-4">
               Priority WhatsApp support for members — 24/7.
             </p>
-            {supportWaHref ? (
-              <motion.a
-                href={supportWaHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors"
-              >
-                <MessageCircle className="w-4 h-4" />
-                <span>Chat on WhatsApp</span>
-              </motion.a>
-            ) : (
-              <p className="text-[11px] text-slate-500 text-center">
-                Set <span className="font-mono">NEXT_PUBLIC_SUPPORT_PHONE</span> in your environment to enable WhatsApp chat.
-              </p>
-            )}
+            <motion.a
+              href={supportWaHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span>Chat on WhatsApp</span>
+            </motion.a>
           </div>
 
           <div className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl p-5">

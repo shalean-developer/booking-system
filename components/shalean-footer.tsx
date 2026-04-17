@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Phone, MessageSquare, MapPin, Facebook, Instagram } from "lucide-react";
 import { ShaleanWordmark } from "@/components/shalean-wordmark";
 import { GBP_LISTING_URL } from "@/lib/public-site-urls";
+import { SUPPORT_WHATSAPP_URL } from '@/lib/contact';
 import { SITE_PHONE_DISPLAY, SITE_PHONE_E164, SOCIAL_PROFILE_URLS } from "@/lib/site-config";
 
 const quickLinks = [
@@ -130,7 +131,7 @@ export function ShaleanFooter() {
               <li className="flex items-center gap-3">
                 <MessageSquare className="w-4 h-4 text-emerald-500 flex-shrink-0" />
                 <a
-                  href="https://wa.me/27825915525"
+                  href={SUPPORT_WHATSAPP_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-emerald-400 transition-colors"

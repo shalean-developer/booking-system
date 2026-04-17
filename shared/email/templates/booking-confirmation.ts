@@ -1,5 +1,6 @@
 import { escapeHtml } from '../escape-html';
 import type { BookingEmailData } from '../types';
+import { SUPPORT_WHATSAPP_URL } from '@/lib/contact';
 import { emailBrandedDocument } from './email-shell';
 
 export function bookingConfirmationTemplate(data: BookingEmailData): string {
@@ -118,7 +119,7 @@ export function bookingConfirmationTemplate(data: BookingEmailData): string {
       </table>
       ${invoiceBlock}
       <p style="margin:22px 0 0;font-size:14px;">
-        <a href="https://wa.me/27871535250" style="color:#0C53ED;text-decoration:none;font-weight:600;">Message us on WhatsApp</a>
+        <a href="${SUPPORT_WHATSAPP_URL}" style="color:#0C53ED;text-decoration:none;font-weight:600;">Message us on WhatsApp</a>
       </p>
       ${manageLinks}
   `;

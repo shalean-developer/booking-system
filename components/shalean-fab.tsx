@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Phone, Calendar } from "lucide-react";
+import { SUPPORT_WHATSAPP_URL } from '@/lib/contact';
 
 const HIDE_PATHS = ["/booking", "/admin", "/dashboard"];
 const HIDE_PREFIX = "/cleaner";
@@ -20,7 +21,7 @@ export function ShaleanFab() {
   return (
     <div className="fixed bottom-6 right-6 flex flex-col gap-3 z-40">
       <motion.a
-        href="https://wa.me/27825915525"
+        href={SUPPORT_WHATSAPP_URL}
         target="_blank"
         rel="noopener noreferrer"
         whileHover={{ scale: 1.1 }}

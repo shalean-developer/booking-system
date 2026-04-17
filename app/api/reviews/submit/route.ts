@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendEmail } from '@/lib/email';
+import { SITE_SUPPORT_EMAIL } from '@/lib/site-config';
 
 /**
  * API endpoint to handle public review submissions from the home page
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Send email to admin
-    const adminEmail = process.env.ADMIN_EMAIL || 'support@shalean.co.za';
+    const adminEmail = process.env.ADMIN_EMAIL?.trim() || SITE_SUPPORT_EMAIL;
     const stars = '⭐'.repeat(rating);
     
     const emailHtml = `

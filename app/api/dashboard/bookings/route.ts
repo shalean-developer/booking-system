@@ -65,6 +65,21 @@ async function attachReviewRatings(
   });
 }
 
+/** Many deployments store bedrooms/bathrooms only inside `price_snapshot`, not as columns. */
+function enrichBookingRowFromSnapshot(row: Record<string, unknown>): Record<string, unknown> {
+  const snap = row.price_snapshot as
+    | { service?: { bedrooms?: number; bathrooms?: number } }
+    | null
+    | undefined;
+  const fromCol = (k: 'bedrooms' | 'bathrooms') =>
+    typeof row[k] === 'number' && Number.isFinite(row[k] as number) ? (row[k] as number) : null;
+  return {
+    ...row,
+    bedrooms: fromCol('bedrooms') ?? snap?.service?.bedrooms ?? null,
+    bathrooms: fromCol('bathrooms') ?? snap?.service?.bathrooms ?? null,
+  };
+}
+
 /**
  * API endpoint to fetch bookings for authenticated user's dashboard
  * Requires authentication
@@ -167,8 +182,6 @@ export async function GET(request: Request) {
         cleaner_started_at,
         cleaner_completed_at,
         expected_end_time,
-        bedrooms,
-        bathrooms,
         extras,
         extras_quantities,
         price_snapshot
@@ -218,8 +231,6 @@ export async function GET(request: Request) {
           cleaner_started_at,
           cleaner_completed_at,
           expected_end_time,
-          bedrooms,
-          bathrooms,
           extras,
           extras_quantities,
           price_snapshot
@@ -239,8 +250,6 @@ export async function GET(request: Request) {
           cleaner_started_at: b.cleaner_started_at ?? null,
           cleaner_completed_at: b.cleaner_completed_at ?? null,
           expected_end_time: b.expected_end_time ?? null,
-          bedrooms: b.bedrooms ?? null,
-          bathrooms: b.bathrooms ?? null,
           extras: b.extras ?? null,
           extras_quantities: b.extras_quantities ?? null,
           price_snapshot: b.price_snapshot ?? null,
@@ -263,7 +272,7 @@ export async function GET(request: Request) {
 
     console.log(`✅ Found ${bookings?.length || 0} bookings`);
 
-    const rawRows = (bookings || []) as Record<string, unknown>[];
+    const rawRows = ((bookings || []) as Record<string, unknown>[]).map(enrichBookingRowFromSnapshot);
     const withCleaners = await attachCleanerProfiles(supabase, rawRows);
     const withRatings = await attachReviewRatings(supabase, withCleaners);
 

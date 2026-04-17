@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MessageCircle, Phone, Ticket, Clock } from 'lucide-react';
 import Link from 'next/link';
+import { SUPPORT_PHONE_HREF } from '@/lib/contact';
 
 interface SupportWidgetProps {
   openTicketsCount?: number;
@@ -34,7 +35,7 @@ export const SupportWidget = memo(function SupportWidget({
       onCallSupport();
     } else {
       // Open phone dialer
-      window.location.href = 'tel:+27871535250';
+      window.location.href = SUPPORT_PHONE_HREF;
     }
   }, [onCallSupport]);
 

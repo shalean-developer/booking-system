@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { SUPPORT_PHONE_DISPLAY } from '@/lib/contact';
+import { SITE_SUPPORT_EMAIL } from '@/lib/site-config';
 
 /**
  * GET handler to download invoice/receipt for a booking
@@ -313,7 +315,7 @@ export async function GET(
       <p><strong>Thank you for choosing Shalean Cleaning Services!</strong></p>
       <div class="footer-contact">
         <p>For support or inquiries:</p>
-        <p>Phone: +27 87 153 5250 | Email: support@shalean.co.za</p>
+        <p>Phone: ${SUPPORT_PHONE_DISPLAY} | Email: ${SITE_SUPPORT_EMAIL}</p>
       </div>
       <p style="margin-top: 15px; font-size: 11px; color: #999;">
         This is an automated ${documentType.toLowerCase()}. Please keep this for your records.

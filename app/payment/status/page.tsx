@@ -4,15 +4,16 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
+import { supportWhatsAppUrlWithText } from '@/lib/contact';
 
 const POLL_MS = 2000;
 /** Paystack can take >10s to report success; avoid false failures while still pending. */
 const MAX_ATTEMPTS = 20;
 /** Avoid infinite spinner if Paystack/API never responds. */
 const FETCH_TIMEOUT_MS = 18_000;
-const WHATSAPP_HREF =
-  'https://wa.me/27871535250?text=' +
-  encodeURIComponent('Hi Shalean — I need help with a payment / booking confirmation.');
+const WHATSAPP_HREF = supportWhatsAppUrlWithText(
+  'Hi Shalean — I need help with a payment / booking confirmation.',
+);
 
 const DEFAULT_VERIFY_FAIL =
   'We could not confirm your payment. Please contact support if you were charged.';

@@ -15,10 +15,11 @@ import { getSeoConfig } from "@/lib/seo-config";
 import { ShaleanHeader } from "@/components/shalean-header";
 import { ShaleanFooter } from "@/components/shalean-footer";
 import { Card, CardContent } from "@/components/ui/card";
+import { SUPPORT_PHONE_DISPLAY, SUPPORT_PHONE_HREF, SUPPORT_WHATSAPP_URL } from '@/lib/contact';
 
 export const metadata: Metadata = createMetadata(getSeoConfig("help"));
 
-const WHATSAPP_URL = "https://wa.me/27825915525";
+const WHATSAPP_URL = SUPPORT_WHATSAPP_URL;
 
 const helpTopics: {
   title: string;
@@ -79,11 +80,11 @@ export default function HelpPage() {
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <a
-                href="tel:+27871535250"
+                href={SUPPORT_PHONE_HREF}
                 className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-50"
               >
                 <Phone className="h-4 w-4 shrink-0 text-[#2B59FF]" aria-hidden />
-                +27 87 153 5250
+                {SUPPORT_PHONE_DISPLAY}
               </a>
               <a
                 href={WHATSAPP_URL}

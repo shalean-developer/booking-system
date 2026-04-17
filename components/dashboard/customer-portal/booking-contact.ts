@@ -1,4 +1,5 @@
 import type { Booking } from './types';
+import { SUPPORT_PHONE_HREF, SUPPORT_WHATSAPP_URL } from '@/lib/contact';
 
 const DIGITS = /\D/g;
 
@@ -26,15 +27,10 @@ export function cleanerWhatsAppHref(booking: Pick<Booking, 'cleanerPhone'>): str
   return `https://wa.me/${wa}`;
 }
 
-export function supportTelHref(): string | null {
-  const raw = process.env.NEXT_PUBLIC_SUPPORT_PHONE?.trim();
-  if (!raw) return null;
-  return `tel:${raw}`;
+export function supportTelHref(): string {
+  return SUPPORT_PHONE_HREF;
 }
 
-export function supportWhatsAppHref(): string | null {
-  const raw = process.env.NEXT_PUBLIC_SUPPORT_PHONE?.trim();
-  if (!raw) return null;
-  const wa = normalizeWa(raw);
-  return wa ? `https://wa.me/${wa}` : null;
+export function supportWhatsAppHref(): string {
+  return SUPPORT_WHATSAPP_URL;
 }

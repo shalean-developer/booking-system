@@ -13,6 +13,8 @@ import type { BookingEmailData } from '@/shared/email/types';
 import { formatBookingDateDisplay, formatBookingTimeDisplay } from '@/shared/email/datetime';
 import { bookingConfirmationSubject, renderBookingEmail } from '@/shared/email/renderer';
 import { publicSiteBaseUrl } from '@/lib/booking-manage';
+import { SUPPORT_PHONE_DISPLAY, supportWhatsAppUrlWithText } from '@/lib/contact';
+import { SITE_SUPPORT_EMAIL } from '@/lib/site-config';
 import { resolveAdminNotificationEmail } from '@/lib/admin-email';
 import { adminBookingNotificationTemplate } from '@/shared/email/templates/admin-booking-notification';
 
@@ -278,8 +280,8 @@ export function generateQuoteConfirmationEmail(quote: QuoteRequest): EmailData {
         
         <p>If you have any questions, please contact us at:</p>
         <p>
-          <strong>Phone:</strong> +27 87 153 5250<br>
-          <strong>Email:</strong> bookings@shalean.co.za
+          <strong>Phone:</strong> ${SUPPORT_PHONE_DISPLAY}<br>
+          <strong>Email:</strong> ${SITE_SUPPORT_EMAIL}
         </p>
       </div>
       
@@ -505,14 +507,14 @@ export function generateApplicationConfirmationEmail(application: ApplicationDat
         
         <p>In the meantime, feel free to learn more about us:</p>
         <ul>
-          <li>Visit our website: <a href="https://shalean.co.za">shalean.co.za</a></li>
+          <li>Visit our website: <a href="${publicSiteBaseUrl()}">${publicSiteBaseUrl().replace(/^https?:\/\//, '')}</a></li>
           <li>Follow us on Instagram: @shaleancleaning</li>
         </ul>
         
         <p>If you have any questions about your application, please contact us at:</p>
         <p>
-          <strong>Email:</strong> careers@shalean.co.za<br>
-          <strong>Phone:</strong> +27 87 153 5250
+          <strong>Email:</strong> ${process.env.CAREERS_PUBLIC_EMAIL?.trim() || 'careers@shalean.co.za'}<br>
+          <strong>Phone:</strong> ${SUPPORT_PHONE_DISPLAY}
         </p>
         
         <p>Thank you for your interest in joining Shalean Cleaning Services. We look forward to reviewing your application!</p>
@@ -657,7 +659,10 @@ export function generateAdminApplicationNotificationEmail(application: Applicati
     </html>
   `;
 
-  const adminEmail = process.env.ADMIN_EMAIL || 'careers@shalean.co.za';
+  const adminEmail =
+    process.env.CAREERS_ADMIN_EMAIL?.trim() ||
+    process.env.ADMIN_EMAIL?.trim() ||
+    'careers@shalean.co.za';
 
   return {
     to: adminEmail,
@@ -684,8 +689,7 @@ export function generateReviewRequestEmail(data: {
     customerName: data.customerName
   });
 
-  // Use .co.za domain to match sender email
-  const dashboardUrl = 'https://shalean.co.za/dashboard';
+  const dashboardUrl = `${publicSiteBaseUrl()}/dashboard`;
   
   console.log('🔗 [EMAIL DEBUG] Review email URL:', { 
     envSiteUrl: process.env.NEXT_PUBLIC_SITE_URL, 
@@ -829,7 +833,7 @@ export function generateReviewRequestEmail(data: {
         
         <div class="footer">
           <p>Questions? Contact us anytime</p>
-          <p>📧 <a href="mailto:hello@shalean.co.za" style="color: #0C53ED;">hello@shalean.co.za</a></p>
+          <p>📧 <a href="mailto:${SITE_SUPPORT_EMAIL}" style="color: #0C53ED;">${SITE_SUPPORT_EMAIL}</a></p>
           <p style="margin-top: 20px; color: #999; font-size: 12px;">
             This email was sent because your cleaning service was completed.<br>
             Booking ID: ${data.bookingId}
@@ -923,9 +927,7 @@ export async function sendBookingPaidConfirmationEmail(params: {
     siteBaseUrl: siteUrl,
     manageToken: params.manageToken ?? undefined,
     invoiceUrl: params.invoiceUrl?.trim() || undefined,
-    whatsappUrl: `https://wa.me/27871535250?text=${encodeURIComponent(
-      `Hi Shalean, regarding booking #${displayId}`,
-    )}`,
+    whatsappUrl: supportWhatsAppUrlWithText(`Hi Shalean, regarding booking #${displayId}`),
   };
 
   try {

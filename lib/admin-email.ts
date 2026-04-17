@@ -1,15 +1,14 @@
 /**
- * Inbox for admin booking/payment notifications (Resend `to` address).
- * `ADMIN_EMAIL` in env overrides; normalize legacy .com value to .co.za.
+ * Inbox for admin booking / payment notifications (Resend `to` address).
+ * Set `ADMIN_EMAIL` in `.env.local` / Vercel to the address that should receive
+ * new-booking and paid-booking alerts. The value is used as-is (no domain rewriting).
  */
 const DEFAULT_ADMIN = 'bookings@shalean.co.za';
-const LEGACY_BOOKINGS_COM = 'bookings@shalean.com';
 
 export function resolveAdminNotificationEmail(
   env: { ADMIN_EMAIL?: string } = process.env as { ADMIN_EMAIL?: string },
 ): string {
   const raw = env.ADMIN_EMAIL?.trim();
-  if (!raw) return DEFAULT_ADMIN;
-  if (raw.toLowerCase() === LEGACY_BOOKINGS_COM) return DEFAULT_ADMIN;
-  return raw;
+  if (raw) return raw;
+  return DEFAULT_ADMIN;
 }

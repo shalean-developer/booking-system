@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { isSafeBookingLookupId } from '@/lib/booking-lookup-id';
 import { verifyBookingLookupToken, isBookingLookupTokenConfigured } from '@/lib/booking-lookup-token';
+import { SUPPORT_PHONE_DISPLAY } from '@/lib/contact';
+import { SITE_SUPPORT_EMAIL } from '@/lib/site-config';
 
 /**
  * GET handler to download booking receipt
@@ -109,7 +111,7 @@ export async function GET(
 
   <div class="footer">
     <p>Thank you for choosing Shalean Cleaning Services!</p>
-    <p>For support, contact us at +27 87 153 5250 or support@shalean.co.za</p>
+    <p>For support, contact us at ${SUPPORT_PHONE_DISPLAY} or ${SITE_SUPPORT_EMAIL}</p>
   </div>
 </body>
 </html>

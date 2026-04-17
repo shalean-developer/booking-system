@@ -4,6 +4,7 @@ import type { BookingState, ServiceType } from '@/types/booking';
 import type { BookingEmailData } from '@/shared/email/types';
 import { formatBookingDateDisplay, formatBookingTimeDisplay } from '@/shared/email/datetime';
 import { publicSiteBaseUrl } from '@/lib/booking-manage';
+import { supportWhatsAppUrlWithText } from '@/lib/contact';
 
 function displayBookingId(bookingId: string): string {
   return /^SC\d{8}$/.test(bookingId) ? bookingId : bookingId.slice(-8);
@@ -104,8 +105,6 @@ export async function buildBookingEmailDataFromBookingState(
     trackingUrl: `${siteUrl}/dashboard`,
     siteBaseUrl: siteUrl,
     manageToken: booking.manageToken,
-    whatsappUrl: `https://wa.me/27871535250?text=${encodeURIComponent(
-      `Hi Shalean, regarding booking #${id}`,
-    )}`,
+    whatsappUrl: supportWhatsAppUrlWithText(`Hi Shalean, regarding booking #${id}`),
   };
 }
