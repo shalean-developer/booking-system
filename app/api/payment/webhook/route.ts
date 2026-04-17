@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase-server';
 import crypto from 'crypto';
-import { edgeForwardPaystackWebhook, edgeVerifyPayment } from '@/lib/payment-edge';
+import {
+  fetchBookingForPaymentVerification,
+  fulfillPaidBooking,
+  paystackVerifyDetailed,
+} from '@/lib/booking-paid-server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 async function findBookingByPaystackReference(
@@ -250,27 +254,81 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, message: 'Invoice event received' });
     }
 
-    // Successful charge: delegate to Supabase Edge (Zoho Books + Resend + DB + idempotency)
+    /** Standard bookings: fulfill on Next.js (Zoho + Resend + DB) — same pipeline as /api/payment/verify */
     if (event.event === 'charge.success' && event.data.status === 'success') {
-      console.log('[paystack-webhook] Forwarding charge.success to Edge');
-      const out = await edgeForwardPaystackWebhook(body, signature);
-      const edgeOk = out && typeof out === 'object' && 'ok' in out && out.ok === true;
-      if (edgeOk) {
-        return NextResponse.json(out, { status: 200 });
-      }
-      console.warn('[paystack-webhook] Edge forward failed, trying edge verify fallback', out);
-      let bookingId = '';
-      if (paymentReference.startsWith('booking-')) {
-        bookingId = paymentReference.slice('booking-'.length);
-      }
-      if (bookingId) {
-        const v = await edgeVerifyPayment({
-          reference: paymentReference,
-          booking_id: bookingId,
+      console.log('[paystack-webhook] charge.success — fulfillPaidBooking (Next.js)');
+
+      const idempotencyKey = `charge.success:${paymentReference}`;
+      const { data: existingEvent } = await supabase
+        .from('paystack_webhook_events')
+        .select('id')
+        .eq('idempotency_key', idempotencyKey)
+        .maybeSingle();
+
+      if (existingEvent?.id) {
+        console.log('[paystack-webhook] idempotent duplicate — already processed', {
+          paymentReference,
         });
-        return NextResponse.json(v, { status: v.ok ? 200 : 502 });
+        return NextResponse.json({ ok: true, duplicate: true, message: 'Already processed' });
       }
-      return NextResponse.json(out, { status: 502 });
+
+      const verified = await paystackVerifyDetailed(paystackSecretKey, paymentReference);
+      if (verified.outcome === 'pending') {
+        console.warn('[paystack-webhook] Paystack verify still pending — will retry', {
+          detail: verified.detail,
+        });
+        return NextResponse.json(
+          { ok: false, error: 'Verify pending', detail: verified.detail },
+          { status: 503 },
+        );
+      }
+      if (verified.outcome === 'failed') {
+        console.error('[paystack-webhook] Paystack verify failed after webhook', verified.reason);
+        return NextResponse.json(
+          { ok: false, error: verified.reason },
+          { status: 400 },
+        );
+      }
+
+      const booking = await fetchBookingForPaymentVerification(supabase, paymentReference);
+      if (!booking) {
+        console.log('[paystack-webhook] No booking for reference', paymentReference);
+        return NextResponse.json({
+          ok: true,
+          message: 'No matching booking for this reference',
+        });
+      }
+
+      const result = await fulfillPaidBooking({
+        supabase,
+        booking,
+        reference: paymentReference,
+        paystackAmountKobo: verified.amountKobo,
+      });
+
+      if (!result.ok) {
+        console.error('[paystack-webhook] fulfillPaidBooking failed', result.error);
+        return NextResponse.json(
+          { ok: false, error: result.error ?? 'Fulfillment failed' },
+          { status: 400 },
+        );
+      }
+
+      const { error: logErr } = await supabase.from('paystack_webhook_events').insert({
+        idempotency_key: idempotencyKey,
+        paystack_reference: paymentReference,
+        event_type: event.event,
+      });
+      if (logErr) {
+        console.error('[paystack-webhook] idempotency log (non-fatal)', logErr);
+      }
+
+      return NextResponse.json({
+        ok: true,
+        booking_id: booking.id,
+        duplicate: result.duplicate === true,
+        zoho_invoice_id: result.zoho_invoice_id ?? null,
+      });
     }
 
     const booking = await findBookingByPaystackReference(supabase, paymentReference);

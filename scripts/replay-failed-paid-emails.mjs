@@ -1,6 +1,6 @@
 /**
- * Lists recent failed booking_paid emails and optionally replays production verify
- * so finalizePaidBookingServer can resend (duplicate paid path) + recover Zoho.
+ * Lists recent failed booking_paid emails and optionally replays production verify.
+ * Note: paid bookings no longer resend customer email on verify (idempotent); use for edge cases.
  *
  * Usage (from repo root):
  *   node scripts/replay-failed-paid-emails.mjs

@@ -77,7 +77,7 @@ export async function GET() {
       serviceRoleConfigured: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()),
       pendingInvoiceBackfillApprox: pendingCount,
       hint:
-        'Copy ZOHO_* and RESEND_* from .env.local into Supabase → Edge Functions → Secrets so webhooks create invoices. Use POST /api/admin/bookings/sync-zoho to backfill from this server.',
+        'Set ZOHO_* and RESEND_* on your Next.js host (e.g. Vercel env) — webhooks run fulfillPaidBooking there. Use POST /api/admin/bookings/sync-zoho to backfill from this server.',
     });
   } catch (e) {
     console.error('[sync-zoho GET]', e);
@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
         {
           ok: false,
           error:
-            'Zoho Books is not fully configured: set ZOHO_BOOKS_ORGANIZATION_ID plus either ZOHO_ACCESS_TOKEN or (ZOHO_REFRESH_TOKEN + ZOHO_CLIENT_ID + ZOHO_CLIENT_SECRET). Match ZOHO_ACCOUNTS_HOST / ZOHO_BOOKS_API_HOST to your Zoho data center. Add the same vars to Supabase Edge secrets for webhooks.',
+            'Zoho Books is not fully configured: set ZOHO_BOOKS_ORGANIZATION_ID plus either ZOHO_ACCESS_TOKEN or (ZOHO_REFRESH_TOKEN + ZOHO_CLIENT_ID + ZOHO_CLIENT_SECRET). Match ZOHO_ACCOUNTS_HOST / ZOHO_BOOKS_API_HOST to your Zoho data center on your Next.js deployment (webhooks use the same env).',
           candidates: bookings.length,
         },
         { status: 400 },

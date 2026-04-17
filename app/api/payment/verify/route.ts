@@ -3,7 +3,7 @@ import type { PaystackVerificationResponse } from '@/types/booking';
 import { validatePaymentEnv } from '@/lib/env-validation';
 import { createServiceClient } from '@/lib/supabase-server';
 import {
-  finalizePaidBookingServer,
+  fulfillPaidBooking,
   paystackVerifyDetailed,
   paystackVerifyTransaction,
   resolveBookingForVerify,
@@ -124,7 +124,7 @@ async function handlePollVerify(req: Request): Promise<NextResponse> {
     });
   }
 
-  const result = await finalizePaidBookingServer({
+  const result = await fulfillPaidBooking({
     supabase,
     booking,
     reference: referenceParam,
@@ -244,13 +244,13 @@ export async function GET(req: Request) {
     }
 
     console.log('🧾 Creating invoice...');
-    const result = await finalizePaidBookingServer({
+    const result = await fulfillPaidBooking({
       supabase,
       booking,
       reference: referenceParam,
       paystackAmountKobo: verified.amountKobo,
     });
-    console.log('✅ Invoice / finalize step done');
+    console.log('✅ fulfillPaidBooking step done');
 
     if (!result.ok) {
       return NextResponse.json(
@@ -259,7 +259,7 @@ export async function GET(req: Request) {
       );
     }
 
-    console.log('[api/payment/verify GET] finalize ok — email path runs in finalizePaidBookingServer', booking.id);
+    console.log('[api/payment/verify GET] fulfillPaidBooking ok', booking.id);
 
     const duplicate = result.duplicate === true;
     const amount_zar = Math.round(Number(booking.total_amount ?? 0)) / 100;
