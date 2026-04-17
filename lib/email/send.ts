@@ -8,7 +8,7 @@ import type { BookingEmailData } from '@/shared/email/types';
  * Send via Resend HTTP API (POST only). Do not use resend.emails.get() or GET /emails/:id
  * with non-UUID ids — that caused 422 "id must be a valid UUID" (e.g. /emails/0).
  */
-async function postResendEmail(params: {
+export async function postResendEmail(params: {
   from: string;
   to: string[];
   subject: string;

@@ -12,7 +12,11 @@ function supportWhatsAppUrlWithTextEdge(prefill: string): string {
 
 function normalizePublicSiteBase(raw: string): string {
   const trimmed = raw.trim().replace(/\/$/, '');
-  return trimmed.replace(/^https?:\/\/shalean\.com(?=\/|$)/i, 'https://shalean.co.za');
+  let t = trimmed.replace(/^https?:\/\/shalean\.com(?=\/|$)/i, 'https://shalean.co.za');
+  if (t.length > 0 && !/^https?:\/\//i.test(t)) {
+    t = `https://${t.replace(/^\/+/, '')}`;
+  }
+  return t;
 }
 
 export async function sendBookingPaidEmail(params: {

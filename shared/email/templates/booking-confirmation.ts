@@ -22,6 +22,7 @@ export function bookingConfirmationTemplate(data: BookingEmailData): string {
     equipmentRequired,
     equipmentFeeZar,
     cleanerSummary,
+    invoicePdfMissingNote,
   } = data;
 
   const e = escapeHtml;
@@ -39,7 +40,11 @@ export function bookingConfirmationTemplate(data: BookingEmailData): string {
       ? normalizedInvoiceId
       : '';
 
-  const base = (siteBaseUrl || 'https://shalean.co.za').replace(/\/$/, '');
+  /** Must be https:// origin or email clients show broken [host/path]text instead of links. */
+  const rawBase = (siteBaseUrl || 'https://shalean.co.za').trim().replace(/\/$/, '');
+  const base = /^https?:\/\//i.test(rawBase)
+    ? rawBase
+    : `https://${rawBase.replace(/^\/+/, '')}`;
   const whenLine = [bookingDate, bookingTime].filter(Boolean).join(' · ');
 
   const token = manageToken?.trim();
@@ -109,6 +114,14 @@ export function bookingConfirmationTemplate(data: BookingEmailData): string {
         </p>`
     : '';
 
+  const invoiceMissingNoteBlock =
+    isPaid && invoicePdfMissingNote?.trim() && !invoiceUrl?.trim()
+      ? `
+        <p style="margin:20px 0 0;padding:14px 16px;background:#fffbeb;border-radius:10px;border:1px solid #fde68a;font-size:14px;color:#92400e;line-height:1.55;">
+          ${e(invoicePdfMissingNote.trim())}
+        </p>`
+      : '';
+
   const bodyHtml = `
       <p style="margin:0 0 20px;color:#4b5563;font-size:15px;line-height:1.6;">
         Hi <strong>${e(customerName)}</strong>,
@@ -118,6 +131,7 @@ export function bookingConfirmationTemplate(data: BookingEmailData): string {
         ${detailsRows}
       </table>
       ${invoiceBlock}
+      ${invoiceMissingNoteBlock}
       <p style="margin:22px 0 0;font-size:14px;">
         <a href="${SUPPORT_WHATSAPP_URL}" style="color:#0C53ED;text-decoration:none;font-weight:600;">Message us on WhatsApp</a>
       </p>

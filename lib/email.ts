@@ -878,6 +878,8 @@ export async function sendBookingPaidConfirmationEmail(params: {
   invoicePdf?: Buffer | null;
   /** Same as on Zoho PDF (e.g. INV-00001). */
   zohoInvoiceNumber?: string | null;
+  /** Shown in email when no PDF could be attached (optional). */
+  invoicePdfMissingNote?: string | null;
 }): Promise<{ ok: boolean; providerId?: string; error?: string }> {
   const cfg = validateResendConfig();
   if (!cfg.ok) {
@@ -927,6 +929,7 @@ export async function sendBookingPaidConfirmationEmail(params: {
     siteBaseUrl: siteUrl,
     manageToken: params.manageToken ?? undefined,
     invoiceUrl: params.invoiceUrl?.trim() || undefined,
+    invoicePdfMissingNote: params.invoicePdfMissingNote?.trim() || undefined,
     whatsappUrl: supportWhatsAppUrlWithText(`Hi Shalean, regarding booking #${displayId}`),
   };
 

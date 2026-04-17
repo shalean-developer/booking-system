@@ -74,17 +74,48 @@ function booksApiHost(): string {
   return process.env.ZOHO_BOOKS_API_HOST?.trim() || 'https://www.zohoapis.com';
 }
 
+/**
+ * Deep link to open an invoice in Zoho Books (browser). Uses org id from env.
+ * Set ZOHO_BOOKS_WEB_HOST for EU (e.g. https://books.zoho.eu) if needed.
+ */
+export function buildZohoBooksInvoiceWebUrl(zohoInvoiceId: string | null | undefined): string | null {
+  const id = zohoInvoiceId?.trim();
+  const orgId = process.env.ZOHO_BOOKS_ORGANIZATION_ID?.trim();
+  if (!id || !orgId) return null;
+  const webHost =
+    process.env.ZOHO_BOOKS_WEB_HOST?.trim() ||
+    (() => {
+      const api = process.env.ZOHO_BOOKS_API_HOST?.trim() || '';
+      if (/zohoapis\.eu/i.test(api)) return 'https://books.zoho.eu';
+      if (/zohoapis\.in/i.test(api)) return 'https://books.zoho.in';
+      return 'https://books.zoho.com';
+    })();
+  return `${webHost.replace(/\/$/, '')}/app/${encodeURIComponent(orgId)}#/invoices/${encodeURIComponent(id)}`;
+}
+
 /** True only when org id is set and at least one auth path exists (static token or OAuth refresh trio). */
 export function isZohoBooksConfigured(): boolean {
-  const orgId = process.env.ZOHO_BOOKS_ORGANIZATION_ID?.trim();
-  if (!orgId) return false;
+  return getZohoBooksConfigGaps().length === 0;
+}
+
+/**
+ * Human-readable list of missing Zoho env vars (for logs and diagnostics).
+ * Empty array means `isZohoBooksConfigured()` would be true.
+ */
+export function getZohoBooksConfigGaps(): string[] {
+  const gaps: string[] = [];
+  if (!process.env.ZOHO_BOOKS_ORGANIZATION_ID?.trim()) {
+    gaps.push('ZOHO_BOOKS_ORGANIZATION_ID');
+  }
   const staticToken = process.env.ZOHO_ACCESS_TOKEN?.trim();
   const refresh = process.env.ZOHO_REFRESH_TOKEN?.trim();
   const clientId = process.env.ZOHO_CLIENT_ID?.trim();
   const clientSecret = process.env.ZOHO_CLIENT_SECRET?.trim();
-  if (staticToken) return true;
-  if (refresh && clientId && clientSecret) return true;
-  return false;
+  const hasOAuthTrio = Boolean(refresh && clientId && clientSecret);
+  if (!staticToken && !hasOAuthTrio) {
+    gaps.push('ZOHO_ACCESS_TOKEN or (ZOHO_REFRESH_TOKEN + ZOHO_CLIENT_ID + ZOHO_CLIENT_SECRET)');
+  }
+  return gaps;
 }
 
 function zohoErrorDetail(data: { code?: number | string; message?: string }, status: number): string {

@@ -3,6 +3,8 @@
  * Validates that all required environment variables are configured
  */
 
+import { getZohoBooksConfigGaps } from '@/lib/zoho-books-server';
+
 export interface EnvValidationResult {
   valid: boolean;
   missing: string[];
@@ -47,6 +49,13 @@ export function validateBookingEnv(): EnvValidationResult {
     }
     if (!isNonEmpty(process.env.RESEND_API_KEY)) {
       console.warn('[env-validation] RESEND_API_KEY not set — booking confirmation emails may fail.');
+    }
+    const zohoGaps = getZohoBooksConfigGaps();
+    if (zohoGaps.length > 0) {
+      console.warn(
+        '[env-validation] Zoho Books env incomplete — paid confirmations will not include a PDF invoice until ZOHO_* matches production (Preview/Development on Vercel or .env.local). Missing:',
+        zohoGaps.join('; '),
+      );
     }
   }
 

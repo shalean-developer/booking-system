@@ -14,6 +14,8 @@ export type BookingEmailData = {
   invoiceNumber?: string;
   /** Public Supabase Storage URL for the invoice PDF (when uploaded). */
   invoiceUrl?: string;
+  /** Shown when paid but no PDF/link could be attached (e.g. Zoho not configured on this deployment). */
+  invoicePdfMissingNote?: string;
   /** Human-readable date (e.g. Monday, 16 April 2026) */
   bookingDate?: string;
   /** Time of day label */

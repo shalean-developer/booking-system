@@ -5,7 +5,12 @@ export const DEFAULT_PUBLIC_SITE_BASE = 'https://shalean.co.za';
 
 function normalizePublicSiteBase(raw: string): string {
   const trimmed = raw.trim().replace(/\/$/, '');
-  return trimmed.replace(/^https?:\/\/shalean\.com(?=\/|$)/i, 'https://shalean.co.za');
+  let t = trimmed.replace(/^https?:\/\/shalean\.com(?=\/|$)/i, 'https://shalean.co.za');
+  // Emails require absolute URLs; bare "domain.com" breaks <a href> in many clients.
+  if (t.length > 0 && !/^https?:\/\//i.test(t)) {
+    t = `https://${t.replace(/^\/+/, '')}`;
+  }
+  return t;
 }
 
 export function publicSiteBaseUrl(): string {

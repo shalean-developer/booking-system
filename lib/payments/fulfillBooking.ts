@@ -8,19 +8,16 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { uploadBookingInvoicePdf } from '@/lib/invoice-pdf-storage';
 import {
+  buildZohoBooksInvoiceWebUrl,
   createZohoBooksInvoiceServer,
   fetchZohoInvoiceNumber,
   fetchZohoInvoicePdfBuffer,
+  getZohoBooksConfigGaps,
 } from '@/lib/zoho-books-server';
 import { toZohoInvoiceBookingInput } from '@/supabase/functions/_shared/zoho-invoice-payload';
 import { sendBookingPaidConfirmationEmail, validateResendConfig } from '@/lib/email';
+import { sendAdminBookingPaidEmail } from '@/lib/email/sendAdminBookingPaidEmail';
 import { generateManageToken } from '@/lib/manage-booking-token';
-import { resolveAdminNotificationEmail } from '@/lib/admin-email';
-import { escapeHtml } from '@/shared/email/escape-html';
-import {
-  adminPaidBookingNotificationHtml,
-  type AdminPaidBookingEmailData,
-} from '@/shared/email/templates/admin-paid-booking';
 import type { BookingPaidRow } from '@/lib/payments/booking-types';
 
 async function fetchManageTokenForEmail(
@@ -52,108 +49,6 @@ function isMissingManageTokenColumnError(message: string): boolean {
   return /manage_token/.test(message) && /does not exist/i.test(message);
 }
 
-async function sendAdminNewBookingPaidEmail(params: {
-  booking: BookingPaidRow;
-  amountZar: number;
-  paymentReference: string;
-  zohoInvoiceId: string | null;
-}): Promise<void> {
-  const admin = resolveAdminNotificationEmail();
-  const apiKey = process.env.RESEND_API_KEY?.trim();
-  const sender = process.env.SENDER_EMAIL?.trim() || 'noreply@shalean.co.za';
-  if (!apiKey) {
-    console.warn(
-      '[fulfillPaidBooking] RESEND_API_KEY missing — admin new-booking email skipped',
-    );
-    return;
-  }
-  const bookingId = params.booking.id;
-  const customerName = params.booking.customer_name || 'Customer';
-  const serviceName = params.booking.service_type || 'Cleaning';
-  const dateText = params.booking.booking_date || 'N/A';
-  const timeText = params.booking.booking_time || 'N/A';
-  const endText = params.booking.expected_end_time || null;
-  const frequencyText = params.booking.frequency || 'one-time';
-  const cleanerText =
-    params.booking.cleaner_id === 'manual'
-      ? 'Manual assignment requested'
-      : params.booking.cleaner_id || 'Not assigned yet';
-  const addressText =
-    [params.booking.address_line1, params.booking.address_suburb, params.booking.address_city]
-      .filter(Boolean)
-      .join(', ') || 'N/A';
-
-  const snapshot = params.booking.price_snapshot as
-    | {
-        service?: { bedrooms?: number; bathrooms?: number; numberOfCleaners?: number };
-        extras?: string[];
-        extras_quantities?: Record<string, number>;
-      }
-    | undefined;
-  const bedrooms = snapshot?.service?.bedrooms;
-  const bathrooms = snapshot?.service?.bathrooms;
-  const cleaners = snapshot?.service?.numberOfCleaners;
-  const extras = Array.isArray(snapshot?.extras) ? snapshot.extras : [];
-  const extrasQuantities = snapshot?.extras_quantities || {};
-  const extrasHtml = extras.length
-    ? extras
-        .map((name) => {
-          const qty = Number(extrasQuantities[name] ?? 1);
-          return `<li style="margin: 4px 0;">${escapeHtml(name)}${qty > 1 ? ` (x${qty})` : ''}</li>`;
-        })
-        .join('')
-    : '<li style="margin: 4px 0;">None</li>';
-
-  const notesHtml = params.booking.notes?.trim()
-    ? `<h2 style="margin: 18px 0 10px 0; color: #111827; font-size: 16px;">Customer notes</h2><p style="margin: 0; color: #4b5563; font-size: 14px; line-height: 1.6;">${escapeHtml(params.booking.notes.trim())}</p>`
-    : '';
-
-  const payload: AdminPaidBookingEmailData = {
-    bookingId,
-    customerName,
-    customerEmail: params.booking.customer_email || 'N/A',
-    customerPhone: params.booking.customer_phone || 'N/A',
-    serviceName,
-    dateText,
-    timeText,
-    endText,
-    frequencyText,
-    cleanerText,
-    addressText,
-    amountZar: params.amountZar,
-    serviceFeeCents: params.booking.service_fee || 0,
-    tipCents: params.booking.tip_amount || 0,
-    frequencyDiscountCents: params.booking.frequency_discount || 0,
-    surgeApplied: params.booking.surge_pricing_applied === true,
-    surgeCents: params.booking.surge_amount || 0,
-    paymentReference: params.paymentReference,
-    zohoInvoiceId: params.zohoInvoiceId,
-    bedrooms,
-    bathrooms,
-    cleaners,
-    extrasHtml,
-    notesHtml,
-  };
-
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: `Shalean Cleaning <${sender}>`,
-      to: [admin],
-      subject: `Payment received • ${bookingId} • ${customerName}`,
-      html: adminPaidBookingNotificationHtml(payload),
-    }),
-  });
-  if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    console.error('[fulfillPaidBooking] admin email Resend HTTP', res.status, errText.slice(0, 500));
-  }
-}
-
 export type FulfillPaidBookingResult = {
   ok: boolean;
   duplicate?: boolean;
@@ -163,6 +58,39 @@ export type FulfillPaidBookingResult = {
 
 function mergeBookingRow(base: BookingPaidRow, updated: Record<string, unknown>): BookingPaidRow {
   return { ...base, ...(updated as BookingPaidRow) };
+}
+
+/** Customer-facing line when paid confirmation has no PDF attachment (test env vs production parity). */
+function buildInvoicePdfMissingNote(params: {
+  zohoId: string | null;
+  invoicePdf: Buffer | null;
+  invoiceUrl: string | null;
+}): string | undefined {
+  const hasPdf = Boolean(params.invoicePdf && params.invoicePdf.length > 0);
+  const hasUrl = Boolean(params.invoiceUrl?.trim());
+  if (hasPdf || hasUrl) return undefined;
+
+  const gaps = getZohoBooksConfigGaps();
+  if (gaps.length > 0) {
+    console.warn('[fulfillPaidBooking] Zoho Books env incomplete — same keys as production needed for PDF invoice', {
+      missing: gaps,
+    });
+    return (
+      'Your payment is confirmed. A PDF tax invoice was not attached because automatic invoicing is not configured on this deployment. ' +
+      'To match production, add the same Zoho Books variables here (for example Vercel → Environment Variables → Preview / Development). ' +
+      'You can also reply to this email if you need a formal invoice.'
+    );
+  }
+  if (!params.zohoId) {
+    return (
+      'Your payment is confirmed. We could not create an invoice in our accounting system just now. ' +
+      'Reply to this email or message us on WhatsApp if you need a formal PDF invoice.'
+    );
+  }
+  return (
+    'Your payment is confirmed. The invoice PDF could not be attached to this message. ' +
+    'Contact us if you need a copy, or use the invoice line above if shown.'
+  );
 }
 
 /** Zoho + invoice_url backfill when row is already paid — no emails. */
@@ -389,6 +317,12 @@ export async function fulfillPaidBooking(params: {
     }
   }
 
+  const invoicePdfMissingNote = buildInvoicePdfMissingNote({
+    zohoId,
+    invoicePdf,
+    invoiceUrl,
+  });
+
   if (wonBooking.customer_email?.trim()) {
     const to = wonBooking.customer_email.trim();
     const cfg = validateResendConfig();
@@ -426,6 +360,7 @@ export async function fulfillPaidBooking(params: {
           invoiceUrl,
           invoicePdf,
           zohoInvoiceNumber,
+          invoicePdfMissingNote,
         });
         if (!sendResult.ok) {
           throw new Error(sendResult.error || 'Failed to send booking confirmation email');
@@ -454,11 +389,17 @@ export async function fulfillPaidBooking(params: {
     console.warn('[fulfillPaidBooking] no customer email — skipping Resend');
   }
 
-  await sendAdminNewBookingPaidEmail({
+  const zohoWebUrl = buildZohoBooksInvoiceWebUrl(zohoId);
+  await sendAdminBookingPaidEmail({
     booking: wonBooking,
     amountZar,
     paymentReference: reference,
     zohoInvoiceId: zohoId,
+    zohoInvoiceNumber,
+    zohoBooksWebUrl: zohoWebUrl,
+    invoiceStorageUrl: invoiceUrl,
+    hasPdfAttachment: Boolean(invoicePdf && invoicePdf.length > 0),
+    invoicePdf,
   });
 
   console.log('[fulfillPaidBooking] done', { bookingId: booking.id, zohoId });
