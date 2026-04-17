@@ -397,18 +397,20 @@ export async function finalizePaidBookingServer(params: {
       zohoInvoiceNumberDup = await fetchZohoInvoiceNumber(booking.zoho_invoice_id);
     }
     const zohoForPdf = booking.zoho_invoice_id;
-    if (zohoForPdf && !invoiceUrlDup) {
+    if (zohoForPdf) {
       try {
         const pdf = await fetchZohoInvoicePdfBuffer(zohoForPdf);
         if (pdf) {
           invoicePdfDup = pdf;
-          const url = await uploadBookingInvoicePdf(supabase, booking.id, pdf);
-          if (url) {
-            invoiceUrlDup = url;
-            await supabase
-              .from('bookings')
-              .update({ invoice_url: url, updated_at: new Date().toISOString() })
-              .eq('id', booking.id);
+          if (!invoiceUrlDup) {
+            const url = await uploadBookingInvoicePdf(supabase, booking.id, pdf);
+            if (url) {
+              invoiceUrlDup = url;
+              await supabase
+                .from('bookings')
+                .update({ invoice_url: url, updated_at: new Date().toISOString() })
+                .eq('id', booking.id);
+            }
           }
         }
       } catch (e) {
