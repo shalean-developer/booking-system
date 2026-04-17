@@ -1,6 +1,6 @@
 import { escapeHtml } from '../escape-html';
+import { emailBrandedDocument } from './email-shell';
 
-/** Mirrors `booking-confirmation.ts` layout (table, Arial, same header rhythm). */
 export type AdminBookingNotificationData = {
   bookingId: string;
   customerName: string;
@@ -23,10 +23,12 @@ export type AdminBookingNotificationData = {
 function rowTwoCol(label: string, valueHtml: string): string {
   const e = escapeHtml;
   return `<tr>
-    <td style="padding:8px 0;color:#666;vertical-align:top;width:140px;">${e(label)}</td>
-    <td style="padding:8px 0;">${valueHtml}</td>
+    <td style="padding:8px 0;color:#6b7280;vertical-align:top;width:140px;font-size:14px;">${e(label)}</td>
+    <td style="padding:8px 0;font-size:14px;color:#111827;">${valueHtml}</td>
   </tr>`;
 }
+
+const LINK = '#0C53ED';
 
 export function adminBookingNotificationTemplate(data: AdminBookingNotificationData): string {
   const e = escapeHtml;
@@ -58,11 +60,11 @@ export function adminBookingNotificationTemplate(data: AdminBookingNotificationD
 
   let cleanerHtml = '';
   if (cleaner.kind === 'manual') {
-    cleanerHtml = `<p style="margin:12px 0 0;color:#991b1b;font-size:14px;line-height:1.5;"><strong>⚠️ MANUAL CLEANER ASSIGNMENT REQUIRED</strong><br/><span style="color:#7f1d1d;">Customer requested manual assignment. Please assign a cleaner for this booking.</span></p>`;
+    cleanerHtml = `<p style="margin:12px 0 0;color:#991b1b;font-size:14px;line-height:1.5;"><strong>Manual cleaner assignment required</strong><br/><span style="color:#7f1d1d;">Customer requested manual assignment. Please assign a cleaner for this booking.</span></p>`;
   } else if (cleaner.kind === 'assigned') {
-    cleanerHtml = `<p style="margin:12px 0 0;color:#1e40af;font-size:14px;line-height:1.5;"><strong>✅ Cleaner Assigned</strong><br/><span style="color:#1e3a8a;">Cleaner ID: ${e(cleaner.id)}</span></p>`;
+    cleanerHtml = `<p style="margin:12px 0 0;color:#1e40af;font-size:14px;line-height:1.5;"><strong>Cleaner assigned</strong><br/><span style="color:#1e3a8a;">Cleaner ID: ${e(cleaner.id)}</span></p>`;
   } else {
-    cleanerHtml = `<p style="margin:12px 0 0;color:#991b1b;font-size:14px;line-height:1.5;"><strong>⚠️ No Cleaner Assigned Yet</strong><br/><span style="color:#7f1d1d;">Please assign a cleaner to this booking.</span></p>`;
+    cleanerHtml = `<p style="margin:12px 0 0;color:#991b1b;font-size:14px;line-height:1.5;"><strong>No cleaner assigned yet</strong><br/><span style="color:#7f1d1d;">Please assign a cleaner to this booking.</span></p>`;
   }
 
   const extrasBlock =
@@ -78,55 +80,33 @@ export function adminBookingNotificationTemplate(data: AdminBookingNotificationD
     : '';
 
   const nextStepsHtml = nextStepLines
-    .map(
-      (line) =>
-        `<li style="margin:6px 0;">${e(line)}</li>`,
-    )
+    .map((line) => `<li style="margin:6px 0;">${e(line)}</li>`)
     .join('');
 
-  return `<!DOCTYPE html>
-<html>
-<body style="margin:0;padding:0;font-family:Arial, sans-serif;color:#111;line-height:1.6;">
-
-  <table width="100%" cellpadding="0" cellspacing="0" style="padding:24px;">
-    <tr>
-      <td>
-
-        <p style="letter-spacing:2px;font-size:12px;color:#888;margin:0 0 8px;">
-          SHALEAN CLEANING
-        </p>
-
-        <h1 style="margin:0 0 16px;font-size:24px;">
-          New booking (admin)
-        </h1>
-
-        <p style="margin:0 0 20px;color:#555;">
-          A new booking has been received and needs your attention.
-        </p>
-
-        <p style="margin:0 0 20px;padding:12px 0;border-top:1px solid #eee;border-bottom:1px solid #eee;color:#92400e;font-size:14px;">
+  const bodyHtml = `
+        <p style="margin:0 0 18px;padding:12px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;color:#92400e;font-size:14px;line-height:1.5;">
           <strong>Action required</strong> — confirm the appointment and follow up with the customer.
         </p>
 
-        <p style="margin:0 0 8px;font-size:11px;letter-spacing:0.08em;color:#888;text-transform:uppercase;">
+        <p style="margin:0 0 8px;font-size:11px;letter-spacing:0.08em;color:#9ca3af;text-transform:uppercase;font-weight:700;">
           Customer
         </p>
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:8px;border-bottom:1px solid #e5e7eb;padding-bottom:16px;">
           ${rowTwoCol('Name', `<strong>${e(customerName)}</strong>`)}
           ${rowTwoCol(
             'Email',
-            `<strong><a href="mailto:${encodeURIComponent(email)}" style="color:#4f46e5;text-decoration:none;">${e(email)}</a></strong>`,
+            `<strong><a href="mailto:${encodeURIComponent(email)}" style="color:${LINK};text-decoration:none;">${e(email)}</a></strong>`,
           )}
           ${rowTwoCol(
             'Phone',
-            `<strong><a href="tel:${e(telDigits)}" style="color:#4f46e5;text-decoration:none;">${e(phone)}</a></strong>`,
+            `<strong><a href="tel:${e(telDigits)}" style="color:${LINK};text-decoration:none;">${e(phone)}</a></strong>`,
           )}
         </table>
 
-        <p style="margin:24px 0 8px;font-size:11px;letter-spacing:0.08em;color:#888;text-transform:uppercase;">
+        <p style="margin:20px 0 8px;font-size:11px;letter-spacing:0.08em;color:#9ca3af;text-transform:uppercase;font-weight:700;">
           Booking details
         </p>
-        <table width="100%" cellpadding="0" cellspacing="0">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:8px;">
           ${rowTwoCol('Booking ID', `<strong>${e(bookingId)}</strong>`)}
           ${rowTwoCol('Service', `<strong>${e(serviceLabel)}</strong>`)}
           ${rowTwoCol('Date', `<strong>${e(formattedDate)}</strong>`)}
@@ -138,42 +118,42 @@ export function adminBookingNotificationTemplate(data: AdminBookingNotificationD
           ${notesBlock}
         </table>
 
-        <p style="margin:24px 0 8px;font-size:11px;letter-spacing:0.08em;color:#888;text-transform:uppercase;">
+        <p style="margin:20px 0 8px;font-size:11px;letter-spacing:0.08em;color:#9ca3af;text-transform:uppercase;font-weight:700;">
           Cleaner assignment
         </p>
         ${cleanerHtml}
 
-        <p style="margin:24px 0 8px;font-size:11px;letter-spacing:0.08em;color:#888;text-transform:uppercase;">
+        <p style="margin:20px 0 8px;font-size:11px;letter-spacing:0.08em;color:#9ca3af;text-transform:uppercase;font-weight:700;">
           Pricing
         </p>
-        <table width="100%" cellpadding="0" cellspacing="0">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:8px;">
           ${rowTwoCol('Total', `<strong>R ${totalPrice.toFixed(2)}</strong>`)}
           ${rowTwoCol('Customer will pay', `<strong>R ${totalPrice.toFixed(2)}</strong>`)}
         </table>
 
-        <p style="margin:24px 0 8px;font-size:11px;letter-spacing:0.08em;color:#888;text-transform:uppercase;">
+        <p style="margin:20px 0 8px;font-size:11px;letter-spacing:0.08em;color:#9ca3af;text-transform:uppercase;font-weight:700;">
           Next steps
         </p>
-        <ol style="margin:0;padding-left:20px;color:#333;">
+        <ol style="margin:0;padding-left:20px;color:#374151;font-size:14px;">
           ${nextStepsHtml}
         </ol>
 
-        <p style="margin-top:24px;">
-          <a href="https://wa.me/27871535250"
-             style="color:#4f46e5;text-decoration:none;">
+        <p style="margin-top:24px;font-size:14px;">
+          <a href="https://wa.me/27871535250" style="color:${LINK};text-decoration:none;font-weight:600;">
              Contact on WhatsApp
           </a>
         </p>
 
-        <p style="margin-top:32px;font-size:12px;color:#888;line-height:1.6;">
+        <p style="margin-top:28px;font-size:12px;color:#9ca3af;line-height:1.6;">
           This is an automated notification from your Shalean Cleaning website.<br/>
-          <span style="color:#aaa;">${e(receivedAtLabel)}</span>
+          <span style="color:#d1d5db;">${e(receivedAtLabel)}</span>
         </p>
+  `;
 
-      </td>
-    </tr>
-  </table>
-
-</body>
-</html>`;
+  return emailBrandedDocument({
+    eyebrow: 'Shalean admin',
+    title: 'New booking',
+    subtitle: 'A new booking has been received and needs your attention.',
+    bodyHtml,
+  });
 }

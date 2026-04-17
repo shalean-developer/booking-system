@@ -1,5 +1,6 @@
 import { escapeHtml } from '../escape-html';
 import type { BookingEmailData } from '../types';
+import { emailBrandedDocument } from './email-shell';
 
 export function bookingConfirmationTemplate(data: BookingEmailData): string {
   const {
@@ -16,14 +17,15 @@ export function bookingConfirmationTemplate(data: BookingEmailData): string {
     bookingTime,
     siteBaseUrl,
     manageToken,
+    paymentReference,
+    equipmentRequired,
+    equipmentFeeZar,
+    cleanerSummary,
   } = data;
 
   const e = escapeHtml;
   const isPaid = status === 'paid';
-  /**
-   * Prefer customer-facing Zoho invoice number (INV-...).
-   * Safety: never render booking/order refs (e.g. SC19961999) as "Invoice".
-   */
+
   const normalizedInvoiceNumber = (invoiceNumber || '').trim();
   const normalizedInvoiceId = (invoiceId || '').trim();
   const looksLikeBookingOrOrderRef = (value: string): boolean => {
@@ -43,150 +45,88 @@ export function bookingConfirmationTemplate(data: BookingEmailData): string {
   const rescheduleUrl = token ? `${base}/booking/reschedule?token=${encodeURIComponent(token)}` : '';
   const cancelUrl = token ? `${base}/booking/cancel?token=${encodeURIComponent(token)}` : '';
   const manageUrl = token ? `${base}/booking/manage?token=${encodeURIComponent(token)}` : '';
-  const manageLinks =
-    token
-      ? `
-        <div style="margin-top:32px;">
-          <p style="font-size:14px;color:#666;margin:0 0 12px;">
-            Need to make changes?
-          </p>
 
-          <a href="${e(rescheduleUrl)}"
-             style="color:#4f46e5;text-decoration:none;font-weight:500;margin-right:16px;">
-             Reschedule booking →
-          </a>
+  const subtitle = isPaid
+    ? 'Thank you — your payment was received and your booking is confirmed.'
+    : "We've received your booking. Complete payment to lock in your slot.";
 
-          <a href="${e(cancelUrl)}"
-             style="color:#dc2626;text-decoration:none;font-weight:500;">
-             Cancel booking
-          </a>
+  const amountLabel = isPaid ? 'Amount paid' : 'Amount due';
 
-          <p style="margin-top:12px;font-size:13px;color:#888;">
-            <a href="${e(manageUrl)}"
-               style="color:#4f46e5;text-decoration:none;">Manage booking</a>
-          </p>
-        </div>
-      `
-      : '';
-
-  return `
-<!DOCTYPE html>
-<html>
-<body style="margin:0;padding:0;font-family:Arial, sans-serif;color:#111;line-height:1.6;">
-
-  <table width="100%" cellpadding="0" cellspacing="0" style="padding:24px;">
+  const row = (label: string, value: string) => `
     <tr>
-      <td>
+      <td style="padding:10px 0;color:#6b7280;font-size:14px;vertical-align:top;width:42%;">${e(label)}</td>
+      <td style="padding:10px 0;text-align:right;color:#111827;font-size:14px;font-weight:600;">${value}</td>
+    </tr>`;
 
-        <!-- HEADER -->
-        <p style="letter-spacing:2px;font-size:12px;color:#888;margin:0 0 8px;">
-          SHALEAN CLEANING
-        </p>
-
-        <h1 style="margin:0 0 16px;font-size:24px;">
-          ${isPaid ? 'Booking confirmed' : 'Booking received'}
-        </h1>
-
-        <p style="margin:0 0 20px;color:#555;">
-          ${
-            isPaid
-              ? 'Your booking is confirmed. Here are your details.'
-              : 'We’ve received your booking. Please complete payment.'
-          }
-        </p>
-
-        <!-- GREETING -->
-        <p style="margin:0 0 16px;">
-          Hi <strong>${e(customerName)}</strong>,
-        </p>
-
-        <!-- DETAILS -->
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;">
-          
-          <tr>
-            <td style="padding:8px 0;color:#666;">Service</td>
-            <td style="padding:8px 0;"><strong>${e(serviceName)}</strong></td>
-          </tr>
-
-          <tr>
-            <td style="padding:8px 0;color:#666;">Booking ID</td>
-            <td style="padding:8px 0;"><strong>#${e(bookingId)}</strong></td>
-          </tr>
-
-          ${
-            whenLine
-              ? `
-          <tr>
-            <td style="padding:8px 0;color:#666;">When</td>
-            <td style="padding:8px 0;"><strong>${e(whenLine)}</strong></td>
-          </tr>`
+  const detailsRows = [
+    row('Service', `<strong>${e(serviceName)}</strong>`),
+    row('Booking ID', `<strong>#${e(bookingId)}</strong>`),
+    whenLine ? row('When', `<strong>${e(whenLine)}</strong>`) : '',
+    address ? row('Address', `<strong>${e(address)}</strong>`) : '',
+    typeof amountZar === 'number' && Number.isFinite(amountZar)
+      ? row(amountLabel, `<strong style="font-weight:700;">R ${amountZar.toFixed(2)}</strong>`)
+      : '',
+    invoiceDisplay ? row('Invoice', `<strong>${e(invoiceDisplay)}</strong>`) : '',
+    paymentReference?.trim()
+      ? row('Payment reference', `<strong>${e(paymentReference.trim())}</strong>`)
+      : '',
+    equipmentRequired === true
+      ? row(
+          'Equipment',
+          `<strong>Requested${
+            typeof equipmentFeeZar === 'number' && Number.isFinite(equipmentFeeZar) && equipmentFeeZar > 0
+              ? ` (+ R ${equipmentFeeZar.toFixed(2)})`
               : ''
-          }
+          }</strong>`,
+        )
+      : '',
+    cleanerSummary?.trim() ? row('Cleaner', `<strong>${e(cleanerSummary.trim())}</strong>`) : '',
+  ]
+    .filter(Boolean)
+    .join('');
 
-          ${
-            address
-              ? `
-          <tr>
-            <td style="padding:8px 0;color:#666;">Address</td>
-            <td style="padding:8px 0;"><strong>${e(address)}</strong></td>
-          </tr>`
-              : ''
-          }
+  const manageLinks = token
+    ? `
+        <div style="margin-top:28px;padding-top:20px;border-top:1px solid #e5e7eb;">
+          <p style="margin:0 0 12px;font-size:11px;letter-spacing:0.08em;color:#9ca3af;text-transform:uppercase;font-weight:700;">Manage your booking</p>
+          <p style="margin:0 0 10px;font-size:14px;color:#4b5563;line-height:1.5;">
+            <a href="${e(rescheduleUrl)}" style="color:#0C53ED;text-decoration:none;font-weight:600;">Reschedule</a>
+            <span style="color:#d1d5db;margin:0 10px;">|</span>
+            <a href="${e(cancelUrl)}" style="color:#dc2626;text-decoration:none;font-weight:600;">Cancel</a>
+          </p>
+          <p style="margin:0;font-size:13px;color:#6b7280;">
+            <a href="${e(manageUrl)}" style="color:#0C53ED;text-decoration:none;font-weight:500;">Open manage booking</a>
+          </p>
+        </div>`
+    : '';
 
-          ${
-            typeof amountZar === 'number' && Number.isFinite(amountZar)
-              ? `
-          <tr>
-            <td style="padding:8px 0;color:#666;">Amount</td>
-            <td style="padding:8px 0;"><strong>R ${amountZar.toFixed(2)}</strong></td>
-          </tr>`
-              : ''
-          }
-
-          ${
-            invoiceDisplay
-              ? `
-          <tr>
-            <td style="padding:8px 0;color:#666;">Invoice</td>
-            <td style="padding:8px 0;"><strong>${e(invoiceDisplay)}</strong></td>
-          </tr>`
-              : ''
-          }
-
-        </table>
-
-        <!-- CTA -->
-        <p style="margin-top:24px;">
-          <a href="https://wa.me/27871535250"
-             style="color:#4f46e5;text-decoration:none;">
-             Contact us on WhatsApp
-          </a>
-        </p>
-
-        ${
-          invoiceUrl
-            ? `
-        <p style="margin-top:16px;">
-          Download your invoice:
-          <a href="${e(invoiceUrl)}" style="color:#4f46e5;text-decoration:none;font-weight:500;">
-            View Invoice
-          </a>
+  const invoiceBlock = invoiceUrl?.trim()
+    ? `
+        <p style="margin:20px 0 0;padding:14px 16px;background:#eff6ff;border-radius:10px;border:1px solid #bfdbfe;font-size:14px;color:#1e3a8a;">
+          <strong>Invoice</strong> —
+          <a href="${e(invoiceUrl.trim())}" style="color:#0C53ED;font-weight:600;text-decoration:none;">Download or view</a>
         </p>`
-            : ''
-        }
+    : '';
 
-        ${manageLinks}
+  const bodyHtml = `
+      <p style="margin:0 0 20px;color:#4b5563;font-size:15px;line-height:1.6;">
+        Hi <strong>${e(customerName)}</strong>,
+      </p>
+      <h2 style="margin:0 0 14px;color:#111827;font-size:16px;font-weight:700;">Your booking details</h2>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;">
+        ${detailsRows}
+      </table>
+      ${invoiceBlock}
+      <p style="margin:22px 0 0;font-size:14px;">
+        <a href="https://wa.me/27871535250" style="color:#0C53ED;text-decoration:none;font-weight:600;">Message us on WhatsApp</a>
+      </p>
+      ${manageLinks}
+  `;
 
-        <!-- FOOTER -->
-        <p style="margin-top:32px;font-size:12px;color:#888;">
-          Shalean Cleaning Services
-        </p>
-
-      </td>
-    </tr>
-  </table>
-
-</body>
-</html>
-`;
+  return emailBrandedDocument({
+    eyebrow: 'Shalean Cleaning',
+    title: isPaid ? 'Booking confirmed' : 'Booking received',
+    subtitle,
+    bodyHtml,
+  });
 }

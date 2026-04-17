@@ -14,6 +14,11 @@ import { toZohoInvoiceBookingInput } from '../supabase/functions/_shared/zoho-in
 import { sendBookingPaidConfirmationEmail, validateResendConfig } from '@/lib/email';
 import { generateManageToken } from '@/lib/manage-booking-token';
 import { resolveAdminNotificationEmail } from '@/lib/admin-email';
+import { escapeHtml } from '@/shared/email/escape-html';
+import {
+  adminPaidBookingNotificationHtml,
+  type AdminPaidBookingEmailData,
+} from '@/shared/email/templates/admin-paid-booking';
 
 export type BookingPaidRow = {
   id: string;
@@ -232,14 +237,6 @@ function referenceMatchesBooking(booking: BookingPaidRow, reference: string): bo
   return false;
 }
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
 async function sendAdminNewBookingPaidEmail(params: {
   booking: BookingPaidRow;
   amountZar: number;
@@ -291,6 +288,37 @@ async function sendAdminNewBookingPaidEmail(params: {
         .join('')
     : '<li style="margin: 4px 0;">None</li>';
 
+  const notesHtml = params.booking.notes?.trim()
+    ? `<h2 style="margin: 18px 0 10px 0; color: #111827; font-size: 16px;">Customer notes</h2><p style="margin: 0; color: #4b5563; font-size: 14px; line-height: 1.6;">${escapeHtml(params.booking.notes.trim())}</p>`
+    : '';
+
+  const payload: AdminPaidBookingEmailData = {
+    bookingId,
+    customerName,
+    customerEmail: params.booking.customer_email || 'N/A',
+    customerPhone: params.booking.customer_phone || 'N/A',
+    serviceName,
+    dateText,
+    timeText,
+    endText,
+    frequencyText,
+    cleanerText,
+    addressText,
+    amountZar: params.amountZar,
+    serviceFeeCents: params.booking.service_fee || 0,
+    tipCents: params.booking.tip_amount || 0,
+    frequencyDiscountCents: params.booking.frequency_discount || 0,
+    surgeApplied: params.booking.surge_pricing_applied === true,
+    surgeCents: params.booking.surge_amount || 0,
+    paymentReference: params.paymentReference,
+    zohoInvoiceId: params.zohoInvoiceId,
+    bedrooms,
+    bathrooms,
+    cleaners,
+    extrasHtml,
+    notesHtml,
+  };
+
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -301,62 +329,7 @@ async function sendAdminNewBookingPaidEmail(params: {
       from: `Shalean Cleaning <${sender}>`,
       to: [admin],
       subject: `Payment received • ${bookingId} • ${customerName}`,
-      html: `
-<!DOCTYPE html>
-<html>
-<body style="margin: 0; padding: 0; background: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding: 24px 12px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width: 600px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 14px; overflow: hidden;">
-          <tr>
-            <td style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
-              <p style="margin: 0 0 8px 0; color: #9ca3af; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700;">Shalean Admin Alert</p>
-              <h1 style="margin: 0; color: #111827; font-size: 22px;">New Paid Booking</h1>
-              <p style="margin: 8px 0 0 0; color: #4b5563; font-size: 14px;">A customer payment has been confirmed.</p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 22px 24px;">
-              <h2 style="margin: 0 0 14px 0; color: #111827; font-size: 16px;">Booking Summary</h2>
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb;">
-                <tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Booking ID</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtml(bookingId)}</td></tr>
-                <tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Customer</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtml(customerName)}</td></tr>
-                <tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Customer email</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtml(params.booking.customer_email || 'N/A')}</td></tr>
-                <tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Customer phone</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtml(params.booking.customer_phone || 'N/A')}</td></tr>
-                <tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Service</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtml(serviceName)}</td></tr>
-                <tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Date</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtml(dateText)}</td></tr>
-                <tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Time</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtml(timeText)}${endText ? ` - ${escapeHtml(endText)}` : ''}</td></tr>
-                <tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Address</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtml(addressText)}</td></tr>
-                <tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Frequency</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtml(frequencyText)}</td></tr>
-                <tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Cleaner selection</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtml(cleanerText)}</td></tr>
-                <tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Amount paid</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 700;">R ${params.amountZar.toFixed(2)}</td></tr>
-                <tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Service fee</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">R ${((params.booking.service_fee || 0) / 100).toFixed(2)}</td></tr>
-                <tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Tip amount</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">R ${((params.booking.tip_amount || 0) / 100).toFixed(2)}</td></tr>
-                <tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Frequency discount</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">R ${((params.booking.frequency_discount || 0) / 100).toFixed(2)}</td></tr>
-                <tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Surge pricing</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${params.booking.surge_pricing_applied ? `Yes (R ${((params.booking.surge_amount || 0) / 100).toFixed(2)})` : 'No'}</td></tr>
-                <tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Payment reference</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtml(params.paymentReference)}</td></tr>
-                <tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Invoice ID</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${params.zohoInvoiceId ? escapeHtml(params.zohoInvoiceId) : 'Pending'}</td></tr>
-              </table>
-              <h2 style="margin: 18px 0 10px 0; color: #111827; font-size: 16px;">Service Details Chosen</h2>
-              <p style="margin: 0 0 8px 0; color: #4b5563; font-size: 14px;">Bedrooms: <strong>${bedrooms ?? 'N/A'}</strong> &nbsp;|&nbsp; Bathrooms: <strong>${bathrooms ?? 'N/A'}</strong> &nbsp;|&nbsp; Cleaners: <strong>${cleaners ?? 1}</strong></p>
-              <p style="margin: 0; color: #4b5563; font-size: 14px;">Extras selected:</p>
-              <ul style="margin: 8px 0 0 18px; padding: 0; color: #111827; font-size: 14px;">
-                ${extrasHtml}
-              </ul>
-              ${
-                params.booking.notes?.trim()
-                  ? `<h2 style="margin: 18px 0 10px 0; color: #111827; font-size: 16px;">Customer Notes</h2><p style="margin: 0; color: #4b5563; font-size: 14px; line-height: 1.6;">${escapeHtml(params.booking.notes.trim())}</p>`
-                  : ''
-              }
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`,
+      html: adminPaidBookingNotificationHtml(payload),
     }),
   });
   if (!res.ok) {
