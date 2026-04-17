@@ -1,12 +1,17 @@
 import { createServiceClient } from '@/lib/supabase-server';
 import { isValidManageTokenFormat } from '@/lib/manage-booking-token';
 
-export const DEFAULT_PUBLIC_SITE_BASE = 'https://shalean.com';
+export const DEFAULT_PUBLIC_SITE_BASE = 'https://shalean.co.za';
+
+function normalizePublicSiteBase(raw: string): string {
+  const trimmed = raw.trim().replace(/\/$/, '');
+  return trimmed.replace(/^https?:\/\/shalean\.com(?=\/|$)/i, 'https://shalean.co.za');
+}
 
 export function publicSiteBaseUrl(): string {
   const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (!raw) return DEFAULT_PUBLIC_SITE_BASE;
-  return raw.replace(/\/$/, '');
+  return normalizePublicSiteBase(raw);
 }
 
 export type BookingRowForManage = {

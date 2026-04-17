@@ -93,6 +93,19 @@ function zohoErrorDetail(data: { code?: number | string; message?: string }, sta
     .join(': ') || `Zoho request failed (HTTP ${status})`;
 }
 
+/**
+ * Guard customer-facing invoice number. We only accept canonical invoice patterns
+ * and explicitly reject booking/order refs such as SC19961999 / booking-uuid.
+ */
+function normalizeZohoInvoiceNumber(value: unknown): string | null {
+  if (value == null) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  if (/^SC\d{6,}$/i.test(raw) || /^booking-/i.test(raw)) return null;
+  if (!/^[A-Z]{2,10}-\d{2,}$/i.test(raw)) return null;
+  return raw;
+}
+
 /** Valid email for Zoho; synthesize from booking id if missing. */
 function emailForZoho(customerEmail: string | null | undefined, bookingId: string): string {
   const e = customerEmail?.trim().toLowerCase();
@@ -552,8 +565,14 @@ export async function fetchZohoInvoiceNumber(zohoInvoiceId: string): Promise<str
   try {
     const token = await getAccessToken();
     const details = await getInvoiceDetails(token, orgId, id);
-    const raw = details.invoice_number;
-    return raw != null && String(raw).trim() ? String(raw).trim() : null;
+    const normalized = normalizeZohoInvoiceNumber(details.invoice_number);
+    if (!normalized && details.invoice_number != null) {
+      console.warn('[zoho-server] Ignoring unexpected invoice_number shape', {
+        zohoInvoiceId: id,
+        invoice_number: String(details.invoice_number).trim(),
+      });
+    }
+    return normalized;
   } catch (e) {
     console.warn('[zoho-server] fetchZohoInvoiceNumber', e);
     return null;

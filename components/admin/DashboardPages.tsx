@@ -2350,7 +2350,7 @@ export const SettingsPage = () => {
   const [paystackKey, setPaystackKey] = useState('pk_live_••••••••••••••••••••••••');
   const [zohoToken, setZohoToken] = useState('••••••••••••••••••••••••••••••••');
   const [resendKey, setResendKey] = useState('re_••••••••••••••••••••••••');
-  const [emailFrom, setEmailFrom] = useState('bookings@shalean.com');
+  const [emailFrom, setEmailFrom] = useState('bookings@shalean.co.za');
   const [notifications, setNotifications] = useState({
     newBooking: true,
     paymentReceived: true,
@@ -2427,7 +2427,7 @@ export const SettingsPage = () => {
                   {[
                     { label: 'Business Name', value: 'Shalean Cleaning Services', type: 'text' as const },
                     { label: 'Admin Name', value: 'Shalean Admin', type: 'text' as const },
-                    { label: 'Email', value: 'bookings@shalean.com', type: 'email' as const },
+                    { label: 'Email', value: 'bookings@shalean.co.za', type: 'email' as const },
                     { label: 'Phone', value: '+27 21 000 0000', type: 'tel' as const },
                     { label: 'City', value: 'Cape Town', type: 'text' as const },
                     { label: 'Website', value: 'www.shalean.co.za', type: 'url' as const },

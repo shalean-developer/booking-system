@@ -3,6 +3,11 @@ import type { BookingEmailData } from '../../../shared/email/types.ts';
 import { resolveAdminNotificationEmail } from './admin-email.ts';
 import { resendSendEmail, sendBookingEmailDeno } from './send-email.ts';
 
+function normalizePublicSiteBase(raw: string): string {
+  const trimmed = raw.trim().replace(/\/$/, '');
+  return trimmed.replace(/^https?:\/\/shalean\.com(?=\/|$)/i, 'https://shalean.co.za');
+}
+
 export async function sendBookingPaidEmail(params: {
   to: string;
   customerName: string;
@@ -30,8 +35,8 @@ export async function sendBookingPaidEmail(params: {
     undefined;
 
   const siteUrl =
-    Deno.env.get('NEXT_PUBLIC_SITE_URL')?.trim().replace(/\/$/, '') ||
-    'https://shalean.com';
+    normalizePublicSiteBase(Deno.env.get('NEXT_PUBLIC_SITE_URL') || '') ||
+    'https://shalean.co.za';
 
   const equipmentFeeZar =
     typeof params.equipment_fee === 'number' && Number.isFinite(params.equipment_fee)

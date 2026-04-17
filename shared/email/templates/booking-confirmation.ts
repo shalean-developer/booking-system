@@ -20,10 +20,23 @@ export function bookingConfirmationTemplate(data: BookingEmailData): string {
 
   const e = escapeHtml;
   const isPaid = status === 'paid';
-  /** PDF / customer-facing number (INV-…) when available; else internal id fallback. */
-  const invoiceDisplay = (invoiceNumber || invoiceId || '').trim();
+  /**
+   * Prefer customer-facing Zoho invoice number (INV-...).
+   * Safety: never render booking/order refs (e.g. SC19961999) as "Invoice".
+   */
+  const normalizedInvoiceNumber = (invoiceNumber || '').trim();
+  const normalizedInvoiceId = (invoiceId || '').trim();
+  const looksLikeBookingOrOrderRef = (value: string): boolean => {
+    const v = value.trim();
+    return /^SC\d{6,}$/i.test(v) || /^booking-/i.test(v);
+  };
+  const invoiceDisplay = normalizedInvoiceNumber
+    ? normalizedInvoiceNumber
+    : normalizedInvoiceId && !looksLikeBookingOrOrderRef(normalizedInvoiceId)
+      ? normalizedInvoiceId
+      : '';
 
-  const base = (siteBaseUrl || 'https://shalean.com').replace(/\/$/, '');
+  const base = (siteBaseUrl || 'https://shalean.co.za').replace(/\/$/, '');
   const whenLine = [bookingDate, bookingTime].filter(Boolean).join(' · ');
 
   const token = manageToken?.trim();
