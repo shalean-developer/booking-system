@@ -1,8 +1,13 @@
 'use client';
 
 import { Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import { Loader2 } from 'lucide-react';
-import { ShaleanAuth } from '@/components/shalean-auth';
+
+const ShaleanAuth = dynamic(
+  () => import('@/components/shalean-auth').then((mod) => mod.ShaleanAuth),
+  { ssr: false }
+);
 
 export default function LoginPage() {
   return (

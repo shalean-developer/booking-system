@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase-server';
 import { generateUniqueBookingId } from '@/lib/booking-id';
+import { generateManageToken } from '@/lib/manage-booking-token';
 import { calculateBookingOccurrencesForRollingWindow } from '@/lib/recurring-bookings';
 import type { Frequency, RecurringSchedule } from '@/types/recurring';
 
@@ -451,6 +452,7 @@ export async function POST(req: Request) {
       status: 'pending',
       recurring_schedule_id: schedule.id,
       invoice_id: invoice.id,
+      manage_token: generateManageToken(),
     }));
 
     const { error: bookingsError } = await svc.from('bookings').insert(bookingsToCreate);

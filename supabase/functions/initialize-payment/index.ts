@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
     const configured = Deno.env.get('PAYSTACK_CALLBACK_URL')?.trim();
     const callbackUrl = configured
       ? `${configured}${configured.includes('?') ? '&' : '?'}booking_id=${encodeURIComponent(bookingId)}`
-      : `${appBase}/booking/payment/callback?booking_id=${encodeURIComponent(bookingId)}`;
+      : `${appBase}/payment/status?booking_id=${encodeURIComponent(bookingId)}`;
 
     const reference = paystackReferenceForBooking(bookingId);
 

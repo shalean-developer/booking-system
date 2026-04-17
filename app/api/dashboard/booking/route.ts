@@ -77,7 +77,7 @@ export async function GET(request: Request) {
     // Try with all columns first, fallback if some columns don't exist
     let bookingQuery = supabase
       .from('bookings')
-      .select('id, service_type, bedrooms, bathrooms, extras, notes, customer_name, customer_email, customer_phone, address_line1, address_suburb, address_city, total_amount, booking_date, booking_time, expected_end_time, status, payment_reference, cleaner_id, cleaner_claimed_at, cleaner_accepted_at, cleaner_on_my_way_at, cleaner_started_at, cleaner_completed_at, created_at, updated_at, frequency, service_fee, frequency_discount, tip_amount, cleaner_earnings')
+      .select('id, service_type, bedrooms, bathrooms, extras, notes, customer_name, customer_email, customer_phone, address_line1, address_suburb, address_city, total_amount, booking_date, booking_time, expected_end_time, status, payment_reference, paystack_ref, invoice_url, cleaner_id, cleaner_claimed_at, cleaner_accepted_at, cleaner_on_my_way_at, cleaner_started_at, cleaner_completed_at, created_at, updated_at, frequency, service_fee, frequency_discount, tip_amount, cleaner_earnings')
       .eq('id', bookingId)
       .eq('customer_id', customer.id)
       .maybeSingle();
@@ -85,11 +85,11 @@ export async function GET(request: Request) {
     let { data: booking, error } = await bookingQuery;
     
     // If the error indicates unknown column, retry without problematic columns
-    if (error && (error.message?.includes('notes') || error.details?.includes('notes') || error.message?.includes('bedrooms') || error.message?.includes('bathrooms') || error.message?.includes('extras'))) {
+    if (error && (error.message?.includes('notes') || error.details?.includes('notes') || error.message?.includes('bedrooms') || error.message?.includes('bathrooms') || error.message?.includes('extras') || error.message?.includes('invoice_url'))) {
       console.warn('⚠️ Some columns not found, retrying with basic columns:', error.message);
       const retryQuery = supabase
         .from('bookings')
-        .select('id, service_type, customer_name, customer_email, customer_phone, address_line1, address_suburb, address_city, total_amount, booking_date, booking_time, status, payment_reference, cleaner_id, created_at, updated_at')
+        .select('id, service_type, customer_name, customer_email, customer_phone, address_line1, address_suburb, address_city, total_amount, booking_date, booking_time, status, payment_reference, paystack_ref, cleaner_id, created_at, updated_at')
         .eq('id', bookingId)
         .eq('customer_id', customer.id)
         .maybeSingle();
@@ -116,6 +116,7 @@ export async function GET(request: Request) {
           frequency_discount: null,
           tip_amount: null,
           cleaner_earnings: null,
+          invoice_url: null,
         } as any;
       } else {
         booking = null;

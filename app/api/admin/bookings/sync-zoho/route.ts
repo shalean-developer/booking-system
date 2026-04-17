@@ -3,8 +3,10 @@ import { isAdmin } from '@/lib/supabase-server';
 import { createServiceClient } from '@/lib/supabase-server';
 import {
   createZohoBooksInvoiceServer,
+  fetchZohoInvoiceNumber,
   isZohoBooksConfigured,
 } from '@/lib/zoho-books-server';
+import { toZohoInvoiceBookingInput } from '@/supabase/functions/_shared/zoho-invoice-payload';
 import { sendBookingPaidConfirmationEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
@@ -18,6 +20,15 @@ type BookingRow = {
   address_line1: string | null;
   address_suburb: string | null;
   address_city: string | null;
+  notes: string | null;
+  tip_amount: number | null;
+  service_fee: number | null;
+  frequency_discount: number | null;
+  frequency: string | null;
+  surge_amount: number | null;
+  price_snapshot: unknown;
+  equipment_required: boolean | null;
+  equipment_fee: number | null;
   total_amount: number | null;
   status: string | null;
   payment_reference: string | null;
@@ -109,7 +120,7 @@ export async function POST(req: NextRequest) {
     let query = supabase
       .from('bookings')
       .select(
-        'id, service_type, customer_name, customer_email, customer_phone, address_line1, address_suburb, address_city, total_amount, status, payment_reference, paystack_ref, zoho_invoice_id',
+        'id, service_type, customer_name, customer_email, customer_phone, address_line1, address_suburb, address_city, notes, tip_amount, service_fee, frequency_discount, frequency, surge_amount, price_snapshot, equipment_required, equipment_fee, total_amount, status, payment_reference, paystack_ref, zoho_invoice_id',
       )
       .is('zoho_invoice_id', null);
 
@@ -163,17 +174,7 @@ export async function POST(req: NextRequest) {
       let zohoId: string | null = null;
       try {
         zohoId = await createZohoBooksInvoiceServer({
-          customerName: booking.customer_name || 'Customer',
-          customerEmail: booking.customer_email,
-          customerPhone: booking.customer_phone,
-          customerAddress: {
-            line1: booking.address_line1,
-            suburb: booking.address_suburb,
-            city: booking.address_city,
-          },
-          serviceName: booking.service_type || 'Cleaning',
-          amountZar,
-          bookingId: booking.id,
+          booking: toZohoInvoiceBookingInput(booking),
         });
       } catch (e) {
         results.push({
@@ -209,6 +210,7 @@ export async function POST(req: NextRequest) {
       let emailStatus: 'sent' | 'failed' | 'skipped' = 'skipped';
       let emailErr: string | null = null;
       if (sendEmails && booking.customer_email) {
+        const zohoInvoiceNumber = await fetchZohoInvoiceNumber(zohoId);
         const emailResult = await sendBookingPaidConfirmationEmail({
           to: booking.customer_email.trim(),
           customerName: booking.customer_name || 'Customer',
@@ -216,6 +218,7 @@ export async function POST(req: NextRequest) {
           amountZar,
           bookingId: booking.id,
           zohoInvoiceId: zohoId,
+          zohoInvoiceNumber,
         });
         emailStatus = emailResult.ok ? 'sent' : 'failed';
         emailErr = emailResult.ok ? null : (emailResult.error ?? 'unknown');

@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
     const { data: booking, error } = await supabase
       .from('bookings')
       .select(
-        'id, service_type, customer_name, customer_email, total_amount, status, payment_reference, paystack_ref, zoho_invoice_id, payment_status',
+        'id, service_type, customer_name, customer_email, customer_phone, total_amount, status, payment_reference, paystack_ref, zoho_invoice_id, invoice_url, payment_status, booking_date, booking_time, address_line1, address_suburb, address_city, notes, tip_amount, service_fee, frequency_discount, frequency, surge_amount, price_snapshot, equipment_required, equipment_fee, manage_token',
       )
       .eq('id', bookingId)
       .maybeSingle();

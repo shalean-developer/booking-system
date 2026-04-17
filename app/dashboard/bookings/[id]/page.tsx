@@ -330,6 +330,19 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                       <p className="font-mono text-sm font-medium">{booking.payment_reference}</p>
                     </div>
                   )}
+                  {booking.invoice_url && (
+                    <div className="mt-4 p-4 border border-gray-200 rounded-xl bg-white shadow-sm">
+                      <p className="text-sm text-zinc-500 mb-2">Invoice</p>
+                      <a
+                        href={booking.invoice_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-indigo-600 font-medium hover:underline"
+                      >
+                        Download Invoice →
+                      </a>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

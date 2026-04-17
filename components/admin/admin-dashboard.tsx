@@ -24,6 +24,8 @@ import {
   Tags,
   CheckCircle2,
   BookOpen,
+  Receipt,
+  CircleDollarSign,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase-client';
@@ -43,14 +45,15 @@ import {
 } from './DashboardPages';
 import { PricingPage } from './PricingPage';
 import { DashboardHome } from './dashboard-home';
+import { RevenueDashboard } from './revenue-dashboard';
 import { useDashboardStats } from '@/hooks/use-dashboard-stats';
 import type { NavId } from '@/components/admin/types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface NavItem {
-  /** `schedule` is a full-page route under `/admin/schedule`, not an SPA panel */
-  id: NavId | 'schedule';
+  /** Full-page routes under `/admin/...`, not an SPA panel */
+  id: NavId | 'schedule' | 'invoices';
   label: string;
   icon: React.ReactNode;
   badge?: number;
@@ -254,6 +257,7 @@ const TopBar = ({
 
   const PAGE_LABELS: Record<NavId, string> = {
     dashboard: 'Dashboard',
+    revenue: 'Revenue',
     bookings: 'Bookings',
     customers: 'Customers',
     cleaners: 'Cleaners',
@@ -340,6 +344,14 @@ export function AdminDashboard() {
   const [newBookings, setNewBookings] = useState<NewBookingRecord[]>([]);
   const [headerSearch, setHeaderSearch] = useState('');
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('nav') === 'revenue') {
+      setActiveNav('revenue');
+    }
+  }, []);
+
   const { stats: navStats } = useDashboardStats('month');
 
   const { data: notifData } = useSWR<{ ok: boolean; count?: number }>(
@@ -365,6 +377,7 @@ export function AdminDashboard() {
     const a = navStats?.pendingApplications;
     return [
       { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-4.5 w-4.5" /> },
+      { id: 'revenue', label: 'Revenue', icon: <CircleDollarSign className="h-4.5 w-4.5" /> },
       { id: 'bookings', label: 'Bookings', icon: <CalendarDays className="h-4.5 w-4.5" />, badge: b },
       {
         id: 'schedule',
@@ -382,6 +395,12 @@ export function AdminDashboard() {
       },
       { id: 'quotes', label: 'Quotes', icon: <FileText className="h-4.5 w-4.5" />, badge: q },
       { id: 'payments', label: 'Payments', icon: <Banknote className="h-4.5 w-4.5" /> },
+      {
+        id: 'invoices',
+        label: 'Invoices',
+        icon: <Receipt className="h-4.5 w-4.5" />,
+        href: '/admin/invoices',
+      },
       { id: 'pricing', label: 'Pricing', icon: <Tags className="h-4.5 w-4.5" /> },
       {
         id: 'settings',
@@ -432,6 +451,13 @@ export function AdminDashboard() {
   };
 
   const renderPage = () => {
+    if (activeNav === 'revenue') {
+      return (
+        <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+          <RevenueDashboard embedded />
+        </main>
+      );
+    }
     if (activeNav === 'bookings') {
       return (
         <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">

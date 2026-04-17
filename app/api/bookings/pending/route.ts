@@ -110,6 +110,11 @@ export async function POST(req: Request) {
 
     const authUser = await getServerAuthUser();
 
+    /**
+     * One active checkout per email + slot in a short window.
+     * Use `status = 'pending'` so paid / cancelled rows never block a new booking.
+     * (Older queries only checked `payment_reference IS NULL`, which could mis-classify rows.)
+     */
     const since = new Date(Date.now() - 15 * 60 * 1000).toISOString();
     const { data: duplicate } = await supabase
       .from('bookings')
@@ -117,7 +122,7 @@ export async function POST(req: Request) {
       .eq('customer_email', body.email.trim().toLowerCase())
       .eq('booking_date', body.date)
       .eq('booking_time', body.time)
-      .is('payment_reference', null)
+      .eq('status', 'pending')
       .gte('created_at', since)
       .maybeSingle();
 

@@ -46,6 +46,10 @@ export interface BookingState {
   totalAmount?: number; // Final total in ZAR (after surge) — must match Paystack charge
   /** Cart total in ZAR before surge (required for server-side surge + Paystack amount checks) */
   preSurgeTotal?: number;
+  /** True when service requires equipment and the mandatory fee applies */
+  equipment_required?: boolean;
+  /** Equipment fee in ZAR for required-equipment services */
+  equipment_fee?: number;
   serviceFee?: number; // NEW: Service fee amount
   frequencyDiscount?: number; // NEW: Discount amount based on frequency
   discountCode?: string; // Discount code applied

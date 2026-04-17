@@ -91,9 +91,9 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
   };
 
   useEffect(() => {
-    const handleDocClick = () => setOpenBookingMenu(null);
-    document.addEventListener('click', handleDocClick);
-    return () => document.removeEventListener('click', handleDocClick);
+    const closeMenu = () => setOpenBookingMenu(null);
+    document.addEventListener('mousedown', closeMenu);
+    return () => document.removeEventListener('mousedown', closeMenu);
   }, []);
 
   return (
@@ -140,9 +140,6 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
         <div className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
           <div>
-            <p className="text-blue-200 text-xs font-semibold uppercase tracking-widest mb-1">
-              Welcome back
-            </p>
             <h1 className="text-white text-2xl sm:text-3xl font-extrabold leading-tight">
               Hello, {displayFirstName()} 👋
             </h1>
@@ -298,6 +295,9 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
                             <MapPin className="w-3 h-3 flex-shrink-0" />
                             <span>{booking.address}</span>
                           </p>
+                          {booking.roomSummary ? (
+                            <p className="text-xs text-gray-500 mt-1">{booking.roomSummary}</p>
+                          ) : null}
                           {booking.rating !== undefined && booking.rating > 0 && (
                             <div className="flex items-center gap-1 mt-1.5">
                               {[1, 2, 3, 4, 5].map((i) => (
@@ -319,6 +319,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
                           <div className="relative">
                             <button
                               type="button"
+                              onMouseDown={(e) => e.stopPropagation()}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setOpenBookingMenu((v) => (v === booking.id ? null : booking.id));
@@ -335,6 +336,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
                                   animate={{ opacity: 1, y: 0, scale: 1 }}
                                   exit={{ opacity: 0, y: 6, scale: 0.95 }}
                                   transition={{ duration: 0.12 }}
+                                  onMouseDown={(e) => e.stopPropagation()}
                                   onClick={(e) => e.stopPropagation()}
                                   className="absolute right-0 top-9 w-44 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden z-30"
                                 >
@@ -515,7 +517,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
               <p className="text-sm font-bold text-white">Priority Support</p>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed mb-4">
-              As a valued member, you get access to priority support — reach us 24/7 via WhatsApp.
+              Priority WhatsApp support for members — 24/7.
             </p>
             {supportWaHref ? (
               <motion.a

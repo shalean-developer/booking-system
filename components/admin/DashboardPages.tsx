@@ -65,7 +65,7 @@ import { formatCurrency } from '@/lib/utils/formatting';
 
 // --- Types ---
 
-type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
+type BookingStatus = 'pending' | 'paid' | 'confirmed' | 'completed' | 'cancelled';
 type PaymentStatus = 'paid' | 'pending' | 'failed' | 'refunded';
 type QuoteStatus = 'draft' | 'pending' | 'sent' | 'accepted' | 'declined' | 'expired';
 interface Booking {
@@ -161,6 +161,7 @@ const stagger = {
 const BookingStatusBadge = ({ status }: { status: BookingStatus }) => {
   const map: Record<BookingStatus, { label: string; cls: string }> = {
     pending: { label: 'Pending', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+    paid: { label: 'Paid', cls: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
     confirmed: { label: 'Confirmed', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
     completed: { label: 'Completed', cls: 'bg-green-50 text-green-700 border-green-200' },
     cancelled: { label: 'Cancelled', cls: 'bg-red-50 text-red-700 border-red-200' },
@@ -257,7 +258,13 @@ const BookingDrawer = ({
   onClose: () => void;
   onStatusChange: (id: string, status: BookingStatus) => void;
 }) => {
-  const STATUS_OPTIONS: BookingStatus[] = ['pending', 'confirmed', 'completed', 'cancelled'];
+  const STATUS_OPTIONS: BookingStatus[] = [
+    'pending',
+    'paid',
+    'confirmed',
+    'completed',
+    'cancelled',
+  ];
   return (
     <AnimatePresence>
       {booking && (
@@ -2343,7 +2350,7 @@ export const SettingsPage = () => {
   const [paystackKey, setPaystackKey] = useState('pk_live_••••••••••••••••••••••••');
   const [zohoToken, setZohoToken] = useState('••••••••••••••••••••••••••••••••');
   const [resendKey, setResendKey] = useState('re_••••••••••••••••••••••••');
-  const [emailFrom, setEmailFrom] = useState('bookings@shalean.co.za');
+  const [emailFrom, setEmailFrom] = useState('bookings@shalean.com');
   const [notifications, setNotifications] = useState({
     newBooking: true,
     paymentReceived: true,
@@ -2420,7 +2427,7 @@ export const SettingsPage = () => {
                   {[
                     { label: 'Business Name', value: 'Shalean Cleaning Services', type: 'text' as const },
                     { label: 'Admin Name', value: 'Shalean Admin', type: 'text' as const },
-                    { label: 'Email', value: 'admin@shalean.co.za', type: 'email' as const },
+                    { label: 'Email', value: 'bookings@shalean.com', type: 'email' as const },
                     { label: 'Phone', value: '+27 21 000 0000', type: 'tel' as const },
                     { label: 'City', value: 'Cape Town', type: 'text' as const },
                     { label: 'Website', value: 'www.shalean.co.za', type: 'url' as const },

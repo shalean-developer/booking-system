@@ -4,11 +4,156 @@ import { validatePaymentEnv } from '@/lib/env-validation';
 import { createServiceClient } from '@/lib/supabase-server';
 import {
   finalizePaidBookingServer,
+  paystackVerifyDetailed,
   paystackVerifyTransaction,
   resolveBookingForVerify,
 } from '@/lib/booking-paid-server';
 
 export const dynamic = 'force-dynamic';
+
+/** Never expose raw Postgres / internal errors to payment clients. */
+function pollPublicErrorMessage(internal?: string): string {
+  const trimmed = internal?.trim();
+  if (!trimmed) {
+    return 'Could not verify payment. Please try again or contact support if you were charged.';
+  }
+  const lower = trimmed.toLowerCase();
+  if (
+    lower.includes('column') ||
+    lower.includes('does not exist') ||
+    lower.includes('relation ') ||
+    lower.includes('permission denied')
+  ) {
+    return 'Could not verify payment. Please try again or contact support if you were charged.';
+  }
+  if (trimmed.length > 220) {
+    return 'Could not verify payment. Please try again or contact support if you were charged.';
+  }
+  return trimmed;
+}
+
+/**
+ * Polling-friendly verify: always HTTP 200 with `{ status: 'success' | 'pending' | 'failed' }`.
+ * DB paid wins first; then Paystack detailed (no false failure while still pending).
+ */
+async function handlePollVerify(req: Request): Promise<NextResponse> {
+  const { searchParams } = new URL(req.url);
+  const referenceParam =
+    searchParams.get('reference')?.trim() || searchParams.get('trxref')?.trim() || '';
+
+  console.log('[api/payment/verify poll]', { reference: referenceParam });
+
+  if (!referenceParam) {
+    return NextResponse.json(
+      { status: 'failed' as const, message: 'reference is required' },
+      { status: 200 },
+    );
+  }
+
+  let bookingIdHint =
+    searchParams.get('booking_id')?.trim() ||
+    searchParams.get('id')?.trim() ||
+    searchParams.get('ref')?.trim() ||
+    '';
+  if (!bookingIdHint && referenceParam.startsWith('booking-')) {
+    bookingIdHint = referenceParam.slice('booking-'.length);
+  }
+
+  const secret = process.env.PAYSTACK_SECRET_KEY?.trim();
+  if (!secret) {
+    return NextResponse.json(
+      { status: 'failed' as const, message: 'Payment provider not configured' },
+      { status: 200 },
+    );
+  }
+
+  let supabase;
+  try {
+    supabase = createServiceClient();
+  } catch {
+    return NextResponse.json(
+      { status: 'failed' as const, message: 'Server configuration error' },
+      { status: 200 },
+    );
+  }
+
+  const { booking, error: resolveErr } = await resolveBookingForVerify(
+    supabase,
+    referenceParam,
+    bookingIdHint || null,
+  );
+  if (resolveErr) {
+    console.error('[api/payment/verify poll] resolve', resolveErr);
+    return NextResponse.json({
+      status: 'failed' as const,
+      message: pollPublicErrorMessage(resolveErr),
+    });
+  }
+  if (!booking) {
+    return NextResponse.json({ status: 'failed' as const, message: 'Booking not found' });
+  }
+
+  if ((booking.status || '').toLowerCase() === 'paid') {
+    const amount_zar = Math.round(Number(booking.total_amount ?? 0)) / 100;
+    return NextResponse.json({
+      status: 'success' as const,
+      ok: true,
+      success: true,
+      duplicate: true,
+      bookingId: booking.id,
+      booking_id: booking.id,
+      zoho_invoice_id: booking.zoho_invoice_id ?? null,
+      amount_zar,
+      message: 'Already confirmed',
+    });
+  }
+
+  const detailed = await paystackVerifyDetailed(secret, referenceParam);
+
+  if (detailed.outcome === 'pending') {
+    return NextResponse.json({
+      status: 'pending' as const,
+      message: detailed.detail || 'Payment not confirmed yet',
+    });
+  }
+
+  if (detailed.outcome === 'failed') {
+    return NextResponse.json({
+      status: 'failed' as const,
+      message: detailed.reason,
+    });
+  }
+
+  const result = await finalizePaidBookingServer({
+    supabase,
+    booking,
+    reference: referenceParam,
+    paystackAmountKobo: detailed.amountKobo,
+  });
+
+  if (!result.ok) {
+    console.error('[api/payment/verify poll] finalize', result.error);
+    return NextResponse.json({
+      status: 'failed' as const,
+      message: pollPublicErrorMessage(result.error),
+    });
+  }
+
+  const amount_zar = Math.round(Number(booking.total_amount ?? 0)) / 100;
+
+  return NextResponse.json({
+    status: 'success' as const,
+    ok: true,
+    success: true,
+    duplicate: result.duplicate === true,
+    bookingId: booking.id,
+    booking_id: booking.id,
+    zoho_invoice_id: result.zoho_invoice_id ?? null,
+    amount_zar,
+    service_type: booking.service_type,
+    customer_name: booking.customer_name,
+  });
+}
 
 /**
  * Client-friendly verify after Paystack redirect: ?reference=booking-{uuid}&trxref=…&ref=…
@@ -19,6 +164,11 @@ export async function GET(req: Request) {
     console.log('🔥 VERIFY ROUTE HIT');
 
     const { searchParams } = new URL(req.url);
+    const isPoll = searchParams.get('poll') === '1' || searchParams.get('poll') === 'true';
+    if (isPoll) {
+      return handlePollVerify(req);
+    }
+
     const referenceParam =
       searchParams.get('reference')?.trim() ||
       searchParams.get('trxref')?.trim() ||

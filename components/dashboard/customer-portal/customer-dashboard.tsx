@@ -15,11 +15,9 @@ import {
   Gift,
   Headphones,
   Sparkles,
-  Check,
   UserPlus,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
-import { getReferralSignupPath } from '@/lib/referral-url';
 import { cn } from '@/lib/utils';
 import { BookingFlow } from '@/components/dashboard/booking-flow/booking-flow';
 import { usePullToRefresh } from '@/lib/hooks/use-pull-to-refresh';
@@ -36,8 +34,7 @@ import { DashboardHome } from './dashboard-home';
 import { SubPages } from './sub-pages';
 import type { PageId } from './types';
 
-/** Bottom nav includes pseudo-id `refer` (opens referral signup in a new tab). */
-type BottomNavId = PageId | 'refer';
+type BottomNavId = PageId;
 
 interface NavItem {
   id: PageId;
@@ -57,6 +54,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'bookings', label: 'My Bookings', shortLabel: 'Bookings' },
   { id: 'payments', label: 'Payments & Invoices', shortLabel: 'Payments' },
   { id: 'rewards', label: 'Rewards', shortLabel: 'Rewards' },
+  { id: 'earn-share', label: 'Earn & Share', shortLabel: 'Earn' },
   { id: 'support', label: 'Support', shortLabel: 'Support' },
   { id: 'profile', label: 'Profile', shortLabel: 'Profile' },
 ];
@@ -68,7 +66,7 @@ const BOTTOM_NAV_ITEMS: BottomNavItem[] = [
   { id: 'payments', label: 'Payments & Invoices', shortLabel: 'Pay' },
   { id: 'rewards', label: 'Rewards', shortLabel: 'Rewards' },
   { id: 'support', label: 'Support', shortLabel: 'Help' },
-  { id: 'refer', label: 'Refer & Earn', shortLabel: 'Earn' },
+  { id: 'earn-share', label: 'Earn & Share', shortLabel: 'Earn' },
   { id: 'profile', label: 'Profile', shortLabel: 'Profile' },
 ];
 
@@ -80,7 +78,7 @@ function NavIcon({ id, active }: { id: BottomNavId; active: boolean }) {
   if (id === 'payments') return <CreditCard className={cn('w-5 h-5', cls)} />;
   if (id === 'rewards') return <Gift className={cn('w-5 h-5', cls)} />;
   if (id === 'support') return <Headphones className={cn('w-5 h-5', cls)} />;
-  if (id === 'refer') return <UserPlus className={cn('w-5 h-5', cls)} />;
+  if (id === 'earn-share') return <UserPlus className={cn('w-5 h-5', cls)} />;
   if (id === 'profile') return <User className={cn('w-5 h-5', cls)} />;
   return null;
 }
@@ -209,24 +207,20 @@ function CustomerDashboardInner({
 }) {
   const router = useRouter();
   const [activePage, setActivePage] = useState<PageId>('dashboard');
-  const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
   const [logoutBusy, setLogoutBusy] = useState(false);
 
-  const { notifications, markRead, markAllRead } = useNotifications();
+  const { notifications } = useNotifications();
   const { user } = useProfile();
 
   const unreadCount = notifications.filter((n) => !n.read).length;
   const activeNav = NAV_ITEMS.find((n) => n.id === activePage);
 
   useEffect(() => {
-    const handler = () => {
-      setNotifOpen(false);
-      setProfileOpen(false);
-    };
-    document.addEventListener('click', handler);
-    return () => document.removeEventListener('click', handler);
+    const handler = () => setProfileOpen(false);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
   const handleNavigate = (page: PageId) => {
@@ -250,7 +244,12 @@ function CustomerDashboardInner({
     activePage === 'payments' ||
     activePage === 'rewards' ||
     activePage === 'support' ||
-    activePage === 'profile';
+    activePage === 'profile' ||
+    activePage === 'notifications' ||
+    activePage === 'earn-share';
+
+  const headerTitle =
+    activePage === 'notifications' ? 'Notifications' : activeNav?.label ?? 'Portal';
 
   return (
     <div className="min-h-screen bg-[#f8f9fb] flex">
@@ -314,25 +313,6 @@ function CustomerDashboardInner({
               )}
             </button>
           ))}
-          {user.customerId ? (
-            <a
-              href={getReferralSignupPath(user.customerId)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full flex items-start gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-800"
-              title="Opens the signup page in a new tab — your referral is included so new users can register and you both qualify for rewards."
-            >
-              <span className="flex-shrink-0 mt-0.5 text-gray-400" aria-hidden>
-                <UserPlus className="w-5 h-5" />
-              </span>
-              <span className="flex-1 min-w-0 leading-snug">
-                Refer &amp; Earn
-                <span className="mt-0.5 block text-[11px] font-medium text-gray-400 normal-case">
-                  {user.rewardPoints} pts · invite friends
-                </span>
-              </span>
-            </a>
-          ) : null}
         </nav>
 
         <div className="px-4 py-4 border-t border-gray-100">
@@ -369,7 +349,7 @@ function CustomerDashboardInner({
                   Shalean
                 </p>
                 <p className="text-sm font-bold text-gray-900 leading-tight">
-                  {activeNav?.label ?? 'Portal'}
+                  {headerTitle}
                 </p>
               </div>
             </div>
@@ -379,7 +359,7 @@ function CustomerDashboardInner({
                 Shalean
               </p>
               <p className="text-sm font-bold text-gray-900 leading-tight">
-                {activeNav?.label ?? 'Portal'}
+                {headerTitle}
               </p>
             </div>
 
@@ -387,10 +367,11 @@ function CustomerDashboardInner({
               <div className="relative">
                 <button
                   type="button"
+                  onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setNotifOpen((v) => !v);
                     setProfileOpen(false);
+                    handleNavigate('notifications');
                   }}
                   className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 transition-colors relative"
                   aria-label="Notifications"
@@ -402,78 +383,15 @@ function CustomerDashboardInner({
                     </span>
                   )}
                 </button>
-
-                <AnimatePresence>
-                  {notifOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                      transition={{ duration: 0.15 }}
-                      onClick={(e) => e.stopPropagation()}
-                      className="absolute right-0 top-11 w-80 bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden z-50"
-                    >
-                      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                        <p className="text-sm font-bold text-gray-900">Notifications</p>
-                        <div className="flex items-center gap-2">
-                          {unreadCount > 0 && (
-                            <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                              {unreadCount} new
-                            </span>
-                          )}
-                          {unreadCount > 0 && (
-                            <button
-                              type="button"
-                              onClick={markAllRead}
-                              className="text-[10px] font-bold text-gray-400 hover:text-blue-600 transition-colors"
-                            >
-                              Mark all read
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      <div className="divide-y divide-gray-50 max-h-72 overflow-y-auto">
-                        {notifications.length === 0 ? (
-                          <p className="text-xs text-gray-400 text-center py-6">No notifications</p>
-                        ) : (
-                          notifications.map((n) => (
-                            <button
-                              key={n.id}
-                              type="button"
-                              onClick={() => markRead(n.id)}
-                              className={cn(
-                                'w-full text-left px-4 py-3 flex gap-3 items-start transition-colors hover:bg-gray-50',
-                                !n.read && 'bg-blue-50/40'
-                              )}
-                            >
-                              <div
-                                className={cn(
-                                  'w-2 h-2 rounded-full mt-1.5 flex-shrink-0',
-                                  n.read ? 'bg-gray-300' : 'bg-blue-500'
-                                )}
-                              />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-bold text-gray-900">{n.title}</p>
-                                <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{n.body}</p>
-                                <p className="text-[10px] text-gray-400 mt-1">{n.time}</p>
-                              </div>
-                              {n.read && <Check className="w-3 h-3 text-gray-300 flex-shrink-0 mt-1" />}
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
 
               <div className="relative">
                 <button
                   type="button"
+                  onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => {
                     e.stopPropagation();
                     setProfileOpen((v) => !v);
-                    setNotifOpen(false);
                   }}
                   className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm hover:bg-blue-700 transition-colors"
                   aria-label="User menu"
@@ -488,6 +406,7 @@ function CustomerDashboardInner({
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 8, scale: 0.95 }}
                       transition={{ duration: 0.15 }}
+                      onMouseDown={(e) => e.stopPropagation()}
                       onClick={(e) => e.stopPropagation()}
                       className="absolute right-0 top-11 w-48 bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden z-50"
                     >
@@ -572,36 +491,16 @@ function CustomerDashboardInner({
         aria-label="Mobile navigation"
       >
         {BOTTOM_NAV_ITEMS.map((item) => {
-          const isRefer = item.id === 'refer';
-          const active = !isRefer && activePage === item.id;
+          const active = activePage === item.id;
           const commonClass = cn(
             'flex-shrink-0 min-w-[3.65rem] flex flex-col items-center justify-center py-2.5 gap-1 transition-all',
             active ? 'text-blue-600' : 'text-gray-400'
           );
-          if (isRefer) {
-            if (!user.customerId) return null;
-            return (
-              <a
-                key={item.id}
-                href={getReferralSignupPath(user.customerId)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={commonClass}
-                aria-label={item.label}
-              >
-                <NavIcon id="refer" active={false} />
-                <span className="text-[10px] font-bold leading-none text-gray-400">{item.shortLabel}</span>
-              </a>
-            );
-          }
           return (
             <button
               key={item.id}
               type="button"
-              onClick={() => {
-                if (item.id === 'refer') return;
-                handleNavigate(item.id);
-              }}
+              onClick={() => handleNavigate(item.id)}
               className={commonClass}
               aria-label={item.label}
             >

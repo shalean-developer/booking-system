@@ -58,7 +58,7 @@ export async function POST(req: Request) {
     }
 
     const ct = createBookingLookupToken(booking.id);
-    let callbackUrl = `${base}/booking/confirmation?reference=${encodeURIComponent(reference)}&ref=${encodeURIComponent(booking.id)}`;
+    let callbackUrl = `${base}/payment/status?reference=${encodeURIComponent(reference)}&ref=${encodeURIComponent(booking.id)}`;
     if (ct) {
       callbackUrl += `&ct=${encodeURIComponent(ct)}`;
     }

@@ -7,7 +7,9 @@ export type PageId =
   | 'payments'
   | 'rewards'
   | 'support'
-  | 'profile';
+  | 'profile'
+  | 'notifications'
+  | 'earn-share';
 
 export type FilterId = 'all' | 'upcoming' | 'completed' | 'cancelled';
 
@@ -28,6 +30,8 @@ export interface Booking {
   dbStatus?: string;
   /** Customer-facing status line (e.g. "In progress"). */
   pipelineStatus?: string;
+  /** Short room line for cards, e.g. "2 bed · 1 bath · 1 extra room" */
+  roomSummary?: string | null;
   price: string;
   priceNumber: number;
   /** True when the customer has submitted a review for this booking. */

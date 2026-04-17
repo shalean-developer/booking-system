@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase-client';
 import { safeGetSession } from '@/lib/logout-utils';
@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Loader2, CreditCard, AlertCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { generateBookingId } from '@/lib/booking-id';
 
 // Force dynamic rendering to prevent static generation
 export const dynamic = 'force-dynamic';
@@ -22,7 +21,6 @@ function PaymentContent() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [booking, setBooking] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [PaystackHook, setPaystackHook] = useState<any>(null);
 
   useEffect(() => {
     const fetchBooking = async () => {
@@ -56,9 +54,11 @@ function PaymentContent() {
 
         if (response.ok && data.ok && data.booking) {
           setBooking(data.booking);
-          
-          // Check if already paid
-          if (data.booking.payment_reference) {
+
+          const paid =
+            String(data.booking.status || '').toLowerCase() === 'paid' ||
+            !!(data.booking.payment_reference || data.booking.paystack_ref);
+          if (paid) {
             setError('This booking has already been paid');
           }
         } else {
@@ -75,131 +75,41 @@ function PaymentContent() {
     fetchBooking();
   }, [bookingId, router]);
 
-  // Dynamically import react-paystack on client side only
-  useEffect(() => {
-    let isMounted = true;
-    import('react-paystack')
-      .then((module) => {
-        if (isMounted) {
-          setPaystackHook(() => module.usePaystackPayment);
-        }
-      })
-      .catch((error) => {
-        console.error('Failed to load Paystack:', error);
-        setError('Failed to load payment system. Please refresh the page.');
-      });
-    
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  // Paystack configuration - only initialize on client side
-  const paystackPublicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '';
-  const paymentRef = useMemo(() => {
-    if (typeof window === 'undefined') return '';
-    return generateBookingId();
-  }, []);
-
-  const paystackConfig = useMemo(() => ({
-    reference: paymentRef,
-    email: booking?.customer_email || '',
-    amount: booking?.total_amount || 0, // Already in cents/kobo
-    publicKey: paystackPublicKey,
-    currency: 'ZAR',
-    metadata: {
-      booking_id: bookingId || '',
-      customer_email: booking?.customer_email || '',
-      custom_fields: [],
-    },
-  }), [paymentRef, booking, bookingId, paystackPublicKey]);
-
-  // Initialize payment hook only when PaystackHook is loaded
-  const initializePayment = PaystackHook ? PaystackHook(paystackConfig) : () => {
-    setError('Payment system is still loading. Please wait a moment and try again.');
-  };
-
-  const handlePayment = () => {
+  /**
+   * Use the same Paystack flow as the main booking checkout: `/api/paystack/initialize`
+   * sets reference to `booking-{id}` so `/payment/status` polling can resolve the row and finalize.
+   * The old inline react-paystack flow used a random `SC…` reference that did not match the booking id,
+   * so verification always failed and users were pushed to pay twice.
+   */
+  const handlePayment = async () => {
     if (!booking || !bookingId) return;
-    
-    // Check if Paystack is loaded
-    if (!PaystackHook) {
-      setError('Payment system is still loading. Please wait a moment and try again.');
-      return;
-    }
 
     setIsProcessing(true);
     setError(null);
 
-    initializePayment({
-      onSuccess: async (reference: any) => {
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session) {
-            setError('Session expired');
-            setIsProcessing(false);
-            return;
-          }
-
-          // Verify payment
-          const verifyResponse = await fetch('/api/payment/verify', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({
-              reference: reference.reference,
-            }),
-          });
-
-          const verifyData = await verifyResponse.json();
-
-          if (!verifyResponse.ok || !verifyData.ok) {
-            setError(verifyData.error || 'Payment verification failed');
-            setIsProcessing(false);
-            return;
-          }
-
-          // Update booking with payment reference
-          const updateResponse = await fetch(`/api/dashboard/booking?id=${encodeURIComponent(bookingId)}`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({
-              payment_reference: reference.reference,
-              status: 'confirmed',
-            }),
-          });
-
-          const updatePayload = await updateResponse.json().catch(() => ({}));
-          if (!updateResponse.ok || !updatePayload?.ok) {
-            setError(
-              updatePayload?.error ||
-                'Payment succeeded but we could not save it to your booking. Please contact support with your payment reference.'
-            );
-            setIsProcessing(false);
-            return;
-          }
-
-          const ct =
-            typeof updatePayload.confirmationToken === 'string' && updatePayload.confirmationToken
-              ? `&ct=${encodeURIComponent(updatePayload.confirmationToken)}`
-              : '';
-          router.push(`/booking/confirmation?ref=${encodeURIComponent(reference.reference)}${ct}`);
-        } catch (err) {
-          console.error('Error verifying payment:', err);
-          setError('Payment verification failed');
-          setIsProcessing(false);
-        }
-      },
-      onClose: () => {
+    try {
+      const res = await fetch('/api/paystack/initialize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ booking_id: bookingId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.ok || !data?.authorization_url) {
+        setError(data?.error || 'Could not start payment. Please try again.');
         setIsProcessing(false);
-      },
-    });
+        return;
+      }
+      window.location.href = data.authorization_url as string;
+    } catch (e) {
+      console.error(e);
+      setError('Network error. Please try again.');
+      setIsProcessing(false);
+    }
   };
+
+  const isAlreadyPaid =
+    String(booking?.status || '').toLowerCase() === 'paid' ||
+    !!(booking?.payment_reference || booking?.paystack_ref);
 
   if (isLoading) {
     return (
@@ -273,17 +183,17 @@ function PaymentContent() {
             </div>
 
             <Button
-              onClick={handlePayment}
-              disabled={isProcessing || !!booking.payment_reference}
+              onClick={() => void handlePayment()}
+              disabled={isProcessing || isAlreadyPaid}
               className="w-full bg-gradient-to-r from-teal-500 to-green-500 hover:from-teal-600 hover:to-green-600"
               size="lg"
             >
               {isProcessing ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
+                  Redirecting to Paystack…
                 </>
-              ) : booking.payment_reference ? (
+              ) : isAlreadyPaid ? (
                 <>
                   <CreditCard className="h-4 w-4 mr-2" />
                   Already Paid
@@ -296,9 +206,9 @@ function PaymentContent() {
               )}
             </Button>
 
-            {booking.payment_reference && (
+            {(booking.payment_reference || booking.paystack_ref) && (
               <p className="text-sm text-gray-500 text-center">
-                Payment Reference: {booking.payment_reference}
+                Payment Reference: {booking.payment_reference || booking.paystack_ref}
               </p>
             )}
           </CardContent>

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, Calendar, DollarSign, Settings, FileText, MessageSquare, Briefcase } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, DollarSign, Settings, FileText, MessageSquare, Briefcase, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const navigation = [
@@ -11,6 +11,7 @@ const navigation = [
   { name: 'Cleaners', href: '/admin/cleaners', icon: Users },
   { name: 'Customers', href: '/admin/customers', icon: Users },
   { name: 'Payments', href: '/admin/payments', icon: DollarSign },
+  { name: 'Invoices', href: '/admin/invoices', icon: Receipt },
   { name: 'Reviews', href: '/admin/reviews', icon: MessageSquare },
   { name: 'Quotes', href: '/admin/quotes', icon: FileText },
   { name: 'Applications', href: '/admin/applications', icon: Briefcase },

@@ -218,6 +218,29 @@ export function PricingPage() {
           active: true,
           icon: '✨',
         }));
+        const extraCleanerAliases = [
+          'Extra Cleaner',
+          'Carpet extra cleaner',
+          'Carpet occupied property',
+          'Carpet property occupied',
+        ];
+        const existingExtraCleaner = mappedExtras.find((extra) =>
+          extraCleanerAliases.some(
+            (alias) => alias.trim().toLowerCase() === extra.name.trim().toLowerCase()
+          )
+        );
+        if (!existingExtraCleaner) {
+          mappedExtras.push({
+            id: 'virtual-extra-cleaner',
+            name: 'Extra Cleaner',
+            price: 0,
+            pricingType: 'fixed',
+            active: true,
+            icon: '✨',
+          });
+        } else if (existingExtraCleaner.name !== 'Extra Cleaner') {
+          existingExtraCleaner.name = 'Extra Cleaner';
+        }
 
         const cleanerPricing = (pageConfig.cleanerPricing ?? []).map((row) => ({
           id: row.id,

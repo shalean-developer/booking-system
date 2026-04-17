@@ -80,10 +80,22 @@ export function aggregateExtraQuantitiesByName(
 ): Record<string, number> {
   const byName: Record<string, number> = {};
   const seen = new Set<string>();
+  const extraCleanerAliases = [
+    'Extra Cleaner',
+    'Carpet extra cleaner',
+    'Carpet occupied property',
+    'Carpet property occupied',
+  ];
   for (const id of extraIds) {
     if (seen.has(id)) continue;
     seen.add(id);
-    const name = catalogAllNames.find((n) => slugifyExtraId(n) === id) ?? id;
+    let name = catalogAllNames.find((n) => slugifyExtraId(n) === id) ?? id;
+    if (id === 'extra_cleaner') {
+      name =
+        extraCleanerAliases.find((alias) =>
+          catalogAllNames.some((n) => n.trim().toLowerCase() === alias.trim().toLowerCase())
+        ) ?? 'Extra Cleaner';
+    }
     const perId =
       extrasQuantitiesById?.[id] ?? extraIds.filter((x) => x === id).length;
     byName[name] = Math.max(1, perId);

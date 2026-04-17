@@ -30,4 +30,6 @@ export interface FlowExtra {
   id: string;
   name: string;
   price: string;
+  /** Canonical extra name in `pricing_config` / `aggregateExtraQuantitiesByName` */
+  catalogName: string;
 }

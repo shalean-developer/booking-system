@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabase as supabaseAnon } from '@/lib/supabase';
 import { createServiceClient } from '@/lib/supabase-server';
 import { sendEmail, generateBookingConfirmationEmail } from '@/lib/email';
+import { generateManageToken } from '@/lib/manage-booking-token';
 
 function getSupabaseForResend() {
   if (process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
@@ -81,6 +82,15 @@ export async function POST(
       const fullName = (booking.customer_name ?? '').trim() || 'Customer';
       const nameParts = fullName.split(/\s+/);
 
+      let manageToken = (booking as { manage_token?: string | null }).manage_token;
+      if (!manageToken || String(manageToken).length < 32) {
+        manageToken = generateManageToken();
+        await supabase
+          .from('bookings')
+          .update({ manage_token: manageToken, updated_at: new Date().toISOString() })
+          .eq('id', booking.id);
+      }
+
       const emailData = await generateBookingConfirmationEmail({
         service: booking.service_type as any,
         bedrooms,
@@ -104,7 +114,15 @@ export async function POST(
         frequency: (booking.frequency as any) || 'one-time',
         bookingId: booking.id,
         totalAmount: totalAmountRands, // Pass actual total amount from database (converted from cents to rands)
-        cleanerName
+        cleanerName,
+        paymentReference:
+          (booking.payment_reference as string | null) ||
+          (booking.paystack_ref as string | null) ||
+          undefined,
+        inferredPaid: booking.status === 'paid',
+        equipment_required: (booking as { equipment_required?: boolean }).equipment_required,
+        equipment_fee: (booking as { equipment_fee?: number }).equipment_fee,
+        manageToken,
       });
 
       if (!process.env.RESEND_API_KEY?.trim()) {

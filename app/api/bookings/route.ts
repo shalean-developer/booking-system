@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sendEmail, generateBookingConfirmationEmail, generateAdminBookingNotificationEmail } from '@/lib/email';
+import { resolveAdminNotificationEmail } from '@/lib/admin-email';
 import { BookingState } from '@/types/booking';
 import { supabase } from '@/lib/supabase';
 import { validateBookingEnv } from '@/lib/env-validation';
@@ -10,6 +11,7 @@ import { notifyCleanerAssignment, notifyCustomerAssignment } from '@/lib/notific
 import { validateBookingDiscountAmount } from '@/lib/discount-booking-server';
 import { computeCheckoutPricing } from '@/lib/booking-checkout-pricing';
 import { createBookingLookupToken } from '@/lib/booking-lookup-token';
+import { generateManageToken } from '@/lib/manage-booking-token';
 
 /**
  * API endpoint to handle booking submissions
@@ -324,6 +326,7 @@ export async function POST(req: Request) {
     
     let bookingData = null;
     let dbSaved = false;
+    let manageTokenForEmail: string | undefined;
     
     // Check if Supabase is configured
     if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
@@ -412,6 +415,9 @@ export async function POST(req: Request) {
         normalized: frequencyForDb 
       });
 
+      const manageToken = generateManageToken();
+      manageTokenForEmail = manageToken;
+
       const { data, error: bookingError } = await supabase
         .from('bookings')
         .insert({
@@ -440,6 +446,7 @@ export async function POST(req: Request) {
           frequency_discount: (body.frequencyDiscount || 0) * 100, // Convert rands to cents
           price_snapshot: priceSnapshot,
           status: 'pending', // All bookings start as pending, cleaner must accept
+          manage_token: manageToken,
         })
         .select();
 
@@ -450,6 +457,10 @@ export async function POST(req: Request) {
           if (existing) {
             bookingData = [existing];
             dbSaved = true;
+            manageTokenForEmail =
+              typeof (existing as { manage_token?: string | null }).manage_token === 'string'
+                ? (existing as { manage_token: string }).manage_token
+                : undefined;
           } else {
             return NextResponse.json(
               { ok: false, error: `Failed to save booking: ${bookingError.message}` },
@@ -648,7 +659,7 @@ export async function POST(req: Request) {
         console.log('=== EMAIL SENDING ===');
         console.log('SENDER_EMAIL:', process.env.SENDER_EMAIL || 'onboarding@resend.dev');
         console.log('Customer email:', body.email);
-        console.log('Admin email:', process.env.ADMIN_EMAIL || 'admin@shalean.co.za');
+        console.log('Admin email:', resolveAdminNotificationEmail());
         console.log('Booking ID:', bookingId);
 
         // Fetch cleaner name if cleaner_id exists
@@ -672,7 +683,8 @@ export async function POST(req: Request) {
           ...body,
           bookingId,
           totalAmount: body.totalAmount, // Pass actual total amount paid (in rands)
-          cleanerName
+          cleanerName,
+          ...(manageTokenForEmail ? { manageToken: manageTokenForEmail } : {}),
         });
         const adminEmailData = await generateAdminBookingNotificationEmail({
           ...body,

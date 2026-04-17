@@ -6,12 +6,21 @@ import { validateBookingEnv } from '@/lib/env-validation';
 import { getServerAuthUser } from '@/lib/supabase-server';
 import { calculateCleanerEarnings } from '@/lib/cleaner-earnings';
 import { generateUniqueBookingId } from '@/lib/booking-id';
+import { generateManageToken } from '@/lib/manage-booking-token';
 
 /**
- * Fast booking processing endpoint for background processing
- * - Single payment verification
- * - Parallel email sending
- * - Optimized for speed
+ * Fast booking processing endpoint for background processing.
+ *
+ * Email + equipment flow (high level):
+ * - Frontend (`BookingSystem`) builds a payload from the booking form, including:
+ *   - `provideEquipment` (legacy boolean used by pricing)
+ *   - `equipment_required` (boolean) and `equipment_fee` (number, ZAR) for explicit equipment intent
+ * - This route:
+ *   - Persists equipment flags into `bookings.provide_equipment` / `bookings.equipment_charge`
+ *     and the new normalized columns `bookings.equipment_required` / `bookings.equipment_fee`
+ *   - Passes the same shape through to `generateBookingConfirmationEmail` / `generateAdminBookingNotificationEmail`
+ * - The email helpers in `lib/email.ts` read these properties and conditionally render the
+ *   “What to expect” equipment line without changing the rest of the template.
  */
 export async function POST(req: Request) {
   console.log('=== BACKGROUND BOOKING PROCESSING ===');
@@ -19,7 +28,16 @@ export async function POST(req: Request) {
   
   try {
     // Parse booking data
-    const body: BookingState & { paymentReference: string; totalAmount: number; serviceFee?: number; frequencyDiscount?: number } = await req.json();
+    const body: BookingState & {
+      paymentReference: string;
+      totalAmount: number;
+      serviceFee?: number;
+      frequencyDiscount?: number;
+      // Optional equipment payload from frontend
+      equipment_required?: boolean;
+      equipment_fee?: number; // ZAR
+      equipmentCharge?: number; // Back-compat (ZAR)
+    } = await req.json();
     
     const { paymentReference, totalAmount } = body;
     const numberOfCleaners = Math.max(1, Math.round((body as any).numberOfCleaners ?? 1));
@@ -203,11 +221,24 @@ export async function POST(req: Request) {
 
     // STEP 4: Save to database and send emails in parallel
     console.log('Step 4: Saving booking and sending emails in parallel...');
-    
+
+    const manageToken = generateManageToken();
+
     const [dbResult, emailResult] = await Promise.all([
       // Database operation
       (async () => {
         try {
+          const equipmentRequired =
+            (body as any).equipment_required ??
+            (body as any).provideEquipment ??
+            false;
+          const equipmentFeeZar: number =
+            typeof (body as any).equipment_fee === 'number'
+              ? (body as any).equipment_fee
+              : typeof (body as any).equipmentCharge === 'number'
+                ? (body as any).equipmentCharge
+                : 0;
+
           const { data, error } = await supabase
             .from('bookings')
             .insert({
@@ -232,9 +263,14 @@ export async function POST(req: Request) {
               service_fee: (body.serviceFee || 0) * 100,
               frequency_discount: (body.frequencyDiscount || 0) * 100,
               price_snapshot: priceSnapshot,
-              provide_equipment: (body as any).provideEquipment || false,
-              equipment_charge: (body as any).equipmentCharge ? ((body as any).equipmentCharge * 100) : 0,
+              // Legacy equipment fields (kept for backwards compatibility / existing reports)
+              provide_equipment: equipmentRequired,
+              equipment_charge: equipmentFeeZar ? Math.round(equipmentFeeZar * 100) : 0,
+              // New normalized equipment fields
+              equipment_required: equipmentRequired,
+              equipment_fee: equipmentFeeZar,
               status: 'paid',
+              manage_token: manageToken,
             })
             .select();
 
@@ -285,7 +321,8 @@ export async function POST(req: Request) {
               ...body,
               bookingId,
               totalAmount: body.totalAmount, // Pass actual total amount paid (in rands)
-              cleanerName
+              cleanerName,
+              manageToken,
             }),
             generateAdminBookingNotificationEmail({
               ...body,

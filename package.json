@@ -78,7 +78,7 @@
     "baseline-browser-mapping": "^2.9.11",
     "eslint": "^8.57.1",
     "eslint-config-next": "^16.1.3",
-    "next": "^16.1.3",
+    "next": "^16.2.4",
     "tsx": "^4.21.0"
   }
 }

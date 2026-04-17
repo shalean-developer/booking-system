@@ -4,8 +4,16 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { createZohoBooksInvoiceServer } from '@/lib/zoho-books-server';
+import { uploadBookingInvoicePdf } from '@/lib/invoice-pdf-storage';
+import {
+  createZohoBooksInvoiceServer,
+  fetchZohoInvoiceNumber,
+  fetchZohoInvoicePdfBuffer,
+} from '@/lib/zoho-books-server';
+import { toZohoInvoiceBookingInput } from '../supabase/functions/_shared/zoho-invoice-payload';
 import { sendBookingPaidConfirmationEmail, validateResendConfig } from '@/lib/email';
+import { generateManageToken } from '@/lib/manage-booking-token';
+import { resolveAdminNotificationEmail } from '@/lib/admin-email';
 
 export type BookingPaidRow = {
   id: string;
@@ -20,6 +28,9 @@ export type BookingPaidRow = {
   address_line1?: string | null;
   address_suburb?: string | null;
   address_city?: string | null;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  extras?: string[] | null;
   total_amount: number | null;
   price?: number | null;
   tip_amount?: number | null;
@@ -35,16 +46,93 @@ export type BookingPaidRow = {
   payment_reference: string | null;
   paystack_ref: string | null;
   zoho_invoice_id: string | null;
+  invoice_url?: string | null;
   payment_status?: string | null;
+  equipment_required?: boolean | null;
+  equipment_fee?: number | null;
+  manage_token?: string | null;
 };
 
+/**
+ * Core columns for payment verify / finalize. `manage_token` is loaded separately so older DBs without the column still work until migrations run.
+ * Do not select `bedrooms` / `bathrooms` / `extras` — many deployments only store those inside `price_snapshot` (pending insert does not denormalize them).
+ */
 const SELECT_COLS =
-  'id, cleaner_id, booking_date, booking_time, expected_end_time, service_type, customer_name, customer_email, customer_phone, address_line1, address_suburb, address_city, total_amount, price, tip_amount, service_fee, frequency_discount, frequency, surge_pricing_applied, surge_amount, requires_team, notes, price_snapshot, status, payment_reference, paystack_ref, zoho_invoice_id, payment_status';
+  'id, cleaner_id, booking_date, booking_time, expected_end_time, service_type, customer_name, customer_email, customer_phone, address_line1, address_suburb, address_city, total_amount, price, tip_amount, service_fee, frequency_discount, frequency, surge_pricing_applied, surge_amount, requires_team, notes, price_snapshot, status, payment_reference, paystack_ref, zoho_invoice_id, invoice_url, payment_status, equipment_required, equipment_fee';
+
+async function fetchManageTokenForEmail(
+  supabase: SupabaseClient,
+  bookingId: string,
+): Promise<string | undefined> {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('manage_token')
+    .eq('id', bookingId)
+    .maybeSingle();
+
+  if (error) {
+    if (/manage_token/.test(error.message) && /does not exist/i.test(error.message)) {
+      console.warn(
+        '[booking-paid] bookings.manage_token missing — run migration 20260416200000_add_manage_token_to_bookings.sql',
+      );
+      return undefined;
+    }
+    console.warn('[booking-paid] manage_token lookup:', error.message);
+    return undefined;
+  }
+
+  const row = data as { manage_token?: string | null } | null;
+  return row?.manage_token?.trim() || undefined;
+}
+
+/** If no token yet, generate and persist (for manage-booking links in email). Returns undefined if column missing. */
+async function resolveAndPersistManageToken(
+  supabase: SupabaseClient,
+  bookingId: string,
+): Promise<string | undefined> {
+  const existing = await fetchManageTokenForEmail(supabase, bookingId);
+  if (existing) return existing;
+  const token = generateManageToken();
+  const { error } = await supabase
+    .from('bookings')
+    .update({ manage_token: token, updated_at: new Date().toISOString() })
+    .eq('id', bookingId);
+  if (error) {
+    if (/manage_token/.test(error.message) && /does not exist/i.test(error.message)) {
+      console.warn('[booking-paid] Cannot save manage_token — run migration 20260416200000_add_manage_token_to_bookings.sql');
+      return undefined;
+    }
+    console.error('[booking-paid] manage_token persist failed', error);
+    return undefined;
+  }
+  return token;
+}
+
+function isMissingManageTokenColumnError(message: string): boolean {
+  return /manage_token/.test(message) && /does not exist/i.test(message);
+}
 
 export async function paystackVerifyTransaction(
   secretKey: string,
   reference: string,
 ): Promise<{ ok: boolean; amountKobo: number }> {
+  const detailed = await paystackVerifyDetailed(secretKey, reference);
+  if (detailed.outcome !== 'success') {
+    return { ok: false, amountKobo: 0 };
+  }
+  return { ok: true, amountKobo: detailed.amountKobo };
+}
+
+/** Full Paystack verify response — use for polling to avoid false failures while status is still pending. */
+export type PaystackVerifyDetailed =
+  | { outcome: 'success'; amountKobo: number }
+  | { outcome: 'pending'; detail?: string }
+  | { outcome: 'failed'; reason: string };
+
+export async function paystackVerifyDetailed(
+  secretKey: string,
+  reference: string,
+): Promise<PaystackVerifyDetailed> {
   const res = await fetch(
     `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
     {
@@ -54,14 +142,50 @@ export async function paystackVerifyTransaction(
       },
     },
   );
-  const data = (await res.json()) as { data?: { status?: string; amount?: number } };
-  if (!res.ok || !data?.data) {
-    return { ok: false, amountKobo: 0 };
+  const json = (await res.json()) as {
+    status?: boolean;
+    message?: string;
+    data?: { status?: string; amount?: number; gateway_response?: string };
+  };
+
+  if (!res.ok) {
+    const msg = json.message || `Paystack HTTP ${res.status}`;
+    if (res.status === 404 || /not\s*found/i.test(msg)) {
+      return { outcome: 'failed', reason: msg };
+    }
+    // Transient or still indexing — prefer pending over hard fail
+    return { outcome: 'pending', detail: msg };
   }
-  const d = data.data;
-  const ok = d.status === 'success';
-  const amountKobo = Number(d.amount);
-  return { ok, amountKobo: Number.isFinite(amountKobo) ? amountKobo : 0 };
+
+  if (!json.data) {
+    return {
+      outcome: 'failed',
+      reason: json.message || 'Invalid verification response',
+    };
+  }
+
+  const d = json.data;
+  const st = (d.status || '').toLowerCase();
+
+  if (st === 'success') {
+    const amountKobo = Number(d.amount);
+    return {
+      outcome: 'success',
+      amountKobo: Number.isFinite(amountKobo) ? amountKobo : 0,
+    };
+  }
+
+  if (st === 'failed' || st === 'abandoned' || st === 'reversed') {
+    return {
+      outcome: 'failed',
+      reason: d.gateway_response || json.message || 'Payment was not successful',
+    };
+  }
+
+  return {
+    outcome: 'pending',
+    detail: d.gateway_response || json.message || 'Payment not confirmed yet',
+  };
 }
 
 export async function fetchBookingForPaymentVerification(
@@ -122,10 +246,15 @@ async function sendAdminNewBookingPaidEmail(params: {
   paymentReference: string;
   zohoInvoiceId: string | null;
 }): Promise<void> {
-  const admin = process.env.ADMIN_EMAIL?.trim();
+  const admin = resolveAdminNotificationEmail();
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const sender = process.env.SENDER_EMAIL?.trim() || 'noreply@shalean.co.za';
-  if (!admin || !apiKey) return;
+  if (!apiKey) {
+    console.warn(
+      '[sendAdminNewBookingPaidEmail] RESEND_API_KEY missing — admin new-booking email skipped',
+    );
+    return;
+  }
   const bookingId = params.booking.id;
   const customerName = params.booking.customer_name || 'Customer';
   const serviceName = params.booking.service_type || 'Cleaning';
@@ -162,7 +291,7 @@ async function sendAdminNewBookingPaidEmail(params: {
         .join('')
     : '<li style="margin: 4px 0;">None</li>';
 
-  await fetch('https://api.resend.com/emails', {
+  const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -230,6 +359,10 @@ async function sendAdminNewBookingPaidEmail(params: {
 </html>`,
     }),
   });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    console.error('[sendAdminNewBookingPaidEmail] Resend HTTP', res.status, errText.slice(0, 500));
+  }
 }
 
 export async function finalizePaidBookingServer(params: {
@@ -247,11 +380,13 @@ export async function finalizePaidBookingServer(params: {
   });
 
   const expectedKobo = Math.round(Number(booking.total_amount ?? 0));
-  if (!Number.isFinite(paystackAmountKobo) || paystackAmountKobo !== expectedKobo) {
+  const amountDelta = Math.abs(paystackAmountKobo - expectedKobo);
+  /** Paystack / DB rounding can differ by 1 minor unit (cents). */
+  if (!Number.isFinite(paystackAmountKobo) || amountDelta > 1) {
     console.log('❌ finalize: amount mismatch, abort');
     return {
       ok: false,
-      error: `Amount mismatch: expected ${expectedKobo} kobo, got ${paystackAmountKobo}`,
+      error: `Amount mismatch: expected ${expectedKobo} minor units, got ${paystackAmountKobo} (Δ ${amountDelta})`,
     };
   }
 
@@ -259,22 +394,11 @@ export async function finalizePaidBookingServer(params: {
     console.log('⚠️ Already processed — continuing for debug');
     if (!booking.zoho_invoice_id) {
       try {
-        const amountZar = expectedKobo / 100;
         console.log('🧾 Missing Zoho invoice on paid booking — retrying create...', {
           bookingId: booking.id,
         });
         const created = await createZohoBooksInvoiceServer({
-          customerName: booking.customer_name || 'Customer',
-          customerEmail: booking.customer_email,
-          customerPhone: booking.customer_phone,
-          customerAddress: {
-            line1: booking.address_line1,
-            suburb: booking.address_suburb,
-            city: booking.address_city,
-          },
-          serviceName: booking.service_type || 'Cleaning',
-          amountZar,
-          bookingId: booking.id,
+          booking: toZohoInvoiceBookingInput(booking),
           paystackReference: reference,
         });
         if (created) {
@@ -292,10 +416,38 @@ export async function finalizePaidBookingServer(params: {
         console.error('❌ Zoho retry failed for paid booking (continuing):', e);
       }
     }
+
+    let invoiceUrlDup: string | null = booking.invoice_url ?? null;
+    let invoicePdfDup: Buffer | null = null;
+    let zohoInvoiceNumberDup: string | null = null;
+    if (booking.zoho_invoice_id) {
+      zohoInvoiceNumberDup = await fetchZohoInvoiceNumber(booking.zoho_invoice_id);
+    }
+    const zohoForPdf = booking.zoho_invoice_id;
+    if (zohoForPdf && !invoiceUrlDup) {
+      try {
+        const pdf = await fetchZohoInvoicePdfBuffer(zohoForPdf);
+        if (pdf) {
+          invoicePdfDup = pdf;
+          const url = await uploadBookingInvoicePdf(supabase, booking.id, pdf);
+          if (url) {
+            invoiceUrlDup = url;
+            await supabase
+              .from('bookings')
+              .update({ invoice_url: url, updated_at: new Date().toISOString() })
+              .eq('id', booking.id);
+          }
+        }
+      } catch (e) {
+        console.warn('[finalizePaidBookingServer] invoice PDF (duplicate path)', e);
+      }
+    }
+
     if (booking.customer_email?.trim()) {
       try {
         console.log('📨 CALLING EMAIL NOW...');
         const to = booking.customer_email.trim();
+        const manageToken = await resolveAndPersistManageToken(supabase, booking.id);
         const sendResult = await sendBookingPaidConfirmationEmail({
           to,
           customerName: booking.customer_name || 'Customer',
@@ -309,6 +461,15 @@ export async function finalizePaidBookingServer(params: {
           addressLine1: booking.address_line1,
           addressSuburb: booking.address_suburb,
           addressCity: booking.address_city,
+          equipment_required: booking.equipment_required === true,
+          equipment_fee:
+            typeof booking.equipment_fee === 'number' && Number.isFinite(booking.equipment_fee)
+              ? booking.equipment_fee
+              : undefined,
+          manageToken,
+          invoiceUrl: invoiceUrlDup,
+          invoicePdf: invoicePdfDup,
+          zohoInvoiceNumber: zohoInvoiceNumberDup,
         });
         if (!sendResult.ok) {
           throw new Error(sendResult.error || 'Failed to send booking confirmation email');
@@ -321,36 +482,47 @@ export async function finalizePaidBookingServer(params: {
     return { ok: true, duplicate: true, zoho_invoice_id: booking.zoho_invoice_id };
   }
 
-  const unpaid =
-    booking.status === 'pending' && !booking.payment_reference && !booking.paystack_ref;
-
-  if (!unpaid) {
-    console.log('❌ finalize: booking not awaiting payment', {
+  /**
+   * Allow finalize when pending and either no payment refs yet, or stored refs already match
+   * this Paystack transaction (retries, webhook race, partial writes). Reject only when a
+   * *different* reference is on file (possible double-charge / wrong booking).
+   */
+  const st = (booking.status || '').toLowerCase();
+  if (st !== 'pending') {
+    console.log('❌ finalize: not pending', {
       bookingId: booking.id,
       status: booking.status,
-      payment_reference: booking.payment_reference,
-      paystack_ref: booking.paystack_ref,
     });
-    return { ok: false, error: 'Booking is not awaiting payment' };
+    return {
+      ok: false,
+      error: `Booking is not awaiting payment (status: ${booking.status || 'unknown'})`,
+    };
+  }
+  const ref = String(reference).trim();
+  const pref = (booking.payment_reference || '').trim();
+  const pstack = (booking.paystack_ref || '').trim();
+  const conflictingPayment =
+    (pref.length > 0 && pref !== ref) || (pstack.length > 0 && pstack !== ref);
+  if (conflictingPayment) {
+    console.log('❌ finalize: conflicting payment ref on booking', {
+      bookingId: booking.id,
+      payment_reference: pref,
+      paystack_ref: pstack,
+      expectedReference: ref,
+    });
+    return {
+      ok: false,
+      error:
+        'This booking already has a different payment reference. Contact support if you were charged.',
+    };
   }
 
   let zohoId: string | null = booking.zoho_invoice_id;
   if (!zohoId) {
     try {
-      const amountZar = expectedKobo / 100;
       console.log('🧾 Creating Zoho invoice...', { bookingId: booking.id });
       const created = await createZohoBooksInvoiceServer({
-        customerName: booking.customer_name || 'Customer',
-        customerEmail: booking.customer_email,
-        customerPhone: booking.customer_phone,
-        customerAddress: {
-          line1: booking.address_line1,
-          suburb: booking.address_suburb,
-          city: booking.address_city,
-        },
-        serviceName: booking.service_type || 'Cleaning',
-        amountZar,
-        bookingId: booking.id,
+        booking: toZohoInvoiceBookingInput(booking),
         paystackReference: reference,
       });
       zohoId = created;
@@ -363,24 +535,55 @@ export async function finalizePaidBookingServer(params: {
     console.log('✅ Zoho invoice already on booking, skipping create', { zohoId });
   }
 
+  let invoiceUrl: string | null = booking.invoice_url ?? null;
+  let invoicePdf: Buffer | null = null;
+  let zohoInvoiceNumber: string | null = null;
+  if (zohoId) {
+    zohoInvoiceNumber = await fetchZohoInvoiceNumber(zohoId);
+    const pdf = await fetchZohoInvoicePdfBuffer(zohoId);
+    if (pdf) {
+      invoicePdf = pdf;
+      const url = await uploadBookingInvoicePdf(supabase, booking.id, pdf);
+      if (url) invoiceUrl = url;
+    }
+  }
+
   const amountZar = expectedKobo / 100;
 
-  const { error: upErr } = await supabase
-    .from('bookings')
-    .update({
-      status: 'paid',
-      payment_status: 'success',
-      paystack_ref: reference,
-      payment_reference: reference,
-      zoho_invoice_id: zohoId ?? null,
-      price: amountZar,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', booking.id);
+  const manageTokenToSave =
+    (await fetchManageTokenForEmail(supabase, booking.id)) ?? generateManageToken();
+
+  const paidRow = {
+    status: 'paid' as const,
+    payment_status: 'success' as const,
+    paystack_ref: reference,
+    payment_reference: reference,
+    zoho_invoice_id: zohoId ?? null,
+    invoice_url: invoiceUrl,
+    price: amountZar,
+    updated_at: new Date().toISOString(),
+    manage_token: manageTokenToSave,
+  };
+
+  let { error: upErr } = await supabase.from('bookings').update(paidRow).eq('id', booking.id);
+
+  let emailManageToken: string | undefined = manageTokenToSave;
+  if (upErr && isMissingManageTokenColumnError(upErr.message)) {
+    const { manage_token: _omit, ...withoutToken } = paidRow;
+    emailManageToken = undefined;
+    const retry = await supabase.from('bookings').update(withoutToken).eq('id', booking.id);
+    upErr = retry.error;
+    console.warn(
+      '[finalizePaidBookingServer] Retried paid update without manage_token — apply migration 20260416200000_add_manage_token_to_bookings.sql',
+    );
+  }
 
   if (upErr) {
     console.error('[finalizePaidBookingServer] DB update failed', upErr);
-    return { ok: false, error: upErr.message };
+    return {
+      ok: false,
+      error: upErr.message?.trim() || 'Could not save payment confirmation. Please contact support.',
+    };
   }
 
   console.log('🔥 Payment success reached (DB updated)', { bookingId: booking.id });
@@ -418,6 +621,15 @@ export async function finalizePaidBookingServer(params: {
           addressLine1: booking.address_line1,
           addressSuburb: booking.address_suburb,
           addressCity: booking.address_city,
+          equipment_required: booking.equipment_required === true,
+          equipment_fee:
+            typeof booking.equipment_fee === 'number' && Number.isFinite(booking.equipment_fee)
+              ? booking.equipment_fee
+              : undefined,
+          manageToken: emailManageToken,
+          invoiceUrl,
+          invoicePdf,
+          zohoInvoiceNumber,
         });
         if (!sendResult.ok) {
           throw new Error(sendResult.error || 'Failed to send booking confirmation email');

@@ -1,5 +1,6 @@
 export type NavId =
   | 'dashboard'
+  | 'revenue'
   | 'bookings'
   | 'customers'
   | 'cleaners'

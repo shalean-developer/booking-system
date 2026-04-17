@@ -33,14 +33,13 @@ import { BookingStep4Confirmation } from '@/components/booking-step4-confirmatio
 import type { BookingFormData, ServiceType } from '@/components/booking-system-types';
 import { BOOKING_DEFAULT_CITY } from '@/lib/contact';
 import { logBookingFlowClient } from '@/lib/debug-booking-flow';
-import { calculateBookingPrice } from '@/lib/pricing';
 import {
-  aggregateExtraQuantitiesByName,
   buildCarpetDetailsForPricing,
   formServiceToApi,
   getEffectiveRoomCounts,
   slugifyExtraId,
 } from '@/lib/booking-pricing-input';
+import { useBooking } from '@/shared/booking';
 import { BOOKING_FORM_SESSION_KEY } from '@/lib/booking-form-session';
 
 export type { BookingFormData, PropertyType, ServiceType } from '@/components/booking-system-types';
@@ -54,39 +53,6 @@ const PROMO_CODES: Record<string, number> = {
   NEWCLIENT: 100,
   FIRSTCLEAN: 100,
 };
-const DEFAULT_FORM: BookingFormData = {
-  service: 'standard',
-  bedrooms: 2,
-  bathrooms: 1,
-  extraRooms: 0,
-  propertyType: 'apartment',
-  officeSize: '',
-  extras: [],
-  cleanerId: '',
-  teamId: '',
-  workingArea: '',
-  date: '',
-  time: '',
-  name: '',
-  email: '',
-  phone: '',
-  address: '',
-  instructions: '',
-  paymentMethod: 'online',
-  tipAmount: 0,
-  promoCode: '',
-  discountAmount: 0,
-  officeBoardrooms: 1,
-  officePrivateOffices: 1,
-  officeOpenAreas: 1,
-  officeBathrooms: 1,
-  officeKitchens: 1,
-  officeHasReception: false,
-  carpetRooms: 1,
-  carpetRugs: 0,
-  carpetExtraCleaner: false,
-};
-
 const API_TYPE_TO_SERVICE_ID: Record<string, ServiceType> = {
   'Standard': 'standard',
   'Deep': 'deep',
@@ -237,27 +203,11 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
     const last = segments[segments.length - 1];
     return SLUG_TO_STEP[last] ?? 1;
   });
-  const [data, setData] = useState<BookingFormData>(() => {
-    const base: BookingFormData = {
-      ...DEFAULT_FORM,
-      ...(initialService && { service: initialService }),
-    };
-    if (typeof window === 'undefined') return base;
-    try {
-      const stored = window.sessionStorage.getItem(BOOKING_STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        // URL service slug is the source of truth for entry points from marketing pages.
-        // Ignore stale persisted service when a valid service slug is present.
-        if (serviceFromPath) {
-          return { ...base, ...parsed, service: serviceFromPath };
-        }
-        return { ...base, ...parsed };
-      }
-    } catch {
-      // ignore storage errors
-    }
-    return base;
+  const { data, setData, lineCalc } = useBooking({
+    apiFormData: formData,
+    storageKey: BOOKING_STORAGE_KEY,
+    initialService,
+    serviceFromPath,
   });
   const [errors, setErrors] = useState<Partial<Record<keyof BookingFormData, string>>>({});
   const [isProcessing, setIsProcessing] = useState(false);
@@ -334,16 +284,6 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
       setData((prev) => ({ ...prev, paymentMethod: 'online' }));
     }
   }, [formData?.allowPayLater, data.paymentMethod]);
-
-  // Persist booking form data across step route changes
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      window.sessionStorage.setItem(BOOKING_STORAGE_KEY, JSON.stringify(data));
-    } catch {
-      // ignore storage write errors
-    }
-  }, [data]);
 
   // Keep step aligned with the URL segment (browser back/forward, manual URL edits)
   useEffect(() => {
@@ -448,7 +388,12 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         {
           id: 'extra_cleaner',
           label: 'Extra Cleaner',
-          price: formData.extras.prices['Extra Cleaner'] ?? 0,
+          price:
+            formData.extras.prices['Extra Cleaner'] ??
+            formData.extras.prices['Carpet extra cleaner'] ??
+            formData.extras.prices['Carpet occupied property'] ??
+            formData.extras.prices['Carpet property occupied'] ??
+            0,
           icon: EXTRA_ICON_MAP['Extra Cleaner'] ?? <User className="w-5 h-5" />,
         },
         {
@@ -479,34 +424,23 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         dbPricingRows: [] as { id: string; label: string; value: number }[],
       };
     }
-    const eff = getEffectiveRoomCounts(data);
-    const extrasQuantitiesById: Record<string, number> = {};
-    data.extras.forEach((id) => {
-      extrasQuantitiesById[id] = (extrasQuantitiesById[id] || 0) + 1;
-    });
-    const extrasQuantities = aggregateExtraQuantitiesByName(
-      data.extras,
-      extrasQuantitiesById,
-      formData.extras.all
-    );
-    const calc = calculateBookingPrice(
-      formData.pricing,
-      {
-        service: formServiceToApi(data.service),
-        bedrooms: eff.bedrooms,
-        bathrooms: eff.bathrooms,
-        extraRooms: eff.extraRooms,
-        extras: Object.keys(extrasQuantities),
-        extrasQuantities,
-        carpetDetails: buildCarpetDetailsForPricing(data),
-        provideEquipment:
-          (data.service === 'standard' || data.service === 'airbnb') &&
-          data.scheduleEquipmentPref === 'bring',
-        equipmentChargeOverride: formData.equipment?.charge,
-        numberOfCleaners: 1,
-      },
-      'one-time'
-    );
+    const calc = lineCalc;
+    if (!calc) {
+      return {
+        basePrice: 0,
+        bedroomAdd: 0,
+        bathroomAdd: 0,
+        extraRoomAdd: 0,
+        extrasTotal: 0,
+        tipAmount: data.tipAmount,
+        discountAmount: 0,
+        subtotal: 0,
+        total: 0,
+        serviceFee: 0,
+        frequencyDiscount: 0,
+        dbPricingRows: [] as { id: string; label: string; value: number }[],
+      };
+    }
     let discountAmount = 0;
     if (data.promoCode) {
       const discount = PROMO_CODES[data.promoCode.toUpperCase()];
@@ -583,7 +517,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
       frequencyDiscount: calc.frequencyDiscount,
       dbPricingRows,
     };
-  }, [data, formData]);
+  }, [data, formData, lineCalc]);
 
   const effRoomCounts = useMemo(() => getEffectiveRoomCounts(data), [data]);
 
@@ -827,6 +761,13 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
       const totals = checkoutPricingRef.current;
       const totalAmount = totals?.finalTotal ?? pricing.total;
       const preSurgeTotal = totals?.preSurgeTotal ?? pricing.total;
+      const equipmentRequired =
+        (data.service === 'standard' || data.service === 'airbnb') &&
+        data.scheduleEquipmentPref === 'bring';
+      const equipmentFee =
+        equipmentRequired && formData?.equipment?.charge
+          ? formData.equipment.charge
+          : 0;
       return {
         step: 4 as const,
         service: apiService,
@@ -837,9 +778,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         extras: data.extras,
         extrasQuantities,
         carpetDetails: buildCarpetDetailsForPricing(data),
-        provideEquipment:
-          (data.service === 'standard' || data.service === 'airbnb') &&
-          data.scheduleEquipmentPref === 'bring',
+        provideEquipment: equipmentRequired,
         notes: data.instructions || '',
         date: data.date,
         time: data.time,
@@ -861,9 +800,14 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         discountCode: data.promoCode || undefined,
         discountAmount: pricing.discountAmount,
         tipAmount: data.tipAmount,
+        // Explicit equipment payload for backend + email templates
+        equipment_required: equipmentRequired,
+        equipment_fee: equipmentFee,
+        // Back-compat for process route’s legacy equipmentCharge handling
+        equipmentCharge: equipmentFee,
       };
     },
-    [data, pricing, expectedEndTime]
+    [data, pricing, expectedEndTime, formData?.equipment?.charge]
   );
 
   type PaystackCheckoutResult =

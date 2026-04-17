@@ -160,9 +160,27 @@ async function getBookingFormDataUncached(): Promise<BookingFormDataServer> {
       deepAndMove: deepAndMoveExtras,
       quantityExtras: Array.from(quantityExtras),
       meta: extrasMeta,
-      prices: Object.fromEntries(
-        Array.from(seenExtras.entries()).map(([name, data]) => [name, data.price])
-      ),
+      prices: (() => {
+        const prices = Object.fromEntries(
+          Array.from(seenExtras.entries()).map(([name, data]) => [name, data.price])
+        );
+        const extraCleanerAliases = [
+          'Extra Cleaner',
+          'Carpet extra cleaner',
+          'Carpet occupied property',
+          'Carpet property occupied',
+        ];
+        const resolvedExtraCleanerPrice = extraCleanerAliases
+          .map((name) => prices[name])
+          .find((value) => typeof value === 'number');
+        if (typeof resolvedExtraCleanerPrice === 'number') {
+          prices['Extra Cleaner'] = resolvedExtraCleanerPrice;
+          prices['Carpet extra cleaner'] = resolvedExtraCleanerPrice;
+          prices['Carpet occupied property'] = resolvedExtraCleanerPrice;
+          prices['Carpet property occupied'] = resolvedExtraCleanerPrice;
+        }
+        return prices;
+      })(),
     },
     equipment: {
       items: (equipmentItems || []).map((item: { name: string }) => item.name),

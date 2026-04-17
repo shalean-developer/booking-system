@@ -37,7 +37,7 @@ import {
 import { supabase } from '@/lib/supabase-client';
 import { cn } from '@/lib/utils';
 import { getAbsoluteReferralSignupUrl, getReferralSignupPath } from '@/lib/referral-url';
-import { useBookings, usePayments, useRewards, useFaqs, useProfile } from './hooks';
+import { useBookings, usePayments, useRewards, useFaqs, useProfile, useNotifications } from './hooks';
 import { RescheduleDatePickerModal } from './reschedule-date-picker-modal';
 import type { Booking, FilterId, PageId } from './types';
 import { cleanerTelHref, cleanerWhatsAppHref, supportTelHref, supportWhatsAppHref } from './booking-contact';
@@ -835,6 +835,9 @@ function BookingsPage({ onNavigate }: { onNavigate: (page: PageId) => void }) {
                           <MapPin className="w-3 h-3 flex-shrink-0" />
                           <span>{booking.address}</span>
                         </p>
+                        {booking.roomSummary ? (
+                          <p className="text-xs text-gray-500 mt-1">{booking.roomSummary}</p>
+                        ) : null}
                         {booking.rating !== undefined && booking.rating > 0 && (
                           <div className="flex items-center gap-1 mt-1.5">
                             {[1, 2, 3, 4, 5].map((i) => (
@@ -858,6 +861,7 @@ function BookingsPage({ onNavigate }: { onNavigate: (page: PageId) => void }) {
                       <div className="relative">
                         <button
                           type="button"
+                          onMouseDown={(e) => e.stopPropagation()}
                           onClick={(e) => {
                             e.stopPropagation();
                             setOpenMenu((v) => (v === booking.id ? null : booking.id));
@@ -874,6 +878,7 @@ function BookingsPage({ onNavigate }: { onNavigate: (page: PageId) => void }) {
                               animate={{ opacity: 1, y: 0, scale: 1 }}
                               exit={{ opacity: 0, y: 6, scale: 0.95 }}
                               transition={{ duration: 0.12 }}
+                              onMouseDown={(e) => e.stopPropagation()}
                               onClick={(e) => e.stopPropagation()}
                               className="absolute right-0 top-9 w-44 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden z-30"
                             >
@@ -1799,6 +1804,141 @@ function ProfilePage() {
   );
 }
 
+// --- Notifications ---
+
+function NotificationsPage() {
+  const { notifications, markRead, markAllRead } = useNotifications();
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  return (
+    <div className="min-h-screen bg-[#f8f9fb]">
+      <PageHeader title="Notifications" subtitle="Updates and reminders from Shalean" />
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6 pb-24 lg:pb-10">
+        <div className="flex items-center justify-end mb-4">
+          {unreadCount > 0 && (
+            <button
+              type="button"
+              onClick={markAllRead}
+              className="text-xs font-bold text-blue-600 hover:underline"
+            >
+              Mark all read
+            </button>
+          )}
+        </div>
+        <div className="space-y-2">
+          {notifications.length === 0 ? (
+            <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center">
+              <p className="text-sm text-gray-500">No notifications yet</p>
+            </div>
+          ) : (
+            notifications.map((n) => (
+              <button
+                key={n.id}
+                type="button"
+                onClick={() => markRead(n.id)}
+                className={cn(
+                  'w-full text-left bg-white border border-gray-200 rounded-2xl p-4 flex gap-3 items-start transition-colors hover:bg-gray-50',
+                  !n.read && 'bg-blue-50/50 border-blue-100'
+                )}
+              >
+                <div
+                  className={cn(
+                    'w-2 h-2 rounded-full mt-1.5 flex-shrink-0',
+                    n.read ? 'bg-gray-300' : 'bg-blue-500'
+                  )}
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-gray-900">{n.title}</p>
+                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">{n.body}</p>
+                  <p className="text-[10px] text-gray-400 mt-1.5">{n.time}</p>
+                </div>
+                {n.read && <Check className="w-3.5 h-3.5 text-gray-300 flex-shrink-0 mt-1" />}
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- Earn & Share ---
+
+function EarnSharePage({ onNavigate }: { onNavigate: (page: PageId) => void }) {
+  const { user } = useProfile();
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    const payload = user.customerId
+      ? getAbsoluteReferralSignupUrl(user.customerId)
+      : user.referralCode;
+    navigator.clipboard.writeText(payload).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#f8f9fb]">
+      <PageHeader title="Earn & Share" subtitle="Invite friends and earn rewards when they book" />
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6 pb-24 lg:pb-10">
+        <div className="max-w-lg mx-auto space-y-4">
+          <div className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="w-5 h-5 text-blue-200" />
+              <p className="text-base font-bold text-white">Refer &amp; Earn</p>
+            </div>
+            <p className="text-sm text-blue-100 leading-relaxed mb-5">
+              Share your code and earn <strong className="text-white">R50</strong> for every friend who books.
+            </p>
+            <div className="flex items-center gap-2 bg-white/15 border border-white/20 rounded-xl px-3 py-2.5">
+              <p className="flex-1 text-sm font-bold text-white tracking-widest font-mono">{user.referralCode}</p>
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.9 }}
+                onClick={handleCopy}
+                className="flex-shrink-0 w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+                aria-label={user.customerId ? 'Copy referral signup link' : 'Copy referral code'}
+              >
+                {copied ? <Check className="w-4 h-4 text-white" /> : <Copy className="w-4 h-4 text-white" />}
+              </motion.button>
+            </div>
+            {copied && (
+              <p className="text-[11px] text-blue-200 mt-2 text-center font-semibold">Copied to clipboard</p>
+            )}
+            {user.customerId ? (
+              <motion.a
+                href={getReferralSignupPath(user.customerId)}
+                target="_blank"
+                rel="noopener noreferrer"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="mt-4 w-full py-2.5 rounded-xl bg-white text-blue-600 text-sm font-bold flex items-center justify-center gap-1.5 hover:bg-blue-50 transition-colors"
+              >
+                <span>Open friend signup link</span>
+                <ArrowRight className="w-4 h-4" />
+              </motion.a>
+            ) : (
+              <motion.button
+                type="button"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => onNavigate('rewards')}
+                className="mt-4 w-full py-2.5 rounded-xl bg-white text-blue-600 text-sm font-bold flex items-center justify-center gap-1.5 hover:bg-blue-50 transition-colors"
+              >
+                <span>Rewards &amp; referral</span>
+                <ArrowRight className="w-4 h-4" />
+              </motion.button>
+            )}
+          </div>
+          <p className="text-xs text-center text-gray-400">
+            {user.rewardPoints} pts · {user.rewardTier} member
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // --- Main export ---
 
 export function SubPages({ page, onNavigate }: SubPagesProps) {
@@ -1857,6 +1997,28 @@ export function SubPages({ page, onNavigate }: SubPagesProps) {
           transition={{ duration: 0.18 }}
         >
           <ProfilePage />
+        </motion.div>
+      )}
+      {page === 'notifications' && (
+        <motion.div
+          key="notifications"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
+        >
+          <NotificationsPage />
+        </motion.div>
+      )}
+      {page === 'earn-share' && (
+        <motion.div
+          key="earn-share"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
+        >
+          <EarnSharePage onNavigate={onNavigate} />
         </motion.div>
       )}
     </AnimatePresence>

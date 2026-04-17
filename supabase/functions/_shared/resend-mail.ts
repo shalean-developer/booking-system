@@ -1,3 +1,8 @@
+import { formatBookingDateDisplay, formatBookingTimeDisplay } from '../../../shared/email/datetime.ts';
+import type { BookingEmailData } from '../../../shared/email/types.ts';
+import { resolveAdminNotificationEmail } from './admin-email.ts';
+import { resendSendEmail, sendBookingEmailDeno } from './send-email.ts';
+
 export async function sendBookingPaidEmail(params: {
   to: string;
   customerName: string;
@@ -5,64 +10,65 @@ export async function sendBookingPaidEmail(params: {
   amountZar: number;
   bookingId: string;
   zohoInvoiceId: string | null;
+  paymentReference?: string | null;
+  bookingDate?: string | null;
+  bookingTime?: string | null;
+  addressLine1?: string | null;
+  addressSuburb?: string | null;
+  addressCity?: string | null;
+  equipment_required?: boolean;
+  equipment_fee?: number;
+  manageToken?: string | null;
+  invoiceUrl?: string | null;
+  invoicePdf?: Uint8Array | null;
+  /** Same # as on the Zoho PDF (e.g. INV-00001), not the internal invoice_id. */
+  zohoInvoiceNumber?: string | null;
 }): Promise<{ ok: boolean; providerId?: string; error?: string }> {
-  const apiKey = Deno.env.get('RESEND_API_KEY')?.trim();
-  const sender = Deno.env.get('SENDER_EMAIL')?.trim() || 'noreply@shalean.co.za';
-  if (!apiKey) {
-    console.warn('[resend] RESEND_API_KEY not set');
-    return { ok: false, error: 'RESEND_API_KEY missing' };
-  }
+  const displayId = /^SC\d{8}$/.test(params.bookingId) ? params.bookingId : params.bookingId.slice(-8);
+  const address =
+    [params.addressLine1, params.addressSuburb, params.addressCity].filter(Boolean).join(', ') ||
+    undefined;
 
-  const subject = 'Booking Confirmed – Shalean Cleaning Services';
-  const invoiceLine = params.zohoInvoiceId
-    ? `<p><strong>Invoice ID:</strong> ${escapeHtml(params.zohoInvoiceId)}</p>`
-    : '';
+  const siteUrl =
+    Deno.env.get('NEXT_PUBLIC_SITE_URL')?.trim().replace(/\/$/, '') ||
+    'https://shalean.com';
 
-  const html = `
-<!DOCTYPE html>
-<html>
-<body style="font-family: system-ui, sans-serif; line-height: 1.5; color: #111;">
-  <h1 style="color: #4f46e5;">Booking confirmed</h1>
-  <p>Hi ${escapeHtml(params.customerName)},</p>
-  <p>Thank you — your payment was received and your booking is confirmed.</p>
-  <ul>
-    <li><strong>Service:</strong> ${escapeHtml(params.serviceName)}</li>
-    <li><strong>Amount paid:</strong> R ${params.amountZar.toFixed(2)}</li>
-    <li><strong>Booking ID:</strong> ${escapeHtml(params.bookingId)}</li>
-  </ul>
-  ${invoiceLine}
-  <p style="margin-top: 24px; color: #666; font-size: 14px;">Shalean Cleaning Services</p>
-</body>
-</html>`;
+  const equipmentFeeZar =
+    typeof params.equipment_fee === 'number' && Number.isFinite(params.equipment_fee)
+      ? params.equipment_fee
+      : 0;
 
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: `Shalean Cleaning <${sender}>`,
-      to: [params.to],
-      subject,
-      html,
-    }),
+  const emailData: BookingEmailData = {
+    customerName: params.customerName,
+    serviceName: params.serviceName,
+    bookingId: displayId,
+    amountZar: params.amountZar,
+    status: 'paid',
+    invoiceId: params.zohoInvoiceId ?? undefined,
+    invoiceNumber: params.zohoInvoiceNumber?.trim() || undefined,
+    bookingDate: params.bookingDate ? formatBookingDateDisplay(params.bookingDate) : undefined,
+    bookingTime: params.bookingTime ? formatBookingTimeDisplay(params.bookingTime) : undefined,
+    address,
+    paymentReference: params.paymentReference ?? undefined,
+    equipmentRequired: params.equipment_required === true,
+    equipmentFeeZar,
+    cleanerSummary: 'We will assign a cleaner and notify you shortly.',
+    manageBookingUrl: `${siteUrl}/dashboard`,
+    trackingUrl: `${siteUrl}/dashboard`,
+    siteBaseUrl: siteUrl,
+    manageToken: params.manageToken ?? undefined,
+    invoiceUrl: params.invoiceUrl?.trim() || undefined,
+    whatsappUrl: `https://wa.me/27871535250?text=${encodeURIComponent(
+      `Hi Shalean, regarding booking #${displayId}`,
+    )}`,
+  };
+
+  const pdf = params.invoicePdf;
+  return sendBookingEmailDeno(params.to, emailData, {
+    invoicePdf: pdf && pdf.byteLength > 0 ? pdf : undefined,
+    invoiceAttachmentFilename:
+      pdf && pdf.byteLength > 0 ? `Invoice-${displayId}.pdf` : undefined,
   });
-
-  const data = await res.json();
-  if (!res.ok) {
-    console.error('[resend] send failed', data);
-    return { ok: false, error: data?.message || 'Resend error' };
-  }
-  return { ok: true, providerId: data?.id };
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
 
 export async function sendAdminNewBookingEmail(params: {
@@ -71,26 +77,22 @@ export async function sendAdminNewBookingEmail(params: {
   serviceName: string;
   amountZar: number;
 }): Promise<void> {
-  const admin = Deno.env.get('ADMIN_EMAIL')?.trim();
-  if (!admin) return;
+  const admin = resolveAdminNotificationEmail();
 
   const apiKey = Deno.env.get('RESEND_API_KEY')?.trim();
-  const sender = Deno.env.get('SENDER_EMAIL')?.trim() || 'noreply@shalean.co.za';
   if (!apiKey) return;
 
-  await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: `Shalean Cleaning <${sender}>`,
-      to: [admin],
-      subject: `[New paid booking] ${params.bookingId}`,
-      html: `<p><strong>${escapeHtml(params.customerName)}</strong> paid R ${params.amountZar.toFixed(
-        2,
-      )} for ${escapeHtml(params.serviceName)} — ${escapeHtml(params.bookingId)}</p>`,
-    }),
+  const escape = (s: string) =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  const r = await resendSendEmail({
+    to: admin,
+    subject: `[New paid booking] ${params.bookingId}`,
+    html: `<p><strong>${escape(params.customerName)}</strong> paid R ${params.amountZar.toFixed(
+      2,
+    )} for ${escape(params.serviceName)} — ${escape(params.bookingId)}</p>`,
   });
+  if (!r.ok) {
+    console.warn('[sendAdminNewBookingEmail]', r.error);
+  }
 }

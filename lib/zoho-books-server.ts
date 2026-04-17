@@ -3,6 +3,25 @@
  * Invoices must use customer_id; inline customer_name/email often returns code 3008.
  */
 
+import {
+  buildZohoInvoicePayloadParts,
+  type ZohoInvoiceBookingInput,
+} from '../supabase/functions/_shared/zoho-invoice-payload';
+import { fetchActivePricing, type PricingData } from './pricing-db';
+import { PRICING } from './pricing';
+
+async function loadPricingForZohoInvoice(): Promise<PricingData> {
+  try {
+    return await fetchActivePricing();
+  } catch (e) {
+    console.warn(
+      '[zoho-server] fetchActivePricing failed — using PRICING catalog fallback for invoice lines',
+      e instanceof Error ? e.message : e,
+    );
+    return PRICING;
+  }
+}
+
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
 async function getAccessToken(): Promise<string> {
@@ -264,17 +283,7 @@ function extractInvoiceIdFromCreateResponse(data: Record<string, unknown>): stri
  * with payment_mode Paystack (falls back to API-allowed `others` if Zoho rejects the label).
  */
 export async function createZohoBooksInvoiceServer(params: {
-  customerName: string;
-  customerEmail?: string | null;
-  customerPhone?: string | null;
-  customerAddress?: {
-    line1?: string | null;
-    suburb?: string | null;
-    city?: string | null;
-  };
-  serviceName: string;
-  amountZar: number;
-  bookingId: string;
+  booking: ZohoInvoiceBookingInput;
   /** Paystack transaction reference — stored on Zoho payment and must match settlement amount context. */
   paystackReference?: string | null;
 }): Promise<string | null> {
@@ -284,37 +293,49 @@ export async function createZohoBooksInvoiceServer(params: {
     return null;
   }
 
+  const b = params.booking;
+  const bookingId = b.id;
+  const customerAddress = {
+    line1: b.address_line1,
+    suburb: b.address_suburb,
+    city: b.address_city,
+  };
+
   const token = await getAccessToken();
+  const pricing = await loadPricingForZohoInvoice();
+  const { line_items, notes } = buildZohoInvoicePayloadParts({ booking: b, pricing });
+
+  const bookingCf = process.env.ZOHO_BOOKS_CUSTOM_FIELD_BOOKING_ID?.trim();
+  const custom_fields = bookingCf ? [{ customfield_id: bookingCf, value: bookingId }] : undefined;
+
   const customerId = await getOrCreateCustomerContactId({
     token,
     orgId,
-    customerName: params.customerName,
-    customerEmail: params.customerEmail,
-    customerPhone: params.customerPhone,
-    customerAddress: params.customerAddress,
-    bookingId: params.bookingId,
+    customerName: b.customer_name?.trim() || 'Customer',
+    customerEmail: b.customer_email,
+    customerPhone: b.customer_phone,
+    customerAddress,
+    bookingId,
   });
 
   await ensureContactActive(token, orgId, customerId);
 
   const today = new Date().toISOString().slice(0, 10);
-  const lineTotal = Math.round(params.amountZar * 100) / 100;
   const payload = {
     customer_id: customerId,
     date: today,
     due_date: today,
     is_inclusive_tax: false,
-    line_items: [
-      {
-        name: `${params.serviceName} (Booking ${params.bookingId})`,
-        description: `Cleaning service — ${params.serviceName}`,
-        rate: lineTotal,
-        quantity: 1,
-      },
-    ],
-    reference_number: params.bookingId,
-    notes: `Booking ID: ${params.bookingId}`,
-    billing_address: buildZohoAddress(params.customerAddress),
+    line_items: line_items.map((li) => ({
+      name: li.name,
+      ...(li.description ? { description: li.description } : {}),
+      rate: li.rate,
+      quantity: li.quantity,
+    })),
+    reference_number: bookingId,
+    notes,
+    ...(custom_fields ? { custom_fields } : {}),
+    billing_address: buildZohoAddress(customerAddress),
   };
 
   const url = `${booksApiHost()}/books/v3/invoices?organization_id=${encodeURIComponent(orgId)}`;
@@ -338,6 +359,16 @@ export async function createZohoBooksInvoiceServer(params: {
     const billingAddressRejected = msg.includes('billing_address');
     if (billingAddressRejected) {
       const fallbackPayload = { ...payload, billing_address: undefined };
+      ({ res, data } = await createInvoice(fallbackPayload as Record<string, unknown>));
+      okCode = data.code === 0 || data.code === '0';
+    }
+  }
+  if (!res.ok || !okCode) {
+    const msg = String((data as { message?: string }).message || '').toLowerCase();
+    const customFieldRejected =
+      custom_fields && (msg.includes('custom_field') || msg.includes('customfield'));
+    if (customFieldRejected) {
+      const fallbackPayload = { ...payload, custom_fields: undefined };
       ({ res, data } = await createInvoice(fallbackPayload as Record<string, unknown>));
       okCode = data.code === 0 || data.code === '0';
     }
@@ -376,7 +407,7 @@ export async function createZohoBooksInvoiceServer(params: {
     customerId: payCustomerId,
     invoiceId,
     amount: payAmount,
-    bookingId: params.bookingId,
+    bookingId,
     paystackReference: params.paystackReference,
   });
 
@@ -385,6 +416,8 @@ export async function createZohoBooksInvoiceServer(params: {
 
 type ZohoInvoiceDetails = {
   invoice_id?: string;
+  /** Human-readable number printed on the PDF (e.g. INV-00001) — differs from invoice_id. */
+  invoice_number?: string;
   customer_id?: string;
   status?: string;
   total?: number | string;
@@ -506,4 +539,62 @@ async function createCustomerPaymentLinkedToInvoice(params: {
     throw lastErr;
   }
   throw lastErr ?? new Error('Zoho customer payment failed');
+}
+
+/**
+ * Human-readable invoice number as printed on the Zoho PDF (not the internal `invoice_id`).
+ */
+export async function fetchZohoInvoiceNumber(zohoInvoiceId: string): Promise<string | null> {
+  const orgId = process.env.ZOHO_BOOKS_ORGANIZATION_ID?.trim();
+  if (!orgId) return null;
+  const id = zohoInvoiceId.trim();
+  if (!id) return null;
+  try {
+    const token = await getAccessToken();
+    const details = await getInvoiceDetails(token, orgId, id);
+    const raw = details.invoice_number;
+    return raw != null && String(raw).trim() ? String(raw).trim() : null;
+  } catch (e) {
+    console.warn('[zoho-server] fetchZohoInvoiceNumber', e);
+    return null;
+  }
+}
+
+/** Download invoice PDF (Zoho Books v3 `accept=pdf` query parameter). */
+export async function fetchZohoInvoicePdfBuffer(zohoInvoiceId: string): Promise<Buffer | null> {
+  const orgId = process.env.ZOHO_BOOKS_ORGANIZATION_ID?.trim();
+  if (!orgId) {
+    console.warn('[zoho-server] ZOHO_BOOKS_ORGANIZATION_ID not set — cannot fetch invoice PDF');
+    return null;
+  }
+  const id = zohoInvoiceId.trim();
+  if (!id) return null;
+  try {
+    const token = await getAccessToken();
+    const url = `${booksApiHost()}/books/v3/invoices/${encodeURIComponent(id)}?organization_id=${encodeURIComponent(
+      orgId,
+    )}&accept=pdf`;
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Zoho-oauthtoken ${token}`,
+        Accept: 'application/pdf',
+      },
+    });
+    const ct = (res.headers.get('content-type') || '').toLowerCase();
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      console.error('[zoho-server] invoice PDF HTTP', res.status, errText.slice(0, 400));
+      return null;
+    }
+    if (!ct.includes('pdf') && !ct.includes('octet-stream')) {
+      const errText = await res.text().catch(() => '');
+      console.error('[zoho-server] invoice PDF unexpected content-type', ct, errText.slice(0, 200));
+      return null;
+    }
+    const buf = Buffer.from(await res.arrayBuffer());
+    return buf.byteLength > 0 ? buf : null;
+  } catch (e) {
+    console.error('[zoho-server] fetchZohoInvoicePdfBuffer failed', e);
+    return null;
+  }
 }

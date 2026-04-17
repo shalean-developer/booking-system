@@ -61,6 +61,7 @@ interface Booking {
 
 const statusColors: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  paid: 'bg-emerald-100 text-emerald-900 border-emerald-200',
   confirmed: 'bg-blue-100 text-blue-800 border-blue-200',
   accepted: 'bg-indigo-100 text-indigo-800 border-indigo-200',
   'in-progress': 'bg-purple-100 text-purple-800 border-purple-200',
@@ -316,6 +317,7 @@ export default function AdminBookingsPage() {
       type: 'select',
       options: [
         { label: 'Pending', value: 'pending' },
+        { label: 'Paid', value: 'paid' },
         { label: 'Confirmed', value: 'confirmed' },
         { label: 'Accepted', value: 'accepted' },
         { label: 'In Progress', value: 'in-progress' },

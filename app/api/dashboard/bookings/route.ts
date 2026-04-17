@@ -161,11 +161,17 @@ export async function GET(request: Request) {
         payment_reference,
         paystack_ref,
         zoho_invoice_id,
+        invoice_url,
         customer_reviewed,
         customer_review_id,
         cleaner_started_at,
         cleaner_completed_at,
-        expected_end_time
+        expected_end_time,
+        bedrooms,
+        bathrooms,
+        extras,
+        extras_quantities,
+        price_snapshot
       `)
       .eq('customer_id', customer.id)
       .order('booking_date', { ascending: false })
@@ -184,7 +190,8 @@ export async function GET(request: Request) {
       (bookingsError.message?.includes('notes') ||
         bookingsError.details?.includes('notes') ||
         bookingsError.message?.includes('paystack_ref') ||
-        bookingsError.message?.includes('zoho_invoice_id'))
+        bookingsError.message?.includes('zoho_invoice_id') ||
+        bookingsError.message?.includes('invoice_url'))
     ) {
       console.warn('Retrying bookings select with a reduced column set');
       const retry = await supabase
@@ -210,7 +217,12 @@ export async function GET(request: Request) {
           customer_review_id,
           cleaner_started_at,
           cleaner_completed_at,
-          expected_end_time
+          expected_end_time,
+          bedrooms,
+          bathrooms,
+          extras,
+          extras_quantities,
+          price_snapshot
         `)
         .eq('customer_id', customer.id)
         .order('booking_date', { ascending: false })
@@ -223,9 +235,15 @@ export async function GET(request: Request) {
           notes: null,
           paystack_ref: b.paystack_ref ?? null,
           zoho_invoice_id: b.zoho_invoice_id ?? null,
+          invoice_url: b.invoice_url ?? null,
           cleaner_started_at: b.cleaner_started_at ?? null,
           cleaner_completed_at: b.cleaner_completed_at ?? null,
           expected_end_time: b.expected_end_time ?? null,
+          bedrooms: b.bedrooms ?? null,
+          bathrooms: b.bathrooms ?? null,
+          extras: b.extras ?? null,
+          extras_quantities: b.extras_quantities ?? null,
+          price_snapshot: b.price_snapshot ?? null,
         };
       });
       bookingsError = retry.error || null;

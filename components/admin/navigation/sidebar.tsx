@@ -67,6 +67,7 @@ const navigationSections: NavSection[] = [
     title: 'Financial',
     items: [
   { name: 'Payments', href: '/admin/payments', icon: DollarSign },
+      { name: 'Invoices', href: '/admin/invoices', icon: FileText },
       { name: 'Pricing', href: '/admin/pricing', icon: Tag },
       { name: 'Discount Codes', href: '/admin/discount-codes', icon: Ticket },
     ],

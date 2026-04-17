@@ -9,10 +9,22 @@ import { validateBookingDiscountAmount } from '@/lib/discount-booking-server';
 import { computeCheckoutPricing } from '@/lib/booking-checkout-pricing';
 import { computeServerPreSurgeTotalZar } from '@/lib/booking-server-pricing';
 import { createBookingLookupToken } from '@/lib/booking-lookup-token';
+import { generateManageToken } from '@/lib/manage-booking-token';
 
 /**
  * Guest booking API — pay-later path (no Paystack). Disabled in production unless
  * `ALLOW_PAY_LATER_BOOKINGS=true`.
+ *
+ * Email + equipment flow (high level):
+ * - Booking wizard (V2) tracks `provideEquipment` based on the equipment toggle in the form.
+ * - When this API is called, the request body may additionally include:
+ *   - `equipment_required` (boolean) and `equipment_fee` (ZAR) for clearer downstream usage.
+ * - We persist these into:
+ *   - `bookings.provide_equipment` / `bookings.equipment_charge` (legacy)
+ *   - and the normalized `bookings.equipment_required` / `bookings.equipment_fee`.
+ * - We forward the same fields into `generateBookingConfirmationEmail` and
+ *   `generateAdminBookingNotificationEmail` so the email template can show a
+ *   dynamic “equipment will be provided…” line without changing the rest of the copy.
  */
 export async function POST(req: Request) {
   try {
@@ -23,7 +35,15 @@ export async function POST(req: Request) {
       );
     }
 
-    const body: BookingStateV2 & { totalAmount: number; serviceFee?: number; frequencyDiscount?: number; preSurgeTotal?: number } = await req.json();
+    const body: BookingStateV2 & {
+      totalAmount: number;
+      serviceFee?: number;
+      frequencyDiscount?: number;
+      preSurgeTotal?: number;
+      // Optional equipment payload surfaced from the booking wizard
+      equipment_required?: boolean;
+      equipment_fee?: number; // ZAR
+    } = await req.json();
     
     if (!body.service || !body.date || !body.time || !body.email || !body.firstName || !body.lastName) {
       return NextResponse.json(
@@ -209,6 +229,17 @@ export async function POST(req: Request) {
       snapshot_date: new Date().toISOString(),
     };
 
+    const equipmentRequired =
+      (body as any).equipment_required ??
+      body.provideEquipment ??
+      false;
+    const equipmentFeeZar: number =
+      typeof (body as any).equipment_fee === 'number'
+        ? (body as any).equipment_fee
+        : 0;
+
+    const manageToken = generateManageToken();
+
     const { data: bookingData, error: bookingError } = await supabase
       .from('bookings')
       .insert({
@@ -236,7 +267,14 @@ export async function POST(req: Request) {
         service_fee: (body.serviceFee || 0) * 100,
         frequency_discount: (body.frequencyDiscount || 0) * 100,
         price_snapshot: priceSnapshot,
+        // Legacy equipment fields
+        provide_equipment: equipmentRequired,
+        equipment_charge: equipmentFeeZar ? Math.round(equipmentFeeZar * 100) : 0,
+        // Normalized equipment fields
+        equipment_required: equipmentRequired,
+        equipment_fee: equipmentFeeZar,
         status: 'pending',
+        manage_token: manageToken,
       })
       .select()
       .single();
@@ -317,6 +355,7 @@ export async function POST(req: Request) {
         }
 
         const customerEmailData = await generateBookingConfirmationEmail({
+          manageToken,
           step: 6,
           service: body.service,
           firstName: body.firstName,
@@ -337,6 +376,9 @@ export async function POST(req: Request) {
           requires_team: body.requires_team || false,
           bookingId,
           totalAmount: adjustedTotalAmount,
+          // Surface normalized equipment fields to the email template
+          equipment_required: equipmentRequired,
+          equipment_fee: equipmentFeeZar,
           cleanerName
         });
         
@@ -361,6 +403,8 @@ export async function POST(req: Request) {
           requires_team: body.requires_team || false,
           bookingId,
           totalAmount: adjustedTotalAmount,
+          equipment_required: equipmentRequired,
+          equipment_fee: equipmentFeeZar,
         });
 
         await Promise.all([

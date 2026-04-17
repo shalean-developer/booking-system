@@ -2,79 +2,21 @@ import { BookingState, ServiceType } from '@/types/booking';
 import { calcTotalSync } from '@/lib/pricing';
 import { fetchActivePricing } from '@/lib/pricing-db';
 import { Resend } from 'resend';
+import {
+  sendEmail,
+  validateResendConfig,
+  sendBookingEmailWithData,
+  type EmailData,
+} from '@/lib/email/send';
+import { buildBookingEmailDataFromBookingState } from '@/lib/email/booking-data';
+import type { BookingEmailData } from '@/shared/email/types';
+import { formatBookingDateDisplay, formatBookingTimeDisplay } from '@/shared/email/datetime';
+import { bookingConfirmationSubject, renderBookingEmail } from '@/shared/email/renderer';
+import { publicSiteBaseUrl } from '@/lib/booking-manage';
+import { resolveAdminNotificationEmail } from '@/lib/admin-email';
+import { adminBookingNotificationTemplate } from '@/shared/email/templates/admin-booking-notification';
 
-/**
- * Send via Resend HTTP API (POST only). Do not use resend.emails.get() or GET /emails/:id
- * with non-UUID ids — that caused 422 "id must be a valid UUID" (e.g. /emails/0).
- */
-async function postResendEmail(params: {
-  from: string;
-  to: string[];
-  subject: string;
-  html: string;
-}): Promise<{ id?: string }> {
-  const key = process.env.RESEND_API_KEY?.trim();
-  if (!key) {
-    throw new Error('RESEND_API_KEY is not configured');
-  }
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: params.from,
-      to: params.to,
-      subject: params.subject,
-      html: params.html,
-    }),
-  });
-  const json = (await res.json()) as { id?: string; message?: string; name?: string };
-  if (!res.ok) {
-    console.error('❌ Resend API error:', res.status, json);
-    throw new Error(json.message || `Resend request failed (${res.status})`);
-  }
-  return { id: json.id };
-}
-
-/** Call before sending; logs clearly when misconfigured (local + prod). */
-export function validateResendConfig(): { ok: true } | { ok: false; error: string } {
-  const key = process.env.RESEND_API_KEY?.trim();
-  if (!key) {
-    const msg = 'RESEND_API_KEY is missing — set it in .env.local';
-    console.error('❌ [email]', msg);
-    return { ok: false, error: msg };
-  }
-  return { ok: true };
-}
-
-export interface EmailData {
-  to: string;
-  subject: string;
-  html: string;
-}
-
-export async function sendEmail({ to, subject, html }: EmailData) {
-  try {
-    const senderEmail = process.env.SENDER_EMAIL || 'noreply@shalean.co.za';
-    const senderName = 'Shalean Cleaning';
-    const fromAddress = `${senderName} <${senderEmail}>`;
-
-    const { id: emailId } = await postResendEmail({
-      from: fromAddress,
-      to: [to],
-      subject,
-      html,
-    });
-
-    console.log('Email sent successfully:', { emailId });
-    return { success: true, messageId: emailId };
-  } catch (error) {
-    console.error('Email sending failed:', error);
-    throw error;
-  }
-}
+export { sendEmail, validateResendConfig };
 
 const resendClient = new Resend(process.env.RESEND_API_KEY);
 
@@ -126,1000 +68,22 @@ export interface QuoteRequest {
   carpetDetails?: CarpetDetails; // Optional, only for Carpet service
 }
 
-// Helper function to generate calendar links
-function generateCalendarLinks(booking: {
-  date: string | null;
-  time: string | null;
-  service: ServiceType | null;
-  address: { line1: string; suburb: string; city: string };
-  bookingId: string;
-}) {
-  if (!booking.date || !booking.time) return null;
-
-  const bookingDate = new Date(booking.date);
-  const [hours, minutes] = booking.time.split(':').map(Number);
-  bookingDate.setHours(hours, minutes, 0, 0);
-  
-  // End time is 3 hours after start (typical cleaning duration)
-  const endDate = new Date(bookingDate);
-  endDate.setHours(endDate.getHours() + 3);
-
-  // Format dates for calendar (YYYYMMDDTHHmmss)
-  const formatCalendarDate = (date: Date) => {
-    return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-  };
-
-  const startDateStr = formatCalendarDate(bookingDate);
-  const endDateStr = formatCalendarDate(endDate);
-
-  const title = encodeURIComponent(`Cleaning Service - ${booking.service || 'Shalean Cleaning'}`);
-  const description = encodeURIComponent(
-    `Booking ID: ${booking.bookingId}\n` +
-    `Service: ${booking.service || 'Cleaning Service'}\n` +
-    `Address: ${booking.address.line1}, ${booking.address.suburb}, ${booking.address.city}`
-  );
-  const location = encodeURIComponent(
-    `${booking.address.line1}, ${booking.address.suburb}, ${booking.address.city}`
-  );
-
-  // Generate iCal content
-  const icalContent = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//Shalean Cleaning//Booking Calendar//EN',
-    'BEGIN:VEVENT',
-    `DTSTART:${startDateStr}`,
-    `DTEND:${endDateStr}`,
-    `SUMMARY:${decodeURIComponent(title)}`,
-    `DESCRIPTION:${decodeURIComponent(description)}`,
-    `LOCATION:${decodeURIComponent(location)}`,
-    'STATUS:CONFIRMED',
-    'END:VEVENT',
-    'END:VCALENDAR'
-  ].join('\r\n');
-
-  // For iCal, use a data URI that's properly formatted
-  const icalDataUri = `data:text/calendar;charset=utf-8,${encodeURIComponent(icalContent)}`;
-
-  return {
-    google: `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startDateStr}/${endDateStr}&details=${description}&location=${location}`,
-    outlook: `https://outlook.live.com/calendar/0/deeplink/compose?subject=${title}&startdt=${bookingDate.toISOString()}&enddt=${endDate.toISOString()}&body=${description}&location=${location}`,
-    ical: icalDataUri
-  };
-}
-
-// Helper function to calculate next booking dates for recurring bookings
-function calculateNextBookingDates(startDate: string, frequency: 'one-time' | 'weekly' | 'bi-weekly' | 'monthly', count: number = 3): string[] {
-  if (frequency === 'one-time') return [];
-  
-  const dates: string[] = [];
-  const start = new Date(startDate);
-  
-  for (let i = 1; i <= count; i++) {
-    const nextDate = new Date(start);
-    
-    switch (frequency) {
-      case 'weekly':
-        nextDate.setDate(start.getDate() + (7 * i));
-        break;
-      case 'bi-weekly':
-        nextDate.setDate(start.getDate() + (14 * i));
-        break;
-      case 'monthly':
-        nextDate.setMonth(start.getMonth() + i);
-        break;
-    }
-    
-    dates.push(nextDate.toISOString().split('T')[0]);
-  }
-  
-  return dates;
-}
-
 export async function generateBookingConfirmationEmail(
-  booking: BookingState & { bookingId: string; totalAmount?: number; cleanerName?: string }
-): Promise<EmailData> {
-  // Use the actual totalAmount if provided (from database), otherwise recalculate
-  // totalAmount from database is in cents, so divide by 100 to get rands
-  let totalPrice: number;
-  if (booking.totalAmount !== undefined && booking.totalAmount > 0) {
-    // If totalAmount is > 1000, it's likely in cents (e.g., 150000 = R1500.00)
-    // Otherwise it might already be in rands
-    totalPrice = booking.totalAmount > 1000 ? booking.totalAmount / 100 : booking.totalAmount;
-  } else {
-    const pricingData = await fetchActivePricing();
-    const pricingDetails = calcTotalSync(
-      {
-        service: booking.service,
-        bedrooms: booking.bedrooms || 0,
-        bathrooms: booking.bathrooms || 0,
-        extras: booking.extras || [],
-        extrasQuantities: booking.extrasQuantities,
-      },
-      booking.frequency || 'one-time',
-      pricingData
-    );
-    totalPrice = pricingDetails.total;
+  booking: BookingState & {
+    bookingId: string;
+    totalAmount?: number;
+    cleanerName?: string;
+    equipment_required?: boolean;
+    equipment_fee?: number;
+    inferredPaid?: boolean;
+    manageToken?: string;
   }
-
-  // Generate calendar links
-  const calendarLinks = generateCalendarLinks(booking);
-  
-  // Calculate next booking dates for recurring bookings
-  const nextBookingDates = booking.date && booking.frequency && booking.frequency !== 'one-time'
-    ? calculateNextBookingDates(booking.date, booking.frequency)
-    : [];
-
-  // Format date and time
-  const formattedDate = booking.date 
-    ? new Date(booking.date).toLocaleDateString('en-ZA', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      })
-    : 'Not specified';
-  
-  const formattedTime = booking.time 
-    ? new Date(`2000-01-01T${booking.time}`).toLocaleTimeString('en-ZA', { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: true 
-      })
-    : 'Not specified';
-
-  // Frequency display text
-  const frequencyText = booking.frequency === 'one-time' 
-    ? 'One-time booking'
-    : booking.frequency === 'weekly'
-    ? 'Weekly (every week)'
-    : booking.frequency === 'bi-weekly'
-    ? 'Bi-weekly (every 2 weeks)'
-    : booking.frequency === 'monthly'
-    ? 'Monthly (every month)'
-    : 'One-time booking';
-
-  // Dashboard URL
-  const dashboardUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://shalean.co.za';
-  const bookingDashboardUrl = `${dashboardUrl}/dashboard`;
-
-  // Site URL for calendar links
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://shalean.co.za';
-  
-  // Show full ID for SC format (SC + 8 digits), otherwise last 8 for legacy
-  const displayBookingId = /^SC\d{8}$/.test(booking.bookingId)
-    ? booking.bookingId
-    : booking.bookingId.slice(-8);
-  
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Booking Confirmation - Shalean Cleaning</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-          line-height: 1.6;
-          color: #111827;
-          background-color: #f0f2f5;
-          padding: 20px;
-          -webkit-font-smoothing: antialiased;
-        }
-        .email-container {
-          max-width: 600px;
-          margin: 0 auto;
-          background-color: #ffffff;
-          border-radius: 16px;
-          overflow: hidden;
-          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-          border: 1px solid #f3f4f6;
-        }
-        /* Matches booking flow header: white bar, brand kicker, title */
-        .header {
-          background-color: #ffffff;
-          color: #111827;
-          padding: 24px 28px;
-          text-align: left;
-          border-bottom: 1px solid #e5e7eb;
-        }
-        .header-brand {
-          font-size: 10px;
-          font-weight: 600;
-          letter-spacing: 0.2em;
-          text-transform: uppercase;
-          color: #9ca3af;
-          margin-bottom: 14px;
-        }
-        .header-main {
-          display: flex;
-          align-items: flex-start;
-          gap: 16px;
-        }
-        .header-icon-circle {
-          flex-shrink: 0;
-          width: 48px;
-          height: 48px;
-          border-radius: 12px;
-          background-color: #22c55e;
-          color: #ffffff;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 22px;
-          font-weight: 700;
-          box-shadow: 0 4px 14px rgba(34, 197, 94, 0.35);
-        }
-        .header-text-wrap { min-width: 0; }
-        .header h1 {
-          font-size: 22px;
-          font-weight: 700;
-          margin-bottom: 6px;
-          color: #111827;
-          letter-spacing: -0.02em;
-        }
-        .header p {
-          color: #6b7280;
-          font-size: 14px;
-          line-height: 1.5;
-        }
-        .status-banner {
-          background-color: #f5f3ff;
-          padding: 14px 28px;
-          border-bottom: 1px solid #ede9fe;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        }
-        .status-banner-content {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          color: #6d28d9;
-          font-weight: 600;
-          font-size: 14px;
-        }
-        .status-badge {
-          font-size: 10px;
-          color: #6d28d9;
-          background-color: #ffffff;
-          padding: 5px 10px;
-          border-radius: 9999px;
-          border: 1px solid #ddd6fe;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-          font-weight: 700;
-        }
-        .content {
-          padding: 28px;
-        }
-        .greeting {
-          margin-bottom: 28px;
-        }
-        .greeting h2 {
-          font-size: 18px;
-          font-weight: 700;
-          color: #111827;
-          margin-bottom: 8px;
-        }
-        .greeting p {
-          color: #6b7280;
-          line-height: 1.65;
-          font-size: 14px;
-        }
-        .booking-summary-card {
-          background-color: #ffffff;
-          border-radius: 16px;
-          padding: 22px;
-          margin-bottom: 24px;
-          border: 1px solid #f3f4f6;
-          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-        }
-        .section-header-row {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 18px;
-        }
-        .section-icon-box {
-          width: 36px;
-          height: 36px;
-          border-radius: 12px;
-          background-color: #7c3aed;
-          color: #ffffff;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 15px;
-          flex-shrink: 0;
-        }
-        .section-heading {
-          font-size: 16px;
-          font-weight: 700;
-          color: #111827;
-          letter-spacing: -0.02em;
-        }
-        .info-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 24px;
-        }
-        .info-item {
-          display: flex;
-          flex-direction: column;
-        }
-        .info-label {
-          font-size: 11px;
-          color: #6b7280;
-          font-weight: 600;
-          margin-bottom: 4px;
-          display: block;
-        }
-        .info-value {
-          color: #111827;
-          font-weight: 600;
-          font-size: 14px;
-        }
-        .info-value-with-icon {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          color: #111827;
-          font-weight: 600;
-          font-size: 14px;
-        }
-        .icon {
-          width: 16px;
-          height: 16px;
-          color: #9ca3af;
-        }
-        .full-width {
-          grid-column: 1 / -1;
-        }
-        .details-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 32px;
-          margin-bottom: 32px;
-        }
-        .service-details {
-          flex: 1;
-        }
-        .section-title {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 16px;
-        }
-        .address-text {
-          color: #111827;
-          line-height: 1.6;
-          margin-top: 4px;
-          font-size: 14px;
-        }
-        .details-row {
-          display: flex;
-          gap: 16px;
-          margin-top: 16px;
-        }
-        .details-item {
-          flex: 1;
-        }
-        .addon-badges {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          margin-top: 8px;
-        }
-        .addon-badge {
-          display: inline-flex;
-          align-items: center;
-          padding: 4px 10px;
-          border-radius: 9999px;
-          font-size: 12px;
-          font-weight: 600;
-          background-color: #f5f3ff;
-          color: #6d28d9;
-          border: 1px solid #ddd6fe;
-        }
-        .cleaner-assignment-card {
-          background-color: #fffbeb;
-          border-radius: 16px;
-          padding: 20px;
-          border: 1px solid #fde68a;
-          height: fit-content;
-        }
-        .cleaner-header {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 12px;
-        }
-        .cleaner-header .section-icon-box-amber {
-          width: 36px;
-          height: 36px;
-          border-radius: 12px;
-          background-color: #f59e0b;
-          color: #ffffff;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 15px;
-          flex-shrink: 0;
-        }
-        .cleaner-header-title {
-          font-size: 16px;
-          font-weight: 700;
-          color: #92400e;
-          letter-spacing: -0.02em;
-        }
-        .cleaner-content {
-          display: flex;
-          align-items: flex-start;
-          gap: 12px;
-        }
-        .cleaner-icon {
-          background-color: #fde68a;
-          padding: 8px;
-          border-radius: 8px;
-          color: #78350f;
-          margin-top: 4px;
-        }
-        .cleaner-text {
-          flex: 1;
-        }
-        .cleaner-title {
-          font-weight: 700;
-          color: #78350f;
-          font-size: 14px;
-        }
-        .cleaner-description {
-          color: #92400e;
-          font-size: 12px;
-          line-height: 1.75;
-          margin-top: 4px;
-        }
-        .payment-section {
-          border-top: 1px solid #f3f4f6;
-          padding-top: 28px;
-          margin-bottom: 28px;
-        }
-        .payment-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 16px;
-          gap: 16px;
-        }
-        .payment-header .section-header-row {
-          margin-bottom: 0;
-        }
-        .total-amount {
-          font-size: 24px;
-          font-weight: 700;
-          color: #111827;
-          letter-spacing: -0.02em;
-        }
-        .payment-info {
-          background-color: #fafafa;
-          border-radius: 12px;
-          padding: 16px;
-          font-size: 13px;
-          color: #6b7280;
-          border: 1px solid #f3f4f6;
-        }
-        .payment-reference {
-          margin-bottom: 4px;
-        }
-        .payment-ref-value {
-          font-family: ui-monospace, monospace;
-          color: #374151;
-          font-weight: 600;
-        }
-        .payment-status {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          color: #6d28d9;
-          font-weight: 600;
-          margin-top: 6px;
-          font-size: 13px;
-        }
-        .actions-section {
-          margin-bottom: 28px;
-        }
-        .action-button {
-          width: 100%;
-          background-color: #7c3aed;
-          color: #ffffff;
-          font-weight: 700;
-          padding: 14px 18px;
-          border-radius: 12px;
-          text-decoration: none;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          margin-bottom: 16px;
-          font-size: 15px;
-          box-shadow: 0 4px 14px rgba(124, 58, 237, 0.25);
-        }
-        .action-button:hover {
-          background-color: #6d28d9;
-        }
-        .calendar-section {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 16px;
-          font-size: 14px;
-        }
-        .calendar-label {
-          color: #64748b;
-          font-weight: 500;
-        }
-        .calendar-links {
-          display: flex;
-          gap: 16px;
-        }
-        .calendar-link {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          color: #7c3aed;
-          text-decoration: none;
-          font-weight: 600;
-          font-size: 14px;
-        }
-        .calendar-link:hover {
-          text-decoration: underline;
-          color: #6d28d9;
-        }
-        .help-section {
-          background-color: #ffffff;
-          border-radius: 16px;
-          padding: 22px;
-          border: 1px solid #f3f4f6;
-          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-        }
-        .help-header {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 14px;
-        }
-        .help-header .section-icon-box {
-          background-color: #7c3aed;
-        }
-        .help-heading-text {
-          font-size: 16px;
-          font-weight: 700;
-          color: #111827;
-        }
-        .help-text {
-          font-size: 14px;
-          color: #6b7280;
-          line-height: 1.65;
-          margin-bottom: 16px;
-        }
-        .contact-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 16px;
-        }
-        .contact-card {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 14px 14px;
-          background-color: #fafafa;
-          border: 1px solid #f3f4f6;
-          border-radius: 12px;
-          text-decoration: none;
-          transition: border-color 0.2s;
-        }
-        .contact-card:hover {
-          border-color: #ddd6fe;
-        }
-        .contact-icon {
-          background-color: #f5f3ff;
-          padding: 8px;
-          border-radius: 12px;
-          color: #7c3aed;
-          font-size: 16px;
-        }
-        .contact-info {
-          flex: 1;
-        }
-        .contact-label {
-          font-size: 11px;
-          color: #9ca3af;
-          font-weight: 600;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-        }
-        .contact-value {
-          font-size: 14px;
-          color: #111827;
-          font-weight: 600;
-        }
-        .footer {
-          background-color: #fafafa;
-          padding: 28px;
-          text-align: center;
-          color: #374151;
-          border-top: 1px solid #f3f4f6;
-        }
-        .footer-brand {
-          font-weight: 700;
-          font-size: 17px;
-          margin-bottom: 8px;
-          color: #111827;
-        }
-        .footer-text {
-          color: #6b7280;
-          font-size: 13px;
-          line-height: 1.65;
-          margin-bottom: 20px;
-        }
-        .footer-links {
-          display: flex;
-          flex-wrap: wrap;
-          justify-content: center;
-          gap: 12px 20px;
-          font-size: 14px;
-          font-weight: 600;
-          margin-bottom: 20px;
-        }
-        .footer-link {
-          color: #7c3aed;
-          text-decoration: none;
-        }
-        .footer-link:hover {
-          color: #6d28d9;
-          text-decoration: underline;
-        }
-        .footer-separator {
-          color: #d1d5db;
-        }
-        .footer-footer {
-          padding-top: 20px;
-          border-top: 1px solid #f3f4f6;
-        }
-        .footer-info {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          color: #9ca3af;
-          font-size: 12px;
-          margin-bottom: 8px;
-        }
-        .footer-booking-id {
-          color: #6b7280;
-          font-size: 10px;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-          font-weight: 700;
-        }
-        .mobile-tip {
-          max-width: 600px;
-          margin: 20px auto 0;
-          padding: 0 16px;
-          text-align: center;
-        }
-        .mobile-tip-content {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          color: #9ca3af;
-          font-size: 12px;
-        }
-        @media only screen and (max-width: 600px) {
-          body {
-            padding: 10px;
-          }
-          .header {
-            padding: 20px 18px;
-          }
-          .header h1 {
-            font-size: 20px;
-          }
-          .header p {
-            font-size: 13px;
-          }
-          .header-main {
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-          }
-          .header-text-wrap {
-            text-align: center;
-          }
-          .status-banner {
-            padding: 12px 18px;
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 8px;
-          }
-          .content {
-            padding: 22px 18px;
-          }
-          .info-grid {
-            grid-template-columns: 1fr;
-            gap: 16px;
-          }
-          .details-grid {
-            grid-template-columns: 1fr;
-            gap: 24px;
-          }
-          .contact-grid {
-            grid-template-columns: 1fr;
-          }
-          .calendar-links {
-            flex-direction: column;
-            gap: 8px;
-          }
-          .payment-header {
-            flex-direction: column;
-            align-items: flex-start;
-          }
-          .total-amount {
-            align-self: flex-end;
-          }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="email-container">
-        <!-- Header — matches booking flow (step 4) -->
-        <div class="header">
-          <p class="header-brand">Shalean Cleaning Services</p>
-          <div class="header-main">
-            <div class="header-icon-circle" aria-hidden="true">✓</div>
-            <div class="header-text-wrap">
-              <h1>Booking confirmed</h1>
-              <p>Thank you for choosing us — your clean is on the calendar.</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Status Banner -->
-        ${booking.paymentReference ? `
-        <div class="status-banner">
-          <div class="status-banner-content">
-            <span>💳</span>
-            <span>Payment Confirmed</span>
-          </div>
-          <span class="status-badge">Paid</span>
-        </div>
-        ` : ''}
-
-        <!-- Content Body -->
-        <div class="content">
-          <div class="greeting">
-            <h2>Hi ${booking.firstName} ${booking.lastName},</h2>
-            <p>Your cleaning service has been successfully booked! We're excited to help you get your space sparkling clean. Here are all the details for your upcoming service:</p>
-          </div>
-
-          <!-- Booking Summary Card -->
-          <div class="booking-summary-card">
-            <div class="section-header-row">
-              <div class="section-icon-box" aria-hidden="true">📅</div>
-              <div class="section-heading">Booking summary</div>
-            </div>
-            
-            <div class="info-grid">
-              <div class="info-item">
-                <span class="info-label">Booking ID</span>
-                <span class="info-value">${displayBookingId}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">Service Type</span>
-                <span class="info-value">${booking.service || 'N/A'}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">Date</span>
-                <div class="info-value-with-icon">
-                  <span>📅</span>
-                  <span>${formattedDate}</span>
-                </div>
-              </div>
-              <div class="info-item">
-                <span class="info-label">Time</span>
-                <div class="info-value-with-icon">
-                  <span>🕐</span>
-                  <span>${formattedTime}</span>
-                </div>
-              </div>
-              <div class="info-item full-width">
-                <span class="info-label">Frequency</span>
-                <span class="info-value">${frequencyText}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="details-grid">
-            <!-- Service Details -->
-            <div class="service-details">
-              <div class="section-title">
-                <div class="section-icon-box" aria-hidden="true">📍</div>
-                <div class="section-heading">Service details</div>
-              </div>
-              <div>
-                <span class="info-label">Address</span>
-                <div class="address-text">
-                  ${booking.address.line1}<br>
-                  ${booking.address.suburb}<br>
-                  ${booking.address.city}
-                </div>
-              </div>
-              <div class="details-row">
-                <div class="details-item">
-                  <span class="info-label">Bedrooms</span>
-                  <div class="info-value">${booking.bedrooms}</div>
-                </div>
-                <div class="details-item">
-                  <span class="info-label">Bathrooms</span>
-                  <div class="info-value">${booking.bathrooms}</div>
-                </div>
-              </div>
-              ${booking.extras.length > 0 ? `
-              <div style="margin-top: 16px;">
-                <span class="info-label">Additional Services</span>
-                <div class="addon-badges">
-                  ${booking.extras.map(extra => `
-                    <span class="addon-badge">
-                      ${extra === 'Inside Fridge' ? '❄️' : ''}
-                      ${extra === 'Inside Oven' ? '🔥' : ''}
-                      ${extra}
-                    </span>
-                  `).join('')}
-                </div>
-              </div>
-              ` : ''}
-            </div>
-
-            <!-- Cleaner Assignment -->
-            <div class="cleaner-assignment-card">
-              <div class="cleaner-header">
-                <div class="section-icon-box-amber" aria-hidden="true">👤</div>
-                <div class="cleaner-header-title">Cleaner assignment</div>
-              </div>
-              ${booking.cleanerName ? `
-              <div class="cleaner-content">
-                <div class="cleaner-icon">✓</div>
-                <div class="cleaner-text">
-                  <div class="cleaner-title">${booking.cleanerName}</div>
-                  <div class="cleaner-description">Professional cleaner assigned to your booking</div>
-                </div>
-              </div>
-              ` : booking.cleaner_id === 'manual' ? `
-              <div class="cleaner-content">
-                <div class="cleaner-icon">⚠️</div>
-                <div class="cleaner-text">
-                  <div class="cleaner-title">Manual Assignment Requested</div>
-                  <div class="cleaner-description">Our team will assign the best available cleaner for you and contact you within 24 hours to confirm.</div>
-                </div>
-              </div>
-              ` : `
-              <div class="cleaner-content">
-                <div class="cleaner-icon">🕐</div>
-                <div class="cleaner-text">
-                  <div class="cleaner-title">Assignment Pending</div>
-                  <div class="cleaner-description">A cleaner will be assigned to your booking shortly. You will receive a notification once confirmed.</div>
-                </div>
-              </div>
-              `}
-            </div>
-          </div>
-
-          <!-- Payment Summary -->
-          <div class="payment-section">
-            <div class="payment-header">
-              <div class="section-header-row">
-                <div class="section-icon-box" aria-hidden="true">💳</div>
-                <div class="section-heading">Payment summary</div>
-              </div>
-              <p class="total-amount">R${totalPrice.toFixed(2)}</p>
-            </div>
-            <div class="payment-info">
-              ${booking.paymentReference ? `
-              <p class="payment-reference">Payment Reference: <span class="payment-ref-value">${booking.paymentReference}</span></p>
-              <div class="payment-status">
-                <span>✓</span>
-                <span>Payment Confirmed</span>
-              </div>
-              ` : `
-              <div class="payment-status" style="color: #f59e0b;">
-                Payment Pending
-              </div>
-              `}
-            </div>
-          </div>
-
-          <!-- Actions -->
-          <div class="actions-section">
-            <a href="${bookingDashboardUrl}" class="action-button">
-              <span>🔗</span>
-              <span>View Booking in Dashboard</span>
-            </a>
-            
-            ${calendarLinks ? `
-            <div class="calendar-section">
-              <span class="calendar-label">Add to Calendar:</span>
-              <div class="calendar-links">
-                <a href="${calendarLinks.google}" class="calendar-link">📅 Google</a>
-                <a href="${calendarLinks.outlook}" class="calendar-link">📧 Outlook</a>
-                <a href="${calendarLinks.ical}" class="calendar-link">📅 iCal</a>
-              </div>
-            </div>
-            ` : ''}
-          </div>
-
-          <!-- Help Section -->
-          <div class="help-section">
-            <div class="help-header">
-              <div class="section-icon-box" aria-hidden="true">❓</div>
-              <div class="help-heading-text">Need help?</div>
-            </div>
-            <p class="help-text">If you have any questions or need to make changes to your booking, please contact us:</p>
-            <div class="contact-grid">
-              <a href="tel:+27871535250" class="contact-card">
-                <div class="contact-icon">📞</div>
-                <div class="contact-info">
-                  <div class="contact-label">Call Us</div>
-                  <div class="contact-value">+27 87 153 5250</div>
-                </div>
-              </a>
-              <a href="mailto:bookings@shalean.com" class="contact-card">
-                <div class="contact-icon">✉️</div>
-                <div class="contact-info">
-                  <div class="contact-label">Email Us</div>
-                  <div class="contact-value">bookings@shalean.com</div>
-                </div>
-              </a>
-            </div>
-          </div>
-        </div>
-
-        <!-- Footer -->
-        <div class="footer">
-          <div class="footer-brand">Shalean Cleaning Services</div>
-          <p class="footer-text">Thank you for choosing us for your cleaning needs!<br>We pride ourselves on reliability and excellence.</p>
-          <div class="footer-links">
-            <a href="${siteUrl}" class="footer-link">Visit our website</a>
-            <span class="footer-separator">|</span>
-            <a href="${siteUrl}/dashboard" class="footer-link">My Dashboard</a>
-          </div>
-          <div class="footer-footer">
-            <div class="footer-info">
-              <span>ℹ️</span>
-              <span>This is an automated email. Please do not reply to this message.</span>
-            </div>
-            <p class="footer-booking-id">Booking ID: ${displayBookingId}</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Responsive Tip for Mobile App Viewers -->
-      <div class="mobile-tip">
-        <div class="mobile-tip-content">
-          <span>📱</span>
-          <span>Optimized for all devices</span>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-
+): Promise<EmailData> {
+  const data = await buildBookingEmailDataFromBookingState(booking);
   return {
     to: booking.email,
-    subject: `Booking Confirmation - ${displayBookingId} | Shalean Cleaning`,
-    html,
+    subject: bookingConfirmationSubject(data),
+    html: renderBookingEmail(data),
   };
 }
 
@@ -1165,465 +129,56 @@ export async function generateAdminBookingNotificationEmail(
       })
     : 'Not specified';
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>New Booking Received - Shalean Cleaning</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; 
-          line-height: 1.6; 
-          color: #1e293b; 
-          background-color: #f1f5f9;
-          padding: 20px;
-        }
-        .email-container {
-          max-width: 672px;
-          margin: 0 auto;
-          background-color: #ffffff;
-          border-radius: 16px;
-          overflow: hidden;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-          border: 1px solid #e2e8f0;
-        }
-        .header {
-          background-color: #0C53ED;
-          color: white;
-          padding: 32px;
-          text-align: center;
-        }
-        .header-icon-wrapper {
-          display: flex;
-          justify-content: center;
-          margin-bottom: 16px;
-        }
-        .header-icon-circle {
-          background-color: rgba(255, 255, 255, 0.2);
-          padding: 12px;
-          border-radius: 50%;
-          backdrop-filter: blur(4px);
-        }
-        .header-icon {
-          width: 48px;
-          height: 48px;
-          color: white;
-        }
-        .header h1 {
-          font-size: 30px;
-          font-weight: 700;
-          margin-bottom: 8px;
-        }
-        .header p {
-          color: rgba(255, 255, 255, 0.9);
-          font-size: 18px;
-        }
-        .status-banner {
-          background-color: #fee2e2;
-          padding: 16px 32px;
-          border-bottom: 1px solid #fecaca;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .status-banner-content {
-          color: #991b1b;
-          font-weight: 700;
-          text-align: center;
-        }
-        .content {
-          padding: 32px;
-        }
-        .greeting {
-          margin-bottom: 32px;
-        }
-        .greeting p {
-          color: #475569;
-          line-height: 1.75;
-        }
-        .booking-summary-card {
-          background-color: #f8fafc;
-          border-radius: 12px;
-          padding: 24px;
-          margin-bottom: 32px;
-          border: 1px solid #e2e8f0;
-        }
-        .section-header {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          color: #0C53ED;
-          font-weight: 700;
-          text-transform: uppercase;
-          font-size: 14px;
-          letter-spacing: 0.05em;
-          margin-bottom: 16px;
-        }
-        .info-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 24px;
-        }
-        .info-item {
-          display: flex;
-          flex-direction: column;
-        }
-        .info-label {
-          font-size: 11px;
-          color: #64748b;
-          text-transform: uppercase;
-          font-weight: 700;
-          margin-bottom: 4px;
-          display: block;
-        }
-        .info-value {
-          color: #0f172a;
-          font-weight: 500;
-          font-family: monospace;
-        }
-        .info-value-with-icon {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          color: #0f172a;
-          font-weight: 500;
-        }
-        .full-width {
-          grid-column: 1 / -1;
-        }
-        .contact-card {
-          background-color: #fef3c7;
-          border-radius: 12px;
-          padding: 24px;
-          margin-bottom: 32px;
-          border: 1px solid #fde68a;
-        }
-        .section-title {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          color: #0C53ED;
-          font-weight: 700;
-          text-transform: uppercase;
-          font-size: 14px;
-          letter-spacing: 0.05em;
-          margin-bottom: 16px;
-        }
-        .details-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 32px;
-          margin-bottom: 32px;
-        }
-        .service-details {
-          flex: 1;
-        }
-        .address-text {
-          color: #0f172a;
-          line-height: 1.6;
-          margin-top: 4px;
-        }
-        .details-row {
-          display: flex;
-          gap: 16px;
-          margin-top: 16px;
-        }
-        .details-item {
-          flex: 1;
-        }
-        .addon-badges {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          margin-top: 8px;
-        }
-        .addon-badge {
-          display: inline-flex;
-          align-items: center;
-          padding: 4px 10px;
-          border-radius: 9999px;
-          font-size: 12px;
-          font-weight: 500;
-          background-color: #dbeafe;
-          color: #1e40af;
-          border: 1px solid #93c5fd;
-        }
-        .cleaner-assignment-card {
-          background-color: #fee2e2;
-          border-radius: 12px;
-          padding: 20px;
-          border: 1px solid #fecaca;
-          border-left: 4px solid #ef4444;
-        }
-        .cleaner-assignment-card.assigned {
-          background-color: #dbeafe;
-          border: 1px solid #bfdbfe;
-          border-left: 4px solid #0C53ED;
-        }
-        .payment-section {
-          background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-          border-radius: 12px;
-          padding: 24px;
-          margin-bottom: 32px;
-          border: 2px solid #0C53ED;
-        }
-        .payment-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 16px;
-        }
-        .total-amount {
-          font-size: 24px;
-          font-weight: 700;
-          color: #0f172a;
-        }
-        .next-steps {
-          background-color: #fef3c7;
-          border-radius: 12px;
-          padding: 24px;
-          margin-bottom: 32px;
-          border: 1px solid #fde68a;
-          border-left: 4px solid #f59e0b;
-        }
-        .next-steps-title {
-          font-weight: 700;
-          color: #92400e;
-          margin-bottom: 12px;
-        }
-        .next-steps-list {
-          list-style: none;
-          padding: 0;
-        }
-        .next-steps-list li {
-          padding: 6px 0;
-          color: #78350f;
-        }
-        .footer {
-          background-color: #0f172a;
-          padding: 32px;
-          text-align: center;
-          color: white;
-        }
-        .footer-text {
-          color: #94a3b8;
-          font-size: 14px;
-          line-height: 1.75;
-          margin-bottom: 8px;
-        }
-        .footer-timestamp {
-          color: #64748b;
-          font-size: 12px;
-        }
-        @media only screen and (max-width: 600px) {
-          body {
-            padding: 10px;
-          }
-          .header {
-            padding: 24px 16px;
-          }
-          .header h1 {
-            font-size: 24px;
-          }
-          .header p {
-            font-size: 16px;
-          }
-          .status-banner {
-            padding: 12px 16px;
-          }
-          .content {
-            padding: 24px 16px;
-          }
-          .info-grid {
-            grid-template-columns: 1fr;
-            gap: 16px;
-          }
-          .details-grid {
-            grid-template-columns: 1fr;
-            gap: 24px;
-          }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="email-container">
-        <!-- Header Section -->
-        <div class="header">
-          <div class="header-icon-wrapper">
-            <div class="header-icon-circle">
-              <div class="header-icon">🔔</div>
-            </div>
-          </div>
-          <h1>New Booking Received!</h1>
-          <p>Shalean Cleaning Services - Admin Notification</p>
-        </div>
+  const serviceLabel = booking.service || 'N/A';
+  const addressLines = [
+    booking.address.line1,
+    booking.address.suburb,
+    booking.address.city,
+  ].filter((s) => String(s || '').trim().length > 0);
 
-        <!-- Status Banner -->
-        <div class="status-banner">
-          <div class="status-banner-content">
-            <strong>⚠️ ACTION REQUIRED</strong> - New booking needs confirmation
-          </div>
-        </div>
+  const extrasLines = [...booking.extras];
 
-        <!-- Content Body -->
-        <div class="content">
-          <div class="greeting">
-            <p>A new cleaning service has been booked and requires your attention.</p>
-          </div>
+  const manual = booking.cleaner_id === 'manual';
+  const nextStepLines: string[] = [];
+  if (manual) nextStepLines.push('⚠️ 1. ASSIGN CLEANER MANUALLY');
+  nextStepLines.push(`${manual ? '2' : '1'}. Contact customer within 24 hours`);
+  nextStepLines.push(`${manual ? '3' : '2'}. Confirm appointment and availability`);
+  nextStepLines.push(
+    `${manual ? '4' : '3'}. ${booking.paymentReference ? 'Payment already received' : 'Send payment link/details'}`,
+  );
+  nextStepLines.push(`${manual ? '5' : '4'}. Schedule team assignment`);
 
-          <!-- Customer Contact Card -->
-          <div class="contact-card">
-            <div class="section-title">
-              <span>👤</span>
-              <span>Customer Contact Information</span>
-            </div>
-            <div class="info-grid">
-              <div class="info-item">
-                <span class="info-label">Name</span>
-                <span class="info-value">${booking.firstName} ${booking.lastName}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">Email</span>
-                <span class="info-value"><a href="mailto:${booking.email}" style="color: #0C53ED;">${booking.email}</a></span>
-              </div>
-              <div class="info-item full-width">
-                <span class="info-label">Phone</span>
-                <span class="info-value"><a href="tel:${booking.phone}" style="color: #0C53ED;">${booking.phone}</a></span>
-              </div>
-            </div>
-          </div>
+  let cleaner:
+    | { kind: 'manual' }
+    | { kind: 'assigned'; id: string }
+    | { kind: 'none' };
+  if (booking.cleaner_id === 'manual') cleaner = { kind: 'manual' };
+  else if (booking.cleaner_id) cleaner = { kind: 'assigned', id: String(booking.cleaner_id) };
+  else cleaner = { kind: 'none' };
 
-          <!-- Booking Summary Card -->
-          <div class="booking-summary-card">
-            <div class="section-header">
-              <span>📋</span>
-              <span>Booking Details</span>
-            </div>
-            
-            <div class="info-grid">
-              <div class="info-item">
-                <span class="info-label">Booking ID</span>
-                <span class="info-value">${booking.bookingId}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">Service Type</span>
-                <span class="info-value">${booking.service || 'N/A'}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">Date</span>
-                <div class="info-value-with-icon">
-                  <span>📅</span>
-                  <span>${formattedDate}</span>
-                </div>
-              </div>
-              <div class="info-item">
-                <span class="info-label">Time</span>
-                <div class="info-value-with-icon">
-                  <span>🕐</span>
-                  <span>${formattedTime}</span>
-                </div>
-              </div>
-            </div>
+  const notesTrimmed = booking.notes?.trim();
+  const notes = notesTrimmed ? notesTrimmed : null;
 
-            <div style="margin-top: 24px;">
-              <div class="section-header" style="margin-bottom: 12px;">
-                <span>📍</span>
-                <span>Service Address</span>
-              </div>
-              <div class="address-text">
-                ${booking.address.line1}<br>
-                ${booking.address.suburb}<br>
-                ${booking.address.city}
-              </div>
-            </div>
+  const html = adminBookingNotificationTemplate({
+    bookingId: booking.bookingId,
+    customerName: `${booking.firstName} ${booking.lastName}`.trim(),
+    email: booking.email,
+    phone: booking.phone,
+    serviceLabel,
+    formattedDate,
+    formattedTime,
+    addressLines,
+    bedrooms: booking.bedrooms,
+    bathrooms: booking.bathrooms,
+    extrasLines,
+    notes,
+    cleaner,
+    totalPrice,
+    nextStepLines,
+    receivedAtLabel: `Booking received at: ${new Date().toLocaleString('en-ZA')}`,
+  });
 
-            <div class="details-row" style="margin-top: 24px;">
-              <div class="details-item">
-                <span class="info-label">Bedrooms</span>
-                <div class="info-value">${booking.bedrooms}</div>
-              </div>
-              <div class="details-item">
-                <span class="info-label">Bathrooms</span>
-                <div class="info-value">${booking.bathrooms}</div>
-              </div>
-            </div>
-
-            ${booking.extras.length > 0 ? `
-            <div style="margin-top: 24px;">
-              <span class="info-label">Additional Services</span>
-              <div class="addon-badges">
-                ${booking.extras.map(extra => `<span class="addon-badge">${extra}</span>`).join('')}
-              </div>
-            </div>
-            ` : ''}
-
-            ${booking.notes ? `
-            <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e2e8f0;">
-              <span class="info-label">Special Instructions</span>
-              <p style="color: #334155; line-height: 1.6; margin-top: 8px;">${booking.notes}</p>
-            </div>
-            ` : ''}
-
-            <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e2e8f0;">
-              <span class="info-label">Cleaner Assignment</span>
-              ${booking.cleaner_id === 'manual' ? `
-              <div class="cleaner-assignment-card">
-                <div style="font-weight: 700; color: #991b1b; margin-bottom: 4px;">⚠️ MANUAL CLEANER ASSIGNMENT REQUIRED</div>
-                <div style="font-size: 14px; color: #7f1d1d;">Customer requested manual assignment. Please assign a cleaner for this booking.</div>
-              </div>
-              ` : booking.cleaner_id ? `
-              <div class="cleaner-assignment-card assigned" style="margin-top: 12px;">
-                <div style="font-weight: 600; color: #1e40af; margin-bottom: 4px;">✅ Cleaner Assigned</div>
-                <div style="font-size: 14px; color: #1e3a8a;">Cleaner ID: ${booking.cleaner_id}</div>
-              </div>
-              ` : `
-              <div class="cleaner-assignment-card" style="margin-top: 12px;">
-                <div style="font-weight: 600; color: #991b1b; margin-bottom: 4px;">⚠️ No Cleaner Assigned Yet</div>
-                <div style="font-size: 14px; color: #7f1d1d;">Please assign a cleaner to this booking.</div>
-              </div>
-              `}
-            </div>
-          </div>
-
-          <!-- Payment Summary -->
-          <div class="payment-section">
-            <div class="payment-header">
-              <div class="section-title" style="color: #1e40af;">
-                <span>💰</span>
-                <span>Pricing Summary</span>
-              </div>
-              <p class="total-amount">R${totalPrice.toFixed(2)}</p>
-            </div>
-            <p style="text-align: center; color: #334155; font-weight: 600; margin-top: 8px;">Customer will pay: R${totalPrice.toFixed(2)}</p>
-          </div>
-
-          <!-- Next Steps -->
-          <div class="next-steps">
-            <div class="next-steps-title">Next Steps:</div>
-            <ul class="next-steps-list">
-              ${booking.cleaner_id === 'manual' ? '<li>⚠️ 1. ASSIGN CLEANER MANUALLY</li>' : ''}
-              <li>${booking.cleaner_id === 'manual' ? '2' : '1'}. Contact customer within 24 hours</li>
-              <li>${booking.cleaner_id === 'manual' ? '3' : '2'}. Confirm appointment and availability</li>
-              <li>${booking.cleaner_id === 'manual' ? '4' : '3'}. ${booking.paymentReference ? 'Payment already received' : 'Send payment link/details'}</li>
-              <li>${booking.cleaner_id === 'manual' ? '5' : '4'}. Schedule team assignment</li>
-            </ul>
-          </div>
-        </div>
-
-        <!-- Footer -->
-        <div class="footer">
-          <p class="footer-text">This is an automated notification from your Shalean Cleaning website.</p>
-          <p class="footer-timestamp">Booking received at: ${new Date().toLocaleString('en-ZA')}</p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-
-  const adminEmail = process.env.ADMIN_EMAIL || 'admin@shalean.co.za';
+  const adminEmail = resolveAdminNotificationEmail();
 
   return {
     to: adminEmail,
@@ -1858,7 +413,7 @@ export async function generateAdminQuoteNotificationEmail(quote: QuoteRequest): 
     </html>
   `;
 
-  const adminEmail = process.env.ADMIN_EMAIL || 'bookings@shalean.co.za';
+  const adminEmail = resolveAdminNotificationEmail();
 
   return {
     to: adminEmail,
@@ -2296,7 +851,7 @@ export function generateReviewRequestEmail(data: {
   };
 }
 
-/** Paid booking confirmation — aligns with Edge `sendBookingPaidEmail` copy. */
+/** Paid booking confirmation — same template as Edge / customer flow. */
 export async function sendBookingPaidConfirmationEmail(params: {
   to: string;
   customerName: string;
@@ -2310,91 +865,79 @@ export async function sendBookingPaidConfirmationEmail(params: {
   addressLine1?: string | null;
   addressSuburb?: string | null;
   addressCity?: string | null;
+  equipment_required?: boolean;
+  provideEquipment?: boolean;
+  equipment_fee?: number;
+  equipmentCharge?: number;
+  manageToken?: string | null;
+  invoiceUrl?: string | null;
+  invoicePdf?: Buffer | null;
+  /** Same as on Zoho PDF (e.g. INV-00001). */
+  zohoInvoiceNumber?: string | null;
 }): Promise<{ ok: boolean; providerId?: string; error?: string }> {
   const cfg = validateResendConfig();
   if (!cfg.ok) {
     return { ok: false, error: cfg.error };
   }
-  const senderEmail = process.env.SENDER_EMAIL || 'noreply@shalean.co.za';
-  const invoiceLine = params.zohoInvoiceId
-    ? `<tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Invoice ID</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtmlSimple(params.zohoInvoiceId)}</td></tr>`
-    : '';
-  const referenceLine = params.paymentReference
-    ? `<tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Payment reference</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtmlSimple(params.paymentReference)}</td></tr>`
-    : '';
-  const dateLine = params.bookingDate
-    ? `<tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Date</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtmlSimple(params.bookingDate)}</td></tr>`
-    : '';
-  const timeLine = params.bookingTime
-    ? `<tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Time</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtmlSimple(params.bookingTime)}</td></tr>`
-    : '';
-  const addressText =
-    [params.addressLine1, params.addressSuburb, params.addressCity].filter(Boolean).join(', ') || null;
-  const addressLine = addressText
-    ? `<tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Address</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtmlSimple(addressText)}</td></tr>`
-    : '';
-  const html = `
-<!DOCTYPE html>
-<html>
-<body style="margin: 0; padding: 0; background: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding: 24px 12px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width: 600px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 14px; overflow: hidden;">
-          <tr>
-            <td style="padding: 24px 24px 16px 24px; border-bottom: 1px solid #e5e7eb;">
-              <p style="margin: 0 0 8px 0; color: #9ca3af; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700;">Shalean Cleaning Services</p>
-              <h1 style="margin: 0; color: #111827; font-size: 24px; line-height: 1.25;">Booking Confirmed</h1>
-              <p style="margin: 8px 0 0 0; color: #4b5563; font-size: 14px;">Your payment was successful and your booking is now secured.</p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 22px 24px;">
-              <p style="margin: 0 0 14px 0; color: #111827; font-size: 15px;">Hi ${escapeHtmlSimple(params.customerName)},</p>
-              <p style="margin: 0 0 20px 0; color: #4b5563; font-size: 14px; line-height: 1.6;">Thank you for your payment. Here are your booking details:</p>
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb;">
-                <tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Booking ID</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtmlSimple(params.bookingId)}</td></tr>
-                <tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Service</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtmlSimple(params.serviceName)}</td></tr>
-                ${dateLine}
-                ${timeLine}
-                ${addressLine}
-                <tr><td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Amount paid</td><td style="padding: 10px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 700;">R ${params.amountZar.toFixed(2)}</td></tr>
-                ${referenceLine}
-                ${invoiceLine}
-              </table>
-              <p style="margin: 18px 0 0 0; color: #4b5563; font-size: 14px; line-height: 1.6;">Need help? Reply to this email or contact us at <a href="mailto:bookings@shalean.com" style="color: #4f46e5; text-decoration: none;">bookings@shalean.com</a>.</p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 14px 24px 22px 24px; border-top: 1px solid #f3f4f6; color: #9ca3af; font-size: 12px;">
-              This is an automated confirmation from Shalean Cleaning Services.
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+
+  const displayId = /^SC\d{8}$/.test(params.bookingId) ? params.bookingId : params.bookingId.slice(-8);
+  const address =
+    [params.addressLine1, params.addressSuburb, params.addressCity].filter(Boolean).join(', ') ||
+    undefined;
+
+  const equipmentRequired =
+    params.equipment_required === true || params.provideEquipment === true;
+  const equipmentFeeZar =
+    typeof params.equipment_fee === 'number'
+      ? params.equipment_fee
+      : typeof params.equipmentCharge === 'number'
+        ? params.equipmentCharge
+        : 0;
+
+  const siteUrl = publicSiteBaseUrl();
+
+  const bookingDateLabel = params.bookingDate
+    ? formatBookingDateDisplay(params.bookingDate)
+    : undefined;
+  const bookingTimeLabel = params.bookingTime
+    ? formatBookingTimeDisplay(params.bookingTime)
+    : undefined;
+
+  const data: BookingEmailData = {
+    customerName: params.customerName,
+    serviceName: params.serviceName,
+    bookingId: displayId,
+    amountZar: params.amountZar,
+    status: 'paid',
+    invoiceId: params.zohoInvoiceId ?? undefined,
+    invoiceNumber: params.zohoInvoiceNumber?.trim() || undefined,
+    bookingDate: bookingDateLabel,
+    bookingTime: bookingTimeLabel,
+    address,
+    paymentReference: params.paymentReference ?? undefined,
+    equipmentRequired,
+    equipmentFeeZar,
+    cleanerSummary: 'We will assign a cleaner and notify you shortly.',
+    manageBookingUrl: `${siteUrl}/dashboard`,
+    trackingUrl: `${siteUrl}/dashboard`,
+    siteBaseUrl: siteUrl,
+    manageToken: params.manageToken ?? undefined,
+    invoiceUrl: params.invoiceUrl?.trim() || undefined,
+    whatsappUrl: `https://wa.me/27871535250?text=${encodeURIComponent(
+      `Hi Shalean, regarding booking #${displayId}`,
+    )}`,
+  };
 
   try {
-    const { id: emailId } = await postResendEmail({
-      from: `Shalean Cleaning <${senderEmail}>`,
-      to: [params.to],
-      subject: 'Booking Confirmed – Shalean Cleaning Services',
-      html,
+    const result = await sendBookingEmailWithData(params.to.trim(), data, {
+      invoicePdf: params.invoicePdf ?? undefined,
+      invoiceAttachmentFilename:
+        params.invoicePdf && params.invoicePdf.length > 0
+          ? `Invoice-${displayId}.pdf`
+          : undefined,
     });
-    return { ok: true, providerId: emailId };
+    return { ok: true, providerId: result.messageId };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'send failed' };
   }
 }
-
-function escapeHtmlSimple(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-

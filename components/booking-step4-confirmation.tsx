@@ -341,6 +341,13 @@ export function BookingStep4Confirmation({
             <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
             <div className="min-w-0 flex-1 space-y-3">
               <p className="text-sm font-bold text-red-700">{paymentError}</p>
+              {unpaidDuplicateBookingId && (
+                <p className="text-xs text-red-600/90 leading-relaxed">
+                  A draft for this date and time is already in progress (same email). Do not click Finalize again
+                  — open Paystack using the button below, or cancel that draft to replace it with this new
+                  summary.
+                </p>
+              )}
               {unpaidDuplicateBookingId && onPayExistingUnpaidBooking && onCancelUnpaidDuplicate && (
                 <div className="flex flex-col sm:flex-row gap-2 pt-1">
                   <button

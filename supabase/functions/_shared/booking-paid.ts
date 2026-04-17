@@ -1,18 +1,47 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
-import { createZohoBooksInvoice } from './zoho-books.ts';
+import { uploadBookingInvoicePdf } from './invoice-pdf-storage.ts';
+import { createZohoBooksInvoice, fetchZohoInvoiceNumber, fetchZohoInvoicePdf } from './zoho-books.ts';
+import { toZohoInvoiceBookingInput } from './zoho-invoice-payload.ts';
 import { sendAdminNewBookingEmail, sendBookingPaidEmail } from './resend-mail.ts';
+
+/** 64-char hex; mirrors Next.js `generateManageToken()`. */
+function generateManageToken(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
 
 export type BookingRow = {
   id: string;
   service_type: string | null;
   customer_name: string | null;
   customer_email: string | null;
+  customer_phone?: string | null;
   total_amount: number | null;
   status: string | null;
   payment_reference: string | null;
   paystack_ref: string | null;
   zoho_invoice_id: string | null;
   payment_status?: string | null;
+  booking_date?: string | null;
+  booking_time?: string | null;
+  address_line1?: string | null;
+  address_suburb?: string | null;
+  address_city?: string | null;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  extras?: string[] | null;
+  notes?: string | null;
+  tip_amount?: number | null;
+  service_fee?: number | null;
+  frequency_discount?: number | null;
+  frequency?: string | null;
+  surge_amount?: number | null;
+  price_snapshot?: unknown;
+  equipment_required?: boolean | null;
+  equipment_fee?: number | null;
+  manage_token?: string | null;
+  invoice_url?: string | null;
 };
 
 /**
@@ -28,10 +57,11 @@ export async function finalizePaidBooking(params: {
   const { supabase, booking, reference, paystackAmountKobo } = params;
 
   const expectedKobo = Math.round(Number(booking.total_amount ?? 0));
-  if (!Number.isFinite(paystackAmountKobo) || paystackAmountKobo !== expectedKobo) {
+  const amountDelta = Math.abs(paystackAmountKobo - expectedKobo);
+  if (!Number.isFinite(paystackAmountKobo) || amountDelta > 1) {
     return {
       ok: false,
-      error: `Amount mismatch: expected ${expectedKobo} kobo, got ${paystackAmountKobo}`,
+      error: `Amount mismatch: expected ${expectedKobo} minor units, got ${paystackAmountKobo} (Δ ${amountDelta})`,
     };
   }
 
@@ -40,22 +70,31 @@ export async function finalizePaidBooking(params: {
     return { ok: true, duplicate: true, zoho_invoice_id: booking.zoho_invoice_id };
   }
 
-  const unpaid =
-    booking.status === 'pending' && !booking.payment_reference && !booking.paystack_ref;
-
-  if (!unpaid) {
-    return { ok: false, error: 'Booking is not awaiting payment' };
+  const st = (booking.status || '').toLowerCase();
+  if (st !== 'pending') {
+    return {
+      ok: false,
+      error: `Booking is not awaiting payment (status: ${booking.status || 'unknown'})`,
+    };
+  }
+  const ref = String(reference).trim();
+  const pref = (booking.payment_reference || '').trim();
+  const pstack = (booking.paystack_ref || '').trim();
+  const conflictingPayment =
+    (pref.length > 0 && pref !== ref) || (pstack.length > 0 && pstack !== ref);
+  if (conflictingPayment) {
+    return {
+      ok: false,
+      error:
+        'This booking already has a different payment reference. Contact support if you were charged.',
+    };
   }
 
   let zohoId: string | null = booking.zoho_invoice_id;
   if (!zohoId) {
     try {
       zohoId = await createZohoBooksInvoice({
-        customerName: booking.customer_name || 'Customer',
-        customerEmail: booking.customer_email,
-        serviceName: booking.service_type || 'Cleaning',
-        amountZar: expectedKobo / 100,
-        bookingId: booking.id,
+        booking: toZohoInvoiceBookingInput(booking),
       });
     } catch (e) {
       // Payment is already verified; do not block confirmation emails or DB update on accounting API failure.
@@ -64,24 +103,67 @@ export async function finalizePaidBooking(params: {
     }
   }
 
+  let invoiceUrl: string | null = booking.invoice_url ?? null;
+  let invoicePdf: Uint8Array | null = null;
+  let zohoInvoiceNumber: string | null = null;
+  if (zohoId) {
+    zohoInvoiceNumber = await fetchZohoInvoiceNumber(zohoId);
+    const pdf = await fetchZohoInvoicePdf(zohoId);
+    if (pdf) {
+      invoicePdf = pdf;
+      const url = await uploadBookingInvoicePdf(supabase, booking.id, pdf);
+      if (url) invoiceUrl = url;
+    }
+  }
+
   const amountZar = expectedKobo / 100;
 
-  const { error: upErr } = await supabase
-    .from('bookings')
-    .update({
-      status: 'paid',
-      payment_status: 'success',
-      paystack_ref: reference,
-      payment_reference: reference,
-      zoho_invoice_id: zohoId ?? null,
-      price: amountZar,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', booking.id);
+  const existingTok =
+    typeof booking.manage_token === 'string' && booking.manage_token.trim().length >= 64
+      ? booking.manage_token.trim()
+      : '';
+  const manageTokenPersist = existingTok || generateManageToken();
+
+  const paidUpdate = {
+    status: 'paid',
+    payment_status: 'success',
+    paystack_ref: reference,
+    payment_reference: reference,
+    zoho_invoice_id: zohoId ?? null,
+    invoice_url: invoiceUrl ?? null,
+    price: amountZar,
+    updated_at: new Date().toISOString(),
+    manage_token: manageTokenPersist,
+  } as const;
+
+  let { error: upErr } = await supabase.from('bookings').update(paidUpdate).eq('id', booking.id);
+
+  let emailManageToken: string | undefined = manageTokenPersist;
+  if (upErr && /manage_token/.test(upErr.message) && /does not exist/i.test(upErr.message)) {
+    emailManageToken = undefined;
+    const retry = await supabase
+      .from('bookings')
+      .update({
+        status: 'paid',
+        payment_status: 'success',
+        paystack_ref: reference,
+        payment_reference: reference,
+        zoho_invoice_id: zohoId ?? null,
+        invoice_url: invoiceUrl ?? null,
+        price: amountZar,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', booking.id);
+    upErr = retry.error;
+    console.warn('[finalizePaidBooking] Retried without manage_token — apply bookings.manage_token migration');
+  }
 
   if (upErr) {
     console.error('[finalizePaidBooking] DB update failed', upErr);
-    return { ok: false, error: upErr.message };
+    return {
+      ok: false,
+      error: upErr.message?.trim() || 'Could not save payment confirmation. Please contact support.',
+    };
   }
 
   if (booking.customer_email) {
@@ -92,6 +174,21 @@ export async function finalizePaidBooking(params: {
       amountZar,
       bookingId: booking.id,
       zohoInvoiceId: zohoId,
+      paymentReference: reference,
+      bookingDate: booking.booking_date,
+      bookingTime: booking.booking_time,
+      addressLine1: booking.address_line1,
+      addressSuburb: booking.address_suburb,
+      addressCity: booking.address_city,
+      equipment_required: booking.equipment_required === true,
+      equipment_fee:
+        typeof booking.equipment_fee === 'number' && Number.isFinite(booking.equipment_fee)
+          ? booking.equipment_fee
+          : undefined,
+      manageToken: emailManageToken,
+      invoiceUrl,
+      invoicePdf,
+      zohoInvoiceNumber,
     });
 
     await supabase.from('email_send_logs').insert({
@@ -121,7 +218,7 @@ export async function fetchBookingByPaystackReference(
   reference: string,
 ): Promise<BookingRow | null> {
   const selectCols =
-    'id, service_type, customer_name, customer_email, total_amount, status, payment_reference, paystack_ref, zoho_invoice_id, payment_status';
+    'id, service_type, customer_name, customer_email, customer_phone, total_amount, status, payment_reference, paystack_ref, zoho_invoice_id, invoice_url, payment_status, booking_date, booking_time, address_line1, address_suburb, address_city, notes, tip_amount, service_fee, frequency_discount, frequency, surge_amount, price_snapshot, equipment_required, equipment_fee, manage_token';
 
   if (reference.startsWith('booking-')) {
     const id = reference.slice('booking-'.length);

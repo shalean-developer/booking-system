@@ -14,6 +14,7 @@ import { supabase } from '@/lib/supabase-client';
 import { useOffline } from '@/lib/hooks/use-offline';
 import { offlineQueue } from '@/lib/utils/offline-queue';
 import { getBookingPipelineLabel } from '@/lib/booking-status-labels';
+import { BOOKING_DEFAULT_CITY } from '@/lib/contact';
 import type {
   Booking,
   FaqItem,
@@ -50,6 +51,13 @@ export interface PortalUser {
   nextTierName: string | null;
 }
 
+/** Structured address from `customers` — used for checkout payloads (matches public booking engine). */
+export type CustomerAddressParts = {
+  line1: string;
+  suburb: string;
+  city: string;
+};
+
 type PortalValue = {
   user: PortalUser;
   notifications: PortalNotification[];
@@ -75,6 +83,7 @@ type PortalValue = {
   profileSaved: boolean;
   toggleDefaultAddress: (id: string) => void;
   addAddress: (label: string, address: string) => void;
+  customerAddressParts: CustomerAddressParts | null;
 };
 
 const PortalContext = createContext<PortalValue | null>(null);
@@ -247,6 +256,16 @@ function cleanerFromId(cleanerId: string | null | undefined): { name: string; in
   return { name: 'Your cleaner', initial: c.slice(0, 1) };
 }
 
+function extraRoomsFromExtrasQuantities(q: unknown): number | null {
+  if (!q || typeof q !== 'object') return null;
+  let sum = 0;
+  for (const [k, v] of Object.entries(q as Record<string, unknown>)) {
+    if (typeof v !== 'number' || v <= 0) continue;
+    if (/extra\s*room/i.test(k)) sum += v;
+  }
+  return sum > 0 ? sum : null;
+}
+
 type ApiBooking = {
   id: string;
   booking_date: string;
@@ -264,7 +283,47 @@ type ApiBooking = {
   zoho_invoice_id?: string | null;
   cleaner_profile?: { name: string; phone: string | null } | null;
   review_overall_rating?: number | null;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  extras?: unknown;
+  extras_quantities?: unknown;
+  price_snapshot?: unknown;
 };
+
+function buildRoomSummary(b: ApiBooking): string | null {
+  const snap = b.price_snapshot as Record<string, unknown> | null | undefined;
+  const svc = snap?.service as { bedrooms?: number; bathrooms?: number } | undefined;
+  const br =
+    typeof b.bedrooms === 'number'
+      ? b.bedrooms
+      : typeof svc?.bedrooms === 'number'
+        ? svc.bedrooms
+        : null;
+  const ba =
+    typeof b.bathrooms === 'number'
+      ? b.bathrooms
+      : typeof svc?.bathrooms === 'number'
+        ? svc.bathrooms
+        : null;
+  const qtyRaw =
+    (b.extras_quantities as Record<string, unknown> | null | undefined) ??
+    (snap?.extras_quantities as Record<string, unknown> | undefined);
+  const extraRm = extraRoomsFromExtrasQuantities(qtyRaw);
+  const st = (b.service_type || '').toLowerCase();
+  const isCarpet = st.includes('carpet');
+  const parts: string[] = [];
+  if (br != null && br > 0) {
+    parts.push(isCarpet ? `${br} fitted` : `${br} bed`);
+  }
+  if (ba != null && ba > 0) {
+    parts.push(isCarpet ? `${ba} loose` : `${ba} bath`);
+  }
+  if (extraRm != null && extraRm > 0) {
+    parts.push(`${extraRm} extra room${extraRm === 1 ? '' : 's'}`);
+  }
+  if (parts.length === 0) return null;
+  return parts.join(' · ');
+}
 
 function mapApiBooking(b: ApiBooking): Booking {
   const uiStatus = mapDbStatus(b.status);
@@ -305,6 +364,7 @@ function mapApiBooking(b: ApiBooking): Booking {
     status: uiStatus,
     dbStatus: b.status,
     pipelineStatus: getBookingPipelineLabel(b.status),
+    roomSummary: buildRoomSummary(b),
     price: `R${amount}`,
     priceNumber: amount,
     invoiceId,
@@ -471,7 +531,10 @@ export function CustomerPortalProvider({
     const fn = firstName?.trim();
     const ln = lastName?.trim();
     const name = [fn, ln].filter(Boolean).join(' ') || 'Account';
-    const initial = fn?.[0]?.toUpperCase() ?? em?.[0]?.toUpperCase() ?? 'U';
+    const initial =
+      name !== 'Account'
+        ? (name.trim()[0] ?? em[0] ?? 'U').toUpperCase()
+        : (em[0] ?? 'U').toUpperCase();
     return { email: em || 'you@example.com', name, initial, phone: '' };
   }, [email, firstName, lastName]);
 
@@ -503,6 +566,7 @@ export function CustomerPortalProvider({
   const [statsLoading, setStatsLoading] = useState(true);
   const [pointsHistory, setPointsHistory] = useState<PointsHistoryItem[]>(() => buildPointsHistory(0));
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
+  const [customerAddressParts, setCustomerAddressParts] = useState<CustomerAddressParts | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
 
@@ -519,6 +583,7 @@ export function CustomerPortalProvider({
         setRewardExtras(rewardMeta(null));
         setPointsHistory(buildPointsHistory(0));
         setAddresses([]);
+        setCustomerAddressParts(null);
         setPortalCustomerId(null);
         return;
       }
@@ -548,16 +613,36 @@ export function CustomerPortalProvider({
         setRewardExtras(rewardMeta(apiCustomer));
         const fn = apiCustomer.firstName?.trim();
         const ln = apiCustomer.lastName?.trim();
-        setUserBase((prev) => ({
-          ...prev,
-          email: apiCustomer.email?.trim() || prev.email,
-          name: [fn, ln].filter(Boolean).join(' ') || prev.name,
-          initial: (fn?.[0] || ln?.[0] || prev.email?.[0] || prev.name?.[0] || 'U').toUpperCase(),
-          phone: (apiCustomer.phone || '').trim() || prev.phone,
-        }));
+        setUserBase((prev) => {
+          const displayName = [fn, ln].filter(Boolean).join(' ').trim();
+          const resolvedName = displayName || prev.name;
+          const initialChar =
+            resolvedName && resolvedName !== 'Account'
+              ? resolvedName.trim().charAt(0)
+              : fn?.[0] || ln?.[0] || prev.email?.[0] || 'U';
+          return {
+            ...prev,
+            email: apiCustomer.email?.trim() || prev.email,
+            name: resolvedName || 'Account',
+            initial: initialChar.toUpperCase(),
+            phone: (apiCustomer.phone || '').trim() || prev.phone,
+          };
+        });
         const addrLine = [apiCustomer.addressLine1, apiCustomer.addressSuburb, apiCustomer.addressCity]
           .filter(Boolean)
           .join(', ');
+        const line1 = (apiCustomer.addressLine1 || '').trim();
+        const suburb = (apiCustomer.addressSuburb || '').trim();
+        const city = (apiCustomer.addressCity || '').trim();
+        if (line1) {
+          setCustomerAddressParts({
+            line1,
+            suburb: suburb || BOOKING_DEFAULT_CITY,
+            city: city || BOOKING_DEFAULT_CITY,
+          });
+        } else {
+          setCustomerAddressParts(null);
+        }
         if (addrLine) {
           setAddresses([
             {
@@ -575,6 +660,7 @@ export function CustomerPortalProvider({
         setRewardExtras(rewardMeta(null));
         setPointsHistory(buildPointsHistory(0));
         setAddresses([]);
+        setCustomerAddressParts(null);
       }
 
       const rows = Array.isArray(bookJson?.bookings) ? bookJson.bookings : [];
@@ -936,6 +1022,7 @@ export function CustomerPortalProvider({
       profileSaved,
       toggleDefaultAddress,
       addAddress,
+      customerAddressParts,
     }),
     [
       user,
@@ -954,6 +1041,7 @@ export function CustomerPortalProvider({
       pointsHistory,
       redeemPoints,
       addresses,
+      customerAddressParts,
       saveUser,
       profileSaving,
       profileSaved,
@@ -973,6 +1061,7 @@ export function useProfile() {
   return {
     user: ctx.user,
     addresses: ctx.addresses,
+    customerAddressParts: ctx.customerAddressParts,
     saveUser: ctx.saveUser,
     saving: ctx.profileSaving,
     saved: ctx.profileSaved,

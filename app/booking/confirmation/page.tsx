@@ -29,11 +29,9 @@ interface BookingDetails {
 
 function ConfirmationContent() {
   const searchParams = useSearchParams();
+  const verifiedSkip = searchParams.get('verified') === '1';
   const paystackReference =
-    searchParams.get('reference')?.trim() ||
-    searchParams.get('trxref')?.trim() ||
-    searchParams.get('ref')?.trim() ||
-    null;
+    searchParams.get('reference')?.trim() || searchParams.get('trxref')?.trim() || null;
   const id =
     searchParams.get('ref')?.trim() ||
     searchParams.get('id')?.trim() ||
@@ -43,12 +41,17 @@ function ConfirmationContent() {
   const [booking, setBooking] = useState<BookingDetails | null>(null);
   const [isProcessing, setIsProcessing] = useState(true);
   const [processingError, setProcessingError] = useState<string | null>(null);
-  const [verifyStatus, setVerifyStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(() =>
-    paystackReference ? 'loading' : 'idle',
-  );
+  const [verifyStatus, setVerifyStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(() => {
+    if (verifiedSkip) return 'success';
+    return paystackReference ? 'loading' : 'idle';
+  });
   const [bookingRefresh, setBookingRefresh] = useState(0);
 
   useEffect(() => {
+    if (verifiedSkip) {
+      setVerifyStatus('success');
+      return;
+    }
     if (!paystackReference) {
       setVerifyStatus('idle');
       return;
@@ -79,7 +82,7 @@ function ConfirmationContent() {
     return () => {
       cancelled = true;
     };
-  }, [paystackReference, id]);
+  }, [paystackReference, id, verifiedSkip]);
 
   useEffect(() => {
     const fetchBooking = async () => {

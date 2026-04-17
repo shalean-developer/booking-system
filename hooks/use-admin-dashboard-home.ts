@@ -16,6 +16,14 @@ function todayYmd(): string {
 
 type ChartPoint = { date: string; revenue: number; bookings: number };
 
+type ActivityItem = {
+  id: string;
+  type: string;
+  message: string;
+  status?: string;
+  created_at: string;
+};
+
 function joinErrors(parts: (string | null | undefined)[]): string | null {
   const s = parts.filter(Boolean).join(' ');
   return s.length > 0 ? s : null;
@@ -98,12 +106,22 @@ export function useAdminDashboardHomeData() {
     fetcher
   );
 
+  const {
+    data: activityRes,
+    error: activityErr,
+    isLoading: activityLoading,
+  } = useSWR<{ ok: boolean; activities?: ActivityItem[]; error?: string }>(
+    '/api/admin/activity?limit=10',
+    fetcher
+  );
+
   const chartData = chartRes?.ok ? chartRes.data ?? [] : [];
   const serviceRows = svcRes?.ok ? svcRes.data ?? [] : [];
   const pipeline = pipeRes?.ok ? pipeRes.pipeline ?? {} : {};
   const upcoming = upcomingRes?.ok ? upcomingRes.bookings ?? [] : [];
   const todayRows = todayBookingsRes?.ok ? todayBookingsRes.bookings ?? [] : [];
   const topCleaners = cleanersRes?.ok ? cleanersRes.cleaners ?? [] : [];
+  const activityFeed = activityRes?.ok ? activityRes.activities ?? [] : [];
 
   const serviceTotal = serviceRows.reduce((s, r) => s + (r.value || 0), 0);
   const serviceBreakdown = serviceRows.map((r, i) => {
@@ -152,7 +170,8 @@ export function useAdminDashboardHomeData() {
     pipeLoading ||
     upcomingLoading ||
     todayLoading ||
-    cleanersLoading;
+    cleanersLoading ||
+    activityLoading;
 
   const statsMissingAfterLoad = stats === null && !statsLoading && !statsHookError;
 
@@ -166,6 +185,7 @@ export function useAdminDashboardHomeData() {
       (!upcomingRes?.ok && upcomingRes !== undefined ? upcomingRes.error ?? 'Upcoming list unavailable.' : null),
     todayErr?.message ?? (!todayBookingsRes?.ok && todayBookingsRes !== undefined ? todayBookingsRes.error ?? null : null),
     cleanersErr?.message ?? (!cleanersRes?.ok && cleanersRes !== undefined ? cleanersRes.error ?? null : null),
+    activityErr?.message ?? (!activityRes?.ok && activityRes !== undefined ? activityRes.error ?? null : null),
   ]);
 
   return {
@@ -180,6 +200,7 @@ export function useAdminDashboardHomeData() {
     upcoming,
     todayRows,
     topCleaners,
+    activityFeed,
     loading,
     loadError,
   };

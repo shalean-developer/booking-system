@@ -1,6 +1,8 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   CalendarDays,
@@ -19,6 +21,15 @@ import {
   UserCheck,
   Briefcase,
   Filter,
+  DollarSign,
+  CalendarCheck,
+  Scale,
+  AlertTriangle,
+  ShieldCheck,
+  Zap,
+  Receipt,
+  Banknote,
+  LayoutGrid,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -36,7 +47,7 @@ import { formatCurrency } from '@/lib/utils/formatting';
 import { useAdminDashboardHomeData } from '@/hooks/use-admin-dashboard-home';
 import { useUser } from '@/hooks/use-user';
 import { getAdminMonthlyRevenueGoalCents } from '@/lib/admin-dashboard-config';
-import { formatTimeSafe } from '@/lib/date-utils';
+import { formatDateSafe, formatTimeSafe } from '@/lib/date-utils';
 import { normalizeBookingStatusForUi } from '@/lib/booking-status-ui';
 import type { NavId } from '@/components/admin/types';
 
@@ -64,13 +75,42 @@ function adminGreeting(): string {
   return 'Good evening';
 }
 
+function formatStatsRange(from: string, to: string): string {
+  try {
+    const a = new Date(from);
+    const b = new Date(to);
+    if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return '';
+    const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
+    return `${a.toLocaleDateString('en-ZA', opts)} – ${b.toLocaleDateString('en-ZA', { ...opts, year: 'numeric' })}`;
+  } catch {
+    return '';
+  }
+}
+
+function splitClockMeridiem(formatted: string): { clock: string; meridiem: string } {
+  const parts = formatted.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return { clock: parts[0] ?? formatted, meridiem: parts.slice(1).join(' ') };
+  }
+  return { clock: formatted, meridiem: '' };
+}
+
+function activityIcon(type: string) {
+  const t = type.toLowerCase();
+  if (t === 'payment') return <Banknote className="h-3.5 w-3.5" />;
+  if (t === 'quote') return <FileText className="h-3.5 w-3.5" />;
+  if (t === 'application') return <UserCheck className="h-3.5 w-3.5" />;
+  return <Briefcase className="h-3.5 w-3.5" />;
+}
+
 const StatusBadge = ({
   status,
 }: {
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  status: 'pending' | 'paid' | 'confirmed' | 'completed' | 'cancelled';
 }) => {
   const map = {
     pending: { label: 'Pending', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+    paid: { label: 'Paid', cls: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
     confirmed: { label: 'Confirmed', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
     completed: { label: 'Completed', cls: 'bg-green-50 text-green-700 border-green-200' },
     cancelled: { label: 'Cancelled', cls: 'bg-red-50 text-red-700 border-red-200' },
@@ -88,6 +128,22 @@ const StatusBadge = ({
   );
 };
 
+function KpiHeaderIcon({ cardId, color }: { cardId: string; color: string }) {
+  const cls = 'h-4 w-4';
+  switch (cardId) {
+    case 'revenue':
+      return <DollarSign className={cls} style={{ color }} />;
+    case 'bookings':
+      return <CalendarCheck className={cls} style={{ color }} />;
+    case 'customers':
+      return <Users className={cls} style={{ color }} />;
+    case 'avg':
+      return <Scale className={cls} style={{ color }} />;
+    default:
+      return <TrendingUp className={cls} style={{ color }} />;
+  }
+}
+
 export function DashboardHome({
   onNewBooking,
   onNavigate,
@@ -97,6 +153,7 @@ export function DashboardHome({
   onNavigate: (id: NavId) => void;
   newBookingCount: number;
 }) {
+  const router = useRouter();
   const {
     stats,
     chartData,
@@ -107,6 +164,9 @@ export function DashboardHome({
     upcoming,
     todayRows,
     topCleaners,
+    activityFeed,
+    dateFrom,
+    dateTo,
     loading,
     loadError,
   } = useAdminDashboardHomeData();
@@ -126,6 +186,8 @@ export function DashboardHome({
   const sparkFallback = [{ v: 0 }];
   const revSpark = sparkFromChart.length ? sparkFromChart : sparkFallback;
   const bookSpark = bookingSpark.length ? bookingSpark : revSpark;
+
+  const rangeLabel = formatStatsRange(dateFrom, dateTo);
 
   const kpiCards = stats
     ? [
@@ -173,7 +235,7 @@ export function DashboardHome({
     client: String(b.customer_name ?? '—'),
     service: String(b.service_type ?? '—'),
     cleaner: String(b.cleaner_name ?? '—'),
-    time: `${b.booking_date ?? ''} · ${formatTimeSafe(String(b.booking_time ?? ''))}`,
+    time: `${formatDateSafe(String(b.booking_date ?? ''))} · ${formatTimeSafe(String(b.booking_time ?? ''))}`,
     amount: formatCurrency(Number(b.total_amount) || 0, true),
     status: normalizeBookingStatusForUi(String(b.status ?? '')),
   }));
@@ -185,7 +247,7 @@ export function DashboardHome({
             id: 'pa1',
             type: 'Quotes',
             count: stats.pendingQuotes,
-            label: 'Quotes awaiting action',
+            label: 'Awaiting quotes to send',
             icon: <FileText className="h-4 w-4" />,
             color: '#D97706',
             bg: '#FFFBEB',
@@ -205,7 +267,7 @@ export function DashboardHome({
             id: 'pa3',
             type: 'Bookings',
             count: stats.pendingBookings,
-            label: 'Pending bookings',
+            label: 'Require confirmation',
             icon: <Briefcase className="h-4 w-4" />,
             color: '#DC2626',
             bg: '#FEF2F2',
@@ -215,15 +277,21 @@ export function DashboardHome({
       : [];
 
   const palette = ['#4F46E5', '#059669', '#D97706', '#7C3AED'];
-  const scheduleItems = (todayRows || []).map((b: Record<string, unknown>, i: number) => ({
-    id: String(b.id ?? i),
-    client: String(b.customer_name ?? '—'),
-    address: [b.address_line1, b.address_suburb].filter(Boolean).join(', ') || '—',
-    time: formatTimeSafe(String(b.booking_time ?? '')),
-    cleaner: String(b.cleaner_name ?? '—'),
-    service: String(b.service_type ?? '—'),
-    color: palette[i % palette.length],
-  }));
+  const scheduleItems = (todayRows || []).map((b: Record<string, unknown>, i: number) => {
+    const rawTime = String(b.booking_time ?? '');
+    const formatted = formatTimeSafe(rawTime);
+    const { clock, meridiem } = splitClockMeridiem(formatted);
+    return {
+      id: String(b.id ?? i),
+      client: String(b.customer_name ?? '—'),
+      address: [b.address_line1, b.address_suburb].filter(Boolean).join(', ') || '—',
+      clock,
+      meridiem,
+      cleaner: String(b.cleaner_name ?? '—'),
+      service: String(b.service_type ?? '—'),
+      color: palette[i % palette.length],
+    };
+  });
 
   const cleanerPalette = ['#4F46E5', '#059669', '#D97706', '#7C3AED', '#DC2626'];
   const topList = (topCleaners || []).map((c: Record<string, unknown>, index: number) => {
@@ -253,21 +321,46 @@ export function DashboardHome({
     year: 'numeric',
   });
 
+  const pipelineTotal = pipelineStages.reduce((s, p) => s + p.count, 0);
+  const attentionTotal =
+    stats !== undefined && stats !== null
+      ? stats.pendingQuotes + stats.pendingApplications + stats.pendingBookings
+      : 0;
+
+  const openBooking = (id: string) => {
+    if (!id) {
+      onNavigate('bookings');
+      return;
+    }
+    router.push(`/admin/bookings/${encodeURIComponent(id)}`);
+  };
+
   return (
-    <main className="flex-1 space-y-6 overflow-y-auto px-4 py-6 sm:px-6">
+    <main className="relative flex-1 space-y-6 overflow-y-auto bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(99,102,241,0.08),transparent)] px-4 py-6 sm:px-6">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="flex items-start justify-between gap-4"
+        className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
       >
-        <div>
-          <h1 className="text-xl font-extrabold tracking-tight text-gray-900">
-            {adminGreeting()}, {displayName} <span aria-hidden="true">👋</span>
-          </h1>
-          <p className="mt-0.5 text-sm text-gray-400">
-            <span>Here&apos;s what&apos;s happening today.</span>
-            {loading && <span className="ml-2 text-indigo-500">Loading live stats…</span>}
+        <div className="min-w-0 space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-xl font-extrabold tracking-tight text-gray-900">
+              {adminGreeting()}, {displayName} <span aria-hidden="true">👋</span>
+            </h1>
+            <span className="inline-flex items-center gap-1 rounded-full border border-indigo-100 bg-indigo-50/80 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
+              <ShieldCheck className="h-3 w-3" aria-hidden />
+              Live
+            </span>
+          </div>
+          <p className="text-sm text-gray-500">
+            Here&apos;s what&apos;s happening at Shalean{rangeLabel ? ` · ${rangeLabel}` : ''}.
+            {loading && !stats && (
+              <span className="ml-2 inline-flex items-center gap-1 text-indigo-600">
+                <Zap className="h-3 w-3 animate-pulse" aria-hidden />
+                Loading…
+              </span>
+            )}
           </p>
         </div>
         <motion.button
@@ -275,7 +368,7 @@ export function DashboardHome({
           whileHover={{ y: -2 }}
           whileTap={{ scale: 0.97 }}
           onClick={onNewBooking}
-          className="hidden flex-shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2.5 text-sm font-bold text-white shadow-md transition-shadow hover:shadow-lg sm:flex"
+          className="flex flex-shrink-0 items-center gap-2 self-start rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2.5 text-sm font-bold text-white shadow-md transition-shadow hover:shadow-lg sm:self-auto"
         >
           <Plus className="h-4 w-4" />
           <span>New Booking</span>
@@ -286,6 +379,68 @@ export function DashboardHome({
           )}
         </motion.button>
       </motion.div>
+
+      {attentionTotal > 0 && stats && (
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-200/80 bg-gradient-to-r from-amber-50 to-orange-50/50 px-4 py-3 text-sm text-amber-950 shadow-sm"
+          role="status"
+        >
+          <AlertTriangle className="h-5 w-5 flex-shrink-0 text-amber-600" aria-hidden />
+          <p className="min-w-0 flex-1 font-medium">
+            <span className="font-bold">{attentionTotal}</span> items need your attention across quotes, applications,
+            and bookings.
+          </p>
+          <button
+            type="button"
+            onClick={() => onNavigate('bookings')}
+            className="flex-shrink-0 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-amber-700"
+          >
+            Review queue
+          </button>
+        </motion.div>
+      )}
+
+      {activityFeed.length > 0 && (
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          animate="show"
+          className="rounded-2xl border border-gray-200/80 bg-white/90 p-4 shadow-sm backdrop-blur-sm"
+        >
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <LayoutGrid className="h-4 w-4 text-indigo-500" aria-hidden />
+              <h2 className="text-sm font-bold text-gray-900">Latest updates</h2>
+            </div>
+            <span className="text-[10px] font-medium uppercase tracking-wide text-gray-400">Activity</span>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {activityFeed.map((item) => (
+              <div
+                key={item.id}
+                className="flex min-w-[220px] flex-shrink-0 items-start gap-2.5 rounded-xl border border-gray-100 bg-gray-50/80 px-3 py-2.5"
+              >
+                <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white text-indigo-600 shadow-sm">
+                  {activityIcon(item.type)}
+                </div>
+                <div className="min-w-0">
+                  <p className="line-clamp-2 text-[11px] font-medium leading-snug text-gray-800">{item.message}</p>
+                  <p className="mt-1 text-[9px] text-gray-400">
+                    {new Date(item.created_at).toLocaleString('en-ZA', {
+                      day: 'numeric',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       {loadError && (
         <div
@@ -306,61 +461,70 @@ export function DashboardHome({
           ? Array.from({ length: 4 }).map((_, i) => (
               <div
                 key={`kpi-skel-${i}`}
-                className="h-40 animate-pulse rounded-2xl border border-gray-200 bg-gray-100"
+                className="h-44 animate-pulse rounded-2xl border border-gray-200 bg-gray-100/80"
               />
             ))
           : kpiCards.map((card) => (
-          <motion.div
-            key={card.id}
-            variants={fadeUp}
-            whileHover={{ y: -4 }}
-            className="min-w-0 cursor-pointer rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
-          >
-            <div className="mb-3 flex items-start justify-between gap-2">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">{card.label}</p>
-                <p className="mt-1 text-2xl font-extrabold leading-none text-gray-900">{card.value}</p>
-              </div>
-              <div
-                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl"
-                style={{ backgroundColor: card.bgColor }}
+              <motion.div
+                key={card.id}
+                variants={fadeUp}
+                whileHover={{ y: -4 }}
+                className="min-w-0 cursor-pointer rounded-2xl border border-gray-200/90 bg-white p-4 shadow-sm ring-1 ring-gray-100/80 transition-shadow hover:shadow-md"
+                onClick={() => onNavigate('reports')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onNavigate('reports');
+                  }
+                }}
               >
-                <TrendingUp className="h-4 w-4" style={{ color: card.color }} />
-              </div>
-            </div>
-            <div className="mb-3 h-10 w-full min-w-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={card.sparkData} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id={`spark-${card.id}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={card.color} stopOpacity={0.2} />
-                      <stop offset="95%" stopColor={card.color} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <Area
-                    type="monotone"
-                    dataKey="v"
-                    stroke={card.color}
-                    strokeWidth={1.5}
-                    fill={`url(#spark-${card.id})`}
-                    dot={false}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex items-center gap-1.5">
-              {card.change >= 0 ? (
-                <TrendingUp className="h-3 w-3 flex-shrink-0 text-green-500" />
-              ) : (
-                <TrendingDown className="h-3 w-3 flex-shrink-0 text-red-500" />
-              )}
-              <span className={cn('text-xs font-bold', card.change >= 0 ? 'text-green-600' : 'text-red-600')}>
-                {card.change >= 0 ? '+' : ''}
-                {card.change}%
-              </span>
-              <span className="text-xs text-gray-400">vs previous period</span>
-            </div>
-          </motion.div>
+                <div className="mb-3 flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">{card.label}</p>
+                    <p className="mt-1 text-2xl font-extrabold leading-none text-gray-900">{card.value}</p>
+                  </div>
+                  <div
+                    className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl"
+                    style={{ backgroundColor: card.bgColor }}
+                  >
+                    <KpiHeaderIcon cardId={card.id} color={card.color} />
+                  </div>
+                </div>
+                <div className="mb-3 h-10 w-full min-w-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={card.sparkData} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id={`spark-${card.id}`} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={card.color} stopOpacity={0.2} />
+                          <stop offset="95%" stopColor={card.color} stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <Area
+                        type="monotone"
+                        dataKey="v"
+                        stroke={card.color}
+                        strokeWidth={1.5}
+                        fill={`url(#spark-${card.id})`}
+                        dot={false}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {card.change >= 0 ? (
+                    <TrendingUp className="h-3 w-3 flex-shrink-0 text-green-500" />
+                  ) : (
+                    <TrendingDown className="h-3 w-3 flex-shrink-0 text-red-500" />
+                  )}
+                  <span className={cn('text-xs font-bold', card.change >= 0 ? 'text-green-600' : 'text-red-600')}>
+                    {card.change >= 0 ? '+' : ''}
+                    {card.change}%
+                  </span>
+                  <span className="text-xs text-gray-400">vs previous period</span>
+                </div>
+              </motion.div>
             ))}
       </motion.div>
 
@@ -370,14 +534,16 @@ export function DashboardHome({
           initial="hidden"
           animate="show"
           whileHover={{ y: -4 }}
-          className="min-w-0 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+          className="min-w-0 rounded-2xl border border-gray-200/90 bg-white p-5 shadow-sm ring-1 ring-gray-100/80 transition-shadow hover:shadow-md"
         >
-          <div className="mb-5 flex items-center justify-between">
+          <div className="mb-5 flex items-center justify-between gap-2">
             <div>
               <h2 className="text-sm font-bold text-gray-900">Revenue Trends</h2>
-              <p className="mt-0.5 text-xs text-gray-400">Last 30 days (from live bookings)</p>
+              <p className="mt-0.5 text-xs text-gray-400">
+                {rangeLabel ? `${rangeLabel} · ` : ''}from paid bookings
+              </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-shrink-0 items-center gap-2">
               <div className="flex items-center gap-1.5">
                 <div className="h-2 w-2 rounded-full bg-indigo-500" />
                 <span className="text-[10px] font-medium text-gray-400">Revenue (ZAR)</span>
@@ -388,7 +554,7 @@ export function DashboardHome({
                 className="flex items-center gap-1.5 rounded-lg bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-500 transition-colors hover:bg-gray-200"
               >
                 <Filter className="h-3 w-3" />
-                <span>Full Report</span>
+                <span>Reports</span>
               </button>
             </div>
           </div>
@@ -439,7 +605,7 @@ export function DashboardHome({
             initial="hidden"
             animate="show"
             whileHover={{ y: -4 }}
-            className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+            className="rounded-2xl border border-gray-200/90 bg-white p-5 shadow-sm ring-1 ring-gray-100/80 transition-shadow hover:shadow-md"
           >
             <div className="mb-3 flex items-center justify-between">
               <div>
@@ -475,7 +641,7 @@ export function DashboardHome({
             initial="hidden"
             animate="show"
             whileHover={{ y: -4 }}
-            className="flex-1 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+            className="flex-1 rounded-2xl border border-gray-200/90 bg-white p-5 shadow-sm ring-1 ring-gray-100/80 transition-shadow hover:shadow-md"
           >
             <h2 className="mb-4 text-sm font-bold text-gray-900">Service Breakdown</h2>
             <div className="space-y-3">
@@ -508,12 +674,12 @@ export function DashboardHome({
           initial="hidden"
           animate="show"
           whileHover={{ y: -4 }}
-          className="min-w-0 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+          className="min-w-0 rounded-2xl border border-gray-200/90 bg-white p-5 shadow-sm ring-1 ring-gray-100/80 transition-shadow hover:shadow-md"
         >
           <div className="mb-5 flex items-center justify-between">
             <div>
               <h2 className="text-sm font-bold text-gray-900">Bookings Trends</h2>
-              <p className="mt-0.5 text-xs text-gray-400">Daily count — last 30 days</p>
+              <p className="mt-0.5 text-xs text-gray-400">Daily count — same period as revenue</p>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="h-2 w-2 rounded-full bg-purple-500" />
@@ -552,9 +718,14 @@ export function DashboardHome({
           initial="hidden"
           animate="show"
           whileHover={{ y: -4 }}
-          className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+          className="rounded-2xl border border-gray-200/90 bg-white p-5 shadow-sm ring-1 ring-gray-100/80 transition-shadow hover:shadow-md"
         >
-          <h2 className="mb-4 text-sm font-bold text-gray-900">Booking Pipeline</h2>
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <h2 className="text-sm font-bold text-gray-900">Booking Pipeline</h2>
+            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-600">
+              {pipelineTotal} total
+            </span>
+          </div>
           <div className="space-y-3.5">
             {pipelineStages.map((stage) => (
               <div key={stage.id}>
@@ -585,12 +756,12 @@ export function DashboardHome({
           initial="hidden"
           animate="show"
           whileHover={{ y: -4 }}
-          className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md"
+          className="overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-sm ring-1 ring-gray-100/80 transition-shadow hover:shadow-md"
         >
           <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
             <div>
-              <h2 className="text-sm font-bold text-gray-900">Upcoming</h2>
-              <p className="mt-0.5 text-xs text-gray-400">Next scheduled jobs</p>
+              <h2 className="text-sm font-bold text-gray-900">Recent Activity</h2>
+              <p className="mt-0.5 text-xs text-gray-400">Upcoming jobs — latest bookings timeline</p>
             </div>
             <button
               type="button"
@@ -610,7 +781,7 @@ export function DashboardHome({
                 key={booking.id}
                 whileHover={{ backgroundColor: '#fafafa' }}
                 className="flex cursor-pointer items-center gap-4 px-5 py-3.5 transition-colors"
-                onClick={() => onNavigate('bookings')}
+                onClick={() => openBooking(booking.id)}
               >
                 <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600">
                   <span className="text-[10px] font-bold text-white">
@@ -641,7 +812,7 @@ export function DashboardHome({
                     className="mt-0.5 text-[10px] font-semibold text-indigo-500 hover:underline"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onNavigate('bookings');
+                      openBooking(booking.id);
                     }}
                   >
                     View
@@ -653,7 +824,12 @@ export function DashboardHome({
         </motion.div>
 
         <div className="flex flex-col gap-4">
-          <motion.div variants={fadeUp} initial="hidden" animate="show" className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          <motion.div
+            variants={fadeUp}
+            initial="hidden"
+            animate="show"
+            className="rounded-2xl border border-gray-200/90 bg-white p-5 shadow-sm ring-1 ring-gray-100/80"
+          >
             <h2 className="mb-3 text-sm font-bold text-gray-900">Pending Items</h2>
             <div className="space-y-2.5">
               {pendingAlerts.map((alert) => (
@@ -688,7 +864,12 @@ export function DashboardHome({
             </div>
           </motion.div>
 
-          <motion.div variants={fadeUp} initial="hidden" animate="show" className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          <motion.div
+            variants={fadeUp}
+            initial="hidden"
+            animate="show"
+            className="rounded-2xl border border-gray-200/90 bg-white p-5 shadow-sm ring-1 ring-gray-100/80"
+          >
             <h2 className="mb-3 text-sm font-bold text-gray-900">Quick Actions</h2>
             <div className="grid grid-cols-2 gap-2">
               <motion.button
@@ -701,24 +882,50 @@ export function DashboardHome({
                 <Plus className="h-3.5 w-3.5" />
                 <span>New Booking</span>
               </motion.button>
-              {[
-                { id: 'qa1', label: 'Add Cleaner', icon: <Sparkles className="h-3.5 w-3.5" />, nav: 'cleaners' as const },
-                { id: 'qa2', label: 'Send Quote', icon: <FileText className="h-3.5 w-3.5" />, nav: 'quotes' as const },
-                { id: 'qa3', label: 'View Reports', icon: <BarChart3 className="h-3.5 w-3.5" />, nav: 'reports' as const },
-                { id: 'qa4', label: 'Customers', icon: <Users className="h-3.5 w-3.5" />, nav: 'customers' as const },
-              ].map((action) => (
-                <motion.button
-                  key={action.id}
-                  type="button"
-                  whileHover={{ y: -2 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => onNavigate(action.nav)}
-                  className="flex items-center justify-center gap-1.5 rounded-xl bg-gray-100 py-2.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-200"
-                >
-                  {action.icon}
-                  <span>{action.label}</span>
-                </motion.button>
-              ))}
+              {(
+                [
+                  { id: 'qa1', label: 'Add Cleaner', icon: <Sparkles className="h-3.5 w-3.5" />, nav: 'cleaners' },
+                  { id: 'qa2', label: 'Send Quote', icon: <FileText className="h-3.5 w-3.5" />, nav: 'quotes' },
+                  {
+                    id: 'qa3',
+                    label: 'Schedule',
+                    icon: <CalendarDays className="h-3.5 w-3.5" />,
+                    href: '/admin/schedule',
+                  },
+                  {
+                    id: 'qa4',
+                    label: 'Invoices',
+                    icon: <Receipt className="h-3.5 w-3.5" />,
+                    href: '/admin/invoices',
+                  },
+                  { id: 'qa5', label: 'Payments', icon: <Banknote className="h-3.5 w-3.5" />, nav: 'payments' },
+                  { id: 'qa6', label: 'Customers', icon: <Users className="h-3.5 w-3.5" />, nav: 'customers' },
+                  { id: 'qa7', label: 'View Reports', icon: <BarChart3 className="h-3.5 w-3.5" />, nav: 'reports' },
+                ] as const
+              ).map((action) =>
+                'href' in action ? (
+                  <Link
+                    key={action.id}
+                    href={action.href}
+                    className="flex items-center justify-center gap-1.5 rounded-xl bg-gray-100 py-2.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-200"
+                  >
+                    {action.icon}
+                    <span>{action.label}</span>
+                  </Link>
+                ) : (
+                  <motion.button
+                    key={action.id}
+                    type="button"
+                    whileHover={{ y: -2 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => onNavigate(action.nav)}
+                    className="flex items-center justify-center gap-1.5 rounded-xl bg-gray-100 py-2.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-200"
+                  >
+                    {action.icon}
+                    <span>{action.label}</span>
+                  </motion.button>
+                )
+              )}
             </div>
           </motion.div>
         </div>
@@ -730,7 +937,7 @@ export function DashboardHome({
           initial="hidden"
           animate="show"
           whileHover={{ y: -4 }}
-          className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+          className="rounded-2xl border border-gray-200/90 bg-white p-5 shadow-sm ring-1 ring-gray-100/80 transition-shadow hover:shadow-md"
         >
           <div className="mb-4 flex items-center justify-between">
             <div>
@@ -751,11 +958,14 @@ export function DashboardHome({
                 key={item.id}
                 whileHover={{ x: 4 }}
                 className="flex cursor-pointer items-center gap-3.5"
-                onClick={() => onNavigate('bookings')}
+                onClick={() => openBooking(item.id)}
               >
                 <div className="h-10 w-1 flex-shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
-                <div className="w-14 flex-shrink-0 text-center">
-                  <p className="text-[10px] font-bold text-gray-500">{item.time}</p>
+                <div className="w-12 flex-shrink-0 text-center">
+                  <p className="text-[10px] font-bold leading-tight text-gray-500">{item.clock}</p>
+                  {item.meridiem ? (
+                    <p className="text-[9px] leading-tight text-gray-400">{item.meridiem}</p>
+                  ) : null}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-gray-900">{item.client}</p>
@@ -782,12 +992,12 @@ export function DashboardHome({
           initial="hidden"
           animate="show"
           whileHover={{ y: -4 }}
-          className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+          className="rounded-2xl border border-gray-200/90 bg-white p-5 shadow-sm ring-1 ring-gray-100/80 transition-shadow hover:shadow-md"
         >
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h2 className="text-sm font-bold text-gray-900">Top Cleaners</h2>
-              <p className="mt-0.5 text-xs text-gray-400">By completed jobs</p>
+              <p className="mt-0.5 text-xs text-gray-400">Ranked by completed jobs</p>
             </div>
             <button
               type="button"
