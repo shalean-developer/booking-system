@@ -1,0 +1,26 @@
+---
+description: Unified dashboard data and finance rules (customer, admin, cleaner).
+globs:
+  - shared/dashboard-data/**
+  - shared/finance-engine/**
+  - lib/dashboard-data/**
+  - components/dashboard/**/hooks.tsx
+  - app/api/dashboard/**
+  - lib/admin/profit-*.ts
+---
+
+# Dashboard architecture
+
+## Single sources of truth
+
+- **Booking lifecycle** (upcoming / completed / cancelled predicates): `shared/dashboard-data/booking-lifecycle.ts` — use `isCompletedBooking`, `isCancelledBooking`, `isUpcomingBooking`, `isPastBookingListEntry`, `normalizeCustomerFacingStatus`; do not duplicate terminal-status or date logic in UI.
+- **Money on a booking row** (revenue / cleaner payout / company profit): `shared/finance-engine/booking-money.ts` — use `getBookingRevenueCents`, `getCleanerPayoutCents`, `getCompanyProfitCents`; admin P&L and estimates should use these helpers.
+- **Canonical booking type**: `shared/dashboard-data/types.ts` (`Booking`) — re-use or extend; avoid parallel `interface Booking` for the same DB row without reason.
+- **Customer KPI counts**: `lib/dashboard-data/customer-stats.ts` (`getCustomerDashboardStats`) — used by `GET /api/dashboard/stats`.
+- **Admin profit aggregates**: `lib/admin/profit-dashboard-data.ts` (via `getAdminDashboardData` in `lib/dashboard-data/index.ts`).
+- **Cleaner wallet / earnings**: `lib/cleaner-financial.ts` (`getCleanerDashboardData` in `lib/dashboard-data/index.ts`).
+
+## Rules
+
+1. New dashboard features should call **shared** or **lib/dashboard-data** helpers instead of re-deriving rules.
+2. Do not add parallel `total_amount - earnings` profit math outside `shared/finance-engine` without a documented exception.

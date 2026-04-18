@@ -1,0 +1,31 @@
+---
+description: Single source of truth for the customer dashboard (UI, data, routing).
+globs:
+  - app/dashboard/**
+  - app/customer/**
+  - components/dashboard/**
+  - app/api/dashboard/**
+  - lib/dashboard/**
+---
+
+# Customer dashboard architecture
+
+## Routes
+
+- **`/dashboard`** — Full customer portal UI only. Implementation lives under `components/dashboard/customer-portal/`. Do not add a second full-dashboard shell elsewhere.
+- **`/customer/dashboard/*`** — Nested or server-driven flows (e.g. invoices) that share the minimal layout in `app/customer/dashboard/layout.tsx`. These pages must **not** duplicate portal chrome, duplicate booking/stats business logic, or invent parallel data-fetching patterns.
+
+## Data
+
+- Client-side dashboard data must go through **`useCustomerDashboardData`** / portal hooks backed by **`GET /api/dashboard/bookings`** and **`GET /api/dashboard/stats`** (or future shared dashboard APIs).
+- Server routes under `/customer/dashboard/*` cannot use React context hooks; they must reuse **`lib/dashboard/`** helpers (e.g. shared booking list ordering/constants) and the same API contracts as the dashboard routes.
+- **Ordering:** Customer booking lists use `CUSTOMER_BOOKINGS_ORDER` from `lib/dashboard/customer-booking-list.ts` — keep this aligned with `GET /api/dashboard/bookings`.
+
+## UI
+
+- Reuse **`components/dashboard/shared/`** for cross-route pieces (e.g. `StatusBadge`, invoice row). Do not fork duplicate booking cards or status UI for `/customer/dashboard/*` pages.
+
+## Navigation
+
+- “Back to dashboard” / primary home for authenticated customers → **`/dashboard`**.
+- Canonical invoices URL: **`/customer/dashboard/invoices`**. Legacy **`/customer/invoices`** should remain a redirect only.
