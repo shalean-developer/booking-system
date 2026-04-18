@@ -21,6 +21,7 @@ import {
   Check,
   CheckCircle2,
   XCircle,
+  ClipboardList,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -28,7 +29,7 @@ import {
   useCustomerDashboardData,
   useQuickActions,
   useProfile,
-  useStats,
+  useDashboardStatsPayload,
   isCustomerUpcomingBooking,
 } from './hooks';
 import { RescheduleDatePickerModal } from './reschedule-date-picker-modal';
@@ -36,7 +37,6 @@ import { supportWhatsAppHref } from './booking-contact';
 import {
   STATUS_FILTER_OPTIONS,
   TRUST_BADGES,
-  StatCounter,
   BookingSkeleton,
   TrackCleanerModal,
   ContactModal,
@@ -55,7 +55,7 @@ interface DashboardHomeProps {
 export function DashboardHome({ onNavigate }: DashboardHomeProps) {
   const { cancelBooking, rateBooking, rescheduleBooking } = useBookings();
   const { bookings, upcomingBookings, isLoading: loading } = useCustomerDashboardData();
-  const { stats } = useStats();
+  const { dashboardStats, loading: statsLoading } = useDashboardStatsPayload();
   const { actions } = useQuickActions();
   const { user } = useProfile();
 
@@ -88,6 +88,13 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
   }, [bookings, filter]);
 
   const supportWaHref = supportWhatsAppHref();
+
+  const formatSpentZAR = (cents: number) => {
+    const rands = Math.round(cents / 100);
+    return `R${rands.toLocaleString('en-ZA')}`;
+  };
+
+  const showYourStatsSection = statsLoading || (dashboardStats?.totalBookings ?? 0) > 0;
 
   const displayFirstName = () => {
     const part = user.name?.split(/\s+/)[0];
@@ -156,13 +163,13 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
         )}
       </AnimatePresence>
 
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 sm:px-6 lg:px-8 py-6 md:py-8">
         <div className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
           <div>
             <h1 className="text-white text-2xl sm:text-3xl font-extrabold leading-tight">
               Hello, {displayFirstName()} 👋
             </h1>
-            <p className="text-blue-100 text-sm mt-1.5">
+            <p className="text-sm text-white/80 mt-1.5">
               {nextUpcomingBooking ? (
                 <span>
                   <span>Your next clean is </span>
@@ -180,7 +187,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => onNavigate('book')}
-            className="self-start sm:self-auto inline-flex items-center gap-2 bg-white text-blue-600 font-bold text-sm px-5 py-3 rounded-xl shadow-md hover:shadow-lg transition-shadow"
+            className="self-start sm:self-auto inline-flex items-center gap-2 bg-white text-blue-600 font-bold text-sm px-5 py-2.5 rounded-xl shadow-sm hover:shadow-md transition-shadow"
           >
             <Plus className="w-4 h-4" />
             <span>Book a Cleaning</span>
@@ -189,9 +196,9 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
       </div>
 
       <div className="w-full px-4 sm:px-6 lg:px-8 py-7 pb-24 lg:pb-16 lg:grid lg:grid-cols-[1fr_320px] lg:gap-8 lg:items-start">
-        <div className="space-y-7">
+        <div className="space-y-6">
           <section aria-label="Quick actions">
-            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap sm:overflow-visible">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {actions.map((action) => (
                 <motion.button
                   key={action.id}
@@ -199,18 +206,12 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => onNavigate(action.page)}
-                  className="flex-shrink-0 bg-white border border-gray-200 rounded-2xl px-4 py-4 flex items-center gap-3 w-44 sm:w-auto sm:flex-1 shadow-sm hover:shadow-md transition-shadow"
+                  className="w-full bg-white border border-gray-200 rounded-xl px-4 py-4 flex items-center gap-3 shadow-sm hover:shadow-md transition"
                 >
-                  <div
-                    className={cn(
-                      'w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0',
-                      action.bgClass,
-                      action.colorClass
-                    )}
-                  >
+                  <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 text-blue-600">
                     {action.id === 'qa-upcoming' && <Calendar className="w-5 h-5" />}
                     {action.id === 'qa-book' && <CalendarPlus className="w-5 h-5" />}
-                    {action.id === 'qa-rewards' && <Star className="w-5 h-5" />}
+                    {action.id === 'qa-total-bookings' && <ClipboardList className="w-5 h-5" />}
                   </div>
                   <div className="text-left min-w-0">
                     <p className="text-sm font-bold text-gray-900 truncate">{action.label}</p>
@@ -221,30 +222,47 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
             </div>
           </section>
 
-          <section aria-label="Your statistics">
-            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm px-5 py-5">
-              <div className="flex items-center gap-2 mb-5">
-                <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
-                <h2 className="text-sm font-bold text-gray-900">Your Stats</h2>
-              </div>
-              {loading ? (
-                <div className="flex divide-x divide-gray-100">
-                  {[1, 2, 3].map((n) => (
-                    <div key={n} className="flex-1 text-center animate-pulse">
-                      <div className="h-7 bg-gray-100 rounded w-12 mx-auto mb-1" />
-                      <div className="h-3 bg-gray-100 rounded w-16 mx-auto" />
+          {showYourStatsSection ? (
+            <section aria-label="Your statistics">
+              <div className="bg-white border border-gray-200 rounded-xl shadow-sm px-5 py-5 hover:shadow-md transition">
+                <div className="flex items-center gap-2 mb-5">
+                  <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                  <h2 className="text-sm font-bold text-gray-900">Your Stats</h2>
+                </div>
+                {statsLoading ? (
+                  <div className="grid grid-cols-3 gap-6">
+                    {[1, 2, 3].map((n) => (
+                      <div key={n} className="text-center animate-pulse">
+                        <div className="h-6 bg-gray-100 rounded w-14 mx-auto mb-2" />
+                        <div className="h-3 bg-gray-100 rounded w-20 mx-auto" />
+                      </div>
+                    ))}
+                  </div>
+                ) : dashboardStats ? (
+                  <div className="grid grid-cols-3 gap-6">
+                    <div className="min-w-0 text-center sm:text-left">
+                      <p className="text-lg font-semibold text-gray-900 tabular-nums">
+                        {dashboardStats.totalBookings}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-0.5">Total bookings</p>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex divide-x divide-gray-100">
-                  {stats.map((stat) => (
-                    <StatCounter key={stat.id} stat={stat} />
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
+                    <div className="min-w-0 text-center sm:text-left">
+                      <p className="text-lg font-semibold text-gray-900 tabular-nums truncate">
+                        {formatSpentZAR(dashboardStats.totalSpentCents)}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-0.5">Total spent</p>
+                    </div>
+                    <div className="min-w-0 text-center sm:text-left">
+                      <p className="text-lg font-semibold text-gray-900 tabular-nums">
+                        {dashboardStats.hoursCleaned}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-0.5">Hours cleaned</p>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
 
           <section aria-labelledby="bookings-heading">
             <div className="flex items-center justify-between mb-4">
@@ -268,9 +286,9 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
                   type="button"
                   onClick={() => setFilter(opt.id)}
                   className={cn(
-                    'flex-shrink-0 text-xs font-bold px-4 py-2 rounded-full border-2 transition-all duration-200',
+                    'flex-shrink-0 text-sm font-medium px-4 py-1.5 rounded-full border transition-all duration-200',
                     filter === opt.id
-                      ? 'bg-blue-600 text-white border-transparent'
+                      ? 'bg-primary text-primary-foreground border-transparent'
                       : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
                   )}
                 >
@@ -279,9 +297,9 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
               ))}
             </div>
 
-            <motion.div layout className="space-y-3">
+            <motion.div layout className="space-y-4">
               {loading ? (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <BookingSkeleton />
                   <BookingSkeleton />
                 </div>
@@ -295,7 +313,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.97 }}
                       transition={{ duration: 0.2 }}
-                      className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4 sm:p-5"
+                      className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
@@ -457,7 +475,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
                 </AnimatePresence>
               )}
               {!loading && filteredBookings.length === 0 && (
-                <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center">
+                <div className="bg-white border border-gray-200 rounded-xl p-10 text-center shadow-sm hover:shadow-md transition">
                   <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
                     <Calendar className="w-6 h-6 text-gray-400" />
                   </div>
@@ -481,9 +499,9 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
           <button
             type="button"
             onClick={() => onNavigate('rewards')}
-            className="w-full text-left bg-white border border-gray-200 rounded-2xl shadow-sm p-5 hover:shadow-md transition-shadow"
+            className="w-full text-left bg-white border border-gray-200 rounded-xl shadow-sm p-4 hover:shadow-md transition"
           >
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center flex-shrink-0">
                 <Star className="w-5 h-5 text-amber-500 fill-amber-400" />
               </div>
@@ -505,6 +523,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
                 </div>
               ) : null}
             </div>
+            <div className="space-y-3">
             {user.rewardsProgressEnabled && user.rewardProgress != null ? (
               <>
                 <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
@@ -527,7 +546,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
             ) : (
               <p className="text-xs text-gray-500">Rewards coming soon — points update when jobs complete.</p>
             )}
-            <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+            <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Heart className="w-3.5 h-3.5 text-blue-500 fill-blue-400" />
                 <p className="text-xs text-gray-600 font-semibold">
@@ -540,9 +559,10 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
                 <ArrowRight className="w-3 h-3" />
               </span>
             </div>
+            </div>
           </button>
 
-          <div className="bg-slate-800 rounded-2xl p-5">
+          <div className="bg-slate-800 rounded-xl border border-gray-200 p-5 hover:shadow-md transition">
             <div className="flex items-center gap-2 mb-3">
               <ShieldCheck className="w-4 h-4 text-blue-400" />
               <p className="text-sm font-bold text-white">Priority Support</p>
@@ -556,14 +576,14 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
               rel="noopener noreferrer"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+              className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium flex items-center justify-center gap-2 transition-colors"
             >
               <MessageCircle className="w-4 h-4" />
               <span>Chat on WhatsApp</span>
             </motion.a>
           </div>
 
-          <div className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl p-5">
+          <div className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl border border-gray-200 p-5 opacity-90 hover:shadow-md transition">
             <div className="flex items-center gap-2 mb-1">
               <Sparkles className="w-4 h-4 text-blue-200" />
               <p className="text-sm font-bold text-white">Refer &amp; Earn</p>
@@ -634,7 +654,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
             )}
           </div>
 
-          <div className="space-y-2 px-1">
+          <div className="space-y-1 mt-3 px-1">
             {TRUST_BADGES.map((badge) => (
               <div key={badge.id} className="flex items-center gap-2">
                 {badge.type === 'shield' && (
@@ -646,7 +666,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
                 {badge.type === 'spark' && (
                   <Sparkles className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
                 )}
-                <p className="text-xs text-gray-400">{badge.text}</p>
+                <p className="text-xs text-muted-foreground">{badge.text}</p>
               </div>
             ))}
           </div>

@@ -443,6 +443,9 @@ export type DashboardStatsPayload = {
   rewardPoints: number;
   lastCleaningCompleted: string | null;
   balanceDue: number;
+  totalBookings: number;
+  totalSpentCents: number;
+  hoursCleaned: number;
 };
 
 const BOOKINGS_PAGE_SIZE = 20;
@@ -822,49 +825,50 @@ export function CustomerPortalProvider({
     if (!s) {
       return [
         {
-          id: 'stat-upcoming',
-          label: 'Upcoming',
+          id: 'stat-total-bookings',
+          label: 'Total bookings',
           value: 0,
           suffix: '',
-          color: 'text-blue-600',
+          color: 'text-gray-900',
         },
         {
-          id: 'stat-plans',
-          label: 'Active Plans',
+          id: 'stat-total-spent',
+          label: 'Total spent',
           value: 0,
           suffix: '',
-          color: 'text-indigo-600',
+          color: 'text-gray-900',
         },
         {
-          id: 'stat-rewards',
-          label: 'Reward Points',
+          id: 'stat-hours-cleaned',
+          label: 'Hours cleaned',
           value: 0,
-          suffix: ' pts',
-          color: 'text-amber-500',
+          suffix: '',
+          color: 'text-gray-900',
         },
       ];
     }
+    const spentRands = Math.round(s.totalSpentCents / 100);
     return [
       {
-        id: 'stat-upcoming',
-        label: 'Upcoming',
-        value: s.upcomingCount,
+        id: 'stat-total-bookings',
+        label: 'Total bookings',
+        value: s.totalBookings,
         suffix: '',
-        color: 'text-blue-600',
+        color: 'text-gray-900',
       },
       {
-        id: 'stat-plans',
-        label: 'Active Plans',
-        value: s.activePlans,
+        id: 'stat-total-spent',
+        label: 'Total spent',
+        value: spentRands,
         suffix: '',
-        color: 'text-indigo-600',
+        color: 'text-gray-900',
       },
       {
-        id: 'stat-rewards',
-        label: 'Reward Points',
-        value: s.rewardPoints,
-        suffix: ' pts',
-        color: 'text-amber-500',
+        id: 'stat-hours-cleaned',
+        label: 'Hours cleaned',
+        value: s.hoursCleaned,
+        suffix: '',
+        color: 'text-gray-900',
       },
     ];
   }, [dashboardStats]);
@@ -1258,6 +1262,13 @@ export function useStats() {
   };
 }
 
+/** Server KPI payload from `GET /api/dashboard/stats` (same as `dashboardStats` on context). */
+export function useDashboardStatsPayload() {
+  const ctx = useContext(PortalContext);
+  if (!ctx) throw new Error('CustomerPortalProvider is required for useDashboardStatsPayload');
+  return { dashboardStats: ctx.dashboardStats, loading: ctx.statsLoading };
+}
+
 export function usePayments() {
   const ctx = useContext(PortalContext);
   if (!ctx) throw new Error('CustomerPortalProvider is required for usePayments');
@@ -1293,6 +1304,9 @@ export type CustomerDashboardStats = {
   cancelledCount: number;
   activePlans: number;
   rewardPoints: number;
+  totalBookings: number;
+  totalSpentCents: number;
+  hoursCleaned: number;
 };
 
 /** Lists from paginated bookings; KPIs from `GET /api/dashboard/stats` only (no client-derived counts). */
@@ -1321,6 +1335,9 @@ export function useCustomerDashboardData() {
     cancelledCount: s?.cancelledCount ?? 0,
     activePlans: s?.activePlans ?? 0,
     rewardPoints: s?.rewardPoints ?? 0,
+    totalBookings: s?.totalBookings ?? 0,
+    totalSpentCents: s?.totalSpentCents ?? 0,
+    hoursCleaned: s?.hoursCleaned ?? 0,
   };
 
   return {
@@ -1344,7 +1361,7 @@ export function useQuickActions() {
     throw new Error('CustomerPortalProvider is required for useQuickActions');
   }
   const upcomingCount = ctx.dashboardStats?.upcomingCount ?? 0;
-  const pts = ctx.dashboardStats?.rewardPoints ?? ctx.user.rewardPoints;
+  const totalBookings = ctx.dashboardStats?.totalBookings ?? 0;
   return useMemo(
     () => ({
       actions: [
@@ -1361,19 +1378,19 @@ export function useQuickActions() {
           label: 'Book Again',
           sublabel: 'New booking',
           page: 'book' as PageId,
-          bgClass: 'bg-indigo-50',
-          colorClass: 'text-indigo-600',
+          bgClass: 'bg-blue-50',
+          colorClass: 'text-blue-600',
         },
         {
-          id: 'qa-rewards',
-          label: 'Rewards',
-          sublabel: `${pts} pts`,
-          page: 'rewards' as PageId,
-          bgClass: 'bg-amber-50',
-          colorClass: 'text-amber-600',
+          id: 'qa-total-bookings',
+          label: 'Total Bookings',
+          sublabel: totalBookings === 1 ? '1 total' : `${totalBookings} total`,
+          page: 'bookings' as PageId,
+          bgClass: 'bg-blue-50',
+          colorClass: 'text-blue-600',
         },
       ],
     }),
-    [upcomingCount, pts]
+    [upcomingCount, totalBookings]
   );
 }

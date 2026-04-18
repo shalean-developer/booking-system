@@ -11,6 +11,9 @@ export type DashboardStatsPayload = {
   rewardPoints: number;
   lastCleaningCompleted: string | null;
   balanceDue: number;
+  totalBookings: number;
+  totalSpentCents: number;
+  hoursCleaned: number;
 };
 
 export async function GET(request: Request) {
@@ -59,6 +62,9 @@ export async function GET(request: Request) {
       rewardPoints: 0,
       lastCleaningCompleted: null,
       balanceDue: 0,
+      totalBookings: 0,
+      totalSpentCents: 0,
+      hoursCleaned: 0,
     };
 
     if (!customer) {

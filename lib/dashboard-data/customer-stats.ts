@@ -9,6 +9,12 @@ export type CustomerDashboardStats = {
   rewardPoints: number;
   lastCleaningCompleted: string | null;
   balanceDue: number;
+  /** All bookings for this customer (lifetime). */
+  totalBookings: number;
+  /** Sum of `total_amount` (cents) for completed bookings. */
+  totalSpentCents: number;
+  /** Sum of `total_hours` for completed bookings (whole hours). */
+  hoursCleaned: number;
 };
 
 /**
@@ -34,6 +40,7 @@ export async function getCustomerDashboardStats(
     { count: completedCount, error: completedErr },
     { count: cancelledCount, error: cancelledErr },
     { count: activePlansCount, error: plansErr },
+    { count: totalBookingsCount, error: totalBookingsErr },
   ] = await Promise.all([
     base()
       .gte('booking_date', todayStr)
@@ -48,10 +55,17 @@ export async function getCustomerDashboardStats(
       .select('*', { count: 'exact', head: true })
       .eq('customer_id', customerId)
       .eq('is_active', true),
+    base(),
   ]);
 
-  if (upcomingErr || completedErr || cancelledErr) {
-    throw new Error(upcomingErr?.message || completedErr?.message || cancelledErr?.message || 'stats failed');
+  if (upcomingErr || completedErr || cancelledErr || totalBookingsErr) {
+    throw new Error(
+      upcomingErr?.message ||
+        completedErr?.message ||
+        cancelledErr?.message ||
+        totalBookingsErr?.message ||
+        'stats failed'
+    );
   }
 
   const { data: lastCompleted } = await supabase
@@ -74,6 +88,19 @@ export async function getCustomerDashboardStats(
 
   const balanceDue = (unpaidBookings || []).reduce((sum, b) => sum + (b.total_amount || 0), 0);
 
+  const { data: completedTotals } = await supabase
+    .from('bookings')
+    .select('total_amount, total_hours')
+    .eq('customer_id', customerId)
+    .eq('status', 'completed');
+
+  let totalSpentCents = 0;
+  let hoursCleaned = 0;
+  for (const row of completedTotals || []) {
+    totalSpentCents += Number(row.total_amount) || 0;
+    hoursCleaned += Number(row.total_hours) || 0;
+  }
+
   return {
     upcomingCount: upcomingCount ?? 0,
     completedCount: completedCount ?? 0,
@@ -82,5 +109,8 @@ export async function getCustomerDashboardStats(
     rewardPoints,
     lastCleaningCompleted: lastCompleted?.booking_date ?? null,
     balanceDue,
+    totalBookings: totalBookingsCount ?? 0,
+    totalSpentCents,
+    hoursCleaned,
   };
 }
