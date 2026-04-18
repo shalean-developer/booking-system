@@ -3,13 +3,15 @@ import { BookingState } from '@/types/booking';
 import { supabase } from '@/lib/supabase';
 import { validatePendingBookingEnv } from '@/lib/env-validation';
 import { getServerAuthUser } from '@/lib/supabase-server';
-import { calculateCleanerEarnings } from '@/lib/cleaner-earnings';
+import { buildEarningsInsertFields } from '@/lib/earnings-v2';
+import { deriveCompanyOnlyCostsCents } from '@/lib/earnings-company-costs';
 import { generateUniqueBookingId } from '@/lib/booking-id';
 import { validateBookingDiscountAmount } from '@/lib/discount-booking-server';
 import { computeCheckoutPricing } from '@/lib/booking-checkout-pricing';
 import { computeServerPreSurgeTotalZar } from '@/lib/booking-server-pricing';
 import { createServiceClient } from '@/lib/supabase-server';
 import { resolveBookingCleanerAndSchedule } from '@/lib/dispatch/resolve-booking-cleaner';
+import { validatePricingEngineRequest } from '@/lib/pricing-engine';
 
 /**
  * Create a booking without payment (status pending, no Paystack reference).
@@ -42,6 +44,11 @@ export async function POST(req: Request) {
     }
     if (!body.service) {
       return NextResponse.json({ ok: false, error: 'Service is required' }, { status: 400 });
+    }
+
+    const engineValidation = validatePricingEngineRequest(body);
+    if (!engineValidation.ok) {
+      return NextResponse.json({ ok: false, error: engineValidation.error }, { status: 400 });
     }
 
     const tipAmountEarly = body.tipAmount || 0;
@@ -93,10 +100,14 @@ export async function POST(req: Request) {
       });
     }
 
+    const useEngineCart =
+      body.pricingEngineFinalCents != null && Number.isFinite(body.pricingEngineFinalCents);
+    const preSurgeForCheckout = useEngineCart ? preSurgeTotal : serverCart.preSurgeTotalZar;
+
     const checkoutPricing = await computeCheckoutPricing(supabase, {
       date: body.date,
       service: body.service,
-      preSurgeTotalZar: serverCart.preSurgeTotalZar,
+      preSurgeTotalZar: preSurgeForCheckout,
       selected_team: body.selected_team,
     });
     if (!checkoutPricing.ok) {
@@ -271,8 +282,7 @@ export async function POST(req: Request) {
 
     const { cleanerId: resolvedCleanerId, durationMinutes, expectedEndTime } = dispatch;
 
-    let cleanerHireDate = null;
-    let cleanerEarnings = 0;
+    let cleanerHireDate: string | null = null;
     const cleanerIdForInsert: string | null = requiresTeam ? null : resolvedCleanerId;
 
     if (!requiresTeam && cleanerIdForInsert) {
@@ -281,16 +291,50 @@ export async function POST(req: Request) {
         .select('hire_date')
         .eq('id', cleanerIdForInsert)
         .single();
-      cleanerHireDate = cleanerData?.hire_date || null;
-      cleanerEarnings =
-        calculateCleanerEarnings(
-          adjustedTotalAmount ?? null,
-          serverCart.serviceFeeZar ?? null,
-          cleanerHireDate,
-          tipAmount,
-          body.service ?? null,
-        ) * 100;
+      cleanerHireDate = cleanerData?.hire_date ?? null;
     }
+
+    const totalAmountCents = Math.round(adjustedTotalAmount * 100);
+    const serviceFeeCents = Math.round(serverCart.serviceFeeZar * 100);
+    const pb = serverCart.calc.breakdown;
+    let equipmentCostCentsForEarnings: number;
+    let extraCleanerFeeCentsForEarnings: number;
+    if (useEngineCart) {
+      equipmentCostCentsForEarnings = Math.max(0, Math.round(Number(body.equipmentCostCents) || 0));
+      extraCleanerFeeCentsForEarnings = Math.max(0, Math.round(Number(body.extraCleanerFeeCents) || 0));
+    } else {
+      const companyCosts = deriveCompanyOnlyCostsCents({
+        serviceType: body.service ?? null,
+        equipmentChargeZar: pb.equipmentCharge,
+        laborSubtotalOneCleanerZar: pb.laborSubtotalOneCleaner,
+        numberOfCleaners: pb.numberOfCleaners,
+      });
+      equipmentCostCentsForEarnings = companyCosts.equipmentCostCents;
+      extraCleanerFeeCentsForEarnings = companyCosts.extraCleanerFeeCents;
+    }
+
+    const earningsTeamSize =
+      useEngineCart && body.pricingTeamSize != null && Number.isFinite(body.pricingTeamSize)
+        ? Math.max(1, Math.round(body.pricingTeamSize))
+        : numberOfCleaners;
+
+    const earningsDurationMinutes =
+      useEngineCart && body.pricingTotalHours != null && Number.isFinite(body.pricingTotalHours)
+        ? Math.max(30, Math.round(body.pricingTotalHours * 60))
+        : durationMinutes ?? null;
+
+    const earningsFields = buildEarningsInsertFields({
+      totalAmountCents,
+      serviceFeeCents,
+      tipCents: tipAmountInCents,
+      hireDate: cleanerHireDate,
+      serviceType: body.service ?? null,
+      requiresTeam,
+      teamSize: earningsTeamSize,
+      durationMinutes: earningsDurationMinutes,
+      equipmentCostCents: equipmentCostCentsForEarnings,
+      extraCleanerFeeCents: extraCleanerFeeCentsForEarnings,
+    });
 
     const frequencyForDb = body.frequency === 'one-time' ? null : body.frequency;
     const bookingNotes = body.notes?.trim() ? body.notes.trim() : null;
@@ -317,7 +361,7 @@ export async function POST(req: Request) {
         total_amount: Math.round(adjustedTotalAmount * 100),
         price: adjustedTotalAmount,
         tip_amount: tipAmountInCents,
-        cleaner_earnings: cleanerEarnings,
+        ...earningsFields,
         requires_team: requiresTeam,
         surge_pricing_applied: surgePricingApplied,
         surge_amount: Math.round(surgeAmount * 100),

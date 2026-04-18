@@ -32,7 +32,8 @@ export async function GET() {
     const { data: totalRows, error: totalError } = await supabase
       .from('bookings')
       .select('total_amount')
-      .or(PAID_OR_DONE_FILTER);
+      .or(PAID_OR_DONE_FILTER)
+      .not('payment_status', 'eq', 'refunded');
 
     if (totalError) {
       console.error('Error fetching total revenue:', totalError);
@@ -42,6 +43,7 @@ export async function GET() {
       .from('bookings')
       .select('total_amount')
       .or(PAID_OR_DONE_FILTER)
+      .not('payment_status', 'eq', 'refunded')
       .gte('created_at', startOfMonth.toISOString())
       .lt('created_at', startOfNextMonth.toISOString());
 
@@ -53,6 +55,7 @@ export async function GET() {
       .from('bookings')
       .select('total_amount')
       .or(PAID_OR_DONE_FILTER)
+      .not('payment_status', 'eq', 'refunded')
       .gte('created_at', startOfPrevMonth.toISOString())
       .lt('created_at', startOfMonth.toISOString());
 

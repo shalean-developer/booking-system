@@ -1,10 +1,18 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { getCustomerDashboardStats } from '@/lib/dashboard-data/customer-stats';
 
-/**
- * API endpoint to fetch aggregated dashboard stats (KPIs)
- * Requires authentication
- */
+/** KPIs are DB counts only — must match dashboard business rules. */
+export type DashboardStatsPayload = {
+  upcomingCount: number;
+  completedCount: number;
+  cancelledCount: number;
+  activePlans: number;
+  rewardPoints: number;
+  lastCleaningCompleted: string | null;
+  balanceDue: number;
+};
+
 export async function GET(request: Request) {
   try {
     const authHeader = request.headers.get('Authorization');
@@ -17,9 +25,12 @@ export async function GET(request: Request) {
 
     const token = authHeader.replace('Bearer ', '');
     const supabase = await createClient();
-    
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
-    
+
+    const {
+      data: { user: authUser },
+      error: authError,
+    } = await supabase.auth.getUser(token);
+
     if (authError || !authUser) {
       return NextResponse.json(
         { ok: false, error: 'Unauthorized - Invalid token' },
@@ -27,10 +38,9 @@ export async function GET(request: Request) {
       );
     }
 
-    // Find customer profile
     const { data: customer, error: customerError } = await supabase
       .from('customers')
-      .select('id')
+      .select('id, rewards_points')
       .eq('auth_user_id', authUser.id)
       .maybeSingle();
 
@@ -41,71 +51,40 @@ export async function GET(request: Request) {
       );
     }
 
+    const emptyStats: DashboardStatsPayload = {
+      upcomingCount: 0,
+      completedCount: 0,
+      cancelledCount: 0,
+      activePlans: 0,
+      rewardPoints: 0,
+      lastCleaningCompleted: null,
+      balanceDue: 0,
+    };
+
     if (!customer) {
-      return NextResponse.json({
-        ok: true,
-        stats: {
-          upcomingAppointments: 0,
-          activeCleaningPlans: 0,
-          lastCleaningCompleted: null,
-          balanceDue: 0,
-        },
-      });
+      return NextResponse.json({ ok: true, stats: emptyStats });
     }
 
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const rewardPoints = Math.max(0, Math.round(Number(customer.rewards_points) || 0));
 
-    // Get upcoming appointments count
-    const { data: upcomingBookings } = await supabase
-      .from('bookings')
-      .select('id', { count: 'exact' })
-      .eq('customer_id', customer.id)
-      .gte('booking_date', today.toISOString().split('T')[0])
-      .neq('status', 'cancelled')
-      .neq('status', 'canceled');
+    let stats: DashboardStatsPayload;
+    try {
+      stats = await getCustomerDashboardStats(supabase, customer.id, rewardPoints);
+    } catch (e) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('dashboard/stats', e);
+      }
+      return NextResponse.json(
+        { ok: false, error: 'Failed to load dashboard stats' },
+        { status: 500 }
+      );
+    }
 
-    // Get active cleaning plans count
-    const { data: activePlans } = await supabase
-      .from('recurring_schedules')
-      .select('id', { count: 'exact' })
-      .eq('customer_id', customer.id)
-      .eq('is_active', true);
-
-    // Get last completed cleaning
-    const { data: lastCompleted } = await supabase
-      .from('bookings')
-      .select('booking_date')
-      .eq('customer_id', customer.id)
-      .eq('status', 'completed')
-      .order('booking_date', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    // Calculate balance due (unpaid bookings)
-    const { data: unpaidBookings } = await supabase
-      .from('bookings')
-      .select('total_amount')
-      .eq('customer_id', customer.id)
-      .is('payment_reference', null)
-      .neq('status', 'cancelled')
-      .neq('status', 'canceled')
-      .neq('status', 'completed');
-
-    const balanceDue = (unpaidBookings || []).reduce((sum, b) => sum + (b.total_amount || 0), 0);
-
-    return NextResponse.json({
-      ok: true,
-      stats: {
-        upcomingAppointments: upcomingBookings?.length || 0,
-        activeCleaningPlans: activePlans?.length || 0,
-        lastCleaningCompleted: lastCompleted?.booking_date || null,
-        balanceDue,
-      },
-    });
-
+    return NextResponse.json({ ok: true, stats });
   } catch (error) {
-    console.error('Error in stats route:', error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Error in stats route:', error);
+    }
     return NextResponse.json(
       { ok: false, error: 'Internal server error' },
       { status: 500 }

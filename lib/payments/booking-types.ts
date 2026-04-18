@@ -36,4 +36,8 @@ export type BookingPaidRow = {
   equipment_required?: boolean | null;
   equipment_fee?: number | null;
   manage_token?: string | null;
+  /** Populated after successful Paystack finalize (audit). */
+  paid_amount_minor?: number | null;
+  paid_currency?: string | null;
+  paystack_verified_at?: string | null;
 };

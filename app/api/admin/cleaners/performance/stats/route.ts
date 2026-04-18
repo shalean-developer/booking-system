@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase-server';
 import { isAdmin } from '@/lib/supabase-server';
+import { isExcludedFromRevenueReporting } from '@/lib/booking-revenue-exclusion';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
     // Get total revenue (sum of cleaner_earnings from completed bookings)
     let revenueQuery = supabase
       .from('bookings')
-      .select('cleaner_earnings')
+      .select('cleaner_earnings, payment_status, status')
       .eq('status', 'completed')
       .not('cleaner_earnings', 'is', null);
 
@@ -70,7 +71,10 @@ export async function GET(request: NextRequest) {
 
     const { data: completedBookingData } = await revenueQuery;
 
-    const totalRevenue = completedBookingData?.reduce((sum, b) => sum + (b.cleaner_earnings || 0), 0) || 0;
+    const totalRevenue =
+      completedBookingData
+        ?.filter((b) => !isExcludedFromRevenueReporting(b as { payment_status?: string | null; status?: string | null }))
+        .reduce((sum, b) => sum + (b.cleaner_earnings || 0), 0) || 0;
 
     return NextResponse.json({
       ok: true,

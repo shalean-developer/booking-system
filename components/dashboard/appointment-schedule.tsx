@@ -28,6 +28,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Booking, Cleaner } from '@/types/dashboard';
+import { isCancelledBooking } from '@/shared/dashboard-data';
 
 interface AppointmentScheduleProps {
   bookings: Booking[];
@@ -133,7 +134,7 @@ export const AppointmentSchedule = memo(function AppointmentSchedule({ bookings,
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         // Exclude cancelled bookings
-        if (b.status === 'cancelled' || b.status === 'canceled') {
+        if (isCancelledBooking(b.status)) {
           return false;
         }
         return bookingDate >= today;

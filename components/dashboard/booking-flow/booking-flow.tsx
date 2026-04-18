@@ -23,13 +23,33 @@ import { useDashboardBooking, bookingServiceInfo } from '@/shared/booking';
 import { aggregateExtraQuantitiesByName, slugifyExtraId } from '@/lib/booking-pricing-input';
 import type { BookingFormData } from '@/lib/useBookingFormData';
 import { useBookingSlotOccupancy } from '@/lib/use-booking-slot-occupancy';
-import { computeBookingDurationMinutes } from '@/lib/booking-duration';
 import {
   getAvailabilityStyle,
   getAvailabilityUrgencyLabel,
 } from '@/lib/booking-slot-availability-styles';
 import { useBookingAbVariant } from '@/hooks/use-booking-ab-variant';
 import { BOOKING_DEFAULT_CITY } from '@/lib/contact';
+import {
+  DAYS_OF_WEEK,
+  MAX_BOOKING_DAYS_FROM_TODAY,
+  toDateStr,
+  parseDateStr,
+  isAllowedBookingDate,
+  offsetForDateToBeVisible,
+  getSevenDaysStartingOffset,
+  formatWeekRangeLabel,
+  formatSelectedDateLong,
+  daysFromTodayStart,
+} from '@/shared/booking-engine/booking-dates';
+import { BOOKING_TEAM_NAMES, isBookingTeamName } from '@/shared/booking-engine';
+import { aggregateExtraIdsToQuantities } from '@/shared/booking-engine/dashboard-pricing-bridge';
+import {
+  getOptimalTeamSize,
+  getBookingDurationMinutes,
+  getAvailableSlots,
+  buildDashboardPendingBookingPayload,
+} from '@/shared/booking-engine';
+import { validatePhoneNumber } from '@/lib/phone-validation';
 
 const STEPS: BookingStep[] = [
   { id: 1, label: 'Service' },
@@ -39,76 +59,8 @@ const STEPS: BookingStep[] = [
   { id: 5, label: 'Payment' },
 ];
 
-const TEAM_ID_TO_NAME: Record<string, 'Team A' | 'Team B' | 'Team C'> = {
-  t1: 'Team A',
-  t2: 'Team B',
-  t3: 'Team C',
-};
-
-const TEAM_OPTIONS: FlowCleaner[] = [
-  {
-    id: 't1',
-    name: 'Team A',
-    initial: 'A',
-    specialty: 'Deep clean & move crews',
-    rating: '5.0',
-    reviews: 'Team',
-  },
-  {
-    id: 't2',
-    name: 'Team B',
-    initial: 'B',
-    specialty: 'Deep clean & move crews',
-    rating: '5.0',
-    reviews: 'Team',
-  },
-  {
-    id: 't3',
-    name: 'Team C',
-    initial: 'C',
-    specialty: 'Deep clean & move crews',
-    rating: '5.0',
-    reviews: 'Team',
-  },
-];
-
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function useNextSevenDays() {
-  return useMemo(() => {
-    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const monthLabels = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    const start = new Date();
-    const out: Array<{ id: string; iso: string; day: string; date: string; month: string }> = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
-      const iso = d.toISOString().slice(0, 10);
-      out.push({
-        id: `date-${iso}`,
-        iso,
-        day: dayLabels[d.getDay()],
-        date: String(d.getDate()),
-        month: monthLabels[d.getMonth()],
-      });
-    }
-    return out;
-  }, []);
-}
 
 function buildExtrasList(formData: BookingFormData | null, service: string): FlowExtra[] {
   if (!formData?.extras) return [];
@@ -164,6 +116,11 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
   } = useDashboardBooking({ formData });
   const { user, customerAddressParts } = useProfile();
 
+  const extrasQuantitiesById = useMemo(
+    () => aggregateExtraIdsToQuantities(state.selectedExtraIds),
+    [state.selectedExtraIds]
+  );
+
   const slotDispatchContext = useMemo(
     () => ({
       suburb: customerAddressParts?.suburb?.trim() ?? '',
@@ -171,7 +128,7 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
       bedrooms: state.bedrooms,
       bathrooms: state.bathrooms,
       extras: state.selectedExtraIds,
-      extrasQuantities: {},
+      extrasQuantities: extrasQuantitiesById,
     }),
     [
       customerAddressParts?.suburb,
@@ -179,30 +136,21 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
       state.bedrooms,
       state.bathrooms,
       state.selectedExtraIds,
+      extrasQuantitiesById,
     ]
   );
 
   const slotOcc = useBookingSlotOccupancy(state.date, slotDispatchContext);
   const { variant: abVariant, track: trackAb } = useBookingAbVariant();
-  const timeSlots = useMemo(() => {
-    return timeSlotDefs.map((def) => {
-      if (slotOcc.status !== 'success') {
-        return {
-          id: def.id,
-          time: def.time,
-          available: false,
-          remaining: 0,
-        };
-      }
-      const remaining = slotOcc.remaining[def.id] ?? 0;
-      return {
-        id: def.id,
-        time: def.time,
-        available: remaining > 0,
-        remaining,
-      };
-    });
-  }, [timeSlotDefs, slotOcc.status, slotOcc.remaining]);
+  const timeSlots = useMemo(
+    () =>
+      getAvailableSlots({
+        slotDefs: timeSlotDefs,
+        remainingBySlotId: slotOcc.status === 'success' ? slotOcc.remaining : null,
+        occupancyStatus: slotOcc.status,
+      }),
+    [timeSlotDefs, slotOcc.status, slotOcc.remaining]
+  );
 
   const firstAvailableSlotId = useMemo(() => {
     if (slotOcc.status !== 'success') return null;
@@ -220,9 +168,38 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
     }
   }, [slotOcc.status, slotOcc.remaining, state.time, setState]);
 
-  const DATE_OPTIONS = useNextSevenDays();
+  const [weekStartOffset, setWeekStartOffset] = useState(0);
+  const selectableDates = useMemo(
+    () => getSevenDaysStartingOffset(weekStartOffset),
+    [weekStartOffset]
+  );
+  const canGoDatePrev = weekStartOffset > 0;
+  const canGoDateNext = weekStartOffset + 13 <= MAX_BOOKING_DAYS_FROM_TODAY;
+
+  const goDatePrev = () => {
+    if (!canGoDatePrev) return;
+    setWeekStartOffset((o) => Math.max(0, o - 7));
+  };
+  const goDateNext = () => {
+    if (!canGoDateNext) return;
+    setWeekStartOffset((o) => o + 7);
+  };
 
   const [step, setStep] = useState(1);
+
+  useEffect(() => {
+    setState((s) => {
+      if (s.date) return s;
+      return { ...s, date: toDateStr(getSevenDaysStartingOffset(0)[0]) };
+    });
+  }, [setState]);
+
+  useEffect(() => {
+    const parsed = parseDateStr(state.date);
+    if (parsed && isAllowedBookingDate(parsed)) {
+      setWeekStartOffset(offsetForDateToBeVisible(parsed));
+    }
+  }, [state.date]);
 
   useEffect(() => {
     if (step !== 2) return;
@@ -245,16 +222,74 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [apiCleaners, setApiCleaners] = useState<ApiCleaner[]>([]);
   const [cleanersLoading, setCleanersLoading] = useState(false);
+  const [bookedTeams, setBookedTeams] = useState<string[]>([]);
+  const [teamsLoading, setTeamsLoading] = useState(false);
   const [checkoutFinalZar, setCheckoutFinalZar] = useState<number | null>(null);
 
   const selectedService = state.service?.id ?? '';
 
-  useEffect(() => {
-    setState((s) => ({ ...s, date: s.date || DATE_OPTIONS[0]?.iso || '' }));
-  }, [DATE_OPTIONS, setState]);
-
   const isTeamService =
     selectedService === 'Deep' || selectedService === 'Move In/Out';
+
+  const numberOfCleanersForPricing = useMemo(() => {
+    if (!selectedService) return 1;
+    return getOptimalTeamSize({
+      kind: 'dashboard',
+      service: selectedService as ServiceType,
+      bedrooms: state.bedrooms,
+      bathrooms: state.bathrooms,
+      extraRooms: selectedService === 'Carpet' ? 0 : state.extraRooms,
+      selectedExtraIds: state.selectedExtraIds,
+      extrasQuantitiesById,
+    });
+  }, [
+    selectedService,
+    state.bedrooms,
+    state.bathrooms,
+    state.extraRooms,
+    state.selectedExtraIds,
+    extrasQuantitiesById,
+  ]);
+
+  useEffect(() => {
+    if (!state.date) return;
+    const inWeek = selectableDates.some((d) => toDateStr(d) === state.date);
+    if (!inWeek) {
+      setState((s) => ({ ...s, date: '', time: '' }));
+    }
+  }, [selectableDates, state.date, setState]);
+
+  useEffect(() => {
+    if (!isTeamService || !state.date || !selectedService) {
+      setBookedTeams([]);
+      return;
+    }
+    let cancelled = false;
+    setTeamsLoading(true);
+    const q = new URLSearchParams({ date: state.date, service: selectedService });
+    fetch(`/api/teams/availability?${q}`)
+      .then((res) => res.json())
+      .then((json: { ok?: boolean; bookedTeams?: string[] }) => {
+        if (cancelled) return;
+        setBookedTeams(json.ok && Array.isArray(json.bookedTeams) ? json.bookedTeams : []);
+      })
+      .catch(() => {
+        if (!cancelled) setBookedTeams([]);
+      })
+      .finally(() => {
+        if (!cancelled) setTeamsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isTeamService, state.date, selectedService]);
+
+  useEffect(() => {
+    if (!isTeamService || !state.cleaner_id) return;
+    if (isBookingTeamName(state.cleaner_id) && bookedTeams.includes(state.cleaner_id)) {
+      setState((s) => ({ ...s, cleaner_id: null }));
+    }
+  }, [bookedTeams, isTeamService, state.cleaner_id, setState]);
 
   const extrasList = useMemo(
     () => buildExtrasList(formData, selectedService),
@@ -267,15 +302,15 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
     if (!formData?.pricing || !selectedService || !state.date) {
       throw new Error('Missing booking details for pricing.');
     }
-    const extrasQuantitiesById: Record<string, number> = {};
-    state.selectedExtraIds.forEach((id) => {
-      extrasQuantitiesById[id] = (extrasQuantitiesById[id] || 0) + 1;
-    });
     const extrasQuantities = aggregateExtraQuantitiesByName(
       state.selectedExtraIds,
       extrasQuantitiesById,
       formData.extras.all
     );
+    const teamName =
+      isTeamService && state.cleaner_id && isBookingTeamName(state.cleaner_id)
+        ? state.cleaner_id
+        : undefined;
     const previewRes = await fetch('/api/booking/pricing-preview', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -283,7 +318,7 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
         date: state.date,
         service: selectedService,
         preSurgeTotal: preSurgeTotalZar,
-        selected_team: isTeamService ? TEAM_ID_TO_NAME[state.cleaner_id ?? ''] : undefined,
+        selected_team: teamName,
         bedrooms: state.bedrooms,
         bathrooms: state.bathrooms,
         extraRooms: selectedService === 'Carpet' ? 0 : state.extraRooms,
@@ -292,7 +327,7 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
         frequency: 'one-time',
         tipAmount: 0,
         discountAmount: 0,
-        numberOfCleaners: 1,
+        numberOfCleaners: numberOfCleanersForPricing,
         provideEquipment:
           (selectedService === 'Standard' || selectedService === 'Airbnb') && state.provideEquipment,
         carpetDetails: carpetDetails ?? undefined,
@@ -308,6 +343,7 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
     selectedService,
     state.date,
     state.selectedExtraIds,
+    extrasQuantitiesById,
     state.bedrooms,
     state.bathrooms,
     state.extraRooms,
@@ -316,6 +352,7 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
     preSurgeTotalZar,
     isTeamService,
     carpetDetails,
+    numberOfCleanersForPricing,
   ]);
 
   useEffect(() => {
@@ -352,11 +389,11 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
     params.set(
       'duration_minutes',
       String(
-        computeBookingDurationMinutes({
+        getBookingDurationMinutes({
           bedrooms: state.bedrooms,
           bathrooms: state.bathrooms,
           extras: state.selectedExtraIds,
-          extrasQuantities: {},
+          extrasQuantities: extrasQuantitiesById,
         })
       )
     );
@@ -383,10 +420,20 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
     state.selectedExtraIds,
     customerAddressParts,
     isTeamService,
+    extrasQuantitiesById,
   ]);
 
   const flowCleaners: FlowCleaner[] = useMemo(() => {
-    if (isTeamService) return TEAM_OPTIONS;
+    if (isTeamService) {
+      return BOOKING_TEAM_NAMES.filter((n) => !bookedTeams.includes(n)).map((name) => ({
+        id: name,
+        name,
+        initial: name.replace(/^Team\s+/i, '').slice(0, 1).toUpperCase() || 'T',
+        specialty: 'Coordinated crew',
+        rating: '',
+        reviews: '',
+      }));
+    }
     return apiCleaners.map((c) => ({
       id: c.id,
       name: c.name,
@@ -396,22 +443,24 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
       reviews:
         c.completion_rate != null ? `${Math.round(c.completion_rate)}% reliable` : '—',
     }));
-  }, [isTeamService, apiCleaners]);
+  }, [isTeamService, bookedTeams, apiCleaners]);
 
   const currentCleaner = flowCleaners.find((c) => c.id === state.cleaner_id);
 
   const displayTotalZar = checkoutFinalZar ?? preSurgeTotalZar;
+
+  const profilePhoneOk = validatePhoneNumber((user.phone || '').trim());
 
   const canProceed = () => {
     if (step === 1) return !!selectedService;
     if (step === 2) return !!state.date && !!state.time;
     if (step === 3) {
       if (!state.cleaner_id) return false;
-      if (isTeamService) return Boolean(TEAM_ID_TO_NAME[state.cleaner_id]);
+      if (isTeamService) return isBookingTeamName(state.cleaner_id);
       return UUID_RE.test(state.cleaner_id);
     }
     if (step === 4) return true;
-    if (step === 5) return true;
+    if (step === 5) return profilePhoneOk && !!customerAddressParts;
     return false;
   };
 
@@ -426,65 +475,33 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
 
   const buildPendingPayload = useCallback(
     (finalTotalZar: number, preSurge: number) => {
-      const nameParts = user.name.trim().split(/\s+/);
-      const firstName = nameParts[0] || 'Customer';
-      const lastName = nameParts.slice(1).join(' ') || '—';
       const addr = customerAddressParts;
       if (!addr) {
         throw new Error('Add your street address in Profile before paying.');
       }
-      const extrasQuantitiesById: Record<string, number> = {};
-      state.selectedExtraIds.forEach((id) => {
-        extrasQuantitiesById[id] = (extrasQuantitiesById[id] || 0) + 1;
-      });
-      const requiresTeam = isTeamService;
-      const cleanerUuid =
-        !requiresTeam && UUID_RE.test(state.cleaner_id ?? '')
-          ? state.cleaner_id ?? undefined
-          : undefined;
-      const selected_team = requiresTeam ? TEAM_ID_TO_NAME[state.cleaner_id ?? ''] : undefined;
-
-      return {
-        step: 4 as const,
-        service: selectedService as ServiceType,
-        bedrooms: state.bedrooms,
-        bathrooms: state.bathrooms,
-        extraRooms: selectedService === 'Carpet' ? 0 : state.extraRooms,
-        numberOfCleaners: 1,
-        extras: state.selectedExtraIds,
-        extrasQuantities: extrasQuantitiesById,
-        carpetDetails: carpetDetails ?? undefined,
-        provideEquipment:
-          (selectedService === 'Standard' || selectedService === 'Airbnb') && state.provideEquipment,
-        notes: '',
-        date: state.date,
-        time: state.time,
-        frequency: 'one-time' as const,
-        firstName,
-        lastName,
-        email: user.email.trim(),
-        phone: (user.phone || '').trim() || '0000000000',
-        address: {
-          line1: addr.line1,
-          suburb: addr.suburb,
-          city: addr.city,
+      return buildDashboardPendingBookingPayload({
+        user: { name: user.name, email: user.email, phone: user.phone || '' },
+        address: { line1: addr.line1, suburb: addr.suburb, city: addr.city },
+        state: {
+          bedrooms: state.bedrooms,
+          bathrooms: state.bathrooms,
+          extraRooms: state.extraRooms,
+          selectedExtraIds: state.selectedExtraIds,
+          provideEquipment: state.provideEquipment,
+          date: state.date,
+          time: state.time,
+          cleaner_id: state.cleaner_id,
         },
-        cleaner_id: cleanerUuid,
-        selected_team,
-        requires_team: requiresTeam,
-        totalAmount: finalTotalZar,
-        preSurgeTotal: preSurge,
-        serviceFee: linePricing?.serviceFee ?? 0,
-        frequencyDiscount: linePricing?.frequencyDiscount ?? 0,
-        tipAmount: 0,
-        discountAmount: 0,
-        equipment_required:
-          (selectedService === 'Standard' || selectedService === 'Airbnb') && state.provideEquipment,
-        equipment_fee:
-          (selectedService === 'Standard' || selectedService === 'Airbnb') && state.provideEquipment
-            ? formData?.equipment?.charge ?? 0
-            : 0,
-      };
+        selectedService: selectedService as ServiceType,
+        isTeamService,
+        extrasQuantitiesById,
+        carpetDetails,
+        linePricing,
+        numberOfCleanersForPricing,
+        equipmentChargeZar: formData?.equipment?.charge ?? 0,
+        finalTotalZar: finalTotalZar,
+        preSurge: preSurge,
+      });
     },
     [
       user,
@@ -495,6 +512,8 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
       carpetDetails,
       linePricing,
       formData,
+      extrasQuantitiesById,
+      numberOfCleanersForPricing,
     ]
   );
 
@@ -502,6 +521,11 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
     setPaymentError(null);
     if (!customerAddressParts) {
       toast.error('Add your street address in Profile before paying.');
+      return;
+    }
+    const phoneRaw = (user.phone || '').trim();
+    if (!validatePhoneNumber(phoneRaw)) {
+      toast.error('Add a valid phone number in Profile before paying.');
       return;
     }
     if (!formData?.pricing || !linePricing) {
@@ -599,7 +623,7 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
     );
   }
 
-  const selectedDateLabel = DATE_OPTIONS.find((d) => d.iso === state.date);
+  const parsedSummaryDate = parseDateStr(state.date);
 
   return (
     <div className="min-h-screen bg-[#f8f9fb]">
@@ -709,39 +733,89 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
                 </p>
 
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Date</p>
-                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0 mb-6">
-                  {DATE_OPTIONS.map((d) => (
+                <div className="border border-gray-200 rounded-2xl overflow-hidden bg-gray-50/40 mb-3">
+                  <div className="flex items-center justify-between gap-2 px-3 py-3 border-b border-gray-100 bg-gray-50/60">
                     <button
-                      key={d.id}
                       type="button"
-                      onClick={() => setState((s) => ({ ...s, date: d.iso }))}
-                      className={cn(
-                        'flex-shrink-0 flex flex-col items-center w-14 py-3 rounded-2xl border-2 transition-all',
-                        state.date === d.iso
-                          ? 'bg-blue-600 border-blue-600 text-white'
-                          : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
-                      )}
+                      onClick={goDatePrev}
+                      disabled={!canGoDatePrev}
+                      aria-label="Previous week"
+                      className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg border border-gray-200 bg-white hover:shadow-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                     >
-                      <span
-                        className={cn(
-                          'text-[10px] font-semibold',
-                          state.date === d.iso ? 'text-blue-200' : 'text-gray-400'
-                        )}
-                      >
-                        {d.day}
-                      </span>
-                      <span className="text-lg font-extrabold leading-tight">{d.date}</span>
-                      <span
-                        className={cn(
-                          'text-[10px] font-semibold',
-                          state.date === d.iso ? 'text-blue-200' : 'text-gray-400'
-                        )}
-                      >
-                        {d.month}
-                      </span>
+                      <ChevronLeft className="w-4 h-4 text-gray-700" />
                     </button>
-                  ))}
+                    <div className="min-w-0 text-center flex-1">
+                      <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                        Pick a week
+                      </p>
+                      <p className="text-xs font-bold text-gray-800 mt-0.5 truncate">
+                        {formatWeekRangeLabel(selectableDates)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={goDateNext}
+                      disabled={!canGoDateNext}
+                      aria-label="Next week"
+                      className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg border border-gray-200 bg-white hover:shadow-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <ChevronRight className="w-4 h-4 text-gray-700" />
+                    </button>
+                  </div>
+                  <div className="p-3 sm:p-4">
+                    <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+                      {selectableDates.map((cellDate) => {
+                        const iso = toDateStr(cellDate);
+                        const dow = DAYS_OF_WEEK[cellDate.getDay()];
+                        const isSelected = state.date === iso;
+                        const isTodayCell = daysFromTodayStart(cellDate) === 0;
+                        const allowed = isAllowedBookingDate(cellDate);
+                        return (
+                          <motion.button
+                            key={iso}
+                            type="button"
+                            disabled={!allowed}
+                            onClick={() =>
+                              allowed &&
+                              setState((s) => ({
+                                ...s,
+                                date: iso,
+                                time: '',
+                              }))
+                            }
+                            whileTap={{ scale: 0.94 }}
+                            className={cn(
+                              'flex flex-col items-center justify-center rounded-xl py-2 px-0.5 min-h-[3.5rem] transition-all',
+                              !allowed && 'opacity-30 cursor-not-allowed',
+                              isSelected
+                                ? 'bg-blue-600 text-white shadow-md shadow-blue-100'
+                                : isTodayCell
+                                  ? 'ring-2 ring-blue-400 bg-white text-blue-700 font-bold hover:bg-blue-50'
+                                  : 'bg-white text-gray-700 border border-gray-200 hover:border-blue-300'
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                'text-[9px] font-bold tracking-wider',
+                                isSelected ? 'text-blue-100' : 'text-gray-400'
+                              )}
+                            >
+                              {dow}
+                            </span>
+                            <span className="text-base font-bold tabular-nums leading-tight mt-0.5">
+                              {cellDate.getDate()}
+                            </span>
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
+                {parsedSummaryDate && (
+                  <p className="text-xs text-blue-600 font-semibold mb-4">
+                    {formatSelectedDateLong(parsedSummaryDate)}
+                  </p>
+                )}
 
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Time</p>
                 {slotOcc.status === 'error' && slotOcc.errorMessage ? (
@@ -832,14 +906,18 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
                     ? 'Deep and move bookings use a coordinated crew'
                     : 'Available cleaners for your area and time slot'}
                 </p>
-                {cleanersLoading && !isTeamService ? (
+                {(cleanersLoading && !isTeamService) || (teamsLoading && isTeamService) ? (
                   <div className="flex items-center gap-2 text-sm text-gray-500 py-8 justify-center">
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    Loading cleaners…
+                    {isTeamService ? 'Loading team availability…' : 'Loading cleaners…'}
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {flowCleaners.length === 0 && !isTeamService ? (
+                    {flowCleaners.length === 0 && isTeamService ? (
+                      <p className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-xl p-4">
+                        No teams are free for this date — all crews are already booked. Try another day.
+                      </p>
+                    ) : flowCleaners.length === 0 && !isTeamService ? (
                       <p className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-xl p-4">
                         No cleaners available for this slot. Try another date or time.
                       </p>
@@ -864,11 +942,15 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-bold text-gray-900">{cleaner.name}</p>
                               <p className="text-xs text-gray-400">{cleaner.specialty}</p>
-                              <div className="flex items-center gap-1 mt-1">
-                                <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-                                <span className="text-xs font-bold text-gray-700">{cleaner.rating}</span>
-                                <span className="text-xs text-gray-400">({cleaner.reviews})</span>
-                              </div>
+                              {cleaner.rating ? (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                                  <span className="text-xs font-bold text-gray-700">{cleaner.rating}</span>
+                                  <span className="text-xs text-gray-400">({cleaner.reviews})</span>
+                                </div>
+                              ) : (
+                                <p className="text-xs text-gray-400 mt-1">{cleaner.reviews || 'Team booking'}</p>
+                              )}
                             </div>
                             {state.cleaner_id === cleaner.id && (
                               <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
@@ -988,6 +1070,11 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
                     Add a full street address in Profile before paying — we need it for the booking.
                   </p>
                 )}
+                {customerAddressParts && !profilePhoneOk && (
+                  <p className="mt-3 text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-xl p-3">
+                    Add a valid phone number in Profile before paying (8–15 digits).
+                  </p>
+                )}
                 <div className="lg:hidden mt-6 border-t border-gray-100 pt-4">
                   <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Total due</p>
                   <p className="text-2xl font-extrabold text-blue-600">
@@ -1023,7 +1110,11 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
               type="button"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              disabled={!canProceed() || paying || (step === 5 && !customerAddressParts)}
+              disabled={
+                !canProceed() ||
+                paying ||
+                (step === 5 && (!customerAddressParts || !profilePhoneOk))
+              }
               onClick={() => {
                 if (step === 2 && state.time) trackAb('continue_step2');
                 if (step < 5) setStep((s) => s + 1);
@@ -1031,7 +1122,9 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
               }}
               className={cn(
                 'flex-1 py-3 rounded-xl text-sm font-extrabold flex items-center justify-center gap-2 transition-all',
-                canProceed() && !paying && (step < 5 || customerAddressParts)
+                canProceed() &&
+                  !paying &&
+                  (step < 5 || (customerAddressParts && profilePhoneOk))
                   ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-100'
                   : 'bg-gray-100 text-gray-300 cursor-not-allowed'
               )}
@@ -1129,10 +1222,8 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
               <div className="flex items-center justify-between">
                 <p className="text-xs text-gray-500">Date</p>
                 <p className="text-xs font-bold text-gray-900 text-right">
-                  {selectedDateLabel ? (
-                    <span>
-                      {selectedDateLabel.day}, {selectedDateLabel.date} {selectedDateLabel.month}
-                    </span>
+                  {parsedSummaryDate ? (
+                    <span className="line-clamp-2">{formatSelectedDateLong(parsedSummaryDate)}</span>
                   ) : (
                     <span className="text-gray-300">Not selected</span>
                   )}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -8,148 +8,40 @@ import {
   ChevronRight,
   CheckCircle2,
   Calendar,
-  Clock,
-  Star,
-  Shuffle,
+  Loader2,
+  Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Booking, PreferredCleanerOption } from './types';
+import type { Booking } from './types';
+import { useProfile } from './hooks';
+import { BOOKING_TIME_SLOT_DEFS } from '@/lib/booking-time-slots';
+import { BOOKING_DEFAULT_CITY } from '@/lib/contact';
+import { computeBookingDurationMinutes } from '@/lib/booking-duration';
+import { useBookingSlotOccupancy } from '@/lib/use-booking-slot-occupancy';
+import {
+  getAvailabilityStyle,
+  getAvailabilityUrgencyLabel,
+} from '@/lib/booking-slot-availability-styles';
+import { useBookingAbVariant } from '@/hooks/use-booking-ab-variant';
+import { aggregateExtraIdsToQuantities } from '@/shared/booking-engine/dashboard-pricing-bridge';
+import {
+  MAX_BOOKING_DAYS_FROM_TODAY,
+  getSevenDaysStartingOffset,
+  offsetForDateToBeVisible,
+  toDateStr,
+  parseDateStr,
+  isAllowedBookingDate,
+  formatWeekRangeLabel,
+} from '@/shared/booking-engine/booking-dates';
+import type { Cleaner as ApiCleaner } from '@/types/booking';
+import { normalizeBookingTimeToSlotId } from '@/lib/booking-time-slots';
 
-const WEEKDAY_LABELS: string[] = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-const MONTH_NAMES: string[] = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
-
-interface TimeSlot {
-  id: string;
-  time: string;
-  available: boolean;
-}
-
-const ALL_TIME_SLOTS: TimeSlot[] = [
-  { id: 'ts-0800', time: '08:00 AM', available: true },
-  { id: 'ts-0900', time: '09:00 AM', available: true },
-  { id: 'ts-1000', time: '10:00 AM', available: true },
-  { id: 'ts-1100', time: '11:00 AM', available: true },
-  { id: 'ts-1300', time: '01:00 PM', available: true },
-  { id: 'ts-1400', time: '02:00 PM', available: true },
-  { id: 'ts-1500', time: '03:00 PM', available: true },
-  { id: 'ts-1600', time: '04:00 PM', available: true },
-];
+const TEAM_OPTIONS = ['Team A', 'Team B', 'Team C'] as const;
 
 const RESCHEDULE_STEPS: Array<{ id: number; label: string }> = [
   { id: 1, label: 'Date & Time' },
-  { id: 2, label: 'Cleaner' },
+  { id: 2, label: 'Cleaner / Team' },
 ];
-
-function getDaysInMonth(year: number, month: number): number {
-  return new Date(year, month + 1, 0).getDate();
-}
-
-function getFirstDayOfWeek(year: number, month: number): number {
-  return new Date(year, month, 1).getDay();
-}
-
-function formatDisplayDate(year: number, month: number, day: number): string {
-  const d = new Date(year, month, day);
-  return d.toLocaleDateString('en-ZA', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
-function toIsoDate(year: number, month: number, day: number): string {
-  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-}
-
-/** Converts e.g. "09:00 AM" → "09:00", "01:00 PM" → "13:00" for the reschedule API */
-function amPmTo24h(display: string): string {
-  const m = display.trim().match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-  if (!m) {
-    const short = display.match(/(\d{1,2}):(\d{2})/);
-    return short ? `${short[1].padStart(2, '0')}:${short[2]}` : display;
-  }
-  let h = parseInt(m[1], 10);
-  const min = m[2];
-  const ap = m[3].toUpperCase();
-  if (ap === 'PM' && h < 12) h += 12;
-  if (ap === 'AM' && h === 12) h = 0;
-  return `${String(h).padStart(2, '0')}:${min}`;
-}
-
-function getSlotsForDay(day: number): TimeSlot[] {
-  const blockedIndices = day % 3 === 0 ? [2, 5] : day % 3 === 1 ? [1, 4, 7] : [0, 3, 6];
-  return ALL_TIME_SLOTS.map((slot, idx) => ({
-    ...slot,
-    available: !blockedIndices.includes(idx),
-  }));
-}
-
-function getCleanersForDay(day: number, currentCleaner: string): PreferredCleanerOption[] {
-  const all: PreferredCleanerOption[] = [
-    {
-      id: 'cl-001',
-      name: 'Thandiwe M.',
-      initial: 'T',
-      rating: 4.9,
-      reviews: 128,
-      specialty: 'Standard & Deep Clean',
-      available: true,
-    },
-    {
-      id: 'cl-002',
-      name: 'Nompumelelo K.',
-      initial: 'N',
-      rating: 4.8,
-      reviews: 96,
-      specialty: 'Move-Out Specialist',
-      available: day % 3 !== 0,
-    },
-    {
-      id: 'cl-003',
-      name: 'Zanele D.',
-      initial: 'Z',
-      rating: 4.7,
-      reviews: 74,
-      specialty: 'Office & Commercial',
-      available: day % 2 !== 0,
-    },
-    {
-      id: 'cl-004',
-      name: 'Lerato B.',
-      initial: 'L',
-      rating: 4.6,
-      reviews: 52,
-      specialty: 'Standard & Eco Clean',
-      available: day % 4 !== 0,
-    },
-  ];
-
-  return all.map((c) => ({
-    ...c,
-    available: c.name === currentCleaner ? c.available : c.available,
-  }));
-}
-
-interface RescheduleDatePickerModalProps {
-  booking: Booking;
-  /** `newDate` = YYYY-MM-DD, `newTime` = HH:mm (24h), `newCleaner` = display name or "Any available" */
-  onConfirm: (bookingId: string, newDate: string, newTime: string, newCleaner: string) => void | Promise<void>;
-  onClose: () => void;
-}
 
 function StepIndicator({ currentStep }: { currentStep: number }) {
   return (
@@ -189,99 +81,199 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
   );
 }
 
+interface RescheduleDatePickerModalProps {
+  booking: Booking;
+  onConfirm: (
+    bookingId: string,
+    newDate: string,
+    newTime: string,
+    cleanerId: string | null,
+    teamName: string | null
+  ) => void | Promise<void>;
+  onClose: () => void;
+}
+
 export function RescheduleDatePickerModal({
   booking,
   onConfirm,
   onClose,
 }: RescheduleDatePickerModalProps) {
-  const today = new Date();
+  const { customerAddressParts } = useProfile();
+  const bookingIso = booking.bookingDateIso && /^\d{4}-\d{2}-\d{2}$/.test(booking.bookingDateIso)
+    ? booking.bookingDateIso
+    : toDateStr(new Date());
 
+  const [weekStartOffset, setWeekStartOffset] = useState(() => {
+    const parsed = parseDateStr(bookingIso);
+    return parsed && isAllowedBookingDate(parsed) ? offsetForDateToBeVisible(parsed) : 0;
+  });
+  const selectableDates = useMemo(() => getSevenDaysStartingOffset(weekStartOffset), [weekStartOffset]);
+
+  const [selectedDateStr, setSelectedDateStr] = useState<string | null>(() => bookingIso);
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(() => {
+    const raw = booking.bookingTimeSlotId?.trim();
+    if (raw && /^\d{2}:\d{2}$/.test(raw)) return raw;
+    const t = normalizeBookingTimeToSlotId(booking.time) || '';
+    return t || null;
+  });
   const [step, setStep] = useState(1);
-  const [viewYear, setViewYear] = useState(today.getFullYear());
-  const [viewMonth, setViewMonth] = useState(today.getMonth());
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
-  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
-  const [selectedCleanerId, setSelectedCleanerId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
 
-  const daysInMonth = getDaysInMonth(viewYear, viewMonth);
-  const firstDayOfWeek = getFirstDayOfWeek(viewYear, viewMonth);
-  const calendarCells = useMemo<(number | null)[]>(() => {
-    const cells: (number | null)[] = [];
-    for (let i = 0; i < firstDayOfWeek; i++) cells.push(null);
-    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-    return cells;
-  }, [daysInMonth, firstDayOfWeek]);
+  const [apiCleaners, setApiCleaners] = useState<ApiCleaner[]>([]);
+  const [cleanersLoading, setCleanersLoading] = useState(false);
+  const [selectedCleanerId, setSelectedCleanerId] = useState<string | null>(() =>
+    booking.cleanerId && /^[0-9a-f-]{36}$/i.test(booking.cleanerId) ? booking.cleanerId : null
+  );
+  const [selectedTeamName, setSelectedTeamName] = useState<string | null>(() =>
+    booking.teamName && TEAM_OPTIONS.includes(booking.teamName as (typeof TEAM_OPTIONS)[number])
+      ? booking.teamName
+      : null
+  );
+  const [bookedTeams, setBookedTeams] = useState<string[]>([]);
 
-  const isPastDay = (day: number): boolean => {
-    const cellDate = new Date(viewYear, viewMonth, day);
-    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    return cellDate < todayStart;
-  };
+  const serviceRaw = booking.serviceTypeRaw || booking.service;
+  const requiresTeam =
+    booking.requiresTeam === true ||
+    serviceRaw === 'Deep' ||
+    serviceRaw === 'Move In/Out';
 
-  const isToday = (day: number): boolean =>
-    day === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear();
+  const extrasIds = booking.extrasIds ?? [];
+  const extrasQuantities = booking.extrasQuantities ?? aggregateExtraIdsToQuantities(extrasIds);
+  const bedrooms = booking.bedrooms ?? 2;
+  const bathrooms = booking.bathrooms ?? 2;
 
-  const timeSlots = selectedDay ? getSlotsForDay(selectedDay) : [];
-  const selectedSlot = timeSlots.find((s) => s.id === selectedSlotId) ?? null;
-  const cleaners = selectedDay ? getCleanersForDay(selectedDay, booking.cleaner) : [];
-  const selectedCleaner = cleaners.find((c) => c.id === selectedCleanerId) ?? null;
+  const durationMinutes = useMemo(() => {
+    if (booking.durationMinutes && booking.durationMinutes >= 30) return booking.durationMinutes;
+    return computeBookingDurationMinutes({
+      bedrooms,
+      bathrooms,
+      extras: extrasIds,
+      extrasQuantities,
+    });
+  }, [booking.durationMinutes, bedrooms, bathrooms, extrasIds, extrasQuantities]);
 
-  const handlePrevMonth = () => {
-    if (viewMonth === 0) {
-      setViewYear((y) => y - 1);
-      setViewMonth(11);
-    } else {
-      setViewMonth((m) => m - 1);
+  const slotDispatchContext = useMemo(
+    () => ({
+      suburb: customerAddressParts?.suburb?.trim() ?? '',
+      city: customerAddressParts?.city?.trim() || BOOKING_DEFAULT_CITY,
+      bedrooms,
+      bathrooms,
+      extras: extrasIds,
+      extrasQuantities,
+    }),
+    [customerAddressParts?.suburb, customerAddressParts?.city, bedrooms, bathrooms, extrasIds, extrasQuantities]
+  );
+
+  const slotOcc = useBookingSlotOccupancy(selectedDateStr, slotDispatchContext);
+  const { variant: abVariant } = useBookingAbVariant();
+
+  const timeSlots = useMemo(() => {
+    return BOOKING_TIME_SLOT_DEFS.map((def) => {
+      if (slotOcc.status !== 'success') {
+        return { id: def.id, time: def.label, available: false, remaining: 0 };
+      }
+      const remaining = slotOcc.remaining[def.id] ?? 0;
+      return {
+        id: def.id,
+        time: def.label,
+        available: remaining > 0,
+        remaining,
+      };
+    });
+  }, [slotOcc.status, slotOcc.remaining]);
+
+  useEffect(() => {
+    if (!selectedDateStr || !requiresTeam) return;
+    let cancelled = false;
+    const svc = serviceRaw === 'Move In/Out' ? 'Move In/Out' : 'Deep';
+    fetch(
+      `/api/teams/availability?date=${encodeURIComponent(selectedDateStr)}&service=${encodeURIComponent(svc)}&exclude_booking_id=${encodeURIComponent(booking.id)}`
+    )
+      .then((r) => r.json())
+      .then((j: { ok?: boolean; bookedTeams?: string[] }) => {
+        if (!cancelled && j?.ok && Array.isArray(j.bookedTeams)) setBookedTeams(j.bookedTeams);
+      })
+      .catch(() => {
+        if (!cancelled) setBookedTeams([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDateStr, requiresTeam, serviceRaw]);
+
+  useEffect(() => {
+    if (requiresTeam || !selectedDateStr || !selectedSlotId || !customerAddressParts) {
+      setApiCleaners([]);
+      return;
     }
-    setSelectedDay(null);
-    setSelectedSlotId(null);
-    setSelectedCleanerId(null);
-  };
+    let cancelled = false;
+    setCleanersLoading(true);
+    const params = new URLSearchParams({
+      date: selectedDateStr,
+      city: customerAddressParts.city?.trim() || BOOKING_DEFAULT_CITY,
+      suburb: customerAddressParts.suburb,
+      time: selectedSlotId,
+      exclude_booking_id: booking.id,
+    });
+    params.set('duration_minutes', String(durationMinutes));
+    fetch(`/api/cleaners/available?${params.toString()}`)
+      .then((res) => res.json())
+      .then((json: { ok?: boolean; cleaners?: ApiCleaner[] }) => {
+        if (cancelled) return;
+        setApiCleaners(json.ok && Array.isArray(json.cleaners) ? json.cleaners : []);
+      })
+      .catch(() => {
+        if (!cancelled) setApiCleaners([]);
+      })
+      .finally(() => {
+        if (!cancelled) setCleanersLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    requiresTeam,
+    selectedDateStr,
+    selectedSlotId,
+    customerAddressParts,
+    durationMinutes,
+    booking.id,
+  ]);
 
-  const handleNextMonth = () => {
-    if (viewMonth === 11) {
-      setViewYear((y) => y + 1);
-      setViewMonth(0);
-    } else {
-      setViewMonth((m) => m + 1);
-    }
-    setSelectedDay(null);
-    setSelectedSlotId(null);
-    setSelectedCleanerId(null);
-  };
+  const canGoDatePrev = weekStartOffset > 0;
+  const canGoDateNext = weekStartOffset + 7 <= MAX_BOOKING_DAYS_FROM_TODAY;
 
-  const handleSelectDay = (day: number) => {
-    if (isPastDay(day)) return;
-    setSelectedDay(day);
-    setSelectedSlotId(null);
-    setSelectedCleanerId(null);
-  };
+  const canGoToStep2 =
+    Boolean(selectedDateStr && selectedSlotId) &&
+    (slotOcc.status !== 'success' || (timeSlots.find((s) => s.id === selectedSlotId)?.available ?? false));
 
-  const canGoToStep2 = selectedDay !== null && selectedSlotId !== null;
-  const canConfirm =
-    canGoToStep2 && selectedCleanerId !== null && !confirming;
+  const canConfirm = requiresTeam
+    ? Boolean(selectedTeamName)
+    : Boolean(selectedCleanerId && /^[0-9a-f-]{36}$/i.test(selectedCleanerId));
 
   const handleConfirm = async () => {
-    if (!selectedDay || !selectedSlotId || !selectedCleanerId || !selectedSlot) return;
+    if (!selectedDateStr || !selectedSlotId) return;
+    if (requiresTeam && !selectedTeamName) return;
+    if (!requiresTeam && !selectedCleanerId) return;
     setConfirming(true);
-    await new Promise((r) => setTimeout(r, 900));
-    setConfirming(false);
-    setConfirmed(true);
-
-    const dateIso = toIsoDate(viewYear, viewMonth, selectedDay);
-    const time24 = amPmTo24h(selectedSlot.time);
-    const newCleanerName =
-      selectedCleanerId === 'any'
-        ? 'Any available cleaner'
-        : selectedCleaner?.name ?? booking.cleaner;
-
-    setTimeout(() => {
-      void Promise.resolve(onConfirm(booking.id, dateIso, time24, newCleanerName));
-      onClose();
-    }, 1200);
+    try {
+      await onConfirm(
+        booking.id,
+        selectedDateStr,
+        selectedSlotId,
+        requiresTeam ? null : selectedCleanerId,
+        requiresTeam ? selectedTeamName : null
+      );
+      setConfirming(false);
+      setConfirmed(true);
+      setTimeout(onClose, 1400);
+    } catch {
+      setConfirming(false);
+    }
   };
+
+  const weekLabel = formatWeekRangeLabel(selectableDates);
 
   return (
     <div
@@ -316,6 +308,8 @@ export function RescheduleDatePickerModal({
           </button>
         </div>
 
+        <StepIndicator currentStep={step} />
+
         <AnimatePresence mode="wait">
           {confirmed ? (
             <motion.div
@@ -328,338 +322,216 @@ export function RescheduleDatePickerModal({
               <div className="w-16 h-16 rounded-full bg-green-50 border-4 border-green-100 flex items-center justify-center mx-auto mb-4">
                 <CheckCircle2 className="w-8 h-8 text-green-500" />
               </div>
-              <p className="text-base font-extrabold text-gray-900 mb-1">Booking Rescheduled!</p>
-              {selectedDay && selectedSlot && selectedCleanerId && (
-                <div className="space-y-1">
-                  <p className="text-xs text-gray-400">
-                    <span>{formatDisplayDate(viewYear, viewMonth, selectedDay)}</span>
-                    <span className="mx-1.5 text-gray-300">·</span>
-                    <span>{selectedSlot.time}</span>
-                  </p>
-                  <p className="text-xs text-blue-600 font-semibold">
-                    {selectedCleanerId === 'any' ? 'Any available cleaner' : selectedCleaner?.name}
-                  </p>
-                </div>
-              )}
+              <p className="text-base font-extrabold text-gray-900 mb-1">Booking updated</p>
+              <p className="text-xs text-gray-500">Your new schedule has been saved.</p>
             </motion.div>
           ) : (
-            <motion.div
-              key="steps"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-            >
-              <StepIndicator currentStep={step} />
-
-              <div className="p-5">
-                <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3 flex items-center gap-2 mb-5">
-                  <Clock className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
-                  <p className="text-xs text-blue-700">
-                    <span className="font-semibold">Current: </span>
-                    <span>{booking.date}</span>
-                    <span className="mx-1.5 text-blue-300">·</span>
-                    <span>{booking.time}</span>
-                    <span className="mx-1.5 text-blue-300">·</span>
-                    <span>{booking.cleaner}</span>
-                  </p>
-                </div>
-
-                <AnimatePresence mode="wait">
-                  {step === 1 && (
-                    <motion.div
-                      key="step-1"
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      transition={{ duration: 0.18 }}
+            <motion.div key="steps" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-5 space-y-5">
+              {step === 1 && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      disabled={!canGoDatePrev}
+                      onClick={() => {
+                        setWeekStartOffset((o) => Math.max(0, o - 7));
+                        setSelectedDateStr(null);
+                        setSelectedSlotId(null);
+                      }}
+                      className={cn(
+                        'p-2 rounded-xl border',
+                        canGoDatePrev ? 'border-gray-200 text-gray-700' : 'opacity-30 cursor-not-allowed'
+                      )}
                     >
-                      <div className="flex items-center justify-between mb-4">
-                        <button
-                          type="button"
-                          onClick={handlePrevMonth}
-                          className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
-                          aria-label="Previous month"
-                        >
-                          <ChevronLeft className="w-4 h-4" />
-                        </button>
-                        <p className="text-sm font-extrabold text-gray-900">
-                          {MONTH_NAMES[viewMonth]} {viewYear}
-                        </p>
-                        <button
-                          type="button"
-                          onClick={handleNextMonth}
-                          className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
-                          aria-label="Next month"
-                        >
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-7 mb-1">
-                        {WEEKDAY_LABELS.map((label) => (
-                          <div
-                            key={`wl-${label}`}
-                            className="text-center text-[11px] font-bold text-gray-400 py-1"
-                          >
-                            {label}
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="grid grid-cols-7 gap-y-1 mb-5">
-                        {calendarCells.map((day, idx) => {
-                          if (day === null) {
-                            return <div key={`empty-${idx}`} />;
-                          }
-                          const past = isPastDay(day);
-                          const todayCell = isToday(day);
-                          const selected = selectedDay === day;
-                          return (
-                            <button
-                              key={`day-${day}`}
-                              type="button"
-                              disabled={past}
-                              onClick={() => handleSelectDay(day)}
-                              className={cn(
-                                'mx-auto w-9 h-9 rounded-xl text-xs font-bold flex items-center justify-center transition-all',
-                                past && 'text-gray-300 cursor-not-allowed',
-                                !past &&
-                                  !selected &&
-                                  !todayCell &&
-                                  'text-gray-700 hover:bg-blue-50 hover:text-blue-600',
-                                todayCell && !selected && 'text-blue-600 ring-2 ring-blue-300 ring-offset-0',
-                                selected && 'bg-blue-600 text-white shadow-md shadow-blue-200'
-                              )}
-                            >
-                              {day}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      <AnimatePresence>
-                        {selectedDay !== null && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            transition={{ duration: 0.22 }}
-                            className="overflow-hidden"
-                          >
-                            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
-                              <span>Available times on </span>
-                              <span className="text-blue-600 normal-case tracking-normal font-extrabold">
-                                {formatDisplayDate(viewYear, viewMonth, selectedDay)}
-                              </span>
-                            </p>
-                            <div className="grid grid-cols-4 gap-2 mb-5">
-                              {timeSlots.map((slot) => (
-                                <button
-                                  key={slot.id}
-                                  type="button"
-                                  disabled={!slot.available}
-                                  onClick={() => slot.available && setSelectedSlotId(slot.id)}
-                                  className={cn(
-                                    'py-2 rounded-xl border-2 text-[11px] font-bold transition-all',
-                                    !slot.available
-                                      ? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
-                                      : selectedSlotId === slot.id
-                                        ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100'
-                                        : 'bg-white border-gray-200 text-gray-700 hover:border-blue-300 hover:text-blue-600'
-                                  )}
-                                >
-                                  {slot.time}
-                                </button>
-                              ))}
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-
-                      <motion.button
-                        type="button"
-                        whileHover={canGoToStep2 ? { scale: 1.01 } : undefined}
-                        whileTap={canGoToStep2 ? { scale: 0.98 } : undefined}
-                        disabled={!canGoToStep2}
-                        onClick={() => setStep(2)}
-                        className={cn(
-                          'w-full py-3 rounded-xl text-sm font-extrabold flex items-center justify-center gap-2 transition-all',
-                          canGoToStep2
-                            ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-100'
-                            : 'bg-gray-100 text-gray-300 cursor-not-allowed'
-                        )}
-                      >
-                        <span>
-                          {selectedDay && selectedSlot
-                            ? `Continue — ${formatDisplayDate(viewYear, viewMonth, selectedDay)} · ${selectedSlot.time}`
-                            : 'Select a date & time'}
-                        </span>
-                        {canGoToStep2 && <ChevronRight className="w-4 h-4" />}
-                      </motion.button>
-                    </motion.div>
-                  )}
-
-                  {step === 2 && (
-                    <motion.div
-                      key="step-2"
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      transition={{ duration: 0.18 }}
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <p className="text-xs font-bold text-gray-600 text-center">{weekLabel}</p>
+                    <button
+                      type="button"
+                      disabled={!canGoDateNext}
+                      onClick={() => {
+                        setWeekStartOffset((o) => o + 7);
+                        setSelectedDateStr(null);
+                        setSelectedSlotId(null);
+                      }}
+                      className={cn(
+                        'p-2 rounded-xl border',
+                        canGoDateNext ? 'border-gray-200 text-gray-700' : 'opacity-30 cursor-not-allowed'
+                      )}
                     >
-                      <div className="flex items-center justify-between mb-1">
-                        <h3 className="text-sm font-extrabold text-gray-900">Choose your cleaner</h3>
-                        <button
-                          type="button"
-                          onClick={() => setStep(1)}
-                          className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors"
-                        >
-                          <ChevronLeft className="w-3.5 h-3.5" />
-                          <span>Change date</span>
-                        </button>
-                      </div>
-                      <p className="text-xs text-gray-400 mb-4">
-                        Availability shown for{' '}
-                        <span className="font-semibold text-gray-600">
-                          {selectedDay ? formatDisplayDate(viewYear, viewMonth, selectedDay) : '—'}
-                        </span>
-                      </p>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
 
-                      <div className="space-y-2.5 mb-5">
+                  <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+                    {selectableDates.map((d) => {
+                      const iso = toDateStr(d);
+                      const sel = selectedDateStr === iso;
+                      return (
                         <button
+                          key={iso}
                           type="button"
-                          onClick={() => setSelectedCleanerId('any')}
+                          onClick={() => {
+                            setSelectedDateStr(iso);
+                            setSelectedSlotId(null);
+                          }}
                           className={cn(
-                            'w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all text-left',
-                            selectedCleanerId === 'any'
-                              ? 'border-blue-500 bg-blue-50 shadow-md shadow-blue-50'
-                              : 'border-gray-200 bg-white hover:border-gray-300'
+                            'flex-shrink-0 flex flex-col items-center w-14 py-3 rounded-2xl border-2 transition-all',
+                            sel ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-200 text-gray-700'
                           )}
                         >
-                          <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-                            <Shuffle className="w-4 h-4 text-gray-500" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-gray-900">Any available cleaner</p>
-                            <p className="text-xs text-gray-400 mt-0.5">
-                              We&apos;ll assign the best match for your slot
-                            </p>
-                          </div>
-                          {selectedCleanerId === 'any' && (
-                            <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
-                              <CheckCircle2 className="w-3 h-3 text-white" />
-                            </div>
-                          )}
-                        </button>
-
-                        <div className="flex items-center gap-3 my-1">
-                          <div className="flex-1 h-px bg-gray-100" />
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                            or choose specific
-                          </p>
-                          <div className="flex-1 h-px bg-gray-100" />
-                        </div>
-
-                        {cleaners.map((cleaner) => (
-                          <button
-                            key={cleaner.id}
-                            type="button"
-                            disabled={!cleaner.available}
-                            onClick={() => cleaner.available && setSelectedCleanerId(cleaner.id)}
+                          <span
                             className={cn(
-                              'w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all text-left',
-                              !cleaner.available
-                                ? 'border-gray-100 bg-gray-50 cursor-not-allowed opacity-60'
-                                : selectedCleanerId === cleaner.id
-                                  ? 'border-blue-500 bg-blue-50 shadow-md shadow-blue-50'
-                                  : 'border-gray-200 bg-white hover:border-gray-300'
+                              'text-[10px] font-semibold',
+                              sel ? 'text-blue-200' : 'text-gray-400'
                             )}
                           >
-                            <div
-                              className={cn(
-                                'w-10 h-10 rounded-xl flex items-center justify-center text-sm font-extrabold flex-shrink-0 transition-colors',
-                                !cleaner.available
-                                  ? 'bg-gray-200 text-gray-400'
-                                  : 'bg-blue-600 text-white'
-                              )}
-                            >
-                              {cleaner.initial}
-                            </div>
+                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()]}
+                          </span>
+                          <span className="text-lg font-extrabold leading-tight">{d.getDate()}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
 
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <p
-                                  className={cn(
-                                    'text-sm font-bold',
-                                    !cleaner.available ? 'text-gray-400' : 'text-gray-900'
-                                  )}
-                                >
-                                  {cleaner.name}
-                                </p>
-                                {cleaner.name === booking.cleaner && (
-                                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-100 rounded-full px-2 py-0.5 leading-none">
-                                    Current
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-xs text-gray-400 mt-0.5 truncate">{cleaner.specialty}</p>
-                              <div className="flex items-center gap-1 mt-1">
-                                <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-                                <span className="text-xs font-bold text-gray-700">{cleaner.rating}</span>
-                                <span className="text-xs text-gray-400">({cleaner.reviews} reviews)</span>
-                              </div>
-                            </div>
-
-                            {!cleaner.available ? (
-                              <span className="flex-shrink-0 text-[10px] font-bold text-gray-400 bg-gray-100 border border-gray-200 rounded-full px-2.5 py-1 leading-none">
-                                Unavailable
-                              </span>
-                            ) : selectedCleanerId === cleaner.id ? (
-                              <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
-                                <CheckCircle2 className="w-3 h-3 text-white" />
-                              </div>
-                            ) : (
-                              <div className="w-5 h-5 rounded-full border-2 border-gray-200 flex-shrink-0" />
-                            )}
-                          </button>
-                        ))}
-                      </div>
-
-                      <motion.button
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Time</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {timeSlots.map((slot) => (
+                      <button
+                        key={slot.id}
                         type="button"
-                        whileHover={canConfirm ? { scale: 1.01 } : undefined}
-                        whileTap={canConfirm ? { scale: 0.98 } : undefined}
-                        disabled={!canConfirm}
-                        onClick={handleConfirm}
+                        disabled={!slot.available}
+                        onClick={() => slot.available && setSelectedSlotId(slot.id)}
                         className={cn(
-                          'w-full py-3 rounded-xl text-sm font-extrabold flex items-center justify-center gap-2 transition-all',
-                          canConfirm
-                            ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-100'
-                            : 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                          'py-2.5 rounded-xl border-2 text-xs font-bold transition-all flex flex-col items-center justify-center min-h-[3.25rem]',
+                          !slot.available
+                            ? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
+                            : selectedSlotId === slot.id
+                              ? 'bg-blue-600 border-blue-600 text-white'
+                              : 'bg-white border-gray-200 text-gray-700'
                         )}
                       >
-                        {confirming && (
-                          <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                        <span>{slot.time}</span>
+                        {slotOcc.status === 'success' && (
+                          <span
+                            className={cn(
+                              'text-[9px] font-normal mt-0.5 px-1 rounded',
+                              getAvailabilityStyle(slot.remaining)
+                            )}
+                          >
+                            {getAvailabilityUrgencyLabel(slot.remaining, abVariant ?? 'A')}
+                          </span>
                         )}
-                        <span>
-                          {confirming
-                            ? 'Saving…'
-                            : selectedCleanerId
-                              ? `Confirm Reschedule${
-                                  selectedCleanerId === 'any'
-                                    ? ' · Any Cleaner'
-                                    : selectedCleaner
-                                      ? ` · ${selectedCleaner.name}`
-                                      : ''
-                                }`
-                              : 'Select a cleaner to continue'}
-                        </span>
-                      </motion.button>
-                    </motion.div>
+                      </button>
+                    ))}
+                  </div>
+
+                  {!customerAddressParts && (
+                    <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg p-2">
+                      Add your address in Profile so we can check availability for your area.
+                    </p>
                   )}
-                </AnimatePresence>
-              </div>
+
+                  <button
+                    type="button"
+                    disabled={!canGoToStep2}
+                    onClick={() => setStep(2)}
+                    className="w-full py-3 rounded-xl bg-blue-600 text-white text-sm font-bold disabled:opacity-40"
+                  >
+                    Continue
+                  </button>
+                </div>
+              )}
+
+              {step === 2 && (
+                <div className="space-y-4">
+                  {requiresTeam ? (
+                    <div className="space-y-3">
+                      <p className="text-sm text-gray-600">
+                        Choose a crew for {serviceRaw}. Teams already booked on this date are unavailable.
+                      </p>
+                      {TEAM_OPTIONS.map((team) => {
+                        const taken = bookedTeams.includes(team);
+                        const disabled = taken;
+                        return (
+                          <button
+                            key={team}
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => !disabled && setSelectedTeamName(team)}
+                            className={cn(
+                              'w-full flex items-center gap-3 rounded-2xl border-2 px-4 py-3 text-left transition-all',
+                              disabled
+                                ? 'opacity-40 cursor-not-allowed border-gray-100'
+                                : selectedTeamName === team
+                                  ? 'border-blue-500 bg-blue-50'
+                                  : 'border-gray-200 hover:border-gray-300'
+                            )}
+                          >
+                            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-extrabold">
+                              <Users className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-gray-900">{team}</p>
+                              <p className="text-xs text-gray-500">
+                                {disabled ? 'Unavailable on this date' : 'Coordinated crew'}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : cleanersLoading ? (
+                    <div className="flex justify-center py-10">
+                      <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                    </div>
+                  ) : apiCleaners.length === 0 ? (
+                    <p className="text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-xl p-4">
+                      No cleaners available for this slot. Try another date or time.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {apiCleaners.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => setSelectedCleanerId(c.id)}
+                          className={cn(
+                            'w-full rounded-2xl border-2 px-4 py-3 text-left transition-all',
+                            selectedCleanerId === c.id
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          )}
+                        >
+                          <p className="text-sm font-bold text-gray-900">{c.name}</p>
+                          <p className="text-xs text-gray-500">
+                            {c.specialties?.[0] || 'Professional cleaner'}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setStep(1)}
+                      className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-sm font-bold text-gray-700"
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!canConfirm || confirming}
+                      onClick={() => void handleConfirm()}
+                      className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold disabled:opacity-40 flex items-center justify-center gap-2"
+                    >
+                      {confirming && <Loader2 className="w-4 h-4 animate-spin" />}
+                      Confirm
+                    </button>
+                  </div>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

@@ -6,13 +6,16 @@ import { supabase } from '@/lib/supabase';
 import { validateBookingEnv } from '@/lib/env-validation';
 import { getServerAuthUser, createServiceClient } from '@/lib/supabase-server';
 import { resolveBookingCleanerAndSchedule } from '@/lib/dispatch/resolve-booking-cleaner';
-import { calculateCleanerEarnings } from '@/lib/cleaner-earnings';
+import { buildEarningsInsertFields } from '@/lib/earnings-v2';
+import { fetchCompanyOnlyCostsCents } from '@/lib/earnings-company-costs';
+import type { BookingBodyForPricing } from '@/lib/booking-server-pricing';
 import { generateUniqueBookingId } from '@/lib/booking-id';
 import { notifyCleanerAssignment, notifyCustomerAssignment } from '@/lib/notifications/events';
 import { validateBookingDiscountAmount } from '@/lib/discount-booking-server';
 import { computeCheckoutPricing } from '@/lib/booking-checkout-pricing';
 import { createBookingLookupToken } from '@/lib/booking-lookup-token';
 import { generateManageToken } from '@/lib/manage-booking-token';
+import { validatePricingEngineRequest } from '@/lib/pricing-engine';
 
 /**
  * API endpoint to handle booking submissions
@@ -77,6 +80,11 @@ export async function POST(req: Request) {
 
     if (!body.service) {
       return NextResponse.json({ ok: false, error: 'Service is required' }, { status: 400 });
+    }
+
+    const engineValidation = validatePricingEngineRequest(body);
+    if (!engineValidation.ok) {
+      return NextResponse.json({ ok: false, error: engineValidation.error }, { status: 400 });
     }
 
     const bookingId = body.paymentReference || generateUniqueBookingId();
@@ -389,28 +397,67 @@ export async function POST(req: Request) {
 
       const { cleanerId: resolvedCleanerId, durationMinutes, expectedEndTime } = dispatch;
 
-      let cleanerHireDate = null;
-      let cleanerEarnings = 0;
-
-      if (requiresTeam) {
-        console.log('📋 Team-based booking detected - earnings will be calculated during team assignment');
-        cleanerEarnings = 0;
-      } else if (resolvedCleanerId) {
+      let cleanerHireDate: string | null = null;
+      if (!requiresTeam && resolvedCleanerId) {
         const { data: cleanerData } = await supabase
           .from('cleaners')
           .select('hire_date')
           .eq('id', resolvedCleanerId)
           .single();
-
-        cleanerHireDate = cleanerData?.hire_date || null;
-        cleanerEarnings = calculateCleanerEarnings(
-          adjustedTotalAmount ?? null,
-          body.serviceFee ?? null,
-          cleanerHireDate,
-          tipAmount,
-          body.service ?? null
-        ) * 100;
+        cleanerHireDate = cleanerData?.hire_date ?? null;
       }
+
+      const totalAmountCents = Math.round(adjustedTotalAmount * 100);
+      const serviceFeeCents = Math.round((body.serviceFee || 0) * 100);
+      const useEnginePricing =
+        body.pricingEngineFinalCents != null && Number.isFinite(body.pricingEngineFinalCents);
+
+      let equipmentCostCentsForEarnings: number;
+      let extraCleanerFeeCentsForEarnings: number;
+      if (useEnginePricing) {
+        equipmentCostCentsForEarnings = Math.max(0, Math.round(Number(body.equipmentCostCents) || 0));
+        extraCleanerFeeCentsForEarnings = Math.max(0, Math.round(Number(body.extraCleanerFeeCents) || 0));
+      } else {
+        const companyCosts = await fetchCompanyOnlyCostsCents(supabase, {
+          service: body.service,
+          bedrooms: body.bedrooms ?? 0,
+          bathrooms: body.bathrooms ?? 0,
+          extraRooms: (body as { extraRooms?: number }).extraRooms ?? 0,
+          extras: body.extras || [],
+          extrasQuantities: body.extrasQuantities || {},
+          frequency: body.frequency || 'one-time',
+          tipAmount: body.tipAmount,
+          discountAmount: body.discountAmount || 0,
+          numberOfCleaners,
+          provideEquipment: (body as { provideEquipment?: boolean }).provideEquipment,
+          carpetDetails: (body as BookingBodyForPricing).carpetDetails,
+        });
+        equipmentCostCentsForEarnings = companyCosts.equipmentCostCents;
+        extraCleanerFeeCentsForEarnings = companyCosts.extraCleanerFeeCents;
+      }
+
+      const earningsTeamSize =
+        useEnginePricing && body.pricingTeamSize != null && Number.isFinite(body.pricingTeamSize)
+          ? Math.max(1, Math.round(body.pricingTeamSize))
+          : numberOfCleaners;
+
+      const earningsDurationMinutes =
+        useEnginePricing && body.pricingTotalHours != null && Number.isFinite(body.pricingTotalHours)
+          ? Math.max(30, Math.round(body.pricingTotalHours * 60))
+          : durationMinutes ?? null;
+
+      const earningsFields = buildEarningsInsertFields({
+        totalAmountCents,
+        serviceFeeCents,
+        tipCents: tipAmountInCents,
+        hireDate: cleanerHireDate,
+        serviceType: body.service ?? null,
+        requiresTeam,
+        teamSize: earningsTeamSize,
+        durationMinutes: earningsDurationMinutes,
+        equipmentCostCents: equipmentCostCentsForEarnings,
+        extraCleanerFeeCents: extraCleanerFeeCentsForEarnings,
+      });
 
       const cleanerIdForInsert = requiresTeam ? null : resolvedCleanerId;
 
@@ -442,9 +489,9 @@ export async function POST(req: Request) {
           address_suburb: body.address.suburb,
           address_city: body.address.city,
           payment_reference: body.paymentReference,
-          total_amount: Math.round(adjustedTotalAmount * 100), // Convert rands to cents (includes tip and surge)
+          total_amount: totalAmountCents, // Convert rands to cents (includes tip and surge)
           tip_amount: tipAmountInCents, // Store tip separately (goes 100% to cleaner)
-          cleaner_earnings: cleanerEarnings,
+          ...earningsFields,
           requires_team: requiresTeam, // Flag for team-based bookings
           surge_pricing_applied: surgePricingApplied,
           surge_amount: Math.round(surgeAmount * 100), // Store surge amount in cents

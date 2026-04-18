@@ -9,11 +9,22 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import useSWR from 'swr';
+import useSWRInfinite from 'swr/infinite';
+import { mutate as globalMutate } from 'swr';
 import { toast } from 'sonner';
-import { supabase } from '@/lib/supabase-client';
+import { supabase } from '@/lib/supabase/client';
 import { useOffline } from '@/lib/hooks/use-offline';
 import { offlineQueue } from '@/lib/utils/offline-queue';
 import { getBookingPipelineLabel } from '@/lib/booking-status-labels';
+import {
+  isCancelledBooking,
+  isCompletedBooking,
+  isUpcomingBooking,
+  normalizeCustomerFacingStatus,
+} from '@/shared/dashboard-data';
+import { getBookingRevenueCents } from '@/shared/finance-engine';
+import { normalizeBookingTimeToSlotId } from '@/lib/booking-time-slots';
 import { BOOKING_DEFAULT_CITY } from '@/lib/contact';
 import type {
   Booking,
@@ -41,14 +52,19 @@ export interface PortalUser {
   phone: string;
   /** DB customer id — used for referral signup links. */
   customerId: string | null;
-  referralCode: string;
-  rewardTier: string;
+  /** Populated only when `customers.referral_code` exists (see dashboard API). */
+  referralCode: string | null;
+  /** True when a real referral code is available — no synthetic codes. */
+  referralEnabled: boolean;
+  rewardTier: string | null;
   rewardPoints: number;
-  /** Points threshold for the next tier (matches STATIC_TIERS). */
-  rewardTarget: number;
-  rewardProgress: number;
+  /** Points threshold for the next tier when a tier ladder is configured. */
+  rewardTarget: number | null;
+  rewardProgress: number | null;
   /** Name of the next tier (null if already at the highest). */
   nextTierName: string | null;
+  /** When true, show tier ladder / progress UI (requires backend tier data). */
+  rewardsProgressEnabled: boolean;
 }
 
 /** Structured address from `customers` — used for checkout payloads (matches public booking engine). */
@@ -68,15 +84,28 @@ type PortalValue = {
   payments: PaymentRow[];
   paymentsLoading: boolean;
   cancelBooking: (id: string) => Promise<void>;
-  rateBooking: (id: string, rating: number) => void;
-  rescheduleBooking: (id: string, newDate: string, newTime: string, newCleaner?: string) => Promise<void>;
+  rateBooking: (
+    id: string,
+    payload: {
+      overallRating: number;
+      qualityRating: number;
+      punctualityRating: number;
+      professionalismRating: number;
+      reviewText?: string;
+    }
+  ) => Promise<void>;
+  rescheduleBooking: (
+    id: string,
+    newDate: string,
+    newTime: string,
+    cleanerId: string | null,
+    teamName: string | null
+  ) => Promise<void>;
   stats: StatItem[];
   statsLoading: boolean;
   refreshDashboard: () => Promise<void>;
   pointsHistory: PointsHistoryItem[];
-  tiers: TierRow[];
   faqs: FaqItem[];
-  redeemPoints: (cost: number, description: string) => void;
   addresses: SavedAddress[];
   saveUser: (updates: { name: string; phone: string }) => Promise<void>;
   profileSaving: boolean;
@@ -84,6 +113,11 @@ type PortalValue = {
   toggleDefaultAddress: (id: string) => void;
   addAddress: (label: string, address: string) => void;
   customerAddressParts: CustomerAddressParts | null;
+  /** Server KPIs — same as GET /api/dashboard/stats (single source of truth). */
+  dashboardStats: DashboardStatsPayload | null;
+  loadMoreBookings: () => void;
+  hasMoreBookings: boolean;
+  bookingsLoadingMore: boolean;
 };
 
 const PortalContext = createContext<PortalValue | null>(null);
@@ -105,34 +139,7 @@ const STATIC_FAQS: FaqItem[] = [
     id: 'faq-3',
     question: 'How do rewards points work?',
     answer:
-      'You earn points on completed cleans. Redeem them in Rewards for discounts on future bookings.',
-  },
-];
-
-const STATIC_TIERS: TierRow[] = [
-  {
-    id: 'tier-bronze',
-    name: 'Bronze',
-    minPoints: 0,
-    color: 'text-amber-700',
-    bgColor: 'bg-amber-50',
-    borderColor: 'border-amber-200',
-  },
-  {
-    id: 'tier-silver',
-    name: 'Silver',
-    minPoints: 500,
-    color: 'text-slate-700',
-    bgColor: 'bg-slate-50',
-    borderColor: 'border-slate-200',
-  },
-  {
-    id: 'tier-gold',
-    name: 'Gold',
-    minPoints: 1500,
-    color: 'text-yellow-700',
-    bgColor: 'bg-yellow-50',
-    borderColor: 'border-yellow-200',
+      'You earn points on completed cleans. Points are tracked on your profile when the job is marked complete.',
   },
 ];
 
@@ -185,17 +192,7 @@ function formatPaymentDate(iso: string): string {
 }
 
 function buildPointsHistory(pts: number): PointsHistoryItem[] {
-  if (pts <= 0) {
-    return [
-      {
-        id: 'ph-start',
-        description: 'Complete a booking to start earning points',
-        date: '—',
-        points: 0,
-        type: 'earned',
-      },
-    ];
-  }
+  if (pts <= 0) return [];
   return [
     {
       id: 'ph-balance',
@@ -243,11 +240,18 @@ function formatServiceLabel(raw: string | null | undefined): string {
     .join(' ');
 }
 
-function mapDbStatus(status: string | null | undefined): Booking['status'] {
-  const s = (status || '').toLowerCase();
-  if (s === 'cancelled' || s === 'canceled' || s === 'declined') return 'cancelled';
-  if (s === 'completed') return 'completed';
-  return 'upcoming';
+/** Future (or today) non-terminal bookings — aligns stats, tabs, and quick actions. */
+export function isCustomerUpcomingBooking(b: Pick<Booking, 'dbStatus' | 'bookingDateIso'>): boolean {
+  return isUpcomingBooking({ dbStatus: b.dbStatus, bookingDateIso: b.bookingDateIso });
+}
+
+export function sortBookingsByDateDesc(bookings: Booking[]): Booking[] {
+  return [...bookings].sort((a, b) => {
+    const da = a.bookingDateIso ?? '';
+    const db = b.bookingDateIso ?? '';
+    if (da !== db) return db.localeCompare(da);
+    return b.id.localeCompare(a.id);
+  });
 }
 
 function cleanerFromId(cleanerId: string | null | undefined): { name: string; initial: string } {
@@ -288,7 +292,30 @@ type ApiBooking = {
   extras?: unknown;
   extras_quantities?: unknown;
   price_snapshot?: unknown;
+  requires_team?: boolean | null;
+  duration_minutes?: number | null;
+  booking_teams?: { team_name: string | null }[] | null;
 };
+
+function parseExtrasIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((x): x is string => typeof x === 'string');
+}
+
+function parseExtrasQuantitiesRecord(raw: unknown): Record<string, number> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === 'number' && Number.isFinite(v)) out[k] = v;
+  }
+  return out;
+}
+
+function parseTeamNameFromRow(b: ApiBooking): string | null {
+  const bt = b.booking_teams;
+  if (Array.isArray(bt) && bt[0]?.team_name) return String(bt[0].team_name);
+  return null;
+}
 
 function buildRoomSummary(b: ApiBooking): string | null {
   const snap = b.price_snapshot as Record<string, unknown> | null | undefined;
@@ -326,16 +353,13 @@ function buildRoomSummary(b: ApiBooking): string | null {
 }
 
 function mapApiBooking(b: ApiBooking): Booking {
-  const uiStatus = mapDbStatus(b.status);
+  const uiStatus = normalizeCustomerFacingStatus(b.status);
   const fromProfile = b.cleaner_profile;
   const fallback = cleanerFromId(b.cleaner_id);
   const name = fromProfile?.name?.trim() || fallback.name;
   const initial = name.trim().charAt(0).toUpperCase() || fallback.initial;
   const address = [b.address_line1, b.address_suburb, b.address_city].filter(Boolean).join(', ') || 'Address on file';
-  const amount =
-    typeof b.total_amount === 'number'
-      ? Math.round(b.total_amount / 100)
-      : Math.round(Number(b.total_amount) || 0);
+  const amount = Math.round(getBookingRevenueCents(b) / 100);
   const reviewed = Boolean(b.customer_reviewed);
   const rawRating = b.review_overall_rating;
   const stars =
@@ -352,11 +376,31 @@ function mapApiBooking(b: ApiBooking): Booking {
     : ref
       ? `INV-${ref.slice(0, 14).toUpperCase()}`
       : `INV-${b.id.replace(/-/g, '').slice(0, 10).toUpperCase()}`;
+  const snap = b.price_snapshot as Record<string, unknown> | null | undefined;
+  const snapExtras = snap?.extras as unknown;
+  const extrasIds =
+    parseExtrasIds(b.extras).length > 0 ? parseExtrasIds(b.extras) : parseExtrasIds(snapExtras);
+  const extrasQuantities =
+    Object.keys(parseExtrasQuantitiesRecord(b.extras_quantities)).length > 0
+      ? parseExtrasQuantitiesRecord(b.extras_quantities)
+      : parseExtrasQuantitiesRecord(snap?.extras_quantities);
   return {
     id: b.id,
+    bookingDateIso: b.booking_date,
+    bookingTimeSlotId: normalizeBookingTimeToSlotId(b.booking_time) || b.booking_time,
     service: formatServiceLabel(b.service_type),
+    serviceTypeRaw: b.service_type,
     cleaner: name,
     cleanerInitial: initial,
+    cleanerId: b.cleaner_id,
+    requiresTeam: Boolean(b.requires_team),
+    teamName: parseTeamNameFromRow(b),
+    extrasIds,
+    extrasQuantities,
+    bedrooms: typeof b.bedrooms === 'number' ? b.bedrooms : null,
+    bathrooms: typeof b.bathrooms === 'number' ? b.bathrooms : null,
+    durationMinutes:
+      typeof b.duration_minutes === 'number' && b.duration_minutes >= 30 ? b.duration_minutes : null,
     cleanerPhone: fromProfile?.phone ?? null,
     date: formatDisplayDate(b.booking_date),
     time: formatDisplayTime(b.booking_time),
@@ -370,7 +414,7 @@ function mapApiBooking(b: ApiBooking): Booking {
     invoiceId,
     zohoInvoiceId: zoho || null,
     customerReviewed: reviewed,
-    rating: uiStatus === 'completed' && reviewed && stars !== undefined ? stars : undefined,
+    rating: isCompletedBooking(b.status) && reviewed && stars !== undefined ? stars : undefined,
   };
 }
 
@@ -386,113 +430,90 @@ type ApiCustomer = {
   addressCity?: string | null;
   totalBookings?: number | null;
   rewardsPoints?: number | null;
+  /** When present on the customer row, enables referral copy UI. */
+  referralCode?: string | null;
 };
 
-function buildStats(customer: ApiCustomer | null): StatItem[] {
-  const total = customer?.totalBookings ?? 0;
-  const pts = customer?.rewardsPoints ?? 0;
-  return [
-    {
-      id: 'stat-bookings',
-      label: 'Total Bookings',
-      value: total,
-      suffix: '',
-      color: 'text-blue-600',
-    },
-    {
-      id: 'stat-hours',
-      label: 'Hours Cleaned',
-      value: Math.max(0, Math.round(total * 2.5)),
-      suffix: 'h',
-      color: 'text-indigo-600',
-    },
-    {
-      id: 'stat-rewards',
-      label: 'Reward Points',
-      value: pts,
-      suffix: 'pts',
-      color: 'text-amber-500',
-    },
-  ];
-}
-
-/** Aggregated KPIs from `GET /api/dashboard/stats` (same shape as API route). */
-type ApiStatsPayload = {
-  upcomingAppointments: number;
-  activeCleaningPlans: number;
+/** Mirrors `GET /api/dashboard/stats` → `stats` (server is source of truth). */
+export type DashboardStatsPayload = {
+  upcomingCount: number;
+  completedCount: number;
+  cancelledCount: number;
+  activePlans: number;
+  rewardPoints: number;
   lastCleaningCompleted: string | null;
   balanceDue: number;
 };
 
-function buildStatsMerged(
-  customer: ApiCustomer | null,
-  apiStats: ApiStatsPayload | null
-): StatItem[] {
-  const pts = customer?.rewardsPoints ?? 0;
-  if (apiStats) {
-    return [
-      {
-        id: 'stat-upcoming',
-        label: 'Upcoming',
-        value: apiStats.upcomingAppointments,
-        suffix: '',
-        color: 'text-blue-600',
-      },
-      {
-        id: 'stat-plans',
-        label: 'Active Plans',
-        value: apiStats.activeCleaningPlans,
-        suffix: '',
-        color: 'text-indigo-600',
-      },
-      {
-        id: 'stat-rewards',
-        label: 'Reward Points',
-        value: pts,
-        suffix: 'pts',
-        color: 'text-amber-500',
-      },
-    ];
+const BOOKINGS_PAGE_SIZE = 20;
+const SWR_STATS_KEY = 'dashboard-stats';
+const SWR_BOOKINGS_PREFIX = 'dashboard-bookings';
+
+type DashboardBookingsPageResponse = {
+  ok: boolean;
+  error?: string;
+  bookings: ApiBooking[];
+  customer: ApiCustomer | null;
+  pagination?: { limit: number; offset: number; totalCount: number; hasMore: boolean };
+};
+
+async function fetchDashboardStats(): Promise<{ ok: true; stats: DashboardStatsPayload }> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error('UNAUTH');
+  const res = await fetch('/api/dashboard/stats', { headers: { Authorization: `Bearer ${token}` } });
+  const json = (await res.json()) as { ok?: boolean; stats?: DashboardStatsPayload; error?: string };
+  if (!res.ok || !json?.ok || !json.stats) {
+    throw new Error(json?.error || 'Stats failed');
   }
-  return buildStats(customer);
+  return { ok: true, stats: json.stats };
+}
+
+async function fetchBookingsPage(offset: number): Promise<DashboardBookingsPageResponse> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error('UNAUTH');
+  const res = await fetch(
+    `/api/dashboard/bookings?limit=${BOOKINGS_PAGE_SIZE}&offset=${offset}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  let json: DashboardBookingsPageResponse;
+  try {
+    json = (await res.json()) as DashboardBookingsPageResponse;
+  } catch {
+    throw new Error('BOOKINGS_JSON_PARSE');
+  }
+  if (res.status === 401) throw new Error('UNAUTH');
+  if (!res.ok || !json?.ok) {
+    const err = new Error(
+      typeof json?.error === 'string' ? json.error : `Bookings HTTP ${res.status}`
+    );
+    (err as Error & { status?: number }).status = res.status;
+    throw err;
+  }
+  return json;
+}
+
+function invalidateDashboardCache() {
+  void globalMutate(SWR_STATS_KEY);
+  void globalMutate(
+    (key) => Array.isArray(key) && key[0] === SWR_BOOKINGS_PREFIX
+  );
 }
 
 function rewardMeta(customer: ApiCustomer | null) {
   const pts = Math.max(0, Math.round(Number(customer?.rewardsPoints) || 0));
-  const tiersAsc = [...STATIC_TIERS].sort((a, b) => a.minPoints - b.minPoints);
-
-  let currentTierName = tiersAsc[0]?.name ?? 'Bronze';
-  for (const t of tiersAsc) {
-    if (pts >= t.minPoints) {
-      currentTierName = t.name;
-    }
-  }
-
-  const nextTier = tiersAsc.find((t) => t.minPoints > pts);
-  const currentFloor =
-    [...tiersAsc].reverse().find((t) => t.minPoints <= pts)?.minPoints ?? 0;
-
-  let rewardProgress = 100;
-  let rewardTarget = tiersAsc[tiersAsc.length - 1]?.minPoints ?? 500;
-
-  if (nextTier) {
-    rewardTarget = nextTier.minPoints;
-    const span = nextTier.minPoints - currentFloor;
-    rewardProgress =
-      span > 0
-        ? Math.min(100, Math.round(((pts - currentFloor) / span) * 100))
-        : 100;
-  }
-
+  const code = customer?.referralCode?.trim();
+  const referralEnabled = Boolean(code);
   return {
-    referralCode: customer?.id
-      ? `SHL-${customer.id.replace(/-/g, '').slice(0, 8).toUpperCase()}`
-      : '—',
-    rewardTier: currentTierName,
+    referralCode: referralEnabled ? code! : null,
+    referralEnabled,
+    rewardTier: null as string | null,
     rewardPoints: pts,
-    rewardTarget,
-    rewardProgress,
-    nextTierName: nextTier?.name ?? null,
+    rewardTarget: null as number | null,
+    rewardProgress: null as number | null,
+    nextTierName: null as string | null,
+    rewardsProgressEnabled: false,
   };
 }
 
@@ -526,7 +547,18 @@ export function CustomerPortalProvider({
   lastName?: string | null;
   children: React.ReactNode;
 }) {
-  const baseUser = useMemo((): Omit<PortalUser, 'customerId' | 'referralCode' | 'rewardTier' | 'rewardPoints' | 'rewardTarget' | 'rewardProgress' | 'nextTierName'> => {
+  const baseUser = useMemo((): Omit<
+    PortalUser,
+    | 'customerId'
+    | 'referralCode'
+    | 'referralEnabled'
+    | 'rewardTier'
+    | 'rewardPoints'
+    | 'rewardTarget'
+    | 'rewardProgress'
+    | 'nextTierName'
+    | 'rewardsProgressEnabled'
+  > => {
     const em = email?.trim() || '';
     const fn = firstName?.trim();
     const ln = lastName?.trim();
@@ -549,6 +581,233 @@ export function CustomerPortalProvider({
     }));
   }, [baseUser]);
 
+  const [notifications, setNotifications] = useState<PortalNotification[]>([]);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [pointsHistory, setPointsHistory] = useState<PointsHistoryItem[]>(() => buildPointsHistory(0));
+  const [addresses, setAddresses] = useState<SavedAddress[]>([]);
+  const [customerAddressParts, setCustomerAddressParts] = useState<CustomerAddressParts | null>(null);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return;
+      setAuthToken(data.session?.access_token ?? null);
+      setAuthReady(true);
+    });
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthToken(session?.access_token ?? null);
+    });
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const {
+    data: statsResponse,
+    error: statsError,
+    isLoading: statsLoadingSwr,
+    isValidating: statsValidating,
+    mutate: mutateStats,
+  } = useSWR(authReady && authToken ? SWR_STATS_KEY : null, fetchDashboardStats, {
+    revalidateOnFocus: true,
+    dedupingInterval: 3000,
+    keepPreviousData: true,
+  });
+
+  const {
+    data: bookingsPages,
+    error: bookingsError,
+    isLoading: bookingsInitialLoading,
+    isValidating: bookingsValidating,
+    size,
+    setSize,
+    mutate: mutateBookings,
+  } = useSWRInfinite(
+    (pageIndex, previousPageData) => {
+      if (!authReady || !authToken) return null;
+      if (previousPageData?.pagination && !previousPageData.pagination.hasMore) return null;
+      const offset = pageIndex * BOOKINGS_PAGE_SIZE;
+      return [SWR_BOOKINGS_PREFIX, authToken, offset] as const;
+    },
+    (key) => {
+      const offset = key[2];
+      return fetchBookingsPage(offset);
+    },
+    {
+      revalidateOnFocus: true,
+      dedupingInterval: 3000,
+      parallel: false,
+      shouldRetryOnError: false,
+    }
+  );
+
+  useEffect(() => {
+    if (!authToken) void setSize(0);
+  }, [authToken, setSize]);
+
+  const dashboardStats = statsResponse?.stats ?? null;
+
+  const bookings = useMemo(() => {
+    if (!bookingsPages?.length) return [];
+    const rows: Booking[] = [];
+    for (const page of bookingsPages) {
+      if (!page?.bookings?.length) continue;
+      for (const b of page.bookings) {
+        rows.push(mapApiBooking(b as ApiBooking));
+      }
+    }
+    return sortBookingsByDateDesc(rows);
+  }, [bookingsPages]);
+
+  const lastBookingsPage = bookingsPages?.[bookingsPages.length - 1];
+  const hasMoreBookings = Boolean(lastBookingsPage?.pagination?.hasMore);
+  const bookingsLoadingMore = Boolean(bookingsValidating && !bookingsInitialLoading && size > 1);
+  const bookingsLoading =
+    !authReady || (Boolean(authToken) && (bookingsInitialLoading || statsLoadingSwr));
+  const statsLoading = !authReady || (Boolean(authToken) && (statsLoadingSwr || statsValidating));
+
+  const loadMoreBookings = useCallback(() => {
+    if (hasMoreBookings) void setSize((s) => s + 1);
+  }, [hasMoreBookings, setSize]);
+
+  const refreshDashboard = useCallback(async () => {
+    await Promise.all([mutateStats(), mutateBookings()]);
+  }, [mutateStats, mutateBookings]);
+
+  const refreshDashboardRef = useRef(refreshDashboard);
+  refreshDashboardRef.current = refreshDashboard;
+
+  useEffect(() => {
+    if (statsError) toast.error('Could not load dashboard stats');
+  }, [statsError]);
+
+  useEffect(() => {
+    if (bookingsError) toast.error('Could not load bookings');
+  }, [bookingsError]);
+
+  const customerSyncKey = (() => {
+    const c = bookingsPages?.[0]?.customer;
+    if (!c) return '';
+    return [
+      c.id,
+      c.email ?? '',
+      c.phone ?? '',
+      c.firstName ?? '',
+      c.lastName ?? '',
+      c.addressLine1 ?? '',
+      c.addressSuburb ?? '',
+      c.addressCity ?? '',
+    ].join('|');
+  })();
+
+  useEffect(() => {
+    if (!authToken) {
+      setPortalCustomerId(null);
+      setRewardExtras(rewardMeta(null));
+      setPointsHistory(buildPointsHistory(0));
+      setAddresses([]);
+      setCustomerAddressParts(null);
+      setPayments([]);
+      return;
+    }
+    const first = bookingsPages?.[0];
+    const apiCustomer = first?.customer ?? null;
+    if (!apiCustomer) {
+      setPortalCustomerId(null);
+      setRewardExtras(rewardMeta(null));
+      setPointsHistory(buildPointsHistory(dashboardStats?.rewardPoints ?? 0));
+      setAddresses([]);
+      setCustomerAddressParts(null);
+      return;
+    }
+    setPortalCustomerId(apiCustomer.id);
+    setRewardExtras(rewardMeta(apiCustomer));
+    const fn = apiCustomer.firstName?.trim();
+    const ln = apiCustomer.lastName?.trim();
+    setUserBase((prev) => {
+      const displayName = [fn, ln].filter(Boolean).join(' ').trim();
+      const resolvedName = displayName || prev.name;
+      const initialChar =
+        resolvedName && resolvedName !== 'Account'
+          ? resolvedName.trim().charAt(0)
+          : fn?.[0] || ln?.[0] || prev.email?.[0] || 'U';
+      return {
+        ...prev,
+        email: apiCustomer.email?.trim() || prev.email,
+        name: resolvedName || 'Account',
+        initial: initialChar.toUpperCase(),
+        phone: (apiCustomer.phone || '').trim() || prev.phone,
+      };
+    });
+    const addrLine = [apiCustomer.addressLine1, apiCustomer.addressSuburb, apiCustomer.addressCity]
+      .filter(Boolean)
+      .join(', ');
+    const line1 = (apiCustomer.addressLine1 || '').trim();
+    const suburb = (apiCustomer.addressSuburb || '').trim();
+    const city = (apiCustomer.addressCity || '').trim();
+    if (line1) {
+      setCustomerAddressParts({
+        line1,
+        suburb: suburb || BOOKING_DEFAULT_CITY,
+        city: city || BOOKING_DEFAULT_CITY,
+      });
+    } else {
+      setCustomerAddressParts(null);
+    }
+    if (addrLine) {
+      setAddresses([
+        {
+          id: 'addr-primary',
+          label: 'Home',
+          address: addrLine,
+          isDefault: true,
+        },
+      ]);
+    } else {
+      setAddresses([]);
+    }
+  }, [authToken, customerSyncKey]);
+
+  useEffect(() => {
+    if (dashboardStats) {
+      setRewardExtras((prev) => ({ ...prev, rewardPoints: dashboardStats.rewardPoints }));
+      setPointsHistory(buildPointsHistory(dashboardStats.rewardPoints));
+    }
+  }, [dashboardStats?.rewardPoints]);
+
+  useEffect(() => {
+    if (!authToken) {
+      setPayments([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/dashboard/payments', {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        const payJson = (await res.json()) as { recentPayments?: ApiPaymentRow[] };
+        const recent = Array.isArray(payJson?.recentPayments) ? payJson.recentPayments : [];
+        const serviceById = new Map(bookings.map((b) => [b.id, b.service]));
+        if (!cancelled) {
+          setPayments(recent.map((p: ApiPaymentRow) => mapApiPayment(p, serviceById)));
+        }
+      } catch {
+        if (!cancelled) setPayments([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authToken, bookings]);
+
   const user = useMemo(
     (): PortalUser => ({
       ...userBase,
@@ -558,183 +817,70 @@ export function CustomerPortalProvider({
     [userBase, rewardExtras, portalCustomerId]
   );
 
-  const [notifications, setNotifications] = useState<PortalNotification[]>([]);
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [bookingsLoading, setBookingsLoading] = useState(true);
-  const [payments, setPayments] = useState<PaymentRow[]>([]);
-  const [stats, setStats] = useState<StatItem[]>(() => buildStats(null));
-  const [statsLoading, setStatsLoading] = useState(true);
-  const [pointsHistory, setPointsHistory] = useState<PointsHistoryItem[]>(() => buildPointsHistory(0));
-  const [addresses, setAddresses] = useState<SavedAddress[]>([]);
-  const [customerAddressParts, setCustomerAddressParts] = useState<CustomerAddressParts | null>(null);
-  const [profileSaving, setProfileSaving] = useState(false);
-  const [profileSaved, setProfileSaved] = useState(false);
-
-  const loadDashboard = useCallback(async () => {
-    setBookingsLoading(true);
-    setStatsLoading(true);
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      if (!token) {
-        setBookings([]);
-        setPayments([]);
-        setStats(buildStats(null));
-        setRewardExtras(rewardMeta(null));
-        setPointsHistory(buildPointsHistory(0));
-        setAddresses([]);
-        setCustomerAddressParts(null);
-        setPortalCustomerId(null);
-        return;
-      }
-      const headers = { Authorization: `Bearer ${token}` };
-
-      const [bookRes, statsRes, payRes] = await Promise.all([
-        fetch('/api/dashboard/bookings?limit=50', { headers }),
-        fetch('/api/dashboard/stats', { headers }),
-        fetch('/api/dashboard/payments', { headers }),
-      ]);
-
-      const bookJson = await bookRes.json();
-
-      let apiStats: ApiStatsPayload | null = null;
-      try {
-        const statsJson = await statsRes.json();
-        if (statsRes.ok && statsJson?.ok && statsJson.stats) {
-          apiStats = statsJson.stats as ApiStatsPayload;
-        }
-      } catch {
-        apiStats = null;
-      }
-
-      const apiCustomer = bookJson?.customer as ApiCustomer | null | undefined;
-      setPortalCustomerId(apiCustomer?.id ?? null);
-      if (apiCustomer) {
-        setRewardExtras(rewardMeta(apiCustomer));
-        const fn = apiCustomer.firstName?.trim();
-        const ln = apiCustomer.lastName?.trim();
-        setUserBase((prev) => {
-          const displayName = [fn, ln].filter(Boolean).join(' ').trim();
-          const resolvedName = displayName || prev.name;
-          const initialChar =
-            resolvedName && resolvedName !== 'Account'
-              ? resolvedName.trim().charAt(0)
-              : fn?.[0] || ln?.[0] || prev.email?.[0] || 'U';
-          return {
-            ...prev,
-            email: apiCustomer.email?.trim() || prev.email,
-            name: resolvedName || 'Account',
-            initial: initialChar.toUpperCase(),
-            phone: (apiCustomer.phone || '').trim() || prev.phone,
-          };
-        });
-        const addrLine = [apiCustomer.addressLine1, apiCustomer.addressSuburb, apiCustomer.addressCity]
-          .filter(Boolean)
-          .join(', ');
-        const line1 = (apiCustomer.addressLine1 || '').trim();
-        const suburb = (apiCustomer.addressSuburb || '').trim();
-        const city = (apiCustomer.addressCity || '').trim();
-        if (line1) {
-          setCustomerAddressParts({
-            line1,
-            suburb: suburb || BOOKING_DEFAULT_CITY,
-            city: city || BOOKING_DEFAULT_CITY,
-          });
-        } else {
-          setCustomerAddressParts(null);
-        }
-        if (addrLine) {
-          setAddresses([
-            {
-              id: 'addr-primary',
-              label: 'Home',
-              address: addrLine,
-              isDefault: true,
-            },
-          ]);
-        } else {
-          setAddresses([]);
-        }
-        setPointsHistory(buildPointsHistory(apiCustomer.rewardsPoints ?? 0));
-      } else {
-        setRewardExtras(rewardMeta(null));
-        setPointsHistory(buildPointsHistory(0));
-        setAddresses([]);
-        setCustomerAddressParts(null);
-      }
-
-      const rows = Array.isArray(bookJson?.bookings) ? bookJson.bookings : [];
-      const mappedBookings: Booking[] = rows.map((b: ApiBooking) => mapApiBooking(b));
-      setBookings(mappedBookings);
-
-      const serviceById = new Map(mappedBookings.map((b: Booking) => [b.id, b.service]));
-
-      let payJson: { recentPayments?: ApiPaymentRow[] } = {};
-      try {
-        payJson = await payRes.json();
-      } catch {
-        payJson = {};
-      }
-      const recent = Array.isArray(payJson?.recentPayments) ? payJson.recentPayments : [];
-      setPayments(recent.map((p: ApiPaymentRow) => mapApiPayment(p, serviceById)));
-
-      setStats(buildStatsMerged(apiCustomer ?? null, apiStats));
-    } catch {
-      toast.error('Could not load dashboard data');
-      setBookings([]);
-      setPayments([]);
-      setStats(buildStats(null));
-    } finally {
-      setBookingsLoading(false);
-      setStatsLoading(false);
+  const stats = useMemo((): StatItem[] => {
+    const s = dashboardStats;
+    if (!s) {
+      return [
+        {
+          id: 'stat-upcoming',
+          label: 'Upcoming',
+          value: 0,
+          suffix: '',
+          color: 'text-blue-600',
+        },
+        {
+          id: 'stat-plans',
+          label: 'Active Plans',
+          value: 0,
+          suffix: '',
+          color: 'text-indigo-600',
+        },
+        {
+          id: 'stat-rewards',
+          label: 'Reward Points',
+          value: 0,
+          suffix: ' pts',
+          color: 'text-amber-500',
+        },
+      ];
     }
-  }, []);
+    return [
+      {
+        id: 'stat-upcoming',
+        label: 'Upcoming',
+        value: s.upcomingCount,
+        suffix: '',
+        color: 'text-blue-600',
+      },
+      {
+        id: 'stat-plans',
+        label: 'Active Plans',
+        value: s.activePlans,
+        suffix: '',
+        color: 'text-indigo-600',
+      },
+      {
+        id: 'stat-rewards',
+        label: 'Reward Points',
+        value: s.rewardPoints,
+        suffix: ' pts',
+        color: 'text-amber-500',
+      },
+    ];
+  }, [dashboardStats]);
 
-  const loadDashboardRef = useRef(loadDashboard);
-  loadDashboardRef.current = loadDashboard;
-
-  const refreshDashboard = useCallback(async () => {
-    await loadDashboard();
-  }, [loadDashboard]);
-
-  const { isOnline } = useOffline({
+  useOffline({
     onOnline: async () => {
       if (offlineQueue) {
         await offlineQueue.sync();
       }
-      loadDashboardRef.current();
+      void refreshDashboardRef.current();
     },
   });
 
   useEffect(() => {
-    loadDashboard();
-  }, [loadDashboard]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (isOnline) {
-        loadDashboardRef.current();
-      }
-    }, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [isOnline]);
-
-  useEffect(() => {
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible' && isOnline) {
-        loadDashboardRef.current();
-      }
-    };
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => document.removeEventListener('visibilitychange', onVisibility);
-  }, [isOnline]);
-
-  useEffect(() => {
     if (!portalCustomerId) return;
 
-    // Unique name per subscription — reusing the same name after subscribe() can make
-    // supabase-js return an already-joined channel (Strict Mode / fast remount), and
-    // adding postgres_changes listeners then throws.
     const instanceId =
       typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
         ? crypto.randomUUID()
@@ -742,8 +888,15 @@ export function CustomerPortalProvider({
 
     let debounce: ReturnType<typeof setTimeout> | undefined;
 
+    const bump = () => {
+      clearTimeout(debounce);
+      debounce = setTimeout(() => {
+        invalidateDashboardCache();
+      }, 400);
+    };
+
     const channel = supabase
-      .channel(`customer-bookings-${portalCustomerId}-${instanceId}`)
+      .channel(`customer-dashboard-${portalCustomerId}-${instanceId}`)
       .on(
         'postgres_changes',
         {
@@ -752,12 +905,17 @@ export function CustomerPortalProvider({
           table: 'bookings',
           filter: `customer_id=eq.${portalCustomerId}`,
         },
-        () => {
-          clearTimeout(debounce);
-          debounce = setTimeout(() => {
-            loadDashboardRef.current();
-          }, 400);
-        }
+        bump
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'recurring_schedules',
+          filter: `customer_id=eq.${portalCustomerId}`,
+        },
+        bump
       )
       .subscribe();
 
@@ -825,35 +983,68 @@ export function CustomerPortalProvider({
         toast.error(json?.error || 'Could not cancel booking');
         return;
       }
-      setBookings((prev) =>
-        prev.map((b) =>
-          b.id === id
-            ? {
-                ...b,
-                status: 'cancelled' as const,
-                dbStatus: 'cancelled',
-                pipelineStatus: getBookingPipelineLabel('cancelled'),
-              }
-            : b
-        )
-      );
+      invalidateDashboardCache();
       toast.success('Booking cancelled');
     } catch {
       toast.error('Could not cancel booking');
     }
   }, []);
 
-  const rateBooking = useCallback((id: string, rating: number) => {
-    setBookings((prev) =>
-      prev.map((b) =>
-        b.id === id ? { ...b, rating, customerReviewed: true } : b
-      )
-    );
-    toast.success('Thanks for your review!');
-  }, []);
+  const rateBooking = useCallback(
+    async (
+      id: string,
+      payload: {
+        overallRating: number;
+        qualityRating: number;
+        punctualityRating: number;
+        professionalismRating: number;
+        reviewText?: string;
+      }
+    ) => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        if (!token) {
+          toast.error('Please sign in again');
+          return;
+        }
+        const res = await fetch(`/api/bookings/${encodeURIComponent(id)}/review`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            overallRating: payload.overallRating,
+            qualityRating: payload.qualityRating,
+            punctualityRating: payload.punctualityRating,
+            professionalismRating: payload.professionalismRating,
+            reviewText: payload.reviewText?.trim() || '',
+            photos: [],
+          }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!json?.ok) {
+          toast.error(json?.error || 'Could not submit review');
+          return;
+        }
+        await refreshDashboardRef.current();
+        toast.success('Thanks for your review!');
+      } catch {
+        toast.error('Could not submit review');
+      }
+    },
+    []
+  );
 
   const rescheduleBooking = useCallback(
-    async (id: string, newDate: string, newTime: string, newCleaner?: string) => {
+    async (
+      id: string,
+      newDate: string,
+      newTime: string,
+      cleanerId: string | null,
+      teamName: string | null
+    ) => {
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData.session?.access_token;
@@ -867,70 +1058,26 @@ export function CustomerPortalProvider({
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ bookingId: id, date: newDate, time: newTime }),
+          body: JSON.stringify({
+            bookingId: id,
+            date: newDate,
+            time: newTime,
+            cleanerId,
+            teamName,
+          }),
         });
         const json = await res.json();
         if (!json?.ok) {
           toast.error(json?.error || 'Could not reschedule');
           return;
         }
-        setBookings((prev) =>
-          prev.map((b) => {
-            if (b.id !== id) return b;
-            const useNewCleaner =
-              newCleaner &&
-              !newCleaner.toLowerCase().includes('any available');
-            const nextCleaner = useNewCleaner ? newCleaner : b.cleaner;
-            const initial = nextCleaner.trim().charAt(0).toUpperCase() || b.cleanerInitial;
-            return {
-              ...b,
-              date: formatDisplayDate(newDate),
-              time: formatDisplayTime(newTime),
-              cleaner: nextCleaner,
-              cleanerInitial: initial,
-            };
-          })
-        );
+        await refreshDashboardRef.current();
         toast.success('Booking rescheduled');
       } catch {
         toast.error('Could not reschedule');
       }
     },
     []
-  );
-
-  const redeemPoints = useCallback(
-    (cost: number, description: string) => {
-      setRewardExtras((prev) => {
-        const nextPts = Math.max(0, prev.rewardPoints - cost);
-        const meta = rewardMeta(
-          portalCustomerId
-            ? { id: portalCustomerId, rewardsPoints: nextPts }
-            : ({ rewardsPoints: nextPts } as ApiCustomer)
-        );
-        return {
-          ...prev,
-          ...meta,
-          referralCode: prev.referralCode,
-        };
-      });
-      setPointsHistory((h) => [
-        {
-          id: `ph-${Date.now()}`,
-          description,
-          date: new Date().toLocaleDateString('en-ZA', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-          }),
-          points: cost,
-          type: 'redeemed',
-        },
-        ...h,
-      ]);
-      toast.success('Reward redeemed');
-    },
-    [portalCustomerId]
   );
 
   const saveUser = useCallback(async (updates: { name: string; phone: string }) => {
@@ -1013,9 +1160,7 @@ export function CustomerPortalProvider({
       statsLoading,
       refreshDashboard,
       pointsHistory,
-      tiers: STATIC_TIERS,
       faqs: STATIC_FAQS,
-      redeemPoints,
       addresses,
       saveUser,
       profileSaving,
@@ -1023,6 +1168,10 @@ export function CustomerPortalProvider({
       toggleDefaultAddress,
       addAddress,
       customerAddressParts,
+      dashboardStats,
+      loadMoreBookings,
+      hasMoreBookings,
+      bookingsLoadingMore,
     }),
     [
       user,
@@ -1039,7 +1188,6 @@ export function CustomerPortalProvider({
       statsLoading,
       refreshDashboard,
       pointsHistory,
-      redeemPoints,
       addresses,
       customerAddressParts,
       saveUser,
@@ -1047,6 +1195,10 @@ export function CustomerPortalProvider({
       profileSaved,
       toggleDefaultAddress,
       addAddress,
+      dashboardStats,
+      loadMoreBookings,
+      hasMoreBookings,
+      bookingsLoadingMore,
     ]
   );
 
@@ -1088,6 +1240,9 @@ export function useBookings() {
   return {
     bookings: ctx.bookings,
     loading: ctx.bookingsLoading,
+    loadMoreBookings: ctx.loadMoreBookings,
+    hasMoreBookings: ctx.hasMoreBookings,
+    loadingMore: ctx.bookingsLoadingMore,
     cancelBooking: ctx.cancelBooking,
     rateBooking: ctx.rateBooking,
     rescheduleBooking: ctx.rescheduleBooking,
@@ -1123,8 +1278,6 @@ export function useRewards() {
   if (!ctx) throw new Error('CustomerPortalProvider is required for useRewards');
   return {
     pointsHistory: ctx.pointsHistory,
-    tiers: ctx.tiers,
-    redeemPoints: ctx.redeemPoints,
   };
 }
 
@@ -1134,13 +1287,64 @@ export function useFaqs() {
   return { faqs: ctx.faqs };
 }
 
+export type CustomerDashboardStats = {
+  upcomingCount: number;
+  completedCount: number;
+  cancelledCount: number;
+  activePlans: number;
+  rewardPoints: number;
+};
+
+/** Lists from paginated bookings; KPIs from `GET /api/dashboard/stats` only (no client-derived counts). */
+export function useCustomerDashboardData() {
+  const ctx = useContext(PortalContext);
+  if (!ctx) {
+    throw new Error('CustomerPortalProvider is required for useCustomerDashboardData');
+  }
+  const sorted = useMemo(() => sortBookingsByDateDesc(ctx.bookings), [ctx.bookings]);
+  const upcomingBookings = useMemo(
+    () => sorted.filter(isCustomerUpcomingBooking),
+    [sorted]
+  );
+  const completedBookings = useMemo(
+    () => sorted.filter((b) => isCompletedBooking(b.dbStatus)),
+    [sorted]
+  );
+  const cancelledBookings = useMemo(
+    () => sorted.filter((b) => isCancelledBooking(b.dbStatus)),
+    [sorted]
+  );
+  const s = ctx.dashboardStats;
+  const stats: CustomerDashboardStats = {
+    upcomingCount: s?.upcomingCount ?? 0,
+    completedCount: s?.completedCount ?? 0,
+    cancelledCount: s?.cancelledCount ?? 0,
+    activePlans: s?.activePlans ?? 0,
+    rewardPoints: s?.rewardPoints ?? 0,
+  };
+
+  return {
+    bookings: sorted,
+    upcomingBookings,
+    completedBookings,
+    cancelledBookings,
+    stats,
+    profile: ctx.user,
+    isLoading: ctx.bookingsLoading || ctx.statsLoading,
+    refetch: ctx.refreshDashboard,
+    loadMoreBookings: ctx.loadMoreBookings,
+    hasMoreBookings: ctx.hasMoreBookings,
+    bookingsLoadingMore: ctx.bookingsLoadingMore,
+  };
+}
+
 export function useQuickActions() {
   const ctx = useContext(PortalContext);
   if (!ctx) {
     throw new Error('CustomerPortalProvider is required for useQuickActions');
   }
-  const upcomingCount = ctx.bookings.filter((b) => b.status === 'upcoming').length;
-  const pts = ctx.user.rewardPoints;
+  const upcomingCount = ctx.dashboardStats?.upcomingCount ?? 0;
+  const pts = ctx.dashboardStats?.rewardPoints ?? ctx.user.rewardPoints;
   return useMemo(
     () => ({
       actions: [

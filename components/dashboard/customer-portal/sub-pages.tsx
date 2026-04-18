@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircle2,
-  Clock,
   XCircle,
   MapPin,
   Star,
@@ -34,13 +33,29 @@ import {
   Save,
   ChevronRight,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase-client';
+import { supabase } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import { getAbsoluteReferralSignupUrl, getReferralSignupPath } from '@/lib/referral-url';
-import { useBookings, usePayments, useRewards, useFaqs, useProfile, useNotifications } from './hooks';
+import { isCompletedBooking } from '@/shared/dashboard-data';
+import {
+  useBookings,
+  usePayments,
+  useRewards,
+  useFaqs,
+  useProfile,
+  useNotifications,
+  isCustomerUpcomingBooking,
+} from './hooks';
 import { RescheduleDatePickerModal } from './reschedule-date-picker-modal';
 import type { Booking, FilterId, PageId } from './types';
 import { cleanerTelHref, cleanerWhatsAppHref, supportTelHref, supportWhatsAppHref } from './booking-contact';
+import {
+  TrackCleanerModal,
+  ContactModal,
+  CancelConfirmModal,
+  ReviewModal,
+} from './dashboard-home-modals';
+import { StatusBadge } from '../shared/status-badge';
 
 // --- Constants ---
 
@@ -75,27 +90,31 @@ function getSupportChannels(): Array<{
   style: string;
   href: string;
 }> {
-  const supportEmail = process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || 'support@example.com';
+  const supportEmail = process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() ?? '';
   const phone = process.env.NEXT_PUBLIC_SUPPORT_PHONE?.trim();
   const wa = supportWhatsAppHref();
+  const emailHref = supportEmail ? `mailto:${supportEmail}` : '';
+  const emailSub = supportEmail
+    ? supportEmail
+    : 'Set NEXT_PUBLIC_SUPPORT_EMAIL in your environment';
   return [
     {
       id: 'ch-whatsapp',
       icon: 'whatsapp',
       title: 'WhatsApp Chat',
       sub: phone ? `Quick replies on ${phone}` : 'Set NEXT_PUBLIC_SUPPORT_PHONE',
-      action: wa ? 'Chat Now' : 'Email us',
+      action: wa ? 'Chat Now' : supportEmail ? 'Email us' : 'Configure support email',
       style: wa ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-white border border-gray-200 text-gray-700 hover:border-gray-300',
-      href: wa || `mailto:${supportEmail}?subject=Support`,
+      href: wa || (supportEmail ? `mailto:${supportEmail}?subject=Support` : '#support-email'),
     },
     {
       id: 'ch-email',
       icon: 'email',
       title: 'Email Support',
-      sub: supportEmail,
-      action: 'Send Email',
+      sub: emailSub,
+      action: supportEmail ? 'Send Email' : 'Not configured',
       style: 'bg-white border border-gray-200 text-gray-700 hover:border-gray-300',
-      href: `mailto:${supportEmail}`,
+      href: emailHref || '#support-email',
     },
     {
       id: 'ch-call',
@@ -104,44 +123,12 @@ function getSupportChannels(): Array<{
       sub: phone ? `${phone} · Mon–Fri` : 'Set NEXT_PUBLIC_SUPPORT_PHONE',
       action: 'Call Now',
       style: 'bg-white border border-gray-200 text-gray-700 hover:border-gray-300',
-      href: supportTelHref() || `mailto:${supportEmail}?subject=Call%20request`,
+      href: supportTelHref() || (supportEmail ? `mailto:${supportEmail}?subject=Call%20request` : '#support-email'),
     },
   ];
 }
 
 // --- Shared helpers ---
-
-function StatusBadge({ status }: { status: Booking['status'] }) {
-  const map = {
-    upcoming: {
-      label: 'Upcoming',
-      icon: <Clock className="w-3 h-3" />,
-      cls: 'bg-blue-50 text-blue-600 border-blue-200',
-    },
-    completed: {
-      label: 'Completed',
-      icon: <CheckCircle2 className="w-3 h-3" />,
-      cls: 'bg-green-50 text-green-600 border-green-200',
-    },
-    cancelled: {
-      label: 'Cancelled',
-      icon: <XCircle className="w-3 h-3" />,
-      cls: 'bg-red-50 text-red-500 border-red-200',
-    },
-  };
-  const { label, icon, cls } = map[status];
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1 text-[11px] font-bold border rounded-full px-2.5 py-1 leading-none',
-        cls
-      )}
-    >
-      {icon}
-      <span>{label}</span>
-    </span>
-  );
-}
 
 function PageHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
@@ -150,307 +137,6 @@ function PageHeader({ title, subtitle }: { title: string; subtitle?: string }) {
         <h1 className="text-xl font-extrabold text-gray-900">{title}</h1>
         {subtitle && <p className="text-sm text-gray-400 mt-0.5">{subtitle}</p>}
       </div>
-    </div>
-  );
-}
-
-// --- Shared modals ---
-
-function TrackCleanerModal({ booking, onClose }: { booking: Booking; onClose: () => void }) {
-  return (
-    <div
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ opacity: 0, y: 40, scale: 0.97 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 40, scale: 0.97 }}
-        transition={{ duration: 0.22 }}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden"
-      >
-        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-extrabold text-gray-900">Tracking Cleaner</p>
-            <p className="text-xs text-gray-400 mt-0.5">
-              {booking.service} · {booking.date}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-200 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="p-5">
-          <div className="w-full h-44 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl flex items-center justify-center mb-4 border border-blue-100">
-            <div className="text-center">
-              <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center mx-auto mb-2 shadow-lg">
-                <Navigation className="w-6 h-6 text-white" />
-              </div>
-              <p className="text-xs font-bold text-blue-700">Live tracking active</p>
-              <p className="text-[10px] text-blue-500 mt-0.5">Map integration ready for production</p>
-            </div>
-          </div>
-          <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-extrabold text-base flex-shrink-0">
-              {booking.cleanerInitial}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-gray-900">{booking.cleaner}</p>
-              <p className="text-xs text-blue-600 font-semibold mt-0.5">
-                {booking.dbStatus === 'on_my_way'
-                  ? '🟢 En route'
-                  : booking.pipelineStatus || 'Status updates appear here'}
-              </p>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <a
-              href={cleanerTelHref(booking) || supportTelHref() || '#'}
-              className="flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-gray-200 text-gray-700 text-xs font-bold hover:border-gray-300 transition-colors"
-            >
-              <Phone className="w-3.5 h-3.5" />
-              <span>Call Cleaner</span>
-            </a>
-            <a
-              href={cleanerWhatsAppHref(booking) || supportWhatsAppHref() || '#'}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 transition-colors"
-            >
-              <MessageCircle className="w-3.5 h-3.5" />
-              <span>WhatsApp</span>
-            </a>
-          </div>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
-function ContactModal({ booking, onClose }: { booking: Booking; onClose: () => void }) {
-  return (
-    <div
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ opacity: 0, y: 40, scale: 0.97 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 40, scale: 0.97 }}
-        transition={{ duration: 0.22 }}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden"
-      >
-        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-          <p className="text-sm font-extrabold text-gray-900">Contact {booking.cleaner}</p>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-200 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="p-5 space-y-3">
-          <a
-            href={cleanerTelHref(booking) || supportTelHref() || '#'}
-            className="flex items-center gap-3 w-full p-4 rounded-2xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all"
-          >
-            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-              <Phone className="w-5 h-5 text-blue-600" />
-            </div>
-            <div className="text-left">
-              <p className="text-sm font-bold text-gray-900">Call Cleaner</p>
-              <p className="text-xs text-gray-400">
-                {booking.cleanerPhone?.trim() || process.env.NEXT_PUBLIC_SUPPORT_PHONE || 'Configure NEXT_PUBLIC_SUPPORT_PHONE'}
-              </p>
-            </div>
-            <ChevronRight className="w-4 h-4 text-gray-300 ml-auto" />
-          </a>
-          <a
-            href={cleanerWhatsAppHref(booking) || supportWhatsAppHref() || '#'}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-3 w-full p-4 rounded-2xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-all"
-          >
-            <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center flex-shrink-0">
-              <MessageCircle className="w-5 h-5 text-white" />
-            </div>
-            <div className="text-left">
-              <p className="text-sm font-bold text-gray-900">WhatsApp</p>
-              <p className="text-xs text-emerald-600">Message your assigned cleaner</p>
-            </div>
-            <ChevronRight className="w-4 h-4 text-emerald-300 ml-auto" />
-          </a>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
-function CancelConfirmModal({
-  booking,
-  onConfirm,
-  onClose,
-}: {
-  booking: Booking;
-  onConfirm: () => void;
-  onClose: () => void;
-}) {
-  const [loading, setLoading] = useState(false);
-  const handleConfirm = async () => {
-    setLoading(true);
-    await new Promise((r) => setTimeout(r, 700));
-    onConfirm();
-    onClose();
-  };
-  return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.18 }}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-sm bg-white rounded-3xl shadow-2xl p-6"
-      >
-        <div className="w-14 h-14 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center mx-auto mb-4">
-          <AlertTriangle className="w-7 h-7 text-red-500" />
-        </div>
-        <h3 className="text-base font-extrabold text-gray-900 text-center mb-1">Cancel Booking?</h3>
-        <p className="text-xs text-gray-400 text-center mb-1">
-          <span>{booking.service}</span>
-          <span className="mx-1.5">·</span>
-          <span>{booking.date}</span>
-        </p>
-        <p className="text-xs text-gray-400 text-center mb-6">
-          This action cannot be undone. A cancellation fee may apply within 24 hrs.
-        </p>
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-sm font-bold text-gray-600 hover:border-gray-300 transition-colors"
-          >
-            Keep Booking
-          </button>
-          <button
-            type="button"
-            onClick={handleConfirm}
-            disabled={loading}
-            className="flex-1 py-3 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
-          >
-            {loading && (
-              <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-            )}
-            <span>{loading ? 'Cancelling…' : 'Yes, Cancel'}</span>
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
-function ReviewModal({
-  booking,
-  onSubmit,
-  onClose,
-}: {
-  booking: Booking;
-  onSubmit: (rating: number) => void;
-  onClose: () => void;
-}) {
-  const [hovered, setHovered] = useState(0);
-  const [selected, setSelected] = useState(0);
-  const [submitted, setSubmitted] = useState(false);
-  const handleSubmit = () => {
-    if (!selected) return;
-    setSubmitted(true);
-    setTimeout(() => {
-      onSubmit(selected);
-      onClose();
-    }, 1000);
-  };
-  return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.18 }}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-sm bg-white rounded-3xl shadow-2xl p-6"
-      >
-        {submitted ? (
-          <div className="text-center py-4">
-            <div className="w-14 h-14 rounded-full bg-green-50 border-4 border-green-100 flex items-center justify-center mx-auto mb-3">
-              <CheckCircle2 className="w-7 h-7 text-green-500" />
-            </div>
-            <p className="text-sm font-extrabold text-gray-900">Thanks for your review!</p>
-            <p className="text-xs text-gray-400 mt-1">Your feedback helps us improve.</p>
-          </div>
-        ) : (
-          <div>
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-base font-extrabold text-gray-900">Rate your experience</p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  <span>{booking.service}</span>
-                  <span className="mx-1.5">·</span>
-                  <span>{booking.cleaner}</span>
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-200 transition-colors flex-shrink-0"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="flex justify-center gap-2 mb-6">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <button
-                  key={`review-star-${i}`}
-                  type="button"
-                  onMouseEnter={() => setHovered(i)}
-                  onMouseLeave={() => setHovered(0)}
-                  onClick={() => setSelected(i)}
-                  className="transition-transform hover:scale-110"
-                >
-                  <Star
-                    className={cn(
-                      'w-8 h-8 transition-colors',
-                      i <= (hovered || selected)
-                        ? 'text-amber-400 fill-amber-400'
-                        : 'text-gray-200 fill-gray-200'
-                    )}
-                  />
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={!selected}
-              className="w-full py-3 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Submit Review
-            </button>
-          </div>
-        )}
-      </motion.div>
     </div>
   );
 }
@@ -540,96 +226,6 @@ function InvoiceModal({
   );
 }
 
-function RedeemModal({
-  availablePoints,
-  onRedeem,
-  onClose,
-}: {
-  availablePoints: number;
-  onRedeem: () => void;
-  onClose: () => void;
-}) {
-  const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
-  const REDEEM_COST = 100;
-  const canRedeem = availablePoints >= REDEEM_COST;
-  const handleRedeem = async () => {
-    if (!canRedeem) return;
-    setLoading(true);
-    await new Promise((r) => setTimeout(r, 900));
-    setLoading(false);
-    setDone(true);
-    setTimeout(() => {
-      onRedeem();
-      onClose();
-    }, 1200);
-  };
-  return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.18 }}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-sm bg-white rounded-3xl shadow-2xl p-6"
-      >
-        {done ? (
-          <div className="text-center py-4">
-            <div className="w-14 h-14 rounded-full bg-amber-50 border-4 border-amber-100 flex items-center justify-center mx-auto mb-3">
-              <Star className="w-7 h-7 text-amber-500 fill-amber-400" />
-            </div>
-            <p className="text-sm font-extrabold text-gray-900">Points Redeemed!</p>
-            <p className="text-xs text-gray-400 mt-1">Your R20 discount will be applied at checkout.</p>
-          </div>
-        ) : (
-          <div>
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-base font-extrabold text-gray-900">Redeem Points</p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  You have <strong className="text-amber-600">{availablePoints} pts</strong> available
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-200 transition-colors flex-shrink-0"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-5">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-bold text-amber-800">Discount voucher</p>
-                <p className="text-xs font-bold text-amber-600">R20 off</p>
-              </div>
-              <p className="text-xs text-amber-600">Use 100 pts → get R20 off your next booking</p>
-            </div>
-            {!canRedeem && (
-              <p className="text-xs text-red-500 text-center mb-3">You need at least 100 pts to redeem.</p>
-            )}
-            <button
-              type="button"
-              onClick={handleRedeem}
-              disabled={!canRedeem || loading}
-              className="w-full py-3 rounded-xl bg-amber-500 text-white text-sm font-bold hover:bg-amber-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {loading && (
-                <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-              )}
-              <span>{loading ? 'Redeeming…' : 'Redeem 100 pts for R20 off'}</span>
-            </button>
-          </div>
-        )}
-      </motion.div>
-    </div>
-  );
-}
-
 function AddAddressModal({
   onAdd,
   onClose,
@@ -712,7 +308,16 @@ interface SubPagesProps {
 // --- Bookings page ---
 
 function BookingsPage({ onNavigate }: { onNavigate: (page: PageId) => void }) {
-  const { bookings, loading, cancelBooking, rateBooking, rescheduleBooking } = useBookings();
+  const {
+    bookings,
+    loading,
+    loadMoreBookings,
+    hasMoreBookings,
+    loadingMore,
+    cancelBooking,
+    rateBooking,
+    rescheduleBooking,
+  } = useBookings();
   const [filter, setFilter] = useState<FilterId>('all');
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -723,9 +328,14 @@ function BookingsPage({ onNavigate }: { onNavigate: (page: PageId) => void }) {
   const [invoiceTarget, setInvoiceTarget] = useState<Booking | null>(null);
   const [rescheduleTarget, setRescheduleTarget] = useState<Booking | null>(null);
   const PER_PAGE = 4;
-  const filtered = filter === 'all' ? bookings : bookings.filter((b) => b.status === filter);
+  const filtered =
+    filter === 'all'
+      ? bookings
+      : filter === 'upcoming'
+        ? bookings.filter(isCustomerUpcomingBooking)
+        : bookings.filter((b) => b.status === filter);
   const paginated = filtered.slice(0, page * PER_PAGE);
-  const hasMore = paginated.length < filtered.length;
+  const hasMoreLocal = paginated.length < filtered.length;
   return (
     <div className="min-h-screen bg-[#f8f9fb]">
       <AnimatePresence>
@@ -745,7 +355,10 @@ function BookingsPage({ onNavigate }: { onNavigate: (page: PageId) => void }) {
         {reviewBooking && (
           <ReviewModal
             booking={reviewBooking}
-            onSubmit={(rating) => rateBooking(reviewBooking.id, rating)}
+            onSubmit={async (payload) => {
+              await rateBooking(reviewBooking.id, payload);
+              setReviewBooking(null);
+            }}
             onClose={() => setReviewBooking(null)}
           />
         )}
@@ -761,8 +374,8 @@ function BookingsPage({ onNavigate }: { onNavigate: (page: PageId) => void }) {
         {rescheduleTarget && (
           <RescheduleDatePickerModal
             booking={rescheduleTarget}
-            onConfirm={(id, newDate, newTime, newCleaner) =>
-              rescheduleBooking(id, newDate, newTime, newCleaner)
+            onConfirm={(id, newDate, newTime, cleanerId, teamName) =>
+              rescheduleBooking(id, newDate, newTime, cleanerId, teamName)
             }
             onClose={() => setRescheduleTarget(null)}
           />
@@ -882,7 +495,7 @@ function BookingsPage({ onNavigate }: { onNavigate: (page: PageId) => void }) {
                               onClick={(e) => e.stopPropagation()}
                               className="absolute right-0 top-9 w-44 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden z-30"
                             >
-                              {booking.status === 'upcoming' && (
+                              {isCustomerUpcomingBooking(booking) && (
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -919,7 +532,7 @@ function BookingsPage({ onNavigate }: { onNavigate: (page: PageId) => void }) {
                                   <span>Invoice</span>
                                 </button>
                               )}
-                              {booking.status === 'upcoming' && (
+                              {isCustomerUpcomingBooking(booking) && (
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -939,7 +552,7 @@ function BookingsPage({ onNavigate }: { onNavigate: (page: PageId) => void }) {
                     </div>
                   </div>
 
-                  {booking.status === 'upcoming' && (
+                  {isCustomerUpcomingBooking(booking) && (
                     <div className="mt-3 pt-3 border-t border-gray-100 flex gap-2">
                       <motion.button
                         type="button"
@@ -963,7 +576,7 @@ function BookingsPage({ onNavigate }: { onNavigate: (page: PageId) => void }) {
                       </motion.button>
                     </div>
                   )}
-                  {booking.status === 'completed' && !booking.customerReviewed && (
+                  {isCompletedBooking(booking.dbStatus) && !booking.customerReviewed && (
                     <div className="mt-3 pt-3 border-t border-gray-100">
                       <button
                         type="button"
@@ -997,13 +610,21 @@ function BookingsPage({ onNavigate }: { onNavigate: (page: PageId) => void }) {
               </div>
             )}
 
-            {hasMore && (
+            {(hasMoreLocal || hasMoreBookings) && (
               <button
                 type="button"
-                onClick={() => setPage((p) => p + 1)}
-                className="w-full py-3 bg-white border border-gray-200 rounded-2xl text-xs font-bold text-gray-600 hover:bg-gray-50 transition-colors"
+                onClick={() => {
+                  if (hasMoreLocal) setPage((p) => p + 1);
+                  else void loadMoreBookings();
+                }}
+                disabled={loadingMore}
+                className="w-full py-3 bg-white border border-gray-200 rounded-2xl text-xs font-bold text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-60"
               >
-                Load more bookings
+                {loadingMore
+                  ? 'Loading…'
+                  : hasMoreLocal
+                    ? 'Load more bookings'
+                    : 'Load older bookings'}
               </button>
             )}
           </motion.div>
@@ -1146,127 +767,72 @@ function PaymentsPage() {
 // --- Rewards page ---
 
 function RewardsPage() {
-  const { pointsHistory, tiers, redeemPoints } = useRewards();
+  const { pointsHistory } = useRewards();
   const { user } = useProfile();
-  const [showRedeemModal, setShowRedeemModal] = useState(false);
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
+    if (!user.referralEnabled) return;
     const payload = user.customerId
       ? getAbsoluteReferralSignupUrl(user.customerId)
-      : user.referralCode;
+      : user.referralCode ?? '';
+    if (!payload) return;
     navigator.clipboard.writeText(payload).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-  const handleRedeem = () => {
-    redeemPoints(100, 'Redeemed for R20 discount');
-  };
   return (
     <div className="min-h-screen bg-[#f8f9fb]">
-      <AnimatePresence>
-        {showRedeemModal && (
-          <RedeemModal
-            availablePoints={user.rewardPoints}
-            onRedeem={handleRedeem}
-            onClose={() => setShowRedeemModal(false)}
-          />
-        )}
-      </AnimatePresence>
-
-      <PageHeader title="Rewards" subtitle="Earn points, unlock tiers, and redeem perks" />
+      <PageHeader
+        title="Rewards"
+        subtitle="Points from completed bookings — referral perks below"
+      />
       <div className="w-full px-4 sm:px-6 lg:px-8 py-6 pb-24 lg:pb-10 space-y-6">
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-3xl p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="text-blue-200 text-xs font-semibold uppercase tracking-widest mb-1">Your Tier</p>
-              <p className="text-white text-2xl font-extrabold">{user.rewardTier}</p>
+              <p className="text-blue-200 text-xs font-semibold uppercase tracking-widest mb-1">
+                Your balance
+              </p>
+              <p className="text-white text-2xl font-extrabold">{user.rewardPoints} pts</p>
             </div>
             <div className="w-16 h-16 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center">
               <Star className="w-8 h-8 text-amber-400 fill-amber-400" />
             </div>
           </div>
-          <div className="w-full h-3 bg-white/20 rounded-full overflow-hidden mb-2">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${user.rewardProgress}%` }}
-              transition={{ duration: 1.4, ease: 'easeOut', delay: 0.3 }}
-              className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-400"
-            />
-          </div>
-          <div className="flex justify-between">
-            <p className="text-blue-200 text-xs">{user.rewardPoints} pts earned</p>
-            <p className="text-blue-200 text-xs">
-              {user.nextTierName
-                ? `${user.rewardTarget} pts for ${user.nextTierName}`
-                : 'Max tier'}
-            </p>
-          </div>
-          <div className="mt-5 flex gap-3">
-            <div className="flex-1 bg-white/15 border border-white/20 rounded-2xl p-3 text-center">
-              <p className="text-xl font-extrabold text-white">{user.rewardPoints}</p>
-              <p className="text-blue-200 text-xs mt-0.5">Available pts</p>
-            </div>
-            <div className="flex-1 bg-white/15 border border-white/20 rounded-2xl p-3 text-center">
-              <p className="text-xl font-extrabold text-white">
-                {user.nextTierName
-                  ? Math.max(0, user.rewardTarget - user.rewardPoints)
-                  : '—'}
-              </p>
-              <p className="text-blue-200 text-xs mt-0.5">
-                {user.nextTierName ? `pts to ${user.nextTierName}` : 'Top tier'}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5">
-          <p className="text-sm font-bold text-gray-900 mb-4">Tier Breakdown</p>
-          <div className="space-y-3">
-            {tiers.map((tier) => (
-              <div
-                key={tier.id}
-                className={cn(
-                  'flex items-center justify-between px-4 py-3 rounded-xl border',
-                  tier.bgColor,
-                  tier.borderColor
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  <Star className={cn('w-4 h-4', tier.color)} />
-                  <p className={cn('text-sm font-bold', tier.color)}>{tier.name}</p>
-                </div>
-                <p className={cn('text-xs font-semibold', tier.color)}>
-                  {tier.minPoints > 0 ? `${tier.minPoints}+ pts` : 'Starting tier'}
-                </p>
-              </div>
-            ))}
-          </div>
+          <p className="text-blue-100 text-xs leading-relaxed">
+            Points are updated when jobs complete. In-app redemption is not available yet — your balance
+            is stored on your profile.
+          </p>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5">
           <p className="text-sm font-bold text-gray-900 mb-4">Points History</p>
-          <div className="space-y-3">
-            {pointsHistory.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between py-2 border-b border-gray-50 last:border-b-0"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-gray-800">{item.description}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">{item.date}</p>
-                </div>
-                <p
-                  className={cn(
-                    'text-sm font-extrabold flex-shrink-0',
-                    item.type === 'earned' ? 'text-green-600' : 'text-red-500'
-                  )}
+          {pointsHistory.length === 0 ? (
+            <p className="text-xs text-gray-500">No point transactions yet — complete a clean to start earning.</p>
+          ) : (
+            <div className="space-y-3">
+              {pointsHistory.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between py-2 border-b border-gray-50 last:border-b-0"
                 >
-                  {item.type === 'earned' ? '+' : ''}
-                  {item.points} pts
-                </p>
-              </div>
-            ))}
-          </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-gray-800">{item.description}</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">{item.date}</p>
+                  </div>
+                  <p
+                    className={cn(
+                      'text-sm font-extrabold flex-shrink-0',
+                      item.type === 'earned' ? 'text-green-600' : 'text-red-500'
+                    )}
+                  >
+                    {item.type === 'earned' ? '+' : ''}
+                    {item.points} pts
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl p-5">
@@ -1274,85 +840,77 @@ function RewardsPage() {
             <Sparkles className="w-4 h-4 text-blue-200" />
             <p className="text-sm font-bold text-white">Refer &amp; Earn</p>
           </div>
-          <p className="text-xs text-blue-100 leading-relaxed mb-4">
-            Share your code and earn <strong className="text-white">R50</strong> for every friend who books.
-          </p>
-          <div className="flex items-center gap-2 bg-white/15 border border-white/20 rounded-xl px-3 py-2.5">
-            <p className="flex-1 text-sm font-bold text-white tracking-widest font-mono">{user.referralCode}</p>
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.9 }}
-              onClick={handleCopy}
-              className="flex-shrink-0 w-7 h-7 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
-              aria-label="Copy referral code"
-            >
-              <AnimatePresence mode="wait">
-                {copied ? (
-                  <motion.span key="check" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                    <Check className="w-3.5 h-3.5 text-white" />
-                  </motion.span>
-                ) : (
-                  <motion.span key="copy" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                    <Copy className="w-3.5 h-3.5 text-white" />
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </motion.button>
-          </div>
-          {copied && (
-            <p className="text-[11px] text-blue-200 mt-2 text-center font-semibold">Copied to clipboard!</p>
+          {user.referralEnabled ? (
+            <>
+              <p className="text-xs text-blue-100 leading-relaxed mb-4">
+                Share your code and earn rewards when friends book.
+              </p>
+              <div className="flex items-center gap-2 bg-white/15 border border-white/20 rounded-xl px-3 py-2.5">
+                <p className="flex-1 text-sm font-bold text-white tracking-widest font-mono">{user.referralCode}</p>
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.9 }}
+                  onClick={handleCopy}
+                  className="flex-shrink-0 w-7 h-7 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+                  aria-label="Copy referral code"
+                >
+                  <AnimatePresence mode="wait">
+                    {copied ? (
+                      <motion.span key="check" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                        <Check className="w-3.5 h-3.5 text-white" />
+                      </motion.span>
+                    ) : (
+                      <motion.span key="copy" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                        <Copy className="w-3.5 h-3.5 text-white" />
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </motion.button>
+              </div>
+              {copied && (
+                <p className="text-[11px] text-blue-200 mt-2 text-center font-semibold">Copied to clipboard!</p>
+              )}
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {user.customerId ? (
+                  <a
+                    href={getReferralSignupPath(user.customerId)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white text-blue-600 text-xs font-bold hover:bg-blue-50 transition-colors sm:col-span-1"
+                  >
+                    <span>Friend signup</span>
+                  </a>
+                ) : null}
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(
+                    user.customerId
+                      ? `Join Shalean with my link: ${getAbsoluteReferralSignupUrl(user.customerId)}`
+                      : `Use my Shalean referral code ${user.referralCode ?? ''} to book.`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-colors"
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  <span>WhatsApp</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-colors"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Copy link</span>
+                </button>
+              </div>
+            </>
+          ) : (
+            <p className="text-xs text-blue-100 leading-relaxed">
+              Referral system coming soon. We&apos;ll let you know when you can share and earn.
+            </p>
           )}
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {user.customerId ? (
-              <a
-                href={getReferralSignupPath(user.customerId)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white text-blue-600 text-xs font-bold hover:bg-blue-50 transition-colors sm:col-span-1"
-              >
-                <span>Friend signup</span>
-              </a>
-            ) : null}
-            <a
-              href={`https://wa.me/?text=${encodeURIComponent(
-                user.customerId
-                  ? `Join Shalean with my link: ${getAbsoluteReferralSignupUrl(user.customerId)}`
-                  : `Use my Shalean referral code ${user.referralCode} to get R50 off your first clean!`
-              )}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-colors"
-            >
-              <MessageCircle className="w-3.5 h-3.5" />
-              <span>WhatsApp</span>
-            </a>
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-colors"
-            >
-              <Copy className="w-3.5 h-3.5" />
-              <span>Copy link</span>
-            </button>
-          </div>
         </div>
 
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-bold text-amber-800">Redeem your points</p>
-            <p className="text-xs text-amber-600 mt-0.5">Use 100 pts for R20 off your next booking</p>
-          </div>
-          <motion.button
-            type="button"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setShowRedeemModal(true)}
-            className="flex-shrink-0 inline-flex items-center gap-1.5 bg-amber-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-amber-600 transition-colors"
-          >
-            <span>Redeem</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </motion.button>
-        </div>
       </div>
     </div>
   );
@@ -1548,7 +1106,10 @@ function ProfilePage() {
     setEditPhone(false);
   };
   const handleCopyReferral = () => {
-    navigator.clipboard.writeText(user.referralCode).catch(() => {});
+    if (!user.referralEnabled) return;
+    const text = user.referralCode ?? '';
+    if (!text) return;
+    navigator.clipboard.writeText(text).catch(() => {});
     setCopiedReferral(true);
     setTimeout(() => setCopiedReferral(false), 2000);
   };
@@ -1617,9 +1178,11 @@ function ProfilePage() {
             <p className="text-xl font-extrabold text-gray-900">{user.name}</p>
             <p className="text-sm text-gray-400">{user.email}</p>
             <div className="flex items-center gap-2 mt-2">
-              <span className="text-[11px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1 uppercase">
-                {user.rewardTier} Member
-              </span>
+              {user.rewardTier ? (
+                <span className="text-[11px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1 uppercase">
+                  {user.rewardTier} Member
+                </span>
+              ) : null}
               <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 border border-blue-100 rounded-full px-2.5 py-1">
                 {user.rewardPoints} pts
               </span>
@@ -1768,19 +1331,25 @@ function ProfilePage() {
         </div>
 
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5">
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Referral Code</p>
-          <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
-            <p className="flex-1 text-sm font-bold text-gray-900 tracking-widest font-mono">{user.referralCode}</p>
-            <button
-              type="button"
-              onClick={handleCopyReferral}
-              className="flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50 border border-blue-100 rounded-lg px-2.5 py-1 hover:bg-blue-100 transition-colors"
-            >
-              {copiedReferral ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-              <span>{copiedReferral ? 'Copied!' : 'Copy'}</span>
-            </button>
-          </div>
-          <p className="text-xs text-gray-400 mt-2">Earn R50 for every friend who completes their first booking</p>
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Referral</p>
+          {user.referralEnabled ? (
+            <>
+              <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+                <p className="flex-1 text-sm font-bold text-gray-900 tracking-widest font-mono">{user.referralCode}</p>
+                <button
+                  type="button"
+                  onClick={handleCopyReferral}
+                  className="flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50 border border-blue-100 rounded-lg px-2.5 py-1 hover:bg-blue-100 transition-colors"
+                >
+                  {copiedReferral ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                  <span>{copiedReferral ? 'Copied!' : 'Copy'}</span>
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 mt-2">Rewards apply when referral rules are active.</p>
+            </>
+          ) : (
+            <p className="text-sm text-gray-600">Referral system coming soon.</p>
+          )}
         </div>
 
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5">
@@ -1869,9 +1438,11 @@ function EarnSharePage({ onNavigate }: { onNavigate: (page: PageId) => void }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
+    if (!user.referralEnabled) return;
     const payload = user.customerId
       ? getAbsoluteReferralSignupUrl(user.customerId)
-      : user.referralCode;
+      : user.referralCode ?? '';
+    if (!payload) return;
     navigator.clipboard.writeText(payload).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -1887,51 +1458,60 @@ function EarnSharePage({ onNavigate }: { onNavigate: (page: PageId) => void }) {
               <Sparkles className="w-5 h-5 text-blue-200" />
               <p className="text-base font-bold text-white">Refer &amp; Earn</p>
             </div>
-            <p className="text-sm text-blue-100 leading-relaxed mb-5">
-              Share your code and earn <strong className="text-white">R50</strong> for every friend who books.
-            </p>
-            <div className="flex items-center gap-2 bg-white/15 border border-white/20 rounded-xl px-3 py-2.5">
-              <p className="flex-1 text-sm font-bold text-white tracking-widest font-mono">{user.referralCode}</p>
-              <motion.button
-                type="button"
-                whileTap={{ scale: 0.9 }}
-                onClick={handleCopy}
-                className="flex-shrink-0 w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
-                aria-label={user.customerId ? 'Copy referral signup link' : 'Copy referral code'}
-              >
-                {copied ? <Check className="w-4 h-4 text-white" /> : <Copy className="w-4 h-4 text-white" />}
-              </motion.button>
-            </div>
-            {copied && (
-              <p className="text-[11px] text-blue-200 mt-2 text-center font-semibold">Copied to clipboard</p>
-            )}
-            {user.customerId ? (
-              <motion.a
-                href={getReferralSignupPath(user.customerId)}
-                target="_blank"
-                rel="noopener noreferrer"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="mt-4 w-full py-2.5 rounded-xl bg-white text-blue-600 text-sm font-bold flex items-center justify-center gap-1.5 hover:bg-blue-50 transition-colors"
-              >
-                <span>Open friend signup link</span>
-                <ArrowRight className="w-4 h-4" />
-              </motion.a>
+            {user.referralEnabled ? (
+              <>
+                <p className="text-sm text-blue-100 leading-relaxed mb-5">
+                  Share your code and earn rewards when friends book.
+                </p>
+                <div className="flex items-center gap-2 bg-white/15 border border-white/20 rounded-xl px-3 py-2.5">
+                  <p className="flex-1 text-sm font-bold text-white tracking-widest font-mono">{user.referralCode}</p>
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.9 }}
+                    onClick={handleCopy}
+                    className="flex-shrink-0 w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+                    aria-label={user.customerId ? 'Copy referral signup link' : 'Copy referral code'}
+                  >
+                    {copied ? <Check className="w-4 h-4 text-white" /> : <Copy className="w-4 h-4 text-white" />}
+                  </motion.button>
+                </div>
+                {copied && (
+                  <p className="text-[11px] text-blue-200 mt-2 text-center font-semibold">Copied to clipboard</p>
+                )}
+                {user.customerId ? (
+                  <motion.a
+                    href={getReferralSignupPath(user.customerId)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="mt-4 w-full py-2.5 rounded-xl bg-white text-blue-600 text-sm font-bold flex items-center justify-center gap-1.5 hover:bg-blue-50 transition-colors"
+                  >
+                    <span>Open friend signup link</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </motion.a>
+                ) : (
+                  <motion.button
+                    type="button"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => onNavigate('rewards')}
+                    className="mt-4 w-full py-2.5 rounded-xl bg-white text-blue-600 text-sm font-bold flex items-center justify-center gap-1.5 hover:bg-blue-50 transition-colors"
+                  >
+                    <span>Rewards</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </motion.button>
+                )}
+              </>
             ) : (
-              <motion.button
-                type="button"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => onNavigate('rewards')}
-                className="mt-4 w-full py-2.5 rounded-xl bg-white text-blue-600 text-sm font-bold flex items-center justify-center gap-1.5 hover:bg-blue-50 transition-colors"
-              >
-                <span>Rewards &amp; referral</span>
-                <ArrowRight className="w-4 h-4" />
-              </motion.button>
+              <p className="text-sm text-blue-100 leading-relaxed">
+                Referral system coming soon. We&apos;re finishing the rewards experience — check back later.
+              </p>
             )}
           </div>
           <p className="text-xs text-center text-gray-400">
-            {user.rewardPoints} pts · {user.rewardTier} member
+            {user.rewardPoints} pts
+            {user.rewardTier ? ` · ${user.rewardTier} member` : ''}
           </p>
         </div>
       </div>

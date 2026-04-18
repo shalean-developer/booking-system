@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CleanerBooking } from '@/types/booking';
+import { isCompletedBooking } from '@/shared/dashboard-data';
 
 interface Booking extends CleanerBooking {
   cleaner_claimed_at?: string | null;
@@ -447,7 +448,7 @@ export function BookingCard({
 
           {/* Rate Customer Button - for completed bookings */}
           {variant === 'assigned' &&
-            booking.status === 'completed' &&
+            isCompletedBooking(booking.status) &&
             !booking.customer_rating_id &&
             onRate && (
               <Button

@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, FileText, Plus, Edit2, Trash2, Star, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/lib/supabase-client';
+import { supabase } from '@/lib/supabase/client';
 import { safeGetSession } from '@/lib/logout-utils';
 import { devLog } from '@/lib/dev-logger';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';

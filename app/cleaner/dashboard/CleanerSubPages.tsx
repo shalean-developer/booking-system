@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   MapPin,
@@ -21,10 +21,16 @@ import {
   Bell,
   HelpCircle,
   X,
+  CreditCard,
 } from 'lucide-react';
+import { isCompletedBooking } from '@/shared/dashboard-data';
+import { formatZarFromCents } from '@/lib/cleaner-financial';
+import type { EarningUiKind } from '@/lib/cleaner-financial';
 import { cn } from '../../../lib/utils';
 import { toastCleanerActionError } from './cleanerToast';
 import { useJobs, useEarnings, useCleanerReviews, useSchedule } from './cleanerHooks';
+import { FinancialSummaryCardsLight } from './cleaner-financial-cards';
+import { useCleanerFinancial } from './cleaner-financial-context';
 import type { Job, JobTabId, CleanerPageId, CleanerProfile } from './cleanerTypes';
 
 function formatLifecycleTime(iso: string) {
@@ -293,7 +299,7 @@ function JobsPage({ onNavigate: _onNavigate }: JobsPageProps) {
                     <span>{actionLoading ? 'Completing…' : 'Mark as Complete'}</span>
                   </motion.button>
                 )}
-                {detailJob.status === 'completed' && detailJob.rating !== undefined && (
+                {isCompletedBooking(detailJob.dbStatus ?? detailJob.status) && detailJob.rating !== undefined && (
                   <div className="flex items-center justify-center gap-1 py-3">
                     <span className="text-sm font-bold text-gray-700 mr-2">Client rating:</span>
                     {[1, 2, 3, 4, 5].map(i => (
@@ -393,7 +399,7 @@ function JobsPage({ onNavigate: _onNavigate }: JobsPageProps) {
                         </span>
                         <JobStatusBadge status={job.status} />
                       </div>
-                      {job.status === 'completed' && job.rating !== undefined && (
+                      {isCompletedBooking(job.dbStatus ?? job.status) && job.rating !== undefined && (
                         <div className="flex items-center gap-0.5 mt-1.5">
                           {[1, 2, 3, 4, 5].map(si => (
                             <Star
@@ -585,12 +591,287 @@ function SchedulePage() {
   );
 }
 
+// ─── EARNINGS / WALLET HELPERS ────────────────────────────────────────────────
+
+function formatWalletRowDate(iso: string) {
+  try {
+    return new Date(iso).toLocaleString('en-ZA', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return iso;
+  }
+}
+
+function EarningStatusBadge({ kind, label }: { kind: EarningUiKind; label: string }) {
+  const map: Record<EarningUiKind, string> = {
+    pending: 'bg-amber-50 text-amber-800 border-amber-200',
+    held: 'bg-violet-50 text-violet-700 border-violet-200',
+    available: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    paid: 'bg-gray-50 text-gray-600 border-gray-200',
+  };
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center text-[10px] font-bold border rounded-full px-2.5 py-1 leading-none',
+        map[kind],
+      )}
+    >
+      {label}
+    </span>
+  );
+}
+
+function payoutHistoryBadge(status: string) {
+  const s = status.toLowerCase();
+  if (s === 'completed') {
+    return { label: 'Completed', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+  }
+  if (s === 'failed') {
+    return { label: 'Failed', cls: 'bg-red-50 text-red-700 border-red-200' };
+  }
+  if (s === 'processing') {
+    return { label: 'Processing', cls: 'bg-blue-50 text-blue-700 border-blue-200' };
+  }
+  if (s === 'pending') {
+    return { label: 'Pending', cls: 'bg-amber-50 text-amber-800 border-amber-200' };
+  }
+  return { label: status, cls: 'bg-gray-50 text-gray-600 border-gray-200' };
+}
+
+function PayoutSettingsForm({ profile }: { profile: CleanerProfile }) {
+  const { data, refresh } = useCleanerFinancial();
+  const [schedule, setSchedule] = useState<'weekly' | 'monthly'>('weekly');
+  const [day, setDay] = useState(5);
+  const [name, setName] = useState(profile.name);
+  const [accountNumber, setAccountNumber] = useState('');
+  const [bankCode, setBankCode] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [savingSchedule, setSavingSchedule] = useState(false);
+  const [savingBank, setSavingBank] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (data) {
+      setSchedule(data.payout_schedule);
+      setDay(data.payout_day);
+    }
+  }, [data]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/cleaner/payouts/settings', { credentials: 'include' });
+        const j = await res.json();
+        if (cancelled || !j.ok || !j.settings) return;
+        setBankName(String(j.settings.bank_name || ''));
+        if (j.settings.account_holder) setName(String(j.settings.account_holder));
+        if (j.settings.account_number) setAccountNumber(String(j.settings.account_number));
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const saveSchedule = async () => {
+    setSavingSchedule(true);
+    setMsg(null);
+    try {
+      const res = await fetch('/api/cleaner/payouts/settings', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payout_schedule: schedule, payout_day: day }),
+      });
+      const j = await res.json();
+      if (!j.ok) throw new Error(j.error || 'Save failed');
+      await refresh();
+      setMsg('Payout schedule saved.');
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Could not save');
+    } finally {
+      setSavingSchedule(false);
+    }
+  };
+
+  const saveBank = async () => {
+    setSavingBank(true);
+    setMsg(null);
+    try {
+      const res = await fetch('/api/cleaner/payout-recipient', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim() || profile.name,
+          account_number: accountNumber.trim(),
+          bank_code: bankCode.trim(),
+          bank_name: bankName.trim() || undefined,
+        }),
+      });
+      const j = await res.json();
+      if (!j.ok) throw new Error(j.error || 'Registration failed');
+      await refresh();
+      setMsg('Bank details updated for payouts.');
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Could not save bank details');
+    } finally {
+      setSavingBank(false);
+    }
+  };
+
+  const weeklyDayOptions = [
+    { v: 0, l: 'Sun' },
+    { v: 1, l: 'Mon' },
+    { v: 2, l: 'Tue' },
+    { v: 3, l: 'Wed' },
+    { v: 4, l: 'Thu' },
+    { v: 5, l: 'Fri' },
+    { v: 6, l: 'Sat' },
+  ];
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+        <CreditCard className="w-4 h-4 text-blue-500" />
+        <h2 className="text-sm font-bold text-gray-900">Payout settings</h2>
+      </div>
+      <div className="p-5 space-y-6">
+        {msg ? <p className="text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">{msg}</p> : null}
+
+        <div>
+          <p className="text-xs font-bold text-gray-800 mb-2">Schedule</p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <label className="block">
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Frequency</span>
+              <select
+                value={schedule}
+                onChange={e => setSchedule(e.target.value as 'weekly' | 'monthly')}
+                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold text-gray-800 bg-white"
+              >
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </label>
+            {schedule === 'weekly' ? (
+              <label className="block">
+                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Payout day</span>
+                <select
+                  value={day}
+                  onChange={e => setDay(Number(e.target.value))}
+                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold text-gray-800 bg-white"
+                >
+                  {weeklyDayOptions.map(o => (
+                    <option key={o.v} value={o.v}>
+                      {o.l}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <label className="block">
+                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+                  Day of month (1–31)
+                </span>
+                <input
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={day}
+                  onChange={e => setDay(Math.min(31, Math.max(1, Number(e.target.value) || 1)))}
+                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold text-gray-800"
+                />
+              </label>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => void saveSchedule()}
+            disabled={savingSchedule}
+            className="mt-3 w-full sm:w-auto px-5 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 disabled:opacity-60"
+          >
+            {savingSchedule ? 'Saving…' : 'Save schedule'}
+          </button>
+        </div>
+
+        <div className="border-t border-gray-100 pt-5">
+          <p className="text-xs font-bold text-gray-800 mb-2">Bank details (Paystack)</p>
+          <p className="text-[11px] text-gray-400 mb-3">
+            Register your account for automatic transfers. Use the bank branch code from your bank statement.
+          </p>
+          <div className="space-y-3">
+            <label className="block">
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Account name</span>
+              <input
+                value={name}
+                onChange={e => setName(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-800"
+                autoComplete="name"
+              />
+            </label>
+            <label className="block">
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Account number</span>
+              <input
+                value={accountNumber}
+                onChange={e => setAccountNumber(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-800"
+                autoComplete="off"
+              />
+            </label>
+            <label className="block">
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Bank code</span>
+              <input
+                value={bankCode}
+                onChange={e => setBankCode(e.target.value)}
+                placeholder="e.g. 632005"
+                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-800"
+                autoComplete="off"
+              />
+            </label>
+            <label className="block">
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Bank name (optional)</span>
+              <input
+                value={bankName}
+                onChange={e => setBankName(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-800"
+              />
+            </label>
+          </div>
+          <button
+            type="button"
+            onClick={() => void saveBank()}
+            disabled={savingBank}
+            className="mt-4 w-full sm:w-auto px-5 py-2.5 rounded-xl border-2 border-blue-200 text-blue-700 text-xs font-bold hover:bg-blue-50 disabled:opacity-60"
+          >
+            {savingBank ? 'Saving…' : 'Save bank details'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── EARNINGS PAGE ────────────────────────────────────────────────────────────
 
-function EarningsPage() {
-  const { summary, records, chartData, monthLabel } = useEarnings();
+interface EarningsPageProps {
+  profile: CleanerProfile;
+}
+
+function EarningsPage({ profile }: EarningsPageProps) {
+  const { summary, chartData, monthLabel } = useEarnings();
+  const { data: fin, loading: finLoading, error: finError } = useCleanerFinancial();
   const maxAmount =
     chartData.length > 0 ? Math.max(...chartData.map(d => d.amount), 1) : 1;
+
+  const monthWalletLabel = fin ? formatZarFromCents(fin.totals.month_earnings_cents) : finLoading ? '…' : formatZarFromCents(0);
 
   return (
     <div className="min-h-screen bg-[#f8f9fb]">
@@ -600,19 +881,25 @@ function EarningsPage() {
       </div>
 
       <div className="px-4 sm:px-6 py-6 pb-28 lg:pb-12 space-y-6">
+        <FinancialSummaryCardsLight />
+
+        {finError ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+            {finError}
+          </div>
+        ) : null}
+
         <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-6 shadow-xl">
-          <p className="text-blue-200 text-xs font-semibold uppercase tracking-widest mb-1">This Month</p>
-          <p className="text-white text-4xl font-extrabold leading-none">
-            R{summary.month.toLocaleString()}
-          </p>
-          <p className="text-blue-200 text-sm mt-1">Total earned in {monthLabel}</p>
+          <p className="text-blue-200 text-xs font-semibold uppercase tracking-widest mb-1">This Month (wallet)</p>
+          <p className="text-white text-4xl font-extrabold leading-none">{monthWalletLabel}</p>
+          <p className="text-blue-200 text-sm mt-1">Ledger earnings in {monthLabel}</p>
           <div className="mt-5 grid grid-cols-2 gap-3">
             <div className="bg-white/15 rounded-xl p-3">
-              <p className="text-blue-200 text-[10px] font-semibold uppercase tracking-wide">Today</p>
+              <p className="text-blue-200 text-[10px] font-semibold uppercase tracking-wide">Today (bookings)</p>
               <p className="text-white text-xl font-extrabold mt-0.5">R{summary.today}</p>
             </div>
             <div className="bg-white/15 rounded-xl p-3">
-              <p className="text-blue-200 text-[10px] font-semibold uppercase tracking-wide">This Week</p>
+              <p className="text-blue-200 text-[10px] font-semibold uppercase tracking-wide">This week (bookings)</p>
               <p className="text-white text-xl font-extrabold mt-0.5">R{summary.week}</p>
             </div>
           </div>
@@ -621,7 +908,7 @@ function EarningsPage() {
         <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
           <div className="flex items-center gap-2 mb-5">
             <TrendingUp className="w-4 h-4 text-blue-500" />
-            <h2 className="text-sm font-bold text-gray-900">Weekly Breakdown</h2>
+            <h2 className="text-sm font-bold text-gray-900">Weekly Breakdown (bookings)</h2>
           </div>
           <div className="flex items-end justify-between gap-1 h-28">
             {chartData.map(point => (
@@ -647,40 +934,107 @@ function EarningsPage() {
           </div>
         </div>
 
-        <section aria-label="Earnings transactions">
-          <h2 className="text-sm font-bold text-gray-900 mb-3">Recent Payouts</h2>
-          {records.length === 0 ? (
+        <section aria-label="Wallet earning transactions">
+          <h2 className="text-sm font-bold text-gray-900 mb-3">Earnings breakdown</h2>
+          {!fin || fin.earnings.length === 0 ? (
             <div className="bg-white border border-gray-200 rounded-2xl p-8 text-center">
-              <p className="text-sm font-semibold text-gray-500">No transactions yet</p>
+              <p className="text-sm font-semibold text-gray-500">No wallet earnings yet</p>
+              <p className="text-xs text-gray-400 mt-1">Completed jobs will appear here after payout processing.</p>
             </div>
           ) : (
-            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-              {records.map((record, i) => (
-                <div
-                  key={record.id}
-                  className={cn(
-                    'flex items-center gap-4 px-5 py-4',
-                    i !== records.length - 1 && 'border-b border-gray-100',
-                  )}
-                >
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-                    <TrendingUp className="w-5 h-5 text-blue-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-gray-900">{record.service}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {record.client} · {record.date}
-                    </p>
-                  </div>
-                  <div className="flex-shrink-0 text-right">
-                    <p className="text-sm font-extrabold text-emerald-600">+{record.amount}</p>
-                    <p className="text-[10px] text-gray-400 mt-0.5">Paid</p>
-                  </div>
-                </div>
-              ))}
+            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-x-auto">
+              <table className="w-full text-sm min-w-[520px]">
+                <thead>
+                  <tr className="border-b border-gray-100 text-left text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                    <th className="px-4 py-3">Booking</th>
+                    <th className="px-4 py-3">Date</th>
+                    <th className="px-4 py-3 text-right">Amount</th>
+                    <th className="px-4 py-3 text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {fin.earnings.map(row => (
+                    <tr key={row.id} className="border-b border-gray-50 last:border-0">
+                      <td className="px-4 py-3 font-mono text-xs text-gray-800">
+                        {row.booking_id ? (
+                          <span className="font-semibold">{row.booking_id}</span>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                        {formatWalletRowDate(row.created_at)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-extrabold text-gray-900">
+                        {formatZarFromCents(row.amount_cents)}
+                      </td>
+                      <td className="px-4 py-3 text-right align-top">
+                        <div className="flex flex-col items-end gap-1">
+                          <EarningStatusBadge kind={row.kind} label={row.label} />
+                          <span className="text-[10px] text-gray-400 max-w-[220px] leading-snug text-right">
+                            {row.description}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </section>
+
+        <section aria-label="Payout history">
+          <h2 className="text-sm font-bold text-gray-900 mb-3">Payout history</h2>
+          {!fin || fin.payouts.length === 0 ? (
+            <div className="bg-white border border-gray-200 rounded-2xl p-8 text-center">
+              <p className="text-sm font-semibold text-gray-500">No payouts yet</p>
+            </div>
+          ) : (
+            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-x-auto">
+              <table className="w-full text-sm min-w-[480px]">
+                <thead>
+                  <tr className="border-b border-gray-100 text-left text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                    <th className="px-4 py-3">Date</th>
+                    <th className="px-4 py-3 text-right">Amount</th>
+                    <th className="px-4 py-3 text-right">Status</th>
+                    <th className="px-4 py-3 text-right">Reference</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {fin.payouts.map(row => {
+                    const b = payoutHistoryBadge(row.status);
+                    return (
+                      <tr key={row.id} className="border-b border-gray-50 last:border-0">
+                        <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                          {formatWalletRowDate(row.created_at)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-extrabold text-gray-900">
+                          {formatZarFromCents(row.amount_cents)}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span
+                            className={cn(
+                              'inline-flex text-[10px] font-bold border rounded-full px-2.5 py-1 leading-none',
+                              b.cls,
+                            )}
+                          >
+                            {b.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono text-[10px] text-gray-500 break-all max-w-[140px]">
+                          {row.paystack_reference || '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        <PayoutSettingsForm profile={profile} />
       </div>
     </div>
   );
@@ -915,7 +1269,7 @@ export function CleanerSubPages({ page, profile, onNavigate }: CleanerSubPagesPr
           exit={{ opacity: 0 }}
           transition={{ duration: 0.18 }}
         >
-          <EarningsPage />
+          <EarningsPage profile={profile} />
         </motion.div>
       )}
       {page === 'profile' && (

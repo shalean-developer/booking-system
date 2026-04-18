@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { sendEmail, generateBookingConfirmationEmail, generateAdminBookingNotificationEmail } from '@/lib/email';
 import { supabase } from '@/lib/supabase';
 import { generateUniqueBookingId } from '@/lib/booking-id';
-import { calculateCleanerEarnings } from '@/lib/cleaner-earnings';
+import { buildEarningsInsertFields } from '@/lib/earnings-v2';
+import { deriveCompanyOnlyCostsCents } from '@/lib/earnings-company-costs';
 import type { BookingStateV2 } from '@/lib/useBookingV2';
 import { isPayLaterAllowed } from '@/lib/booking-env';
 import { validateBookingDiscountAmount } from '@/lib/discount-booking-server';
@@ -212,7 +213,7 @@ export async function POST(req: Request) {
 
     const { cleanerId: resolvedCleanerId, durationMinutes, expectedEndTime } = dispatch;
 
-    let cleanerEarnings = 0;
+    let cleanerHireDate: string | null = null;
     const cleanerIdForInsert: string | null = requiresTeam ? null : resolvedCleanerId;
 
     if (!requiresTeam && cleanerIdForInsert) {
@@ -221,16 +222,30 @@ export async function POST(req: Request) {
         .select('hire_date')
         .eq('id', cleanerIdForInsert)
         .single();
-
-      const cleanerHireDate = cleanerData?.hire_date || null;
-      cleanerEarnings = calculateCleanerEarnings(
-        adjustedTotalAmount ?? null,
-        body.serviceFee ?? null,
-        cleanerHireDate,
-        tipAmount,
-        body.service ?? null
-      ) * 100;
+      cleanerHireDate = cleanerData?.hire_date ?? null;
     }
+
+    const totalAmountCents = Math.round(adjustedTotalAmount * 100);
+    const serviceFeeCents = Math.round((body.serviceFee || 0) * 100);
+    const b = serverCart.calc.breakdown;
+    const companyCosts = deriveCompanyOnlyCostsCents({
+      serviceType: body.service ?? null,
+      equipmentChargeZar: b.equipmentCharge,
+      laborSubtotalOneCleanerZar: b.laborSubtotalOneCleaner,
+      numberOfCleaners: b.numberOfCleaners,
+    });
+    const earningsFields = buildEarningsInsertFields({
+      totalAmountCents,
+      serviceFeeCents,
+      tipCents: tipAmountInCents,
+      hireDate: cleanerHireDate,
+      serviceType: body.service ?? null,
+      requiresTeam,
+      teamSize: numberOfCleaners,
+      durationMinutes: durationMinutes ?? null,
+      equipmentCostCents: companyCosts.equipmentCostCents,
+      extraCleanerFeeCents: companyCosts.extraCleanerFeeCents,
+    });
 
     const frequencyForDb = body.frequency === 'one-time' ? null : body.frequency;
     
@@ -279,9 +294,9 @@ export async function POST(req: Request) {
         address_suburb: body.address.suburb,
         address_city: body.address.city,
         payment_reference: null,
-        total_amount: Math.round(adjustedTotalAmount * 100),
+        total_amount: totalAmountCents,
         tip_amount: tipAmountInCents,
-        cleaner_earnings: cleanerEarnings,
+        ...earningsFields,
         requires_team: requiresTeam,
         surge_pricing_applied: checkoutPricing.surgePricingApplied,
         surge_amount: Math.round(checkoutPricing.surgeAmountZar * 100),

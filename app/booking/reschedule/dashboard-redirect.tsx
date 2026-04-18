@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase-client';
+import { supabase } from '@/lib/supabase/client';
 import { safeGetSession } from '@/lib/logout-utils';
 import { serviceTypeToSlug } from '@/lib/booking-utils';
 import type { ServiceType } from '@/types/booking';

@@ -40,4 +40,8 @@ export interface BookingFormData {
   carpetExtraCleaner?: boolean;
   /** Step 2 — standard / Airbnb: cleaners bring equipment vs customer supplies */
   scheduleEquipmentPref?: 'bring' | 'own';
+  /** Cleaners booked for the job (1–6); defaults from `calculateOptimalTeam` unless user overrides */
+  numberOfCleaners: number;
+  /** When true, workload changes do not auto-update `numberOfCleaners` */
+  teamSizeUserOverride?: boolean;
 }

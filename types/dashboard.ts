@@ -1,8 +1,10 @@
 // Dashboard TypeScript Types
 // Centralized type definitions for customer dashboard
 
-export interface Booking {
-  id: string;
+import type { Booking as SharedBooking } from '@/shared/dashboard-data/types';
+
+/** DB-aligned booking — canonical shape from `shared/dashboard-data/types`. */
+export type Booking = SharedBooking & {
   booking_date: string;
   booking_time: string;
   service_type: string;
@@ -11,28 +13,9 @@ export interface Booking {
   address_line1: string;
   address_suburb: string;
   address_city: string;
-  cleaner_id?: string | null;
-  notes?: string | null;
-  payment_reference?: string | null;
-  customer_review_id?: string | null;
-  customer_reviewed?: boolean;
-  bedrooms?: number | null;
-  bathrooms?: number | null;
-  extras?: string[] | null;
-  frequency?: string | null;
-  service_fee?: number | null;
-  frequency_discount?: number | null;
-  tip_amount?: number | null;
-  cleaner_earnings?: number | null;
-  cleaner_claimed_at?: string | null;
-  cleaner_accepted_at?: string | null;
-  cleaner_on_my_way_at?: string | null;
-  cleaner_started_at?: string | null;
-  cleaner_completed_at?: string | null;
-  expected_end_time?: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
 export interface Cleaner {
   id: string;

@@ -18,8 +18,24 @@ export type BookingStatus = 'upcoming' | 'completed' | 'cancelled';
 export interface Booking {
   id: string;
   service: string;
+  /** ISO yyyy-mm-dd from DB for scheduling APIs. */
+  bookingDateIso?: string;
+  /** Slot id (HH:mm) matching `BOOKING_TIME_SLOT_DEFS`. */
+  bookingTimeSlotId?: string | null;
+  /** Raw `service_type` from DB (e.g. Standard, Deep). */
+  serviceTypeRaw?: string;
   cleaner: string;
   cleanerInitial: string;
+  /** Assigned cleaner UUID when present. */
+  cleanerId?: string | null;
+  requiresTeam?: boolean;
+  teamName?: string | null;
+  /** For dispatch: extras id list + quantities from booking row / snapshot. */
+  extrasIds?: string[];
+  extrasQuantities?: Record<string, number>;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  durationMinutes?: number | null;
   /** Assigned cleaner phone when available (from DB). */
   cleanerPhone?: string | null;
   date: string;

@@ -25,15 +25,17 @@ import {
 } from 'lucide-react';
 import { useBookingFormData, type BookingFormData as BookingFormDataFromApi } from '@/lib/useBookingFormData';
 import type { Cleaner as ApiCleaner } from '@/types/booking';
-import { supabase } from '@/lib/supabase-client';
+import { supabase } from '@/lib/supabase/client';
 import { BookingStep1Cleaning } from '@/components/booking-step1-cleaning';
 import { BookingStep2Schedule } from '@/components/booking-step2-schedule';
 import { BookingStep3Crew } from '@/components/booking-step3-crew';
 import { BookingStep4Confirmation } from '@/components/booking-step4-confirmation';
 import type { BookingFormData, ServiceType } from '@/components/booking-system-types';
 import { BOOKING_DEFAULT_CITY } from '@/lib/contact';
-import { computeBookingDurationMinutes } from '@/lib/booking-duration';
+import { getBookingDurationMinutes } from '@/shared/booking-engine/duration';
 import { logBookingFlowClient } from '@/lib/debug-booking-flow';
+import type { PricingEngineResult } from '@/lib/pricing-engine';
+import { estimateBookingDurationRange } from '@/lib/booking-work-hours';
 import {
   buildCarpetDetailsForPricing,
   buildExtrasQuantitiesByIdFromWizard,
@@ -41,20 +43,20 @@ import {
   getEffectiveRoomCounts,
   slugifyExtraId,
 } from '@/lib/booking-pricing-input';
+import {
+  computeWizardDisplayPricing,
+} from '@/shared/booking-engine/wizard-display-pricing';
+import {
+  computeWizardEnginePricingRow,
+  deriveWizardCompanyCostsCents,
+} from '@/shared/booking-engine/wizard-engine-pricing';
+import { getWizardOptimalTeamBreakdown } from '@/shared/booking-engine/optimal-team';
+import { buildWizardPendingBookingPayload, BOOKING_PROMO_CODES } from '@/shared/booking-engine';
 import { useBooking } from '@/shared/booking';
 import { BOOKING_FORM_SESSION_KEY } from '@/lib/booking-form-session';
 
 export type { BookingFormData, PropertyType, ServiceType } from '@/components/booking-system-types';
 
-// --- CONSTANTS (promo — validated server-side in `validateBookingDiscountAmount`) ---
-
-const PROMO_CODES: Record<string, number> = {
-  SHALEAN10: 0.1,
-  SAVE20: 0.2,
-  SAVE50: 50,
-  NEWCLIENT: 100,
-  FIRSTCLEAN: 100,
-};
 const API_TYPE_TO_SERVICE_ID: Record<string, ServiceType> = {
   'Standard': 'standard',
   'Deep': 'deep',
@@ -62,13 +64,6 @@ const API_TYPE_TO_SERVICE_ID: Record<string, ServiceType> = {
   'Airbnb': 'airbnb',
   'Carpet': 'carpet',
 };
-const TEAM_ID_TO_NAME: Record<string, 'Team A' | 'Team B' | 'Team C'> = {
-  t1: 'Team A',
-  t2: 'Team B',
-  t3: 'Team C'
-};
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 /** Legacy step-2 tile ids → stored `BookingFormData.extras` values (`booking-step2-schedule` static EXTRAS). */
 const DEEP_MOVE_LEGACY_EXTRA_STORAGE_IDS: readonly string[] = [
   'carpet_deep',
@@ -413,6 +408,32 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
     return fromApi;
   }, [formData, data.service]);
 
+  const estimatedDuration = useMemo(() => estimateBookingDurationRange(data), [data]);
+
+  const optimalTeam = useMemo(() => getWizardOptimalTeamBreakdown(data), [data]);
+
+  useEffect(() => {
+    if (data.teamSizeUserOverride) return;
+    setData((d) =>
+      d.numberOfCleaners === optimalTeam.teamSize
+        ? d
+        : { ...d, numberOfCleaners: optimalTeam.teamSize }
+    );
+  }, [optimalTeam.teamSize, data.teamSizeUserOverride, setData]);
+
+  const companyCostsForEngine = useMemo(
+    () => deriveWizardCompanyCostsCents(lineCalc, data.service),
+    [lineCalc, data.service]
+  );
+
+  const enginePricing = useMemo((): PricingEngineResult | null => {
+    return computeWizardEnginePricingRow({
+      lineCalc,
+      dataService: data.service,
+      estimatedMaxHours: estimatedDuration.maxHours,
+    });
+  }, [lineCalc, data.service, estimatedDuration.maxHours]);
+
   const pricing = useMemo(() => {
     if (!formData?.pricing) {
       return {
@@ -428,148 +449,21 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         serviceFee: 0,
         frequencyDiscount: 0,
         dbPricingRows: [] as { id: string; label: string; value: number }[],
+        engineFinalCents: null as number | null,
       };
     }
-    const calc = lineCalc;
-    if (!calc) {
-      return {
-        basePrice: 0,
-        bedroomAdd: 0,
-        bathroomAdd: 0,
-        extraRoomAdd: 0,
-        extrasTotal: 0,
+    return computeWizardDisplayPricing({
+      data: {
+        service: data.service,
         tipAmount: data.tipAmount,
-        discountAmount: 0,
-        subtotal: 0,
-        total: 0,
-        serviceFee: 0,
-        frequencyDiscount: 0,
-        dbPricingRows: [] as { id: string; label: string; value: number }[],
-      };
-    }
-    let discountAmount = 0;
-    if (data.promoCode) {
-      const discount = PROMO_CODES[data.promoCode.toUpperCase()];
-      if (discount) {
-        discountAmount =
-          discount <= 1
-            ? Math.round(calc.total * discount)
-            : Math.min(calc.total, discount);
-      }
-    }
-    const total = Math.max(0, calc.total - discountAmount) + data.tipAmount;
-    const dbPricingRows: { id: string; label: string; value: number }[] = [
-      { id: 'base', label: 'Base rate', value: calc.breakdown.base },
-    ];
-    if (calc.breakdown.bedrooms > 0) {
-      dbPricingRows.push({
-        id: 'bed',
-        label: data.service === 'carpet' ? 'Fitted carpets' : 'Rooms / bedrooms',
-        value: calc.breakdown.bedrooms,
-      });
-    }
-    if (calc.breakdown.bathrooms > 0) {
-      dbPricingRows.push({
-        id: 'bath',
-        label: data.service === 'carpet' ? 'Loose rugs / items' : 'Bathrooms',
-        value: calc.breakdown.bathrooms,
-      });
-    }
-    if (!['carpet'].includes(data.service) && calc.breakdown.extraRooms > 0) {
-      dbPricingRows.push({
-        id: 'xroom',
-        label: 'Extra rooms',
-        value: calc.breakdown.extraRooms,
-      });
-    }
-    if (data.service === 'carpet' && (calc.breakdown.carpetOccupiedFee ?? 0) > 0) {
-      dbPricingRows.push({
-        id: 'occ',
-        label: 'Occupied property',
-        value: calc.breakdown.carpetOccupiedFee ?? 0,
-      });
-    }
-    if (calc.breakdown.extrasTotal > 0) {
-      dbPricingRows.push({ id: 'extras', label: 'Extras', value: calc.breakdown.extrasTotal });
-    }
-    if (calc.breakdown.equipmentCharge > 0) {
-      dbPricingRows.push({
-        id: 'eq',
-        label: 'Equipment & supplies',
-        value: calc.breakdown.equipmentCharge,
-      });
-    }
-    if (calc.serviceFee > 0) {
-      dbPricingRows.push({ id: 'fee', label: 'Service fee', value: calc.serviceFee });
-    }
-    if (calc.frequencyDiscount > 0) {
-      dbPricingRows.push({
-        id: 'fdisc',
-        label: 'Frequency discount',
-        value: -calc.frequencyDiscount,
-      });
-    }
-    return {
-      basePrice: calc.breakdown.base,
-      bedroomAdd: calc.breakdown.bedrooms,
-      bathroomAdd: calc.breakdown.bathrooms,
-      extraRoomAdd: calc.breakdown.extraRooms,
-      extrasTotal: calc.breakdown.extrasTotal,
-      tipAmount: data.tipAmount,
-      discountAmount,
-      subtotal: calc.subtotal,
-      total,
-      serviceFee: calc.serviceFee,
-      frequencyDiscount: calc.frequencyDiscount,
-      dbPricingRows,
-    };
-  }, [data, formData, lineCalc]);
+        promoCode: data.promoCode,
+      },
+      lineCalc,
+      enginePricing,
+    });
+  }, [data.service, data.tipAmount, data.promoCode, formData?.pricing, lineCalc, enginePricing]);
 
   const effRoomCounts = useMemo(() => getEffectiveRoomCounts(data), [data]);
-
-  const estimatedDuration = useMemo(() => {
-    const selectedService = data.service;
-    if (!selectedService) return { label: '—', maxHours: 3 };
-
-    const eff = getEffectiveRoomCounts(data);
-
-    let hours =
-      selectedService === 'standard'
-        ? 2.0
-        : selectedService === 'airbnb'
-          ? 2.5
-          : selectedService === 'deep'
-            ? 4.0
-            : selectedService === 'move'
-              ? 4.5
-              : selectedService === 'carpet'
-                ? 2.0
-                : 2.5;
-
-    if (selectedService === 'carpet') {
-      hours += Math.max(0, eff.bedrooms) * 0.5;
-      hours += Math.max(0, eff.bathrooms) * 0.25;
-      hours += Math.max(0, eff.extraRooms) * 0.5;
-    } else {
-      hours += Math.max(0, eff.bedrooms) * 0.5;
-      hours += Math.max(0, eff.bathrooms) * 0.75;
-      hours += Math.max(0, eff.extraRooms) * 0.5;
-      if (data.propertyType === 'office') {
-        hours += Math.max(0, eff.bedrooms) * 0.25;
-      }
-    }
-
-    hours += data.extras.reduce((sum, id) => {
-      const q = data.extrasQuantities[id] ?? 1;
-      return sum + q * 0.25;
-    }, 0);
-
-    const roundHalf = (v: number) => Math.round(v * 2) / 2;
-    const base = Math.min(12, Math.max(1.5, roundHalf(hours)));
-    const min = Math.max(1, roundHalf(base * 0.9));
-    const max = Math.max(min, roundHalf(base * 1.1));
-    return { label: `Est. ${min}–${max} hrs`, maxHours: max };
-  }, [data, data.extras, data.extrasQuantities]);
 
   /** Compute expected end time (HH:MM) from start time + max duration hours */
   const expectedEndTime = useMemo(() => {
@@ -601,7 +495,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
     params.set(
       'duration_minutes',
       String(
-        computeBookingDurationMinutes({
+        getBookingDurationMinutes({
           bedrooms: data.bedrooms,
           bathrooms: data.bathrooms,
           extras: data.extras,
@@ -630,13 +524,13 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
   }, [displayExtrasForService]);
 
   const crewDisplayName = useMemo(() => {
-    if (data.teamId) {
-      const teams: Record<string, string> = { t1: 'Team Alpha', t2: 'Team Bravo', t3: 'Team Sierra' };
-      return teams[data.teamId] ?? 'Team';
+    const teamService = data.service === 'deep' || data.service === 'move';
+    if (teamService && !data.cleanerId) {
+      return 'Cleaning team';
     }
     const c = apiCleaners.find((x) => x.id === data.cleanerId);
     return c?.name ?? 'Your cleaner';
-  }, [data.teamId, data.cleanerId, apiCleaners]);
+  }, [data.service, data.cleanerId, apiCleaners]);
 
   const propertySummaryForStep4 = useMemo(() => {
     if (data.service === 'carpet') {
@@ -710,8 +604,8 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
 
   const fetchCheckoutPricingPreview = useCallback(async () => {
     const apiService = formServiceToApi(data.service);
-    const selectedTeam =
-      data.teamId && TEAM_ID_TO_NAME[data.teamId] ? TEAM_ID_TO_NAME[data.teamId] : undefined;
+    const requiresTeam = data.service === 'deep' || data.service === 'move';
+    const selectedTeam = requiresTeam ? 'Team booking' : undefined;
     const eff = getEffectiveRoomCounts(data);
     const extrasQuantities = buildExtrasQuantitiesByIdFromWizard(data.extras, data.extrasQuantities);
     const previewRes = await fetch('/api/booking/pricing-preview', {
@@ -730,11 +624,17 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         frequency: 'one-time',
         tipAmount: data.tipAmount,
         discountAmount: pricing.discountAmount,
-        numberOfCleaners: 1,
+        numberOfCleaners: lineCalc?.breakdown.numberOfCleaners ?? 1,
         provideEquipment:
           (data.service === 'standard' || data.service === 'airbnb') &&
           data.scheduleEquipmentPref === 'bring',
         carpetDetails: buildCarpetDetailsForPricing(data),
+        pricingEngineFinalCents: pricing.engineFinalCents ?? undefined,
+        pricingTotalHours: estimatedDuration.maxHours,
+        pricingTeamSize: lineCalc?.breakdown.numberOfCleaners ?? 1,
+        equipmentCostCents: companyCostsForEngine?.equipmentCostCents,
+        extraCleanerFeeCents: companyCostsForEngine?.extraCleanerFeeCents,
+        serviceFee: pricing.serviceFee,
       }),
     });
     const preview = await previewRes.json();
@@ -747,7 +647,16 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
     };
     setConfirmedCheckoutTotalZar(preview.finalTotalZar);
     return preview as { preSurgeTotalZar: number; finalTotalZar: number };
-  }, [data, pricing.total, pricing.discountAmount]);
+  }, [
+    data,
+    pricing.total,
+    pricing.discountAmount,
+    pricing.engineFinalCents,
+    pricing.serviceFee,
+    lineCalc,
+    estimatedDuration.maxHours,
+    companyCostsForEngine,
+  ]);
 
   useEffect(() => {
     if (step !== 4 || !data.date || !data.time) {
@@ -775,65 +684,29 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
 
   const buildBookingPayload = useCallback(
     (paymentReference: string | null) => {
-      const nameParts = data.name.trim().split(/\s+/);
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
-      const apiService = formServiceToApi(data.service);
-      const requiresTeam = data.service === 'deep' || data.service === 'move';
-      const cleanerId = data.cleanerId && UUID_REGEX.test(data.cleanerId) ? data.cleanerId : null;
-      const selectedTeam = data.teamId && TEAM_ID_TO_NAME[data.teamId] ? TEAM_ID_TO_NAME[data.teamId] : undefined;
-      const extrasQuantities = buildExtrasQuantitiesByIdFromWizard(data.extras, data.extrasQuantities);
-      const eff = getEffectiveRoomCounts(data);
       const totals = checkoutPricingRef.current;
-      const totalAmount = totals?.finalTotal ?? pricing.total;
-      const preSurgeTotal = totals?.preSurgeTotal ?? pricing.total;
-      const equipmentRequired =
-        (data.service === 'standard' || data.service === 'airbnb') &&
-        data.scheduleEquipmentPref === 'bring';
-      const equipmentFee =
-        equipmentRequired && formData?.equipment?.charge
-          ? formData.equipment.charge
-          : 0;
-      return {
-        step: 4 as const,
-        service: apiService,
-        bedrooms: eff.bedrooms,
-        bathrooms: eff.bathrooms,
-        extraRooms: eff.extraRooms,
-        numberOfCleaners: 1,
-        extras: data.extras,
-        extrasQuantities,
-        carpetDetails: buildCarpetDetailsForPricing(data),
-        provideEquipment: equipmentRequired,
-        notes: data.instructions || '',
-        date: data.date,
-        time: data.time,
-        frequency: 'one-time' as const,
-        firstName,
-        lastName,
-        email: data.email.trim(),
-        phone: data.phone.trim(),
-        address: { line1: data.address.trim(), suburb: data.workingArea || '', city: BOOKING_DEFAULT_CITY },
-        cleaner_id: cleanerId || undefined,
-        selected_team: selectedTeam,
-        requires_team: requiresTeam,
-        ...(paymentReference ? { paymentReference } : {}),
-        expectedEndTime: expectedEndTime || undefined,
-        totalAmount,
-        preSurgeTotal,
-        serviceFee: pricing.serviceFee,
-        frequencyDiscount: pricing.frequencyDiscount,
-        discountCode: data.promoCode || undefined,
-        discountAmount: pricing.discountAmount,
-        tipAmount: data.tipAmount,
-        // Explicit equipment payload for backend + email templates
-        equipment_required: equipmentRequired,
-        equipment_fee: equipmentFee,
-        // Back-compat for process route’s legacy equipmentCharge handling
-        equipmentCharge: equipmentFee,
-      };
+      return buildWizardPendingBookingPayload(
+        data,
+        paymentReference,
+        expectedEndTime,
+        formData?.equipment?.charge,
+        {
+          pricing: {
+            total: pricing.total,
+            discountAmount: pricing.discountAmount,
+            serviceFee: pricing.serviceFee,
+            frequencyDiscount: pricing.frequencyDiscount,
+            engineFinalCents: pricing.engineFinalCents,
+          },
+          lineCalc,
+          checkoutPreSurge: totals?.preSurgeTotal,
+          checkoutFinal: totals?.finalTotal,
+          estimatedMaxHours: estimatedDuration.maxHours,
+          companyCosts: companyCostsForEngine,
+        }
+      );
     },
-    [data, pricing, expectedEndTime, formData?.equipment?.charge]
+    [data, pricing, expectedEndTime, formData?.equipment?.charge, companyCostsForEngine, estimatedDuration.maxHours, lineCalc]
   );
 
   type PaystackCheckoutResult =
@@ -1058,7 +931,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
       setPromoError('Please enter a code');
       return;
     }
-    if (PROMO_CODES[code]) {
+    if (BOOKING_PROMO_CODES[code]) {
       setData(prev => ({
         ...prev,
         promoCode: code
@@ -1111,6 +984,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         onContinue={handleNext}
         liveTotalZar={pricing.total}
         durationLabel={estimatedDuration.label}
+        pricingEngineEstimate={enginePricing}
         dbPricingRows={pricing.dbPricingRows}
         servicePricing={formData?.pricing?.services}
         extraCleanerPriceZar={
@@ -1135,6 +1009,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         apiCleaners={apiCleaners}
         cleanersLoading={cleanersLoading}
         formatDate={formatDate}
+        optimalTeam={optimalTeam}
       />
     );
   }

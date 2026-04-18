@@ -2,22 +2,13 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import {
-  CheckCircle2,
-  Clock,
-  MessageCircle,
-  Navigation,
-  Phone,
-  Star,
-  X,
-  XCircle,
-  ChevronRight,
-  AlertTriangle,
-} from 'lucide-react';
+import { MessageCircle, Phone, Star, X, ChevronRight, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCounter } from './hooks';
 import type { Booking, FilterId, StatItem } from './types';
 import { cleanerTelHref, cleanerWhatsAppHref, supportTelHref, supportWhatsAppHref } from './booking-contact';
+
+export { StatusBadge } from '../shared/status-badge';
 
 export const STATUS_FILTER_OPTIONS: Array<{ id: FilterId; label: string }> = [
   { id: 'all', label: 'All' },
@@ -35,38 +26,6 @@ export const TRUST_BADGES: Array<{
   { id: 'tb-cancel', text: 'Free cancellation up to 24 hrs before', type: 'check' },
   { id: 'tb-fees', text: 'No hidden fees — ever', type: 'spark' },
 ];
-
-export function StatusBadge({ status }: { status: Booking['status'] }) {
-  const map = {
-    upcoming: {
-      label: 'Upcoming',
-      icon: <Clock className="w-3 h-3" />,
-      cls: 'bg-blue-50 text-blue-600 border-blue-200',
-    },
-    completed: {
-      label: 'Completed',
-      icon: <CheckCircle2 className="w-3 h-3" />,
-      cls: 'bg-green-50 text-green-600 border-green-200',
-    },
-    cancelled: {
-      label: 'Cancelled',
-      icon: <XCircle className="w-3 h-3" />,
-      cls: 'bg-red-50 text-red-500 border-red-200',
-    },
-  };
-  const { label, icon, cls } = map[status];
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1 text-[11px] font-bold border rounded-full px-2.5 py-1 leading-none',
-        cls
-      )}
-    >
-      {icon}
-      <span>{label}</span>
-    </span>
-  );
-}
 
 export function StatCounter({ stat }: { stat: StatItem }) {
   const value = useCounter(stat.value);
@@ -132,14 +91,15 @@ export function TrackCleanerModal({
           </button>
         </div>
         <div className="p-5">
-          <div className="w-full h-44 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl flex items-center justify-center mb-4 relative overflow-hidden border border-blue-100">
-            <div className="text-center">
-              <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center mx-auto mb-2 shadow-lg">
-                <Navigation className="w-6 h-6 text-white" />
-              </div>
-              <p className="text-xs font-bold text-blue-700">Live tracking active</p>
-              <p className="text-[10px] text-blue-500 mt-0.5">Map integration ready for production</p>
-            </div>
+          <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 mb-4 space-y-2">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Visit</p>
+            <p className="text-sm font-semibold text-gray-900">
+              {booking.date} · {booking.time}
+            </p>
+            <p className="text-xs text-gray-600 mt-2">
+              <span className="font-semibold text-gray-800">Status: </span>
+              {booking.pipelineStatus || booking.dbStatus || 'Scheduled'}
+            </p>
           </div>
           <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-extrabold text-base flex-shrink-0">
@@ -257,10 +217,12 @@ export function CancelConfirmModal({
   const [loading, setLoading] = useState(false);
   const handleConfirm = async () => {
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 700));
-    onConfirm();
-    onClose();
-    setLoading(false);
+    try {
+      await Promise.resolve(onConfirm());
+    } finally {
+      setLoading(false);
+      onClose();
+    }
   };
   return (
     <div
@@ -312,26 +274,84 @@ export function CancelConfirmModal({
   );
 }
 
+type ReviewPayload = {
+  overallRating: number;
+  qualityRating: number;
+  punctualityRating: number;
+  professionalismRating: number;
+  reviewText?: string;
+};
+
+function StarRow({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (n: number) => void;
+}) {
+  const [hovered, setHovered] = useState(0);
+  return (
+    <div className="mb-4">
+      <p className="text-xs font-semibold text-gray-700 mb-2">{label}</p>
+      <div className="flex justify-center gap-1.5">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <button
+            key={`${label}-${i}`}
+            type="button"
+            onMouseEnter={() => setHovered(i)}
+            onMouseLeave={() => setHovered(0)}
+            onClick={() => onChange(i)}
+            className="transition-transform hover:scale-110"
+          >
+            <Star
+              className={cn(
+                'w-7 h-7 transition-colors',
+                i <= (hovered || value) ? 'text-amber-400 fill-amber-400' : 'text-gray-200 fill-gray-200'
+              )}
+            />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function ReviewModal({
   booking,
   onSubmit,
   onClose,
 }: {
   booking: Booking;
-  onSubmit: (rating: number) => void;
+  onSubmit: (payload: ReviewPayload) => Promise<void>;
   onClose: () => void;
 }) {
-  const [hovered, setHovered] = useState(0);
-  const [selected, setSelected] = useState(0);
-  const [submitted, setSubmitted] = useState(false);
-  const handleSubmit = () => {
-    if (!selected) return;
-    setSubmitted(true);
-    setTimeout(() => {
-      onSubmit(selected);
+  const [overall, setOverall] = useState(0);
+  const [quality, setQuality] = useState(0);
+  const [punctuality, setPunctuality] = useState(0);
+  const [professionalism, setProfessionalism] = useState(0);
+  const [comment, setComment] = useState('');
+  const [busy, setBusy] = useState(false);
+  const canSubmit = overall > 0 && quality > 0 && punctuality > 0 && professionalism > 0;
+
+  const handleSubmit = async () => {
+    if (!canSubmit || busy) return;
+    setBusy(true);
+    try {
+      await onSubmit({
+        overallRating: overall,
+        qualityRating: quality,
+        punctualityRating: punctuality,
+        professionalismRating: professionalism,
+        reviewText: comment.trim() || undefined,
+      });
       onClose();
-    }, 1000);
+    } finally {
+      setBusy(false);
+    }
   };
+
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
@@ -343,62 +363,45 @@ export function ReviewModal({
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.18 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-sm bg-white rounded-3xl shadow-2xl p-6 relative"
+        className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-white rounded-3xl shadow-2xl p-6 relative"
       >
-        {submitted ? (
-          <div className="text-center py-4">
-            <div className="w-14 h-14 rounded-full bg-green-50 border-4 border-green-100 flex items-center justify-center mx-auto mb-3">
-              <CheckCircle2 className="w-7 h-7 text-green-500" />
-            </div>
-            <p className="text-sm font-extrabold text-gray-900">Thanks for your review!</p>
-            <p className="text-xs text-gray-400 mt-1">Your feedback helps us improve.</p>
-          </div>
-        ) : (
-          <div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-200 transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-            <p className="text-base font-extrabold text-gray-900 mb-1">Rate your experience</p>
-            <p className="text-xs text-gray-400 mb-5">
-              <span>{booking.service}</span>
-              <span className="mx-1.5">·</span>
-              <span>{booking.cleaner}</span>
-            </p>
-            <div className="flex justify-center gap-2 mb-6">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <button
-                  key={`review-star-${i}`}
-                  type="button"
-                  onMouseEnter={() => setHovered(i)}
-                  onMouseLeave={() => setHovered(0)}
-                  onClick={() => setSelected(i)}
-                  className="transition-transform hover:scale-110"
-                >
-                  <Star
-                    className={cn(
-                      'w-8 h-8 transition-colors',
-                      i <= (hovered || selected)
-                        ? 'text-amber-400 fill-amber-400'
-                        : 'text-gray-200 fill-gray-200'
-                    )}
-                  />
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={!selected}
-              className="w-full py-3 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Submit Review
-            </button>
-          </div>
-        )}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-200 transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+        <p className="text-base font-extrabold text-gray-900 mb-1 pr-10">Rate your experience</p>
+        <p className="text-xs text-gray-400 mb-4">
+          <span>{booking.service}</span>
+          <span className="mx-1.5">·</span>
+          <span>{booking.cleaner}</span>
+        </p>
+
+        <StarRow label="Overall" value={overall} onChange={setOverall} />
+        <StarRow label="Quality of clean" value={quality} onChange={setQuality} />
+        <StarRow label="Punctuality" value={punctuality} onChange={setPunctuality} />
+        <StarRow label="Professionalism" value={professionalism} onChange={setProfessionalism} />
+
+        <label className="block text-xs font-semibold text-gray-700 mb-1">Comment (optional)</label>
+        <textarea
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          rows={3}
+          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm mb-4"
+          placeholder="Tell us what stood out…"
+        />
+
+        <button
+          type="button"
+          onClick={() => void handleSubmit()}
+          disabled={!canSubmit || busy}
+          className="w-full py-3 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        >
+          {busy ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : null}
+          Submit review
+        </button>
       </motion.div>
     </div>
   );

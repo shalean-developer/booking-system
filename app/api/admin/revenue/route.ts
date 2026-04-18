@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient, isAdmin } from '@/lib/supabase-server';
+import { isExcludedFromRevenueReporting } from '@/lib/booking-revenue-exclusion';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +37,8 @@ type PaidRow = {
   created_at: string;
   service_type: string | null;
   customer_name: string | null;
+  payment_status?: string | null;
+  status?: string | null;
 };
 
 export async function GET() {
@@ -58,7 +61,7 @@ export async function GET() {
     for (;;) {
       const { data, error } = await supabase
         .from('bookings')
-        .select('id, total_amount, created_at, service_type, customer_name')
+        .select('id, total_amount, created_at, service_type, customer_name, payment_status, status')
         .or(PAID_OR_DONE_FILTER)
         .order('created_at', { ascending: true })
         .range(offset, offset + pageSize - 1);
@@ -107,6 +110,7 @@ export async function GET() {
     const prev7EndKey = jhbDay(prev7End);
 
     for (const b of rows) {
+      if (isExcludedFromRevenueReporting(b)) continue;
       const cents = Math.round(Number(b.total_amount) || 0);
       totalRevenueCents += cents;
 

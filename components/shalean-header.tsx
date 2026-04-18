@@ -19,7 +19,7 @@ import {
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { cn } from "@/lib/utils";
 import { ShaleanWordmark } from "@/components/shalean-wordmark";
-import { supabase } from "@/lib/supabase-client";
+import { supabase } from "@/lib/supabase/client";
 import { safeLogout } from "@/lib/logout-utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase-client';
+import { supabase } from '@/lib/supabase/client';
 import { safeGetSession, handleRefreshTokenError } from '@/lib/logout-utils';
 import { setUserContext } from '@/lib/utils/error-tracking';
 import { AlertCircle } from 'lucide-react';

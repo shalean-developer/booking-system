@@ -8,6 +8,7 @@ import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import bcrypt from 'bcryptjs';
 import { Database } from '@/types/database';
+import { validatePhoneNumber as validatePhoneNumberShared } from '@/lib/phone-validation';
 
 export interface CleanerSession {
   id: string; // UUID
@@ -370,15 +371,9 @@ export async function hashPassword(password: string): Promise<string> {
   return await bcrypt.hash(password, saltRounds);
 }
 
-/**
- * Validate phone number format (basic validation)
- */
+/** Validate phone number format (basic validation) — shared with customer UI. */
 export function validatePhoneNumber(phone: string): boolean {
-  // Remove all non-digit characters
-  const cleaned = phone.replace(/\D/g, '');
-  
-  // Check if it's a valid length (8-15 digits)
-  return cleaned.length >= 8 && cleaned.length <= 15;
+  return validatePhoneNumberShared(phone);
 }
 
 /**

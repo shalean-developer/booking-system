@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
+import { createClient, createServiceClient } from '@/lib/supabase-server';
 import { isAdmin } from '@/lib/supabase-server';
 import { sendCleanerNotification } from '@/lib/notifications/sendCleanerNotification';
+import { calculateTeamEarnings, splitCentsEvenly } from '@/lib/earnings-v2';
 
 export const dynamic = 'force-dynamic';
 
@@ -100,10 +101,60 @@ export async function POST(
         .delete()
         .eq('booking_team_id', teamId);
 
-      // Insert new team members
-      const teamMembers = body.cleaner_ids.map((cleanerId: string) => ({
+      const { data: bookingRow } = await supabase
+        .from('bookings')
+        .select(
+          'total_amount, tip_amount, service_fee, service_type, earnings_status, earnings_final, earnings_calculated, cleaner_earnings, total_hours, equipment_cost, extra_cleaner_fee'
+        )
+        .eq('id', id)
+        .maybeSingle();
+
+      const n = body.cleaner_ids.length;
+      let perMemberShares: number[];
+      if (
+        bookingRow?.earnings_status === 'approved' &&
+        bookingRow.earnings_final != null
+      ) {
+        perMemberShares = splitCentsEvenly(bookingRow.earnings_final, n);
+      } else {
+        const timeContext =
+          bookingRow?.total_hours != null && bookingRow.total_hours > 0
+            ? { totalHours: bookingRow.total_hours }
+            : null;
+        const teamCalc = calculateTeamEarnings({
+          totalAmountCents: bookingRow?.total_amount ?? 0,
+          serviceFeeCents: bookingRow?.service_fee ?? 0,
+          tipCents: bookingRow?.tip_amount ?? 0,
+          teamSize: n,
+          serviceType: bookingRow?.service_type ?? null,
+          equipmentCostCents: bookingRow?.equipment_cost ?? 0,
+          extraCleanerFeeCents: bookingRow?.extra_cleaner_fee ?? 0,
+          timeContext,
+        });
+        perMemberShares = splitCentsEvenly(teamCalc.totalCleanerPayoutCents, n);
+        if (bookingRow?.earnings_status === 'pending') {
+          const svc = createServiceClient();
+          const th = bookingRow.total_hours;
+          await svc
+            .from('bookings')
+            .update({
+              earnings_calculated: teamCalc.totalCleanerPayoutCents,
+              cleaner_earnings: teamCalc.totalCleanerPayoutCents,
+              ...(th != null && th > 0
+                ? {
+                    team_size: n,
+                    hours_per_cleaner: Math.max(1, Math.round(th / n)),
+                  }
+                : {}),
+            })
+            .eq('id', id);
+        }
+      }
+
+      const teamMembers = body.cleaner_ids.map((cleanerId: string, i: number) => ({
         booking_team_id: teamId,
         cleaner_id: cleanerId,
+        earnings: perMemberShares[i] ?? 25_000,
       }));
 
       const { error: membersError } = await supabase

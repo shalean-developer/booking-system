@@ -55,6 +55,15 @@ export interface BookingState {
   discountCode?: string; // Discount code applied
   discountAmount?: number; // Discount amount from discount code
   tipAmount?: number; // Tip amount (goes 100% to cleaner)
+  /** Pricing engine output (cents) — pre-discount, pre-tip, pre-surge; validated on server */
+  pricingEngineFinalCents?: number;
+  /** Hours used with pricing engine / earnings metadata */
+  pricingTotalHours?: number;
+  /** Team size used with pricing engine / earnings metadata */
+  pricingTeamSize?: number;
+  /** Company-only lines (cents), must match engine inputs */
+  equipmentCostCents?: number;
+  extraCleanerFeeCents?: number;
 }
 
 // Cleaner data types
@@ -71,6 +80,10 @@ export interface Cleaner {
   email: string | null;
   is_active: boolean;
   completion_rate: number | null; // Reliability score (0-100)
+  /** From customer_ratings aggregate (optional; 0 if none). */
+  reviews_count?: number;
+  /** From completed/paid bookings aggregate (optional; 0 if none). */
+  completed_jobs_count?: number;
   created_at: string;
   updated_at: string;
 }

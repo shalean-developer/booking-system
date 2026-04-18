@@ -5,6 +5,7 @@
  * - NEXT_PUBLIC_SUPPORT_CALL_DISPLAY — shown in UI (default +27 87 153 5250)
  * - NEXT_PUBLIC_SUPPORT_CALL_TEL — tel: target, e.g. +27871535250 (optional; derived from display if unset)
  * - NEXT_PUBLIC_SUPPORT_WHATSAPP_E164 — WhatsApp only, digits e.g. 27825915525
+ * - NEXT_PUBLIC_WHATSAPP_NUMBER — optional legacy alias for the same digits (if E164 unset)
  * - NEXT_PUBLIC_SUPPORT_WHATSAPP_DISPLAY — optional label e.g. +27 82 591 5525
  *
  * Legacy: NEXT_PUBLIC_SUPPORT_PHONE — if set and CALL_* / WHATSAPP_E164 are unset, used as the call line only.
@@ -44,6 +45,8 @@ function resolveCallTel(): string {
 function resolveWaE164(): string {
   const explicit = process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP_E164?.trim();
   if (explicit) return digitsOnly(explicit) || DEFAULT_WA_E164;
+  const legacyNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.trim();
+  if (legacyNumber) return digitsOnly(legacyNumber) || DEFAULT_WA_E164;
   return DEFAULT_WA_E164;
 }
 

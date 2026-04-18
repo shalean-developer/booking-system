@@ -1,3 +1,9 @@
+import {
+  DEFAULT_ESTIMATED_CLEANER_SHARE_OF_REVENUE,
+  getBookingRevenueCents,
+  getCleanerPayoutCents,
+} from '@/shared/finance-engine/booking-money';
+import { isCompletedBooking } from '@/shared/dashboard-data';
 import { formatDate, formatTimeRange } from './cleanerDashboardTransforms';
 import type { DatabaseBooking, Job, JobStatus } from './cleanerTypes';
 
@@ -14,7 +20,10 @@ function clientInitials(name: string): string {
 }
 
 export function estimatePayRands(
-  b: Pick<DatabaseBooking, 'service_type' | 'total_amount' | 'cleaner_earnings'>,
+  b: Pick<DatabaseBooking, 'service_type' | 'total_amount' | 'cleaner_earnings'> & {
+    earnings_final?: number | null;
+    earnings_calculated?: number | null;
+  }
 ): number {
   const serviceTypeLower = (b.service_type || '').toLowerCase();
   const isFixedRateService =
@@ -22,8 +31,10 @@ export function estimatePayRands(
     serviceTypeLower.includes('move') ||
     serviceTypeLower.includes('carpet');
   if (isFixedRateService) return 250;
-  if (b.cleaner_earnings) return b.cleaner_earnings / 100;
-  return b.total_amount ? (b.total_amount / 100) * 0.7 : 0;
+  const payoutCents = getCleanerPayoutCents(b);
+  if (payoutCents > 0) return payoutCents / 100;
+  const rev = getBookingRevenueCents(b);
+  return rev ? (rev / 100) * DEFAULT_ESTIMATED_CLEANER_SHARE_OF_REVENUE : 0;
 }
 
 function dbToUiStatus(db: string): JobStatus {
@@ -111,7 +122,7 @@ export function rawBookingToJob(
     completedAt: pickIso(b.cleaner_completed_at, b.completed_at),
   };
 
-  if (status === 'completed' && rating !== undefined && rating > 0) {
+  if (isCompletedBooking(status) && rating !== undefined && rating > 0) {
     job.rating = rating;
   }
 

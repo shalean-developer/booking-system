@@ -4,7 +4,9 @@ import { BookingState } from '@/types/booking';
 import { supabase } from '@/lib/supabase';
 import { validateBookingEnv } from '@/lib/env-validation';
 import { getServerAuthUser } from '@/lib/supabase-server';
-import { calculateCleanerEarnings } from '@/lib/cleaner-earnings';
+import { buildEarningsInsertFields } from '@/lib/earnings-v2';
+import { fetchCompanyOnlyCostsCents } from '@/lib/earnings-company-costs';
+import type { BookingBodyForPricing } from '@/lib/booking-server-pricing';
 import { generateUniqueBookingId } from '@/lib/booking-id';
 import { generateManageToken } from '@/lib/manage-booking-token';
 
@@ -176,23 +178,45 @@ export async function POST(req: Request) {
       body.service === 'Move In/Out' ||
       ((body.service === 'Standard' || body.service === 'Airbnb') && numberOfCleaners > 1);
     
-    let cleanerEarnings = 0;
+    const tipAmountZar = (body as { tipAmount?: number }).tipAmount || 0;
+    const tipCents = Math.round(tipAmountZar * 100);
+    let cleanerHireDate: string | null = null;
     if (!requiresTeam && body.cleaner_id && body.cleaner_id !== 'manual') {
       const { data: cleanerData } = await supabase
         .from('cleaners')
         .select('hire_date')
         .eq('id', body.cleaner_id)
         .maybeSingle();
-      
-      const cleanerHireDate = cleanerData?.hire_date || null;
-      cleanerEarnings = calculateCleanerEarnings(
-        totalAmount ?? null,
-        body.serviceFee ?? null,
-        cleanerHireDate,
-        null, // No tip in process route
-        body.service ?? null // Pass service type for minimum commission check
-      ) * 100;
+      cleanerHireDate = cleanerData?.hire_date ?? null;
     }
+
+    const totalAmountCents = Math.round((totalAmount || 0) * 100);
+    const serviceFeeCents = Math.round((body.serviceFee || 0) * 100);
+    const companyCosts = await fetchCompanyOnlyCostsCents(supabase, {
+      service: body.service,
+      bedrooms: body.bedrooms ?? 0,
+      bathrooms: body.bathrooms ?? 0,
+      extraRooms: (body as { extraRooms?: number }).extraRooms ?? 0,
+      extras: body.extras || [],
+      extrasQuantities: body.extrasQuantities || {},
+      frequency: body.frequency || 'one-time',
+      tipAmount: tipAmountZar,
+      discountAmount: (body as { discountAmount?: number }).discountAmount || 0,
+      numberOfCleaners,
+      provideEquipment: (body as { provideEquipment?: boolean }).provideEquipment,
+      carpetDetails: (body as BookingBodyForPricing).carpetDetails,
+    });
+    const earningsFields = buildEarningsInsertFields({
+      totalAmountCents,
+      serviceFeeCents,
+      tipCents,
+      hireDate: cleanerHireDate,
+      serviceType: body.service ?? null,
+      requiresTeam,
+      teamSize: numberOfCleaners,
+      equipmentCostCents: companyCosts.equipmentCostCents,
+      extraCleanerFeeCents: companyCosts.extraCleanerFeeCents,
+    });
 
     const frequencyForDb = body.frequency === 'one-time' ? null : body.frequency;
     const priceSnapshot = {
@@ -256,8 +280,9 @@ export async function POST(req: Request) {
               address_suburb: body.address.suburb,
               address_city: body.address.city,
               payment_reference: paymentReference,
-              total_amount: (totalAmount || 0) * 100,
-              cleaner_earnings: cleanerEarnings,
+              total_amount: totalAmountCents,
+              tip_amount: tipCents,
+              ...earningsFields,
               requires_team: requiresTeam,
               frequency: frequencyForDb,
               service_fee: (body.serviceFee || 0) * 100,

@@ -1,4 +1,5 @@
 import { sendInvoiceEmail } from '@/lib/email';
+import { authorizeDebugApiRequest } from '@/lib/debug-api-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,18 +19,18 @@ function resendLikeError(e: unknown): {
   };
 }
 
-/** Hard test: GET /api/debug-email — set DEBUG_EMAIL_TO in .env.local or replace default. */
-export async function GET() {
-  console.log('🚨 DEBUG EMAIL ROUTE HIT');
+/** GET /api/debug-email — development only; requires admin or DEBUG_API_SECRET. */
+export async function GET(req: Request) {
+  const denied = await authorizeDebugApiRequest(req);
+  if (denied) return denied;
 
-  const to =
-    process.env.DEBUG_EMAIL_TO?.trim() || 'YOUR_REAL_EMAIL@gmail.com';
+  const to = process.env.DEBUG_EMAIL_TO?.trim() || 'YOUR_REAL_EMAIL@gmail.com';
 
   try {
     await sendInvoiceEmail(to);
     return Response.json({ success: true, to });
   } catch (e) {
-    console.error('🚨 debug-email send failed:', e);
+    console.error('debug-email send failed:', e);
     const r = resendLikeError(e);
     const message = r?.message ?? (e instanceof Error ? e.message : String(e));
     const quota = r?.name === 'daily_quota_exceeded';
@@ -44,7 +45,6 @@ export async function GET() {
           ? 'Resend daily sending quota is exhausted — wait for reset, upgrade the Resend plan, or verify a domain and use production limits.'
           : 'Check RESEND_API_KEY, SENDER_EMAIL (verified domain), and Resend dashboard logs.',
       },
-      // 200 so the browser shows JSON instead of a generic error page
       { status: 200 },
     );
   }

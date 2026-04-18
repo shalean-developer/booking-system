@@ -17,7 +17,7 @@ import {
   Sparkles,
   UserPlus,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase-client';
+import { supabase } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import { BookingFlow } from '@/components/dashboard/booking-flow/booking-flow';
 import { usePullToRefresh } from '@/lib/hooks/use-pull-to-refresh';

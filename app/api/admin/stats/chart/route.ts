@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { isAdmin } from '@/lib/supabase-server';
+import { isExcludedFromRevenueReporting } from '@/lib/booking-revenue-exclusion';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
     // Use booking_date (when service is scheduled) instead of created_at
     let bookingsQuery = supabase
       .from('bookings')
-      .select('id, total_amount, booking_date, status');
+      .select('id, total_amount, booking_date, status, payment_status');
 
     // Helper function to get local date string (YYYY-MM-DD) to avoid timezone issues
     const getLocalDateString = (date: Date): string => {
@@ -76,10 +77,18 @@ export async function GET(request: NextRequest) {
     const chartDataMap = new Map<string, { date: string; revenue: number; bookings: number }>();
 
     bookings?.forEach((booking) => {
+      if (
+        isExcludedFromRevenueReporting({
+          payment_status: (booking as { payment_status?: string | null }).payment_status,
+          status: booking.status,
+        })
+      ) {
+        return;
+      }
       // booking_date is already a date string (YYYY-MM-DD)
       const date = booking.booking_date || '';
       if (!date) return; // Skip bookings without a booking_date
-      
+
       const existing = chartDataMap.get(date) || { date, revenue: 0, bookings: 0 };
       existing.revenue += booking.total_amount || 0;
       existing.bookings += 1;

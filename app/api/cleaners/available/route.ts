@@ -30,6 +30,44 @@ function mapCleanerRowToCleaner(row: CleanerRow): Cleaner {
   };
 }
 
+async function enrichCleanerAggregates(
+  supabase: ReturnType<typeof createServiceClient>,
+  rows: CleanerRow[]
+): Promise<Cleaner[]> {
+  const base = rows.map(mapCleanerRowToCleaner);
+  const ids = rows.map((r) => r.id).filter(Boolean);
+  if (ids.length === 0) return base;
+
+  const reviewsMap = new Map<string, number>();
+  const jobsMap = new Map<string, number>();
+
+  const { data: ratingRows } = await supabase
+    .from('customer_ratings')
+    .select('cleaner_id')
+    .in('cleaner_id', ids);
+  for (const r of ratingRows ?? []) {
+    const id = r.cleaner_id as string;
+    reviewsMap.set(id, (reviewsMap.get(id) ?? 0) + 1);
+  }
+
+  const { data: jobRows } = await supabase
+    .from('bookings')
+    .select('cleaner_id')
+    .in('cleaner_id', ids)
+    .in('status', ['completed', 'paid']);
+  for (const j of jobRows ?? []) {
+    const id = j.cleaner_id as string | null;
+    if (!id) continue;
+    jobsMap.set(id, (jobsMap.get(id) ?? 0) + 1);
+  }
+
+  return base.map((c) => ({
+    ...c,
+    reviews_count: reviewsMap.get(c.id) ?? 0,
+    completed_jobs_count: jobsMap.get(c.id) ?? 0,
+  }));
+}
+
 function parseJsonExtras(param: string | null): { extras: string[]; quantities: Record<string, number> } {
   if (!param?.trim()) return { extras: [], quantities: {} };
   try {
@@ -97,25 +135,31 @@ export async function GET(req: NextRequest) {
       const all = await fetchEligibleCleanersForAreas(supabase, date, areas);
       cleaners = all.slice(0, 8);
     } else {
+      const excludeBookingId = searchParams.get('exclude_booking_id')?.trim() || undefined;
       cleaners = await listAvailableCleanersForBooking(supabase, {
         date,
         areas,
         startTime: time,
         durationMinutes,
+        excludeBookingId,
       });
     }
 
-    console.log('=== FETCHING AVAILABLE CLEANERS (dispatch overlap) ===', {
-      date,
-      areas,
-      time: time || '(default)',
-      durationMinutes,
-      count: cleaners.length,
-    });
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('=== FETCHING AVAILABLE CLEANERS (dispatch overlap) ===', {
+        date,
+        areas,
+        time: time || '(default)',
+        durationMinutes,
+        count: cleaners.length,
+      });
+    }
+
+    const enriched = await enrichCleanerAggregates(supabase, cleaners);
 
     const response: AvailableCleanersResponse = {
       ok: true,
-      cleaners: cleaners.map(mapCleanerRowToCleaner),
+      cleaners: enriched,
     };
 
     return NextResponse.json(response);

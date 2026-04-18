@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase-server';
 import type { BookingPaidRow } from '@/lib/booking-paid-server';
-import { fulfillPaidBooking, paystackVerifyDetailed } from '@/lib/booking-paid-server';
+import { finalizeBookingPayment, paystackVerifyDetailed } from '@/lib/booking-paid-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,11 +51,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: 'Booking not found' }, { status: 404 });
     }
 
-    const result = await fulfillPaidBooking({
+    const result = await finalizeBookingPayment({
       supabase,
       booking: booking as BookingPaidRow,
       reference,
       paystackAmountKobo: verified.amountKobo,
+      paidCurrency: verified.currency,
     });
 
     if (!result.ok) {

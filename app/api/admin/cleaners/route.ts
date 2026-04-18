@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, isAdmin } from '@/lib/supabase-server';
 import { hashPassword, normalizePhoneNumber, sanitizeCleanerForAdmin, validatePhoneNumber } from '@/lib/cleaner-auth';
+import { isExcludedFromRevenueReporting } from '@/lib/booking-revenue-exclusion';
+import { isCompletedBooking } from '@/shared/dashboard-data';
+import { getCleanerPayoutCents } from '@/shared/finance-engine';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,18 +18,25 @@ async function attachCleanerStats(supabase: SupabaseServer, cleaners: any[]) {
   if (cleanerIds.length > 0) {
     const { data: bookings } = await supabase
       .from('bookings')
-      .select('cleaner_id, status, cleaner_earnings')
+      .select('cleaner_id, status, cleaner_earnings, payment_status')
       .in('cleaner_id', cleanerIds);
 
     bookings?.forEach((booking: any) => {
       if (!booking.cleaner_id) return;
       const existing = bookingCounts.get(booking.cleaner_id) || { total: 0, completed: 0, revenue: 0 };
       existing.total += 1;
-      if (booking.status === 'completed') {
+      if (isCompletedBooking(booking.status)) {
         existing.completed += 1;
       }
-      if (booking.cleaner_earnings) {
-        existing.revenue += booking.cleaner_earnings;
+      const payoutCents = getCleanerPayoutCents(booking);
+      if (
+        payoutCents > 0 &&
+        !isExcludedFromRevenueReporting({
+          payment_status: booking.payment_status,
+          status: booking.status,
+        })
+      ) {
+        existing.revenue += payoutCents;
       }
       bookingCounts.set(booking.cleaner_id, existing);
     });

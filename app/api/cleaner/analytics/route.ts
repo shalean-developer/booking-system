@@ -1,6 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCleanerSession, createCleanerSupabaseClient, cleanerIdToUuid } from '@/lib/cleaner-auth';
 import { createServiceClient } from '@/lib/supabase-server';
+import { isCancelledBooking, isCompletedBooking } from '@/shared/dashboard-data';
+import { getCleanerPayoutCents, type BookingPayoutRow } from '@/shared/finance-engine';
+
+/** Matches `.select()` shape; satisfies `BookingPayoutRow` for `getCleanerPayoutCents`. */
+type CleanerAnalyticsBookingRow = BookingPayoutRow & {
+  id: string;
+  status: string | null;
+  booking_date: string;
+  booking_time?: string | null;
+  service_type?: string | null;
+  tip_amount?: number | null;
+  cleaner_accepted_at?: string | null;
+  cleaner_started_at?: string | null;
+  cleaner_completed_at?: string | null;
+  created_at?: string | null;
+};
 
 export const dynamic = 'force-dynamic';
 
@@ -46,15 +62,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Failed to fetch analytics' }, { status: 500 });
     }
 
-    const allBookings = bookings || [];
+    const allBookings: CleanerAnalyticsBookingRow[] = (bookings ?? []) as CleanerAnalyticsBookingRow[];
 
     // 1. Earnings Trends (daily breakdown)
     const earningsByDate: Record<string, number> = {};
     allBookings
-      .filter((b: any) => b.status === 'completed' && b.cleaner_earnings)
-      .forEach((b: any) => {
+      .filter((b) => isCompletedBooking(b.status) && getCleanerPayoutCents(b) > 0)
+      .forEach((b) => {
         const date = b.booking_date;
-        earningsByDate[date] = (earningsByDate[date] || 0) + (b.cleaner_earnings || 0);
+        const cents = getCleanerPayoutCents(b);
+        earningsByDate[date] = (earningsByDate[date] || 0) + cents;
       });
 
     const earningsTrend = Object.entries(earningsByDate)
@@ -63,33 +80,33 @@ export async function GET(request: NextRequest) {
 
     // 2. Booking Statistics
     const totalBookings = allBookings.length;
-    const completedBookings = allBookings.filter((b: any) => b.status === 'completed').length;
-    const cancelledBookings = allBookings.filter((b: any) => b.status === 'cancelled').length;
+    const completedBookings = allBookings.filter((b) => isCompletedBooking(b.status)).length;
+    const cancelledBookings = allBookings.filter((b) => isCancelledBooking(b.status)).length;
     const pendingBookings = allBookings.filter((b: any) => b.status === 'pending').length;
     const completionRate = totalBookings > 0 ? (completedBookings / totalBookings) * 100 : 0;
 
     // 3. Earnings Summary
     const totalEarnings = allBookings
-      .filter((b: any) => b.status === 'completed')
-      .reduce((sum, b: any) => sum + (b.cleaner_earnings || 0), 0);
-    
+      .filter((b) => isCompletedBooking(b.status))
+      .reduce((sum, b) => sum + getCleanerPayoutCents(b), 0);
+
     const totalTips = allBookings
-      .filter((b: any) => b.status === 'completed')
-      .reduce((sum, b: any) => sum + (b.tip_amount || 0), 0);
+      .filter((b) => isCompletedBooking(b.status))
+      .reduce((sum, b) => sum + Math.round(Number(b.tip_amount) || 0), 0);
     
     const avgEarningsPerBooking = completedBookings > 0 ? totalEarnings / completedBookings : 0;
 
     // 4. Service Type Breakdown
     const serviceTypeBreakdown: Record<string, { count: number; earnings: number }> = {};
     allBookings
-      .filter((b: any) => b.status === 'completed')
-      .forEach((b: any) => {
+      .filter((b) => isCompletedBooking(b.status))
+      .forEach((b) => {
         const serviceType = b.service_type || 'Unknown';
         if (!serviceTypeBreakdown[serviceType]) {
           serviceTypeBreakdown[serviceType] = { count: 0, earnings: 0 };
         }
         serviceTypeBreakdown[serviceType].count++;
-        serviceTypeBreakdown[serviceType].earnings += (b.cleaner_earnings || 0);
+        serviceTypeBreakdown[serviceType].earnings += getCleanerPayoutCents(b);
       });
 
     const serviceBreakdown = Object.entries(serviceTypeBreakdown).map(([service, data]) => ({
@@ -103,11 +120,11 @@ export async function GET(request: NextRequest) {
     // Best days (by earnings)
     const earningsByDayOfWeek: Record<string, number> = {};
     allBookings
-      .filter((b: any) => b.status === 'completed' && b.cleaner_earnings)
-      .forEach((b: any) => {
+      .filter((b) => isCompletedBooking(b.status) && getCleanerPayoutCents(b) > 0)
+      .forEach((b) => {
         const date = new Date(b.booking_date);
         const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
-        earningsByDayOfWeek[dayName] = (earningsByDayOfWeek[dayName] || 0) + (b.cleaner_earnings || 0);
+        earningsByDayOfWeek[dayName] = (earningsByDayOfWeek[dayName] || 0) + getCleanerPayoutCents(b);
       });
 
     const bestDays = Object.entries(earningsByDayOfWeek)
@@ -118,8 +135,8 @@ export async function GET(request: NextRequest) {
     // Peak hours (by booking count)
     const bookingsByHour: Record<number, number> = {};
     allBookings
-      .filter((b: any) => b.status === 'completed')
-      .forEach((b: any) => {
+      .filter((b) => isCompletedBooking(b.status))
+      .forEach((b) => {
         if (b.booking_time) {
           const hour = parseInt(b.booking_time.split(':')[0]);
           bookingsByHour[hour] = (bookingsByHour[hour] || 0) + 1;

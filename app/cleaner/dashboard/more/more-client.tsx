@@ -7,6 +7,8 @@ import { DayAvailabilityDisplay } from '@/components/cleaner/day-availability-di
 import { CleanerMobileBottomNav } from '@/components/cleaner/cleaner-mobile-bottom-nav';
 import { DollarSign, Settings } from 'lucide-react';
 import { toast } from 'sonner';
+import { isCompletedBooking } from '@/shared/dashboard-data';
+import { getCleanerPayoutCents } from '@/shared/finance-engine';
 
 interface CleanerSession {
   id: string;
@@ -48,10 +50,13 @@ export function MoreClient({ cleaner }: MoreClientProps) {
         const data = await response.json();
 
         if (data.ok && data.bookings) {
-          const completedBookings = data.bookings.filter((b: any) => b.status === 'completed');
+          const completedBookings = data.bookings.filter((b: { status?: string }) =>
+            isCompletedBooking(b.status),
+          );
           const totalEarnings = completedBookings.reduce(
-            (sum: number, b: any) => sum + (b.cleaner_earnings || 0),
-            0
+            (sum: number, b: { cleaner_earnings?: number | null; earnings_final?: number | null }) =>
+              sum + getCleanerPayoutCents(b),
+            0,
           );
           setMonthlyStats({
             totalEarnings,

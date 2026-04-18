@@ -6,7 +6,10 @@
  */
 
 import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database';
 
 function requirePublicSupabaseEnv() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -80,6 +83,14 @@ export function createServiceClient() {
 }
 
 /**
+ * Service-role client cast to `Database` for modules that only touch tables present in `types/database.ts`.
+ * The global `createServiceClient()` stays untyped so incomplete schema stubs do not break the whole app.
+ */
+export function createServiceClientForSchema(): SupabaseClient<Database> {
+  return createServiceClient() as unknown as SupabaseClient<Database>;
+}
+
+/**
  * Get authenticated user in API route
  * Returns user object if authenticated, null otherwise
  */
@@ -145,6 +156,20 @@ export async function isAdmin(): Promise<boolean> {
     console.error('💥 Admin check failed:', error);
     return false;
   }
+}
+
+/**
+ * For API routes: returns a 403 JSON response if the caller is not an admin; otherwise `null` (authorized).
+ * Matches other `/api/admin/*` handlers that require `customers.role === 'admin'`.
+ */
+export async function assertAdmin(): Promise<NextResponse | null> {
+  if (!(await isAdmin())) {
+    return NextResponse.json(
+      { ok: false, error: 'Unauthorized - Admin access required' },
+      { status: 403 },
+    );
+  }
+  return null;
 }
 
 /**

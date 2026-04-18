@@ -6,6 +6,7 @@ import { sendWhatsAppTemplate } from '@/lib/notifications/whatsapp';
 import { logNotification } from '@/lib/notifications/log';
 import { sendCustomerNotification } from '@/lib/notifications/sendCustomerNotification';
 import { incrementCustomerRewardsForCompletedBooking } from '@/lib/rewards-server';
+import { creditWalletForCompletedBooking } from '@/lib/wallet';
 
 /**
  * Cleaner workflow: pending/paid → assigned → accepted → on_my_way → in-progress → completed
@@ -370,16 +371,28 @@ export async function PATCH(
       }
     } catch {}
 
-    // Increment customer rewards when booking is marked completed
+    // Increment customer rewards + credit cleaner wallet when booking is marked completed
     if (newStatus === 'completed') {
       try {
-        const serviceSupabase = await createServiceClient();
+        const serviceSupabase = createServiceClient();
         const rewardsResult = await incrementCustomerRewardsForCompletedBooking(serviceSupabase, bookingId);
         if (!rewardsResult.ok) {
           console.warn('⚠️ Failed to increment customer rewards:', rewardsResult.error);
         }
       } catch (rewardsErr) {
         console.warn('⚠️ Rewards increment error:', rewardsErr);
+      }
+
+      try {
+        const serviceSupabase = createServiceClient();
+        const walletResult = await creditWalletForCompletedBooking(serviceSupabase, updatedBooking);
+        if (!walletResult.ok) {
+          console.warn('⚠️ Wallet credit skipped or failed:', walletResult.error);
+        } else if (walletResult.credited > 0) {
+          console.log('✅ Wallet credited for booking', bookingId, 'lines:', walletResult.credited);
+        }
+      } catch (walletErr) {
+        console.warn('⚠️ Wallet credit error:', walletErr);
       }
     }
 

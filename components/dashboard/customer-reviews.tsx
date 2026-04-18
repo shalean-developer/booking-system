@@ -53,31 +53,31 @@ export function CustomerReviews() {
 
   const fetchReviews = async () => {
     try {
-      console.log('🟦 [CustomerReviews] Starting fetchReviews...');
+      devLog.log('🟦 [CustomerReviews] Starting fetchReviews...');
       setIsLoading(true);
       setError(null);
 
-      console.log('🟦 [CustomerReviews] Making API request to /api/dashboard/reviews');
+      devLog.log('🟦 [CustomerReviews] Making API request to /api/dashboard/reviews');
       const response = await fetch('/api/dashboard/reviews');
-      console.log('🟦 [CustomerReviews] API response status:', response.status);
-      console.log('🟦 [CustomerReviews] API response ok:', response.ok);
+      devLog.log('🟦 [CustomerReviews] API response status:', response.status);
+      devLog.log('🟦 [CustomerReviews] API response ok:', response.ok);
 
       const data = await response.json();
-      console.log('🟦 [CustomerReviews] API response data:', JSON.stringify(data, null, 2));
+      devLog.log('🟦 [CustomerReviews] API response data:', JSON.stringify(data, null, 2));
 
       if (!data.ok) {
-        console.log('🟥 [CustomerReviews] API returned error:', data.error);
-        console.log('🟥 [CustomerReviews] Error details:', data.details);
-        console.log('🟥 [CustomerReviews] Error code:', data.code);
+        devLog.log('🟥 [CustomerReviews] API returned error:', data.error);
+        devLog.log('🟥 [CustomerReviews] Error details:', data.details);
+        devLog.log('🟥 [CustomerReviews] Error code:', data.code);
         throw new Error(data.details || data.error || 'Failed to fetch reviews');
       }
 
       const reviewsData = data.reviews || [];
-      console.log('🟩 [CustomerReviews] Successfully fetched reviews:', reviewsData.length);
-      console.log('🟩 [CustomerReviews] Reviews data:', reviewsData);
+      devLog.log('🟩 [CustomerReviews] Successfully fetched reviews:', reviewsData.length);
+      devLog.log('🟩 [CustomerReviews] Reviews data:', reviewsData);
       
       if (reviewsData.length === 0) {
-        console.log('🟨 [CustomerReviews] Warning: No reviews found');
+        devLog.log('🟨 [CustomerReviews] Warning: No reviews found');
       }
 
       setReviews(reviewsData);

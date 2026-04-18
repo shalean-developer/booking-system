@@ -35,6 +35,7 @@ import type { BookingFormData } from './booking-system-types';
 import { BookingFlowStepIndicator } from '@/components/booking-flow-step-indicator';
 import { BookingFlowLayout } from '@/components/booking/booking-flow-layout';
 import { BookingSummary } from '@/components/booking/booking-summary';
+import type { PricingEngineResult } from '@/lib/pricing-engine';
 
 type ServiceId = 'standard' | 'deep' | 'airbnb' | 'moveinout' | 'carpet';
 type StepPropertyType = 'apartment' | 'house' | 'studio' | 'office';
@@ -893,6 +894,11 @@ export interface BookingStep1CleaningProps {
   servicePricing?: Record<string, { base: number; bedroom: number; bathroom: number; extraRoom: number }> | null;
   /** DB extra price for carpet “extra cleaner”, when configured */
   extraCleanerPriceZar?: number;
+  /**
+   * Optional cost-plus estimate aligned with earnings-v2 (hours + company-only lines).
+   * Does not replace `liveTotalZar`; shown for transparency only.
+   */
+  pricingEngineEstimate?: PricingEngineResult | null;
 }
 
 export function BookingStep1Cleaning({
@@ -905,6 +911,7 @@ export function BookingStep1Cleaning({
   dbPricingRows,
   servicePricing,
   extraCleanerPriceZar,
+  pricingEngineEstimate,
 }: BookingStep1CleaningProps) {
   const selectedService = serviceToStepId(data.service);
   const propertyType = data.propertyType as StepPropertyType;
@@ -1266,6 +1273,50 @@ export function BookingStep1Cleaning({
                       ))}
                   </div>
                 )}
+
+                {useDbBreakdown && pricingEngineEstimate ? (
+                  <div className="mt-3 pt-3 border-t border-gray-100 rounded-lg bg-slate-50/90 px-3 py-2.5 text-left">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                      Earnings-aligned estimate
+                    </p>
+                    <p className="text-lg font-bold text-slate-900">
+                      R{' '}
+                      {(pricingEngineEstimate.finalPrice / 100).toLocaleString('en-ZA', {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
+                      })}
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                      Cost floor + margin (excludes equipment &amp; extra-cleaner fees from the cleaner pool). Rounded to
+                      R50. For comparison only — your live total above uses standard pricing.
+                    </p>
+                    <details className="mt-2 text-[11px] text-slate-600">
+                      <summary className="cursor-pointer font-medium text-slate-700 select-none">
+                        Breakdown
+                      </summary>
+                      <ul className="mt-2 space-y-1 pl-0 list-none">
+                        <li className="flex justify-between gap-2">
+                          <span>Labour cost floor</span>
+                          <span>R {(pricingEngineEstimate.costFloor / 100).toLocaleString('en-ZA')}</span>
+                        </li>
+                        <li className="flex justify-between gap-2">
+                          <span>Margin ({Math.round(pricingEngineEstimate.marginRate * 100)}%)</span>
+                          <span>R {(pricingEngineEstimate.margin / 100).toLocaleString('en-ZA')}</span>
+                        </li>
+                        <li className="flex justify-between gap-2">
+                          <span>Hrs / cleaner</span>
+                          <span>{pricingEngineEstimate.hoursPerCleaner.toFixed(1)}</span>
+                        </li>
+                        {pricingEngineEstimate.marginRateBoostApplied > 0 ? (
+                          <li className="flex justify-between gap-2 text-amber-800">
+                            <span>Margin boost (earnings guard)</span>
+                            <span>+{Math.round(pricingEngineEstimate.marginRateBoostApplied * 100)}%</span>
+                          </li>
+                        ) : null}
+                      </ul>
+                    </details>
+                  </div>
+                ) : null}
 
                 {!useDbBreakdown && selectedServiceData && !isCarpet && isOffice && (
                   <div className="space-y-2">

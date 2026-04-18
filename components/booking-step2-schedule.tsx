@@ -45,6 +45,18 @@ import {
 } from '@/lib/booking-slot-availability-styles';
 import StickyBookingBar from '@/components/StickyBookingBar';
 import { useBookingAbVariant } from '@/hooks/use-booking-ab-variant';
+import {
+  MAX_BOOKING_DAYS_FROM_TODAY,
+  DAYS_OF_WEEK,
+  toDateStr,
+  parseDateStr,
+  daysFromTodayStart,
+  isAllowedBookingDate,
+  offsetForDateToBeVisible,
+  getSevenDaysStartingOffset,
+  formatWeekRangeLabel,
+  formatSelectedDateLong,
+} from '@/shared/booking-engine/booking-dates';
 
 type Extra = {
   id: string;
@@ -124,74 +136,9 @@ const EXTRAS: Extra[] = [
   },
 ];
 
-const DAYS_OF_WEEK = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const isSameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 const isToday = (date: Date) => isSameDay(date, TODAY);
-const formatSelectedDate = (date: Date) =>
-  date.toLocaleDateString('en-ZA', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-
-function toDateStr(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-function parseDateStr(dateStr: string): Date | null {
-  if (!dateStr) return null;
-  const [y, mo, d] = dateStr.split('-').map(Number);
-  if (!y || !mo || !d) return null;
-  return new Date(y, mo - 1, d);
-}
-
-/** Furthest day (inclusive) from today that can be booked in this UI. */
-const MAX_BOOKING_DAYS_FROM_TODAY = 365;
-
-function daysFromTodayStart(d: Date): number {
-  const a = new Date(TODAY);
-  const b = new Date(d);
-  a.setHours(0, 0, 0, 0);
-  b.setHours(0, 0, 0, 0);
-  return Math.round((b.getTime() - a.getTime()) / (24 * 60 * 60 * 1000));
-}
-
-function isAllowedBookingDate(parsed: Date): boolean {
-  const n = daysFromTodayStart(parsed);
-  return n >= 0 && n <= MAX_BOOKING_DAYS_FROM_TODAY;
-}
-
-/** First day index (0 = today) of a 7-day row that contains `parsed`. */
-function offsetForDateToBeVisible(parsed: Date): number {
-  const n = daysFromTodayStart(parsed);
-  if (n < 0) return 0;
-  return Math.floor(n / 7) * 7;
-}
-
-/** Seven consecutive days starting `offset` days after today (offset is multiple of 7). */
-function getSevenDaysStartingOffset(offsetFromToday: number): Date[] {
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(TODAY);
-    d.setDate(TODAY.getDate() + offsetFromToday + i);
-    return d;
-  });
-}
-
-function formatWeekRangeLabel(dates: Date[]): string {
-  if (dates.length === 0) return '';
-  const a = dates[0];
-  const b = dates[dates.length - 1];
-  const sameMonth = a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
-  if (sameMonth) {
-    return `${a.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })} – ${b.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })}`;
-  }
-  return `${a.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })} – ${b.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })}`;
-}
 
 export interface BookingStep2ScheduleProps {
   data: BookingFormData;
@@ -648,7 +595,7 @@ export function BookingStep2Schedule({
                     {selectedDate && (
                       <div className="flex items-center gap-2 text-sm text-gray-700">
                         <Calendar size={14} className="text-violet-500" />
-                        <span>{formatSelectedDate(selectedDate)}</span>
+                        <span>{formatSelectedDateLong(selectedDate)}</span>
                       </div>
                     )}
                     {selectedTime && (
@@ -777,7 +724,7 @@ export function BookingStep2Schedule({
               <span className="text-sm font-semibold text-gray-600">Date</span>
               {selectedDate && (
                 <span className="ml-auto max-w-[min(100%,11rem)] sm:max-w-none text-xs font-medium text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-200 truncate text-right">
-                  {formatSelectedDate(selectedDate)}
+                  {formatSelectedDateLong(selectedDate)}
                 </span>
               )}
             </div>

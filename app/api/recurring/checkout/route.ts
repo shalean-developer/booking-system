@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase-server';
+import { fetchCompanyOnlyCostsCents } from '@/lib/earnings-company-costs';
 import { generateUniqueBookingId } from '@/lib/booking-id';
 import { generateManageToken } from '@/lib/manage-booking-token';
 import { calculateBookingOccurrencesForRollingWindow } from '@/lib/recurring-bookings';
 import type { Frequency, RecurringSchedule } from '@/types/recurring';
+import { buildEarningsInsertFields } from '@/lib/earnings-v2';
+import type { BookingBodyForPricing } from '@/lib/booking-server-pricing';
+import type { ServiceType } from '@/types/booking';
 
 export const dynamic = 'force-dynamic';
 
@@ -179,7 +183,40 @@ export async function POST(req: Request) {
         : null;
 
     const perBookingTotalCents = Math.round(body.perBookingTotalCents);
-    const cleanerEarningsCents = Math.round(perBookingTotalCents * 0.6);
+    const numberOfCleaners = Math.max(1, Math.round((body as { numberOfCleaners?: number }).numberOfCleaners ?? 1));
+    const requiresTeamForEarnings =
+      body.service === 'Deep' ||
+      body.service === 'Move In/Out' ||
+      ((body.service === 'Standard' || body.service === 'Airbnb') && numberOfCleaners > 1);
+
+    const svcPricing = createServiceClient();
+    const companyCosts = await fetchCompanyOnlyCostsCents(svcPricing, {
+      service: body.service as ServiceType,
+      bedrooms: Math.max(1, Number(body.bedrooms || 1)),
+      bathrooms: Math.max(1, Number(body.bathrooms || 1)),
+      extraRooms: (body as { extraRooms?: number }).extraRooms ?? 0,
+      extras: Array.isArray(body.extras) ? body.extras : [],
+      extrasQuantities: body.extrasQuantities || {},
+      frequency: body.frequency,
+      tipAmount: 0,
+      discountAmount: 0,
+      numberOfCleaners,
+      provideEquipment: (body as { provideEquipment?: boolean }).provideEquipment,
+      carpetDetails: (body as BookingBodyForPricing).carpetDetails,
+    });
+
+    const earningsFields = buildEarningsInsertFields({
+      totalAmountCents: perBookingTotalCents,
+      serviceFeeCents: 0,
+      tipCents: 0,
+      hireDate: null,
+      serviceType: String(body.service),
+      requiresTeam: requiresTeamForEarnings,
+      teamSize: numberOfCleaners,
+      equipmentCostCents: companyCosts.equipmentCostCents,
+      extraCleanerFeeCents: companyCosts.extraCleanerFeeCents,
+    });
+    const cleanerEarningsCents = earningsFields.cleaner_earnings;
 
     // Build schedule object (for occurrence calculation)
     const scheduleForCalc: RecurringSchedule = {
@@ -417,7 +454,7 @@ export async function POST(req: Request) {
     }
 
     // Create bookings (paid via invoice)
-    const requiresTeam = body.service === 'Deep' || body.service === 'Move In/Out';
+    const requiresTeam = requiresTeamForEarnings;
     const cleanerIdForInsert =
       requiresTeam || !body.cleaner_id || body.cleaner_id === 'manual' ? null : body.cleaner_id;
 
@@ -447,6 +484,7 @@ export async function POST(req: Request) {
       address_city: body.address!.city,
       payment_reference: null, // payment tracked on invoice
       total_amount: perBookingTotalCents,
+      ...earningsFields,
       requires_team: requiresTeam,
       price_snapshot: priceSnapshot,
       status: 'pending',

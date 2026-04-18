@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase-client';
+import { supabase } from '@/lib/supabase/client';
 import { safeGetSession } from '@/lib/logout-utils';
 import { NewHeader } from '@/components/dashboard/new-header';
 import { MobileBottomNav } from '@/components/dashboard/mobile-bottom-nav';
@@ -13,7 +13,9 @@ import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval } from
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import { devLog } from '@/lib/dev-logger';
-import type { AuthUser, Customer } from '@/types/dashboard';
+import type { AuthUser, Booking, Customer } from '@/types/dashboard';
+import { isCompletedBooking } from '@/shared/dashboard-data';
+import { getBookingRevenueCents } from '@/shared/finance-engine';
 
 // Lazy load charts
 const SpendingChart = dynamic(
@@ -108,14 +110,6 @@ const ServiceFrequencyChart = dynamic(
   { ssr: false, loading: () => <div className="h-[250px] animate-pulse bg-gray-100 rounded" /> }
 );
 
-interface Booking {
-  id: string;
-  booking_date: string;
-  service_type: string;
-  total_amount: number;
-  status: string;
-}
-
 export default function AnalyticsPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
@@ -182,13 +176,14 @@ export default function AnalyticsPage() {
       monthlySpending[monthKey] = 0;
     });
 
-    bookings.forEach(booking => {
-      if (booking.status === 'completed' && booking.total_amount) {
+    bookings.forEach((booking) => {
+      const rev = getBookingRevenueCents(booking);
+      if (isCompletedBooking(booking.status) && rev > 0) {
         const bookingDate = new Date(booking.booking_date);
         if (bookingDate >= sixMonthsAgo) {
           const monthKey = format(bookingDate, 'MMM yyyy');
           if (monthlySpending[monthKey] !== undefined) {
-            monthlySpending[monthKey] += booking.total_amount;
+            monthlySpending[monthKey] += rev;
           }
         }
       }
@@ -217,8 +212,8 @@ export default function AnalyticsPage() {
 
   // Calculate statistics
   const stats = useMemo(() => {
-    const completedBookings = bookings.filter(b => b.status === 'completed');
-    const totalSpent = completedBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0);
+    const completedBookings = bookings.filter((b) => isCompletedBooking(b.status));
+    const totalSpent = completedBookings.reduce((sum, b) => sum + getBookingRevenueCents(b), 0);
     const averageBooking = completedBookings.length > 0 
       ? totalSpent / completedBookings.length 
       : 0;
@@ -229,7 +224,7 @@ export default function AnalyticsPage() {
         return bookingDate.getMonth() === thisMonth.getMonth() &&
                bookingDate.getFullYear() === thisMonth.getFullYear();
       })
-      .reduce((sum, b) => sum + (b.total_amount || 0), 0);
+      .reduce((sum, b) => sum + getBookingRevenueCents(b), 0);
     const lastMonth = subMonths(new Date(), 1);
     const lastMonthSpent = completedBookings
       .filter(b => {
@@ -237,7 +232,7 @@ export default function AnalyticsPage() {
         return bookingDate.getMonth() === lastMonth.getMonth() &&
                bookingDate.getFullYear() === lastMonth.getFullYear();
       })
-      .reduce((sum, b) => sum + (b.total_amount || 0), 0);
+      .reduce((sum, b) => sum + getBookingRevenueCents(b), 0);
     const spendingChange = lastMonthSpent > 0 
       ? ((thisMonthSpent - lastMonthSpent) / lastMonthSpent) * 100 
       : 0;

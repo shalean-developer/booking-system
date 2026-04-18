@@ -5,6 +5,7 @@ import { checkBookingSLA, SLA_ISSUE_ON_WAY_NOT_STARTED } from '@/lib/sla/checkBo
 import { sendAdminNotification } from '@/lib/notifications/sendAdminNotification';
 import { sendCustomerNotification } from '@/lib/notifications/sendCustomerNotification';
 import { sendCleanerNotification } from '@/lib/notifications/sendCleanerNotification';
+import { isCompletedBooking } from '@/shared/dashboard-data';
 
 /** Bookings that can still breach accepted → en route → started SLA */
 const ACTIVE_SLA_STATUSES = [
@@ -63,7 +64,7 @@ async function tryAutomaticReassignment(
   if (row.requires_team === true) return false;
   if ((row.reassignment_count ?? 0) >= 2) return false;
   if (!issues.includes(SLA_ISSUE_ON_WAY_NOT_STARTED)) return false;
-  if (status === 'in-progress' || status === 'completed') return false;
+  if (status === 'in-progress' || isCompletedBooking(status)) return false;
 
   const suburb = String(row.address_suburb || '').trim();
   if (!suburb) return false;

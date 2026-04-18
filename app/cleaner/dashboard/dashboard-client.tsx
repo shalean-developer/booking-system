@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { CleanerJobsProvider, useCleaner } from './cleanerHooks';
+import { CleanerFinancialProvider } from './cleaner-financial-context';
 import { CleanerHome } from './CleanerHome';
 import { CleanerSubPages } from './CleanerSubPages';
 import type { CleanerPageId } from './cleanerTypes';
@@ -257,6 +258,7 @@ export function CleanerDashboard() {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
+    <CleanerFinancialProvider>
     <CleanerJobsProvider>
     <div className="min-h-screen bg-[#f8f9fb] flex">
       {/* ── Desktop Left Sidebar ── */}
@@ -456,5 +458,6 @@ export function CleanerDashboard() {
       </nav>
     </div>
     </CleanerJobsProvider>
+    </CleanerFinancialProvider>
   );
 }

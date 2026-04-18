@@ -19,6 +19,8 @@ import { sendBookingPaidConfirmationEmail, validateResendConfig } from '@/lib/em
 import { sendAdminBookingPaidEmail } from '@/lib/email/sendAdminBookingPaidEmail';
 import { generateManageToken } from '@/lib/manage-booking-token';
 import type { BookingPaidRow } from '@/lib/payments/booking-types';
+import { logPaymentIntegrity, redactPaymentReference } from '@/lib/payment-integrity-log';
+import { recordPaymentValidationFailure } from '@/lib/payment-validation-tracker';
 
 async function fetchManageTokenForEmail(
   supabase: SupabaseClient,
@@ -137,25 +139,49 @@ async function backfillZohoIfMissing(
 
 /**
  * Confirm a verified Paystack charge: atomic pending→paid claim, then Zoho + emails (winner only).
+ * Row-level serialization: a single `UPDATE ... WHERE id = ? AND status = 'pending'` acts as the claim
+ * (PostgreSQL serializes concurrent updates; second caller gets 0 rows). Session `SELECT FOR UPDATE` is
+ * not used here because Supabase poolers typically commit per statement — same-transaction locks would not span the TS steps.
  */
 export async function fulfillPaidBooking(params: {
   supabase: SupabaseClient;
   booking: BookingPaidRow;
   reference: string;
   paystackAmountKobo: number;
+  /** ISO currency from Paystack verify API (stored on successful finalize). */
+  paidCurrency?: string;
 }): Promise<FulfillPaidBookingResult> {
-  const { supabase, booking, reference, paystackAmountKobo } = params;
+  const { supabase, booking, reference, paystackAmountKobo, paidCurrency } = params;
 
   console.log('[fulfillPaidBooking] processing booking', booking.id);
+
+  const statusEarly = (booking.status || '').toLowerCase();
+  if (statusEarly !== 'pending' && statusEarly !== 'paid') {
+    logPaymentIntegrity({
+      event_type: 'finalize_skipped_invalid_state',
+      booking_id: booking.id,
+      reason: 'invalid_booking_status',
+      status: booking.status,
+    });
+    return {
+      ok: false,
+      error: `Booking is not awaiting payment (status: ${booking.status || 'unknown'})`,
+    };
+  }
 
   const expectedKobo = Math.round(Number(booking.total_amount ?? 0));
   const amountDelta = Math.abs(paystackAmountKobo - expectedKobo);
   if (!Number.isFinite(paystackAmountKobo) || amountDelta > 1) {
-    console.error('[fulfillPaidBooking] amount mismatch', {
-      expectedKobo,
-      paystackAmountKobo,
-      amountDelta,
+    logPaymentIntegrity({
+      event_type: 'payment_amount_mismatch',
+      booking_id: booking.id,
+      reference_redacted: redactPaymentReference(String(reference)),
+      expected_amount: expectedKobo,
+      amount_paid: paystackAmountKobo,
+      unit: 'minor',
+      source: 'finalizeBookingPayment',
     });
+    await recordPaymentValidationFailure(supabase, String(reference), 'payment_amount_mismatch');
     return {
       ok: false,
       error: `Amount mismatch: expected ${expectedKobo} minor units, got ${paystackAmountKobo} (Δ ${amountDelta})`,
@@ -168,12 +194,12 @@ export async function fulfillPaidBooking(params: {
   const conflictingPayment =
     (pref.length > 0 && pref !== ref) || (pstack.length > 0 && pstack !== ref);
   if (conflictingPayment) {
-    console.error('[fulfillPaidBooking] conflicting payment ref', {
-      bookingId: booking.id,
-      pref,
-      pstack,
-      ref,
+    logPaymentIntegrity({
+      event_type: 'finalize_skipped_invalid_state',
+      booking_id: booking.id,
+      reason: 'conflicting_payment_reference',
     });
+    await recordPaymentValidationFailure(supabase, String(reference), 'payment_reference_mismatch');
     return {
       ok: false,
       error:
@@ -185,14 +211,20 @@ export async function fulfillPaidBooking(params: {
   const manageTokenToSave =
     (await fetchManageTokenForEmail(supabase, booking.id)) ?? generateManageToken();
 
+  const currencyNorm = String(paidCurrency ?? 'ZAR').trim().toUpperCase() || 'ZAR';
+  const paystackVerifiedAt = new Date().toISOString();
+
   const baseClaim = {
     status: 'paid' as const,
     payment_status: 'success' as const,
     paystack_ref: reference,
     payment_reference: reference,
     price: amountZar,
-    updated_at: new Date().toISOString(),
+    updated_at: paystackVerifiedAt,
     manage_token: manageTokenToSave,
+    paid_amount_minor: paystackAmountKobo,
+    paid_currency: currencyNorm,
+    paystack_verified_at: paystackVerifiedAt,
   };
 
   let claimedRow: Record<string, unknown> | null = null;
@@ -252,6 +284,12 @@ export async function fulfillPaidBooking(params: {
       };
     }
 
+    logPaymentIntegrity({
+      event_type: 'finalize_skipped_invalid_state',
+      booking_id: booking.id,
+      reason: 'atomic_claim_no_rows',
+      status: freshRow?.status ?? booking.status,
+    });
     console.error('[fulfillPaidBooking] atomic claim matched 0 rows; booking not paid', {
       bookingId: booking.id,
       status: freshRow?.status,
@@ -261,6 +299,12 @@ export async function fulfillPaidBooking(params: {
       error: `Booking is not awaiting payment (status: ${freshRow?.status || booking.status || 'unknown'})`,
     };
   }
+
+  logPaymentIntegrity({
+    event_type: 'booking_lock_acquired',
+    booking_id: booking.id,
+    mechanism: 'atomic_update_where_pending',
+  });
 
   console.log('[fulfillPaidBooking] won execution — proceeding with Zoho + emails', {
     bookingId: booking.id,
@@ -411,3 +455,6 @@ export const fulfillBooking = fulfillPaidBooking;
 
 /** Backward-compatible name used across the codebase. */
 export const finalizePaidBookingServer = fulfillPaidBooking;
+
+/** Canonical name: all Paystack charge success finalization goes through this (webhook + verify). */
+export const finalizeBookingPayment = fulfillPaidBooking;

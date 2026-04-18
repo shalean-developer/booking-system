@@ -29,6 +29,16 @@ interface ContactErrors {
   address?: string;
 }
 
+/** Paystack checkout options commonly available to South African customers (cards + EFT + QR wallets). */
+const PAYSTACK_ZA_METHOD_LABELS = [
+  'Visa',
+  'Mastercard',
+  'SnapScan',
+  'Scan to Pay (QR)',
+  'Capitec Pay',
+  'Instant EFT',
+] as const;
+
 interface PromoResult {
   code: string;
   type: 'percent' | 'fixed';
@@ -489,17 +499,18 @@ export function BookingStep4Confirmation({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-sm text-gray-900">Pay Online</p>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      <span className="text-[10px] font-bold text-violet-700 bg-violet-100 border border-violet-200 rounded px-1.5 py-0.5">
-                        VISA
-                      </span>
-                      <span className="text-[10px] font-bold text-gray-600 bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5">
-                        MC
-                      </span>
-                      <span className="text-[10px] font-bold text-violet-700 bg-violet-100 border border-violet-200 rounded px-1.5 py-0.5">
-                        AMEX
-                      </span>
-                      <span className="text-[10px] text-gray-400 ml-1">Accepted</span>
+                    <p className="text-xs text-gray-500 mt-0.5 leading-snug">
+                      Cards, Instant EFT, SnapScan &amp; QR payments supported
+                    </p>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {PAYSTACK_ZA_METHOD_LABELS.map((label) => (
+                        <span
+                          key={label}
+                          className="text-xs px-2 py-1 border border-gray-200 rounded bg-white text-gray-700 font-medium"
+                        >
+                          {label}
+                        </span>
+                      ))}
                     </div>
                   </div>
                   <div className="flex-shrink-0 text-violet-600">

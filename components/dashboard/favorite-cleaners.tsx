@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Loader2, Heart, Star, User, Trash2, Award } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/lib/supabase-client';
+import { supabase } from '@/lib/supabase/client';
 import { safeGetSession } from '@/lib/logout-utils';
 import { devLog } from '@/lib/dev-logger';
 import Image from 'next/image';

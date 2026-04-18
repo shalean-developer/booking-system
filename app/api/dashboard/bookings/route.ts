@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { CUSTOMER_BOOKINGS_ORDER } from '@/lib/dashboard/customer-booking-list';
 
 async function attachCleanerProfiles(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -85,14 +86,10 @@ function enrichBookingRowFromSnapshot(row: Record<string, unknown>): Record<stri
  * Requires authentication
  */
 export async function GET(request: Request) {
-  console.log('=== DASHBOARD BOOKINGS API CALLED ===');
-  console.log('Timestamp:', new Date().toISOString());
-  
   try {
     // Get token from Authorization header
     const authHeader = request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.log('❌ No token provided');
       return NextResponse.json(
         { ok: false, error: 'Unauthorized - No token provided' },
         { status: 401 }
@@ -108,14 +105,11 @@ export async function GET(request: Request) {
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
     
     if (authError || !authUser) {
-      console.log('❌ Invalid token');
       return NextResponse.json(
         { ok: false, error: 'Unauthorized - Invalid token' },
         { status: 401 }
       );
     }
-
-    console.log('✅ Authenticated user:', authUser.email);
 
     // Find customer profile by auth_user_id
     const { data: customer, error: customerError } = await supabase
@@ -136,22 +130,45 @@ export async function GET(request: Request) {
       );
     }
 
+    const url = new URL(request.url);
+    const limit = Math.min(
+      100,
+      Math.max(1, Number(url.searchParams.get('limit') || 20) || 20)
+    );
+    const offset = Math.max(0, Number(url.searchParams.get('offset') || 0) || 0);
+
     if (!customer) {
-      console.log('ℹ️ No customer profile found for auth user');
-      // User has signed up but hasn't made any bookings yet
       return NextResponse.json({
         ok: true,
         bookings: [],
         customer: null,
         message: 'No bookings yet',
+        pagination: {
+          limit,
+          offset: 0,
+          totalCount: 0,
+          hasMore: false,
+        },
       });
     }
 
-    console.log('✅ Customer profile found:', customer.id);
+    const { count: totalCountRaw, error: countError } = await supabase
+      .from('bookings')
+      .select('*', { count: 'exact', head: true })
+      .eq('customer_id', customer.id);
 
-    // Get limit from query params (default: 10)
-    const url = new URL(request.url);
-    const limit = parseInt(url.searchParams.get('limit') || '10', 10);
+    if (countError) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('Error counting bookings:', countError);
+      }
+      return NextResponse.json(
+        { ok: false, error: 'Failed to count bookings', details: countError.message },
+        { status: 500 }
+      );
+    }
+
+    const totalCount = totalCountRaw ?? 0;
+    const rangeEnd = offset + limit - 1;
 
     // Fetch bookings for this customer (with graceful fallback if `notes` column doesn't exist)
     let bookingsQuery = supabase
@@ -184,11 +201,14 @@ export async function GET(request: Request) {
         expected_end_time,
         extras,
         extras_quantities,
-        price_snapshot
+        price_snapshot,
+        requires_team,
+        duration_minutes,
+        booking_teams ( team_name )
       `)
       .eq('customer_id', customer.id)
-      .order('booking_date', { ascending: false })
-      .limit(limit);
+      .order(CUSTOMER_BOOKINGS_ORDER.column, { ascending: CUSTOMER_BOOKINGS_ORDER.ascending })
+      .range(offset, rangeEnd);
 
     let { data: bookingsRaw, error: bookingsError } = await bookingsQuery;
 
@@ -233,11 +253,14 @@ export async function GET(request: Request) {
           expected_end_time,
           extras,
           extras_quantities,
-          price_snapshot
+          price_snapshot,
+          requires_team,
+          duration_minutes,
+          booking_teams ( team_name )
         `)
         .eq('customer_id', customer.id)
-        .order('booking_date', { ascending: false })
-        .limit(limit);
+        .order(CUSTOMER_BOOKINGS_ORDER.column, { ascending: CUSTOMER_BOOKINGS_ORDER.ascending })
+        .range(offset, rangeEnd);
       // Ensure shape matches earlier select by adding optional columns when missing
       bookings = (retry.data || []).map((row) => {
         const b = row as Record<string, unknown>;
@@ -258,23 +281,35 @@ export async function GET(request: Request) {
       bookingsError = retry.error || null;
     }
 
+    // Last resort: avoid embedded relations (e.g. booking_teams RLS/FK) — full row only
     if (bookingsError) {
-      console.error('Error fetching bookings:', bookingsError);
-      return NextResponse.json(
-        {
-          ok: false,
-          error: 'Failed to fetch bookings',
-          details: bookingsError.message,
-        },
-        { status: 500 }
-      );
+      console.warn('BOOKINGS API: fallback select(*)', bookingsError.message);
+      const fb = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('customer_id', customer.id)
+        .order(CUSTOMER_BOOKINGS_ORDER.column, { ascending: CUSTOMER_BOOKINGS_ORDER.ascending })
+        .range(offset, rangeEnd);
+      if (fb.error) {
+        console.error('BOOKINGS API ERROR:', fb.error);
+        return NextResponse.json(
+          {
+            ok: false,
+            error: 'Failed to fetch bookings',
+            details: fb.error.message,
+          },
+          { status: 500 }
+        );
+      }
+      bookings = (fb.data || []) as Record<string, unknown>[];
     }
-
-    console.log(`✅ Found ${bookings?.length || 0} bookings`);
 
     const rawRows = ((bookings || []) as Record<string, unknown>[]).map(enrichBookingRowFromSnapshot);
     const withCleaners = await attachCleanerProfiles(supabase, rawRows);
     const withRatings = await attachReviewRatings(supabase, withCleaners);
+
+    const pageLen = withRatings.length;
+    const hasMore = offset + pageLen < totalCount;
 
     return NextResponse.json({
       ok: true,
@@ -291,11 +326,16 @@ export async function GET(request: Request) {
         totalBookings: customer.total_bookings,
         rewardsPoints: customer.rewards_points ?? 0,
       },
+      pagination: {
+        limit,
+        offset,
+        totalCount,
+        hasMore,
+      },
     });
 
   } catch (error) {
-    console.error('=== DASHBOARD BOOKINGS ERROR ===');
-    console.error(error);
+    console.error('BOOKINGS API ERROR:', error);
     return NextResponse.json(
       { 
         ok: false, 

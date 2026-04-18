@@ -1,17 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient, createServiceClient, getServerAuthUser } from '@/lib/supabase-server';
+import { createClient, createServiceClient } from '@/lib/supabase-server';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  console.log('=== CUSTOMER REVIEW API CALLED ===');
-  
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('=== CUSTOMER REVIEW API CALLED ===');
+  }
+
   try {
-    // Get authenticated user
-    const authUser = await getServerAuthUser();
-    
-    if (!authUser) {
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { ok: false, error: 'Unauthorized - Please log in' },
+        { status: 401 }
+      );
+    }
+    const token = authHeader.replace('Bearer ', '');
+    const supabaseAuth = await createClient();
+    const {
+      data: { user: authUser },
+      error: authErr,
+    } = await supabaseAuth.auth.getUser(token);
+    if (authErr || !authUser) {
       return NextResponse.json(
         { ok: false, error: 'Unauthorized - Please log in' },
         { status: 401 }
@@ -69,7 +81,9 @@ export async function POST(
       );
     }
 
-    console.log('✅ Customer found:', customer.id);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('✅ Customer found:', customer.id);
+    }
 
     // Get booking and verify ownership
     const { data: booking, error: bookingError } = await supabase
@@ -118,7 +132,6 @@ export async function POST(
       );
     }
 
-    console.log('✅ Booking validated, creating review...');
 
     // Convert cleaner_id from TEXT to UUID
     let cleanerUuid: string;
@@ -161,7 +174,6 @@ export async function POST(
       );
     }
 
-    console.log('✅ Review created:', review.id);
 
     // Update booking to mark as reviewed
     const { error: updateError } = await supabase
@@ -177,7 +189,6 @@ export async function POST(
       // Review is created, so don't fail completely
     }
 
-    console.log('✅ Booking marked as reviewed');
 
     return NextResponse.json({
       ok: true,

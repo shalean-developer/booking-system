@@ -28,7 +28,7 @@ import {
   CircleDollarSign,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/lib/supabase-client';
+import { supabase } from '@/lib/supabase/client';
 import { safeLogout } from '@/lib/logout-utils';
 import { fetcher } from '@/lib/swr-config';
 import { useUser } from '@/hooks/use-user';

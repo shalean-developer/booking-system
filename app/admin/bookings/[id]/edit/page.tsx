@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/admin/shared/page-header';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,9 @@ import { LoadingState } from '@/components/admin/shared/loading-state';
 import { calcTotalAsync } from '@/lib/pricing';
 import { generateTimeSlots } from '@/lib/pricing';
 import { ArrowLeft, Loader2 } from 'lucide-react';
+import { computeHourlyEquivalentRandsPerCleaner, type EarningsBreakdownStored } from '@/lib/earnings-v2';
+import { TARGET_HOURLY_RATE, MAX_HOURLY_RATE } from '@/lib/earnings-config';
+import { buildEarningsAdminWarnings, impliedHourlyCentsForTeamPayout } from '@/lib/earnings-admin-warnings';
 
 type ServiceType = 'Standard' | 'Deep' | 'Move In/Out' | 'Airbnb';
 
@@ -65,10 +68,54 @@ export default function EditBookingPage({ params }: { params: Promise<{ id: stri
   const [manualTotalAmount, setManualTotalAmount] = useState<number | null>(null);
   const [useManualPrice, setUseManualPrice] = useState(false);
   const [cleanerEarnings, setCleanerEarnings] = useState<number | null>(null);
+  const [earningsTimeContext, setEarningsTimeContext] = useState<{
+    total_hours: number | null;
+    team_size: number | null;
+    hours_per_cleaner: number | null;
+    hourly_rate_used: number | null;
+    earnings_status: string | null;
+    earnings_final_cents: number | null;
+    cleaner_earnings_cents: number | null;
+    equipment_cost_cents: number | null;
+    extra_cleaner_fee_cents: number | null;
+    company_profit_cents: number | null;
+    earnings_breakdown: EarningsBreakdownStored | null;
+    total_amount_cents: number | null;
+  } | null>(null);
 
   useEffect(() => {
     fetchBooking();
   }, [id]);
+
+  const earningsAdminWarnings = useMemo(() => {
+    if (!earningsTimeContext) return [];
+    const totalCents =
+      earningsTimeContext.total_amount_cents ??
+      (manualTotalAmount != null ? Math.round(manualTotalAmount * 100) : null);
+    const resolved =
+      earningsTimeContext.earnings_final_cents ??
+      earningsTimeContext.cleaner_earnings_cents ??
+      (cleanerEarnings != null ? Math.round(cleanerEarnings * 100) : null);
+    const profit =
+      earningsTimeContext.company_profit_cents ??
+      (totalCents != null && resolved != null ? Math.max(0, totalCents - resolved) : null);
+    const teamSz = Math.max(1, earningsTimeContext.team_size ?? 1);
+    const implied =
+      resolved != null
+        ? impliedHourlyCentsForTeamPayout({
+            totalPayoutCents: resolved,
+            teamSize: teamSz,
+            hoursPerCleaner: earningsTimeContext.hours_per_cleaner,
+          })
+        : null;
+    return buildEarningsAdminWarnings({
+      totalAmountCents: totalCents,
+      companyProfitCents: profit,
+      totalHours: earningsTimeContext.total_hours,
+      teamSize: earningsTimeContext.team_size,
+      impliedHourlyCentsPerCleaner: implied,
+    });
+  }, [earningsTimeContext, manualTotalAmount, cleanerEarnings]);
 
   useEffect(() => {
     if (serviceType) {
@@ -117,6 +164,20 @@ export default function EditBookingPage({ params }: { params: Promise<{ id: stri
         if (booking.cleaner_earnings) {
           setCleanerEarnings(booking.cleaner_earnings / 100); // Convert from cents to rands
         }
+        setEarningsTimeContext({
+          total_hours: booking.total_hours ?? null,
+          team_size: booking.team_size ?? null,
+          hours_per_cleaner: booking.hours_per_cleaner ?? null,
+          hourly_rate_used: booking.hourly_rate_used ?? null,
+          earnings_status: booking.earnings_status ?? null,
+          earnings_final_cents: booking.earnings_final ?? null,
+          cleaner_earnings_cents: booking.cleaner_earnings ?? null,
+          equipment_cost_cents: booking.equipment_cost ?? null,
+          extra_cleaner_fee_cents: booking.extra_cleaner_fee ?? null,
+          company_profit_cents: booking.company_profit_cents ?? null,
+          earnings_breakdown: (booking.earnings_breakdown as EarningsBreakdownStored | null) ?? null,
+          total_amount_cents: booking.total_amount ?? null,
+        });
         console.log('📊 Booking details:', {
           service_type: booking.service_type,
           bedrooms: booking.bedrooms,
@@ -596,19 +657,176 @@ export default function EditBookingPage({ params }: { params: Promise<{ id: stri
                 </p>
               </div>
             </div>
-            {manualTotalAmount !== null && cleanerEarnings !== null && (
-              <div className="p-3 bg-gray-50 rounded-md">
-                <div className="flex justify-between text-sm">
-                  <span>Company Earnings:</span>
-                  <span className="font-semibold">
-                    R{(manualTotalAmount - cleanerEarnings).toFixed(2)}
-                  </span>
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  {cleanerEarnings > 0 && manualTotalAmount > 0 
-                    ? `${((cleanerEarnings / manualTotalAmount) * 100).toFixed(1)}% to cleaner, ${(((manualTotalAmount - cleanerEarnings) / manualTotalAmount) * 100).toFixed(1)}% to company`
-                    : ''}
-                </div>
+            {earningsTimeContext &&
+              (earningsTimeContext.total_hours != null ||
+                earningsTimeContext.hours_per_cleaner != null ||
+                (earningsTimeContext.equipment_cost_cents ?? 0) > 0 ||
+                (earningsTimeContext.extra_cleaner_fee_cents ?? 0) > 0 ||
+                !!earningsTimeContext.earnings_status ||
+                earningsTimeContext.total_amount_cents != null ||
+                earningsTimeContext.company_profit_cents != null) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50/80 p-3 text-sm dark:border-amber-900/50 dark:bg-amber-950/30">
+                <p className="font-medium text-amber-900 dark:text-amber-100">Earnings review</p>
+                {earningsAdminWarnings.length > 0 && (
+                  <ul className="mt-2 list-none space-y-1 border-b border-amber-200/80 pb-2 dark:border-amber-900/50">
+                    {earningsAdminWarnings.map((w) => (
+                      <li key={w}>{w}</li>
+                    ))}
+                  </ul>
+                )}
+                {(() => {
+                  const totalCents =
+                    earningsTimeContext.total_amount_cents ??
+                    (manualTotalAmount != null ? Math.round(manualTotalAmount * 100) : null);
+                  const resolvedCleanerCents =
+                    earningsTimeContext.earnings_final_cents ??
+                    earningsTimeContext.cleaner_earnings_cents ??
+                    (cleanerEarnings != null ? Math.round(cleanerEarnings * 100) : null);
+                  const profitCents =
+                    totalCents != null && resolvedCleanerCents != null
+                      ? Math.max(0, totalCents - resolvedCleanerCents)
+                      : null;
+                  const profitPct =
+                    totalCents != null && totalCents > 0 && profitCents != null
+                      ? (profitCents / totalCents) * 100
+                      : null;
+                  return (
+                    <dl className="mt-2 grid grid-cols-1 gap-2 border-b border-amber-200/80 pb-3 sm:grid-cols-2 dark:border-amber-900/50">
+                      <div className="flex justify-between gap-2 sm:col-span-2">
+                        <dt className="text-muted-foreground">Total amount (customer)</dt>
+                        <dd className="font-semibold">
+                          {totalCents != null ? `R${(totalCents / 100).toFixed(2)}` : '—'}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between gap-2 sm:col-span-2">
+                        <dt className="text-muted-foreground">Cleaner earnings (total payout)</dt>
+                        <dd className="font-semibold">
+                          {resolvedCleanerCents != null
+                            ? `R${(resolvedCleanerCents / 100).toFixed(2)}`
+                            : '—'}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between gap-2 sm:col-span-2">
+                        <dt className="text-muted-foreground">Company profit</dt>
+                        <dd className="font-semibold">
+                          {profitCents != null ? `R${(profitCents / 100).toFixed(2)}` : '—'}
+                          {earningsTimeContext.company_profit_cents != null &&
+                          earningsTimeContext.earnings_status === 'approved' ? (
+                            <span className="ml-2 text-xs font-normal text-muted-foreground">
+                              (recorded R{(earningsTimeContext.company_profit_cents / 100).toFixed(2)})
+                            </span>
+                          ) : null}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between gap-2 sm:col-span-2">
+                        <dt className="text-muted-foreground">Profit % of total</dt>
+                        <dd>{profitPct != null ? `${profitPct.toFixed(1)}%` : '—'}</dd>
+                      </div>
+                    </dl>
+                  );
+                })()}
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Baseline / max for hourly checks: R{(TARGET_HOURLY_RATE / 100).toFixed(0)}/h – R
+                  {(MAX_HOURLY_RATE / 100).toFixed(0)}/h per cleaner (implied).
+                </p>
+                <dl className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2">
+                  <div className="flex justify-between gap-2">
+                    <dt className="text-muted-foreground">Total hours (est.)</dt>
+                    <dd>{earningsTimeContext.total_hours ?? '—'}</dd>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <dt className="text-muted-foreground">Team size (earnings)</dt>
+                    <dd>{earningsTimeContext.team_size ?? '—'}</dd>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <dt className="text-muted-foreground">Hours / cleaner</dt>
+                    <dd>{earningsTimeContext.hours_per_cleaner ?? '—'}</dd>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <dt className="text-muted-foreground">Baseline rate used</dt>
+                    <dd>
+                      R{((earningsTimeContext.hourly_rate_used ?? TARGET_HOURLY_RATE) / 100).toFixed(2)}
+                      /h
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-2 sm:col-span-2">
+                    <dt className="text-muted-foreground">Implied hourly (cleaner)</dt>
+                    <dd>
+                      {(() => {
+                        const resolved =
+                          earningsTimeContext.earnings_final_cents ??
+                          earningsTimeContext.cleaner_earnings_cents ??
+                          0;
+                        const sz = Math.max(1, earningsTimeContext.team_size ?? 1);
+                        const perCleanerCents = Math.round(resolved / sz);
+                        const eq = computeHourlyEquivalentRandsPerCleaner({
+                          payoutCentsForCleaner: perCleanerCents,
+                          hoursPerCleaner: earningsTimeContext.hours_per_cleaner,
+                        });
+                        return eq != null ? `R${eq.toFixed(2)}/h` : '—';
+                      })()}
+                    </dd>
+                  </div>
+                  {earningsTimeContext.earnings_status && (
+                    <div className="flex justify-between gap-2 sm:col-span-2">
+                      <dt className="text-muted-foreground">Earnings status</dt>
+                      <dd className="capitalize">{earningsTimeContext.earnings_status}</dd>
+                    </div>
+                  )}
+                  {earningsTimeContext.earnings_breakdown ? (
+                    <>
+                      <div className="flex justify-between gap-2 sm:col-span-2 border-t border-amber-200/80 pt-2 mt-1 dark:border-amber-900/50">
+                        <dt className="text-muted-foreground">Commission subtotal (pool base)</dt>
+                        <dd>R{(earningsTimeContext.earnings_breakdown.subtotal / 100).toFixed(2)}</dd>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <dt className="text-muted-foreground">Pool (after rules)</dt>
+                        <dd>R{(earningsTimeContext.earnings_breakdown.pool / 100).toFixed(2)}</dd>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <dt className="text-muted-foreground">Cap reference</dt>
+                        <dd>R{(earningsTimeContext.earnings_breakdown.cap / 100).toFixed(2)}</dd>
+                      </div>
+                      <div className="flex justify-between gap-2 sm:col-span-2 text-xs text-muted-foreground">
+                        <span>
+                          Excluded from pool: service fee R
+                          {(
+                            (earningsTimeContext.earnings_breakdown.service_fee_cents ?? 0) / 100
+                          ).toFixed(2)}
+                          , tip R
+                          {((earningsTimeContext.earnings_breakdown.tip_cents ?? 0) / 100).toFixed(2)} (not in
+                          commission subtotal).
+                        </span>
+                      </div>
+                    </>
+                  ) : null}
+                  <div className="flex justify-between gap-2 sm:col-span-2 border-t border-amber-200/80 pt-2 mt-1 dark:border-amber-900/50">
+                    <dt className="text-muted-foreground">Equipment (company only)</dt>
+                    <dd>
+                      {earningsTimeContext.equipment_cost_cents != null
+                        ? `R${(earningsTimeContext.equipment_cost_cents / 100).toFixed(2)}`
+                        : '—'}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-2 sm:col-span-2">
+                    <dt className="text-muted-foreground">Extra cleaner fee (company only)</dt>
+                    <dd>
+                      {earningsTimeContext.extra_cleaner_fee_cents != null
+                        ? `R${(earningsTimeContext.extra_cleaner_fee_cents / 100).toFixed(2)}`
+                        : '—'}
+                    </dd>
+                  </div>
+                </dl>
+                {earningsTimeContext.earnings_breakdown ? (
+                  <details className="mt-2 text-xs">
+                    <summary className="cursor-pointer font-medium text-amber-900/90 dark:text-amber-200">
+                      Debug: full earnings_breakdown JSON
+                    </summary>
+                    <pre className="mt-2 max-h-40 overflow-auto rounded bg-white/80 p-2 text-[10px] dark:bg-black/20">
+                      {JSON.stringify(earningsTimeContext.earnings_breakdown, null, 2)}
+                    </pre>
+                  </details>
+                ) : null}
               </div>
             )}
           </CardContent>

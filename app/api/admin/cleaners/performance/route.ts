@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase-server';
 import { isAdmin } from '@/lib/supabase-server';
+import { isExcludedFromRevenueReporting } from '@/lib/booking-revenue-exclusion';
+import { isCompletedBooking } from '@/shared/dashboard-data';
+import { getCleanerPayoutCents } from '@/shared/finance-engine';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,7 +66,7 @@ export async function GET(request: NextRequest) {
         // Build bookings query
         let bookingsQuery = supabase
           .from('bookings')
-          .select('id, status, cleaner_earnings, booking_date')
+          .select('id, status, cleaner_earnings, booking_date, payment_status')
           .eq('cleaner_id', cleaner.id);
 
         // Apply date filters if provided
@@ -90,15 +93,27 @@ export async function GET(request: NextRequest) {
         }
 
         const totalBookings = bookings?.length || 0;
-        const completedBookings = bookings?.filter(b => b.status === 'completed').length || 0;
-        const totalRevenue = bookings?.reduce((sum, b) => sum + (b.cleaner_earnings || 0), 0) || 0;
+        const completedBookings = bookings?.filter((b) => isCompletedBooking(b.status)).length || 0;
+        const totalRevenue =
+          bookings?.reduce((sum, b) => {
+            if (
+              isExcludedFromRevenueReporting({
+                payment_status: b.payment_status,
+                status: b.status,
+              })
+            ) {
+              return sum;
+            }
+            return sum + getCleanerPayoutCents(b);
+          }, 0) || 0;
 
         // Calculate bookings this month
         const now = new Date();
         const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-        const bookingsThisMonth = bookings?.filter(b => 
-          b.booking_date >= firstDayOfMonth && b.status === 'completed'
-        ).length || 0;
+        const bookingsThisMonth =
+          bookings?.filter(
+            (b) => b.booking_date >= firstDayOfMonth && isCompletedBooking(b.status),
+          ).length || 0;
 
         return {
           id: cleaner.id,

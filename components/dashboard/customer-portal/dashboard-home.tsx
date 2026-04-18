@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -25,16 +25,17 @@ import {
 import { cn } from '@/lib/utils';
 import {
   useBookings,
-  useStats,
+  useCustomerDashboardData,
   useQuickActions,
   useProfile,
+  useStats,
+  isCustomerUpcomingBooking,
 } from './hooks';
 import { RescheduleDatePickerModal } from './reschedule-date-picker-modal';
 import { supportWhatsAppHref } from './booking-contact';
 import {
   STATUS_FILTER_OPTIONS,
   TRUST_BADGES,
-  StatusBadge,
   StatCounter,
   BookingSkeleton,
   TrackCleanerModal,
@@ -42,22 +43,19 @@ import {
   CancelConfirmModal,
   ReviewModal,
 } from './dashboard-home-modals';
+import { StatusBadge } from '../shared/status-badge';
 import type { Booking, PageId, FilterId } from './types';
 import { getAbsoluteReferralSignupUrl, getReferralSignupPath } from '@/lib/referral-url';
+import { isCancelledBooking, isCompletedBooking } from '@/shared/dashboard-data';
 
 interface DashboardHomeProps {
   onNavigate: (page: PageId) => void;
 }
 
 export function DashboardHome({ onNavigate }: DashboardHomeProps) {
-  const {
-    bookings,
-    loading,
-    cancelBooking,
-    rateBooking,
-    rescheduleBooking,
-  } = useBookings();
-  const { stats, loading: statsLoading } = useStats();
+  const { cancelBooking, rateBooking, rescheduleBooking } = useBookings();
+  const { bookings, upcomingBookings, isLoading: loading } = useCustomerDashboardData();
+  const { stats } = useStats();
   const { actions } = useQuickActions();
   const { user } = useProfile();
 
@@ -70,9 +68,25 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
   const [reviewBooking, setReviewBooking] = useState<Booking | null>(null);
   const [rescheduleTarget, setRescheduleTarget] = useState<Booking | null>(null);
 
-  const upcomingBooking = bookings.find((b) => b.status === 'upcoming');
-  const filteredBookings =
-    filter === 'all' ? bookings.slice(0, 3) : bookings.filter((b) => b.status === filter).slice(0, 3);
+  const nextUpcomingBooking = useMemo(() => {
+    const arr = [...upcomingBookings].sort((a, b) =>
+      (a.bookingDateIso || '').localeCompare(b.bookingDateIso || '')
+    );
+    return arr[0];
+  }, [upcomingBookings]);
+
+  const filteredBookings = useMemo(() => {
+    const tabFiltered =
+      filter === 'all'
+        ? bookings
+        : filter === 'upcoming'
+          ? bookings.filter(isCustomerUpcomingBooking)
+          : filter === 'completed'
+            ? bookings.filter((b) => isCompletedBooking(b.dbStatus))
+            : bookings.filter((b) => isCancelledBooking(b.dbStatus));
+    return tabFiltered.slice(0, 3);
+  }, [bookings, filter]);
+
   const supportWaHref = supportWhatsAppHref();
 
   const displayFirstName = () => {
@@ -82,9 +96,11 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
   };
 
   const handleCopy = () => {
+    if (!user.referralEnabled) return;
     const payload = user.customerId
       ? getAbsoluteReferralSignupUrl(user.customerId)
-      : user.referralCode;
+      : user.referralCode ?? '';
+    if (!payload) return;
     navigator.clipboard.writeText(payload).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -121,7 +137,10 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
           <ReviewModal
             key="review"
             booking={reviewBooking}
-            onSubmit={(rating) => rateBooking(reviewBooking.id, rating)}
+            onSubmit={async (payload) => {
+              await rateBooking(reviewBooking.id, payload);
+              setReviewBooking(null);
+            }}
             onClose={() => setReviewBooking(null)}
           />
         )}
@@ -129,8 +148,8 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
           <RescheduleDatePickerModal
             key="reschedule"
             booking={rescheduleTarget}
-            onConfirm={(id, newDate, newTime, newCleaner) =>
-              rescheduleBooking(id, newDate, newTime, newCleaner)
+            onConfirm={(id, newDate, newTime, cleanerId, teamName) =>
+              rescheduleBooking(id, newDate, newTime, cleanerId, teamName)
             }
             onClose={() => setRescheduleTarget(null)}
           />
@@ -144,11 +163,11 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
               Hello, {displayFirstName()} 👋
             </h1>
             <p className="text-blue-100 text-sm mt-1.5">
-              {upcomingBooking ? (
+              {nextUpcomingBooking ? (
                 <span>
                   <span>Your next clean is </span>
                   <strong className="text-white">
-                    {upcomingBooking.date} · {upcomingBooking.time}
+                    {nextUpcomingBooking.date} · {nextUpcomingBooking.time}
                   </strong>
                 </span>
               ) : (
@@ -208,7 +227,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
                 <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
                 <h2 className="text-sm font-bold text-gray-900">Your Stats</h2>
               </div>
-              {statsLoading ? (
+              {loading ? (
                 <div className="flex divide-x divide-gray-100">
                   {[1, 2, 3].map((n) => (
                     <div key={n} className="flex-1 text-center animate-pulse">
@@ -340,7 +359,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
                                   onClick={(e) => e.stopPropagation()}
                                   className="absolute right-0 top-9 w-44 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden z-30"
                                 >
-                                  {booking.status === 'upcoming' && (
+                                  {isCustomerUpcomingBooking(booking) && (
                                     <button
                                       type="button"
                                       onClick={() => {
@@ -377,7 +396,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
                                       <span>View Invoice</span>
                                     </button>
                                   )}
-                                  {booking.status === 'upcoming' && (
+                                  {isCustomerUpcomingBooking(booking) && (
                                     <button
                                       type="button"
                                       onClick={() => {
@@ -397,7 +416,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
                         </div>
                       </div>
 
-                      {booking.status === 'upcoming' && (
+                      {isCustomerUpcomingBooking(booking) && (
                         <div className="mt-3 pt-3 border-t border-gray-100 flex gap-2">
                           <motion.button
                             type="button"
@@ -421,7 +440,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
                           </motion.button>
                         </div>
                       )}
-                      {booking.status === 'completed' && !booking.customerReviewed && (
+                      {isCompletedBooking(booking.dbStatus) && !booking.customerReviewed && (
                         <div className="mt-3 pt-3 border-t border-gray-100">
                           <button
                             type="button"
@@ -469,33 +488,45 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
                 <Star className="w-5 h-5 text-amber-500 fill-amber-400" />
               </div>
               <div>
-                <p className="text-sm font-bold text-gray-900">{user.rewardTier} Member</p>
+                <p className="text-sm font-bold text-gray-900">
+                  {user.rewardTier ? `${user.rewardTier} Member` : 'Rewards'}
+                </p>
                 <p className="text-xs text-gray-400">
-                  {user.nextTierName
+                  {user.rewardsProgressEnabled && user.nextTierName && user.rewardTarget != null
                     ? `${user.rewardPoints} / ${user.rewardTarget} pts to ${user.nextTierName}`
                     : `${user.rewardPoints} pts`}
                 </p>
               </div>
-              <div className="ml-auto flex-shrink-0">
-                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1 uppercase">
-                  {user.rewardTier}
-                </span>
-              </div>
+              {user.rewardTier ? (
+                <div className="ml-auto flex-shrink-0">
+                  <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1 uppercase">
+                    {user.rewardTier}
+                  </span>
+                </div>
+              ) : null}
             </div>
-            <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${user.rewardProgress}%` }}
-                transition={{ duration: 1.2, ease: 'easeOut', delay: 0.3 }}
-                className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-400"
-              />
-            </div>
-            <div className="flex justify-between mt-1.5">
-              <p className="text-[10px] text-gray-400">{user.rewardTier}</p>
-              <p className="text-[10px] text-gray-400">
-                {user.nextTierName ? `${user.nextTierName} at ${user.rewardTarget} pts` : 'Top tier'}
-              </p>
-            </div>
+            {user.rewardsProgressEnabled && user.rewardProgress != null ? (
+              <>
+                <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${user.rewardProgress}%` }}
+                    transition={{ duration: 1.2, ease: 'easeOut', delay: 0.3 }}
+                    className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-400"
+                  />
+                </div>
+                <div className="flex justify-between mt-1.5">
+                  <p className="text-[10px] text-gray-400">{user.rewardTier ?? 'Rewards'}</p>
+                  <p className="text-[10px] text-gray-400">
+                    {user.nextTierName && user.rewardTarget != null
+                      ? `${user.nextTierName} at ${user.rewardTarget} pts`
+                      : 'Top tier'}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <p className="text-xs text-gray-500">Rewards coming soon — points update when jobs complete.</p>
+            )}
             <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Heart className="w-3.5 h-3.5 text-blue-500 fill-blue-400" />
@@ -537,59 +568,69 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
               <Sparkles className="w-4 h-4 text-blue-200" />
               <p className="text-sm font-bold text-white">Refer &amp; Earn</p>
             </div>
-            <p className="text-xs text-blue-100 leading-relaxed mb-4">
-              Share your code and earn <strong className="text-white">R50</strong> for every friend who books.
-            </p>
-            <div className="flex items-center gap-2 bg-white/15 border border-white/20 rounded-xl px-3 py-2.5">
-              <p className="flex-1 text-sm font-bold text-white tracking-widest font-mono">{user.referralCode}</p>
-              <motion.button
-                type="button"
-                whileTap={{ scale: 0.9 }}
-                onClick={handleCopy}
-                className="flex-shrink-0 w-7 h-7 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
-                aria-label={user.customerId ? 'Copy referral signup link' : 'Copy referral code'}
-              >
-                <AnimatePresence mode="wait">
-                  {copied ? (
-                    <motion.span key="check" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                      <Check className="w-3.5 h-3.5 text-white" />
-                    </motion.span>
-                  ) : (
-                    <motion.span key="copy" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                      <Copy className="w-3.5 h-3.5 text-white" />
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </motion.button>
-            </div>
-            {copied && (
-              <p className="text-[11px] text-blue-200 mt-2 text-center font-semibold">
-                ✓ Copied to clipboard!
-              </p>
-            )}
-            {user.customerId ? (
-              <motion.a
-                href={getReferralSignupPath(user.customerId)}
-                target="_blank"
-                rel="noopener noreferrer"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="mt-3 w-full py-2.5 rounded-xl bg-white text-blue-600 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-blue-50 transition-colors"
-              >
-                <span>Friend signup link</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </motion.a>
+            {user.referralEnabled ? (
+              <>
+                <p className="text-xs text-blue-100 leading-relaxed mb-4">
+                  Share your code and earn rewards when friends book.
+                </p>
+                <div className="flex items-center gap-2 bg-white/15 border border-white/20 rounded-xl px-3 py-2.5">
+                  <p className="flex-1 text-sm font-bold text-white tracking-widest font-mono">
+                    {user.referralCode}
+                  </p>
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.9 }}
+                    onClick={handleCopy}
+                    className="flex-shrink-0 w-7 h-7 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+                    aria-label={user.customerId ? 'Copy referral signup link' : 'Copy referral code'}
+                  >
+                    <AnimatePresence mode="wait">
+                      {copied ? (
+                        <motion.span key="check" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                          <Check className="w-3.5 h-3.5 text-white" />
+                        </motion.span>
+                      ) : (
+                        <motion.span key="copy" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                          <Copy className="w-3.5 h-3.5 text-white" />
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </motion.button>
+                </div>
+                {copied && (
+                  <p className="text-[11px] text-blue-200 mt-2 text-center font-semibold">
+                    ✓ Copied to clipboard!
+                  </p>
+                )}
+                {user.customerId ? (
+                  <motion.a
+                    href={getReferralSignupPath(user.customerId)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="mt-3 w-full py-2.5 rounded-xl bg-white text-blue-600 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-blue-50 transition-colors"
+                  >
+                    <span>Friend signup link</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </motion.a>
+                ) : (
+                  <motion.button
+                    type="button"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => onNavigate('rewards')}
+                    className="mt-3 w-full py-2.5 rounded-xl bg-white text-blue-600 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-blue-50 transition-colors"
+                  >
+                    <span>Rewards</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </motion.button>
+                )}
+              </>
             ) : (
-              <motion.button
-                type="button"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => onNavigate('rewards')}
-                className="mt-3 w-full py-2.5 rounded-xl bg-white text-blue-600 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-blue-50 transition-colors"
-              >
-                <span>Rewards &amp; referral</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </motion.button>
+              <p className="text-xs text-blue-100 leading-relaxed">
+                Referral system coming soon. We&apos;ll notify you when sharing and rewards go live.
+              </p>
             )}
           </div>
 

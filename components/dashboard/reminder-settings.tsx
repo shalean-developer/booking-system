@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Bell, Mail, MessageSquare, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/lib/supabase-client';
+import { supabase } from '@/lib/supabase/client';
 import { safeGetSession } from '@/lib/logout-utils';
 import { devLog } from '@/lib/dev-logger';
 

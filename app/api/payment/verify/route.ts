@@ -3,7 +3,7 @@ import type { PaystackVerificationResponse } from '@/types/booking';
 import { validatePaymentEnv } from '@/lib/env-validation';
 import { createServiceClient } from '@/lib/supabase-server';
 import {
-  fulfillPaidBooking,
+  finalizeBookingPayment,
   paystackVerifyDetailed,
   paystackVerifyTransaction,
   resolveBookingForVerify,
@@ -124,11 +124,12 @@ async function handlePollVerify(req: Request): Promise<NextResponse> {
     });
   }
 
-  const result = await fulfillPaidBooking({
+  const result = await finalizeBookingPayment({
     supabase,
     booking,
     reference: referenceParam,
     paystackAmountKobo: detailed.amountKobo,
+    paidCurrency: detailed.currency,
   });
 
   if (!result.ok) {
@@ -244,13 +245,14 @@ export async function GET(req: Request) {
     }
 
     console.log('🧾 Creating invoice...');
-    const result = await fulfillPaidBooking({
+    const result = await finalizeBookingPayment({
       supabase,
       booking,
       reference: referenceParam,
       paystackAmountKobo: verified.amountKobo,
+      paidCurrency: verified.currency ?? 'ZAR',
     });
-    console.log('✅ fulfillPaidBooking step done');
+    console.log('✅ finalizeBookingPayment step done');
 
     if (!result.ok) {
       return NextResponse.json(
@@ -259,7 +261,7 @@ export async function GET(req: Request) {
       );
     }
 
-    console.log('[api/payment/verify GET] fulfillPaidBooking ok', booking.id);
+    console.log('[api/payment/verify GET] finalizeBookingPayment ok', booking.id);
 
     const duplicate = result.duplicate === true;
     const amount_zar = Math.round(Number(booking.total_amount ?? 0)) / 100;

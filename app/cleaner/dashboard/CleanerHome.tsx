@@ -14,12 +14,12 @@ import {
   Briefcase,
   Star,
   Zap,
-  TrendingUp,
 } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { SUPPORT_PHONE_HREF, SUPPORT_WHATSAPP_URL } from '@/lib/contact';
 import { toastCleanerActionError } from './cleanerToast';
-import { useJobs, useEarnings } from './cleanerHooks';
+import { useJobs } from './cleanerHooks';
+import { FinancialSummaryCards } from './cleaner-financial-cards';
 import type { Job, CleanerPageId } from './cleanerTypes';
 
 function digitsOnly(s: string): string {
@@ -535,19 +535,12 @@ interface CleanerHomeProps {
 export function CleanerHome({ onNavigate, isOnline }: CleanerHomeProps) {
   const { loading, activeJob, availableJobs, acceptJob, declineJob, onMyWay, startJob, completeJob } =
     useJobs();
-  const { summary } = useEarnings();
   const [detailJob, setDetailJob] = useState<Job | null>(null);
 
   const todayJobCount =
     availableJobs.filter(j => j.date === 'Today').length + (activeJob ? 1 : 0);
-  const statChips = [
-    { id: 'chip-today', label: "Today's Jobs", value: todayJobCount, icon: Briefcase },
-    {
-      id: 'chip-earn',
-      label: "Today's Pay",
-      value: `R${summary.today}`,
-      icon: TrendingUp,
-    },
+  const quickStats = [
+    { id: 'chip-today', label: "Today's Jobs", value: String(todayJobCount), icon: Briefcase },
     { id: 'chip-rating', label: 'Rating', value: '4.9★', icon: Star },
   ];
 
@@ -585,21 +578,24 @@ export function CleanerHome({ onNavigate, isOnline }: CleanerHomeProps) {
           </p>
         </div>
 
-        <div className="flex gap-3 mt-5 overflow-x-auto pb-1 scrollbar-hide">
-          {statChips.map(chip => (
-            <div
-              key={chip.id}
-              className="flex-shrink-0 bg-white/15 backdrop-blur-sm border border-white/20 rounded-2xl px-4 py-3 flex items-center gap-3 min-w-[140px]"
-            >
-              <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-                <chip.icon className="w-4 h-4 text-white" />
+        <div className="mt-5 space-y-3">
+          <FinancialSummaryCards />
+          <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+            {quickStats.map(chip => (
+              <div
+                key={chip.id}
+                className="flex-shrink-0 bg-white/15 backdrop-blur-sm border border-white/20 rounded-2xl px-4 py-3 flex items-center gap-3 min-w-[120px]"
+              >
+                <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <chip.icon className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <p className="text-white font-extrabold text-sm leading-none">{chip.value}</p>
+                  <p className="text-blue-200 text-[10px] mt-0.5 font-medium">{chip.label}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-white font-extrabold text-sm leading-none">{chip.value}</p>
-                <p className="text-blue-200 text-[10px] mt-0.5 font-medium">{chip.label}</p>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
 

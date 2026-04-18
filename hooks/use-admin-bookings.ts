@@ -3,7 +3,7 @@
 import useSWR from 'swr';
 import { useEffect } from 'react';
 import { fetcher } from '@/lib/swr-config';
-import { supabase } from '@/lib/supabase-client';
+import { supabase } from '@/lib/supabase/client';
 
 type BookingsResponse = {
   ok: boolean;

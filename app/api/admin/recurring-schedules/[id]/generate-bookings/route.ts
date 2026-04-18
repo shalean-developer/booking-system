@@ -5,6 +5,8 @@ import { calculateBookingOccurrencesForMonth, getMonthYearString } from '@/lib/r
 import { calcTotalAsync } from '@/lib/pricing';
 import { generateUniqueBookingId } from '@/lib/booking-id';
 import type { RecurringSchedule } from '@/types/recurring';
+import { buildEarningsInsertFields } from '@/lib/earnings-v2';
+import { deriveCompanyOnlyCostsCents } from '@/lib/earnings-company-costs';
 
 export const dynamic = 'force-dynamic';
 
@@ -150,19 +152,42 @@ export async function POST(
 
     // Use stored pricing if available, otherwise calculate
     let totalAmountCents: number;
-    let cleanerEarningsCents: number | null = null;
     let priceSnapshot: any;
+    let earningsPayload: ReturnType<typeof buildEarningsInsertFields> | null = null;
+
+    const requiresTeamForEarnings =
+      schedule.service_type === 'Deep' || schedule.service_type === 'Move In/Out';
+    const defaultTeamSize = requiresTeamForEarnings ? 2 : 1;
+
+    let hireDateForEarnings: string | null = null;
+    if (schedule.cleaner_id && schedule.cleaner_id !== 'manual') {
+      const { data: hireRow } = await supabase
+        .from('cleaners')
+        .select('hire_date')
+        .eq('id', schedule.cleaner_id)
+        .maybeSingle();
+      hireDateForEarnings = hireRow?.hire_date ?? null;
+    }
 
     if (schedule.total_amount && schedule.total_amount > 0) {
-      // Use stored pricing from schedule
       totalAmountCents = schedule.total_amount;
-      cleanerEarningsCents = schedule.cleaner_earnings || null;
-      
-      // Calculate price snapshot from stored values
+
+      earningsPayload = buildEarningsInsertFields({
+        totalAmountCents,
+        serviceFeeCents: 5000,
+        tipCents: 0,
+        hireDate: hireDateForEarnings,
+        serviceType: schedule.service_type,
+        requiresTeam: requiresTeamForEarnings,
+        teamSize: defaultTeamSize,
+        equipmentCostCents: 0,
+        extraCleanerFeeCents: 0,
+      });
+
       const totalAmountRands = totalAmountCents / 100;
-      const serviceFee = 50; // Default service fee
+      const serviceFee = 50;
       const subtotal = totalAmountRands - serviceFee;
-      
+
       priceSnapshot = {
         service_type: schedule.service_type,
         bedrooms: schedule.bedrooms,
@@ -178,7 +203,6 @@ export async function POST(
         manual_pricing: true,
       };
     } else {
-      // Calculate pricing dynamically
       const pricingFrequency = mapFrequencyToPricingFrequency(schedule.frequency);
       const pricing = await calcTotalAsync(
         {
@@ -192,8 +216,25 @@ export async function POST(
       );
 
       totalAmountCents = pricing.total * 100;
-      const subtotalAfterFee = pricing.total - pricing.serviceFee;
-      cleanerEarningsCents = Math.round(subtotalAfterFee * 0.60 * 100);
+
+      const companyCosts = deriveCompanyOnlyCostsCents({
+        serviceType: schedule.service_type,
+        equipmentChargeZar: pricing.breakdown.equipmentCharge,
+        laborSubtotalOneCleanerZar: pricing.breakdown.laborSubtotalOneCleaner,
+        numberOfCleaners: pricing.breakdown.numberOfCleaners,
+      });
+
+      earningsPayload = buildEarningsInsertFields({
+        totalAmountCents,
+        serviceFeeCents: Math.round(pricing.serviceFee * 100),
+        tipCents: 0,
+        hireDate: hireDateForEarnings,
+        serviceType: schedule.service_type,
+        requiresTeam: requiresTeamForEarnings,
+        teamSize: defaultTeamSize,
+        equipmentCostCents: companyCosts.equipmentCostCents,
+        extraCleanerFeeCents: companyCosts.extraCleanerFeeCents,
+      });
 
       priceSnapshot = {
         service_type: schedule.service_type,
@@ -259,8 +300,8 @@ export async function POST(
           recurring_schedule_id: schedule.id,
         };
 
-        if (cleanerEarningsCents !== null) {
-          bookingData.cleaner_earnings = cleanerEarningsCents;
+        if (earningsPayload) {
+          Object.assign(bookingData, earningsPayload);
         }
 
         return bookingData;

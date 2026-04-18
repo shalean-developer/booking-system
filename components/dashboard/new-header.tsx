@@ -17,7 +17,7 @@ import { Bell, Menu, User, Settings, LogOut, LayoutDashboard } from 'lucide-reac
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { safeLogout } from '@/lib/logout-utils';
-import { supabase } from '@/lib/supabase-client';
+import { supabase } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { devLog } from '@/lib/dev-logger';
 

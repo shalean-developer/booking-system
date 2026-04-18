@@ -33,4 +33,6 @@ export const WIZARD_DEFAULT_FORM: BookingFormData = {
   carpetRooms: 1,
   carpetRugs: 0,
   carpetExtraCleaner: false,
+  numberOfCleaners: 1,
+  teamSizeUserOverride: false,
 };

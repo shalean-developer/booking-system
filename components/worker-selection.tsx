@@ -9,7 +9,7 @@ import { useBookingPath } from '@/lib/useBookingPath';
 import { AddressAutocomplete } from '@/components/address-autocomplete';
 import { PopoverDatePicker } from '@/components/ui/popover-date-picker';
 import { PopoverTimeSelect } from '@/components/ui/popover-time-select';
-import { supabase } from '@/lib/supabase-client';
+import { supabase } from '@/lib/supabase/client';
 import type { Cleaner, AvailableCleanersResponse } from '@/types/booking';
 import { requiresTeam } from '@/lib/booking-utils';
 import { BOOKING_DEFAULT_CITY } from '@/lib/contact';

@@ -1,7 +1,7 @@
 import { createServiceClient } from '@/lib/supabase-server';
 
 export async function logNotification(entry: {
-  channel: 'whatsapp' | 'email';
+  channel: 'whatsapp' | 'email' | 'system';
   template?: string;
   recipient_type?: 'cleaner' | 'customer' | 'admin';
   recipient_phone?: string | null;
@@ -14,6 +14,12 @@ export async function logNotification(entry: {
 }) {
   try {
     const supabase = createServiceClient();
+    const payloadValue =
+      entry.payload === undefined || entry.payload === null
+        ? null
+        : typeof entry.payload === 'string'
+          ? entry.payload
+          : (entry.payload as Record<string, unknown>);
     await supabase.from('notification_logs').insert({
       channel: entry.channel,
       template: entry.template ?? null,
@@ -21,7 +27,7 @@ export async function logNotification(entry: {
       recipient_phone: entry.recipient_phone ?? null,
       recipient_email: entry.recipient_email ?? null,
       booking_id: entry.booking_id ?? null,
-      payload: entry.payload ? JSON.stringify(entry.payload) : null,
+      payload: payloadValue,
       ok: entry.ok,
       status: entry.status ?? null,
       error: entry.error ?? null,

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase-client';
+import { supabase } from '@/lib/supabase/client';
 import { safeGetSession } from '@/lib/logout-utils';
 import { NewHeader } from '@/components/dashboard/new-header';
 import { MobileBottomNav } from '@/components/dashboard/mobile-bottom-nav';

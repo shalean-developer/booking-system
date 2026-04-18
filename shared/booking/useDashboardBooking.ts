@@ -5,6 +5,10 @@ import type { BookingFormData as ApiBookingFormData } from '@/lib/useBookingForm
 import type { ServiceType } from '@/types/booking';
 import type { BookingEngineState, BookingServiceInfo } from './types';
 import { calculateBooking } from './calculate';
+import {
+  aggregateExtraIdsToQuantities,
+  getDashboardOptimalTeamSize,
+} from '@/shared/booking-engine/dashboard-pricing-bridge';
 
 const defaultState = (): BookingEngineState => ({
   service: null,
@@ -43,6 +47,15 @@ export function useDashboardBooking(options: {
   const linePricing = useMemo(() => {
     if (!formData?.pricing || !state.service) return null;
     const svc = state.service.id;
+    const extrasQuantitiesById = aggregateExtraIdsToQuantities(state.selectedExtraIds);
+    const numberOfCleaners = getDashboardOptimalTeamSize({
+      service: svc,
+      bedrooms: state.bedrooms,
+      bathrooms: state.bathrooms,
+      extraRooms: svc === 'Carpet' ? 0 : state.extraRooms,
+      selectedExtraIds: state.selectedExtraIds,
+      extrasQuantitiesById,
+    });
     return calculateBooking({
       pricing: formData.pricing,
       catalogAllNames: formData.extras.all,
@@ -51,12 +64,13 @@ export function useDashboardBooking(options: {
       bathrooms: state.bathrooms,
       extraRooms: svc === 'Carpet' ? 0 : state.extraRooms,
       selectedExtraIds: state.selectedExtraIds,
+      extrasQuantitiesById,
       frequency: 'one-time',
       carpetDetails,
       provideEquipment:
         (svc === 'Standard' || svc === 'Airbnb') && state.provideEquipment,
       equipmentChargeOverride: formData.equipment?.charge,
-      numberOfCleaners: 1,
+      numberOfCleaners,
     });
   }, [formData, state, carpetDetails]);
 

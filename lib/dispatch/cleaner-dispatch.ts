@@ -129,7 +129,8 @@ export async function fetchEligibleCleanersForAreas(
 
 export async function loadBookingsForOverlap(
   supabase: SupabaseClient,
-  date: string
+  date: string,
+  excludeBookingId?: string
 ): Promise<
   Array<{
     cleaner_id: string | null;
@@ -139,11 +140,15 @@ export async function loadBookingsForOverlap(
     requires_team: boolean | null;
   }>
 > {
-  const { data, error } = await supabase
+  let q = supabase
     .from('bookings')
     .select('cleaner_id, booking_time, duration_minutes, expected_end_time, requires_team')
     .eq('booking_date', date)
     .neq('status', 'cancelled');
+  if (excludeBookingId) {
+    q = q.neq('id', excludeBookingId);
+  }
+  const { data, error } = await q;
 
   if (error) {
     console.error('[dispatch] loadBookingsForOverlap', error);
@@ -157,7 +162,7 @@ export async function loadBookingsForOverlap(
   });
 }
 
-function groupByCleaner(
+export function groupByCleaner(
   rows: Array<{
     cleaner_id: string | null;
     booking_time: string;
@@ -380,12 +385,18 @@ const MAX_UI_CLEANERS = 8;
 /** All non-overlapping cleaners for customer picker (load-balanced order, then rating). */
 export async function listAvailableCleanersForBooking(
   supabase: SupabaseClient,
-  params: { date: string; areas: string[]; startTime: string; durationMinutes: number }
+  params: {
+    date: string;
+    areas: string[];
+    startTime: string;
+    durationMinutes: number;
+    excludeBookingId?: string;
+  }
 ): Promise<CleanerRow[]> {
   const eligible = await fetchEligibleCleanersForAreas(supabase, params.date, params.areas);
   const startMin = timeHmToMinutes(params.startTime);
   const endMin = Math.min(24 * 60, startMin + params.durationMinutes);
-  const allRows = await loadBookingsForOverlap(supabase, params.date);
+  const allRows = await loadBookingsForOverlap(supabase, params.date, params.excludeBookingId);
   const byCleaner = groupByCleaner(allRows);
   const candidates: { cleaner: CleanerRow; load: number }[] = [];
   for (const c of eligible) {
@@ -401,7 +412,7 @@ export async function listAvailableCleanersForBooking(
   }
   candidates.sort((x, y) => sortCleanersByLoadThenRating(x.cleaner, y.cleaner, x.load, y.load));
   const out = candidates.map((x) => x.cleaner);
-  if (out.length > 0) {
+  if (process.env.NODE_ENV !== 'production' && out.length > 0) {
     console.log(
       '[dispatch] listAvailableCleaners: first',
       out[0]!.id,

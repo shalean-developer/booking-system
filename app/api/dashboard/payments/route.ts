@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { isCancelledBooking, isCompletedBooking } from '@/shared/dashboard-data';
+import { getBookingRevenueCents } from '@/shared/finance-engine';
 
 /**
  * API endpoint to fetch customer payment history and outstanding balances
@@ -60,11 +62,12 @@ export async function GET(request: Request) {
     const outstandingBalance = (bookings || []).reduce((total, booking) => {
       // If booking has payment_reference, it's paid
       // If no payment_reference and status is not cancelled, it's outstanding
-      if (!booking.payment_reference && 
-          booking.status !== 'cancelled' && 
-          booking.status !== 'canceled' &&
-          booking.status !== 'completed') {
-        return total + (booking.total_amount || 0);
+      if (
+        !booking.payment_reference &&
+        !isCancelledBooking(booking.status) &&
+        !isCompletedBooking(booking.status)
+      ) {
+        return total + getBookingRevenueCents(booking);
       }
       return total;
     }, 0);
@@ -78,17 +81,18 @@ export async function GET(request: Request) {
         date: b.created_at,
         amount: b.total_amount || 0,
         reference: b.payment_reference,
-        status: b.status === 'completed' ? 'paid' as const : 'pending' as const,
+        status: isCompletedBooking(b.status) ? ('paid' as const) : ('pending' as const),
       }));
 
     // Get next invoice (upcoming booking without payment)
     const upcomingBookings = (bookings || [])
       .filter(b => {
         const bookingDate = new Date(b.booking_date);
-        return bookingDate >= new Date() && 
-               !b.payment_reference && 
-               b.status !== 'cancelled' && 
-               b.status !== 'canceled';
+        return (
+          bookingDate >= new Date() &&
+          !b.payment_reference &&
+          !isCancelledBooking(b.status)
+        );
       })
       .sort((a, b) => new Date(a.booking_date).getTime() - new Date(b.booking_date).getTime());
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase-client';
+import { supabase } from '@/lib/supabase/client';
 import { safeGetSession } from '@/lib/logout-utils';
 import { NewHeader } from '@/components/dashboard/new-header';
 import { MobileBottomNav } from '@/components/dashboard/mobile-bottom-nav';
@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { Booking, Customer, AuthUser } from '@/types/dashboard';
+import { isPastBookingListEntry, isUpcomingBooking } from '@/shared/dashboard-data';
 
 const statusColors: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-800 border-amber-200',
@@ -103,17 +104,13 @@ export default function BookingsPage() {
       if (statusFilter === 'upcoming') {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        filtered = filtered.filter(b => {
-          const bookingDate = new Date(b.booking_date);
-          return bookingDate >= today && b.status !== 'cancelled' && b.status !== 'canceled';
-        });
+        filtered = filtered.filter((b) =>
+          isUpcomingBooking({ status: b.status, bookingDateIso: b.booking_date })
+        );
       } else if (statusFilter === 'past') {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        filtered = filtered.filter(b => {
-          const bookingDate = new Date(b.booking_date);
-          return bookingDate < today || b.status === 'completed' || b.status === 'cancelled' || b.status === 'canceled';
-        });
+        filtered = filtered.filter((b) => isPastBookingListEntry(b));
       } else {
         filtered = filtered.filter(b => b.status === statusFilter);
       }
@@ -142,19 +139,11 @@ export default function BookingsPage() {
   );
 
   // Separate paginated bookings into upcoming and past
-  const upcomingBookings = paginatedBookings.filter(b => {
-    const bookingDate = new Date(b.booking_date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return bookingDate >= today && b.status !== 'cancelled' && b.status !== 'canceled';
-  });
+  const upcomingBookings = paginatedBookings.filter((b) =>
+    isUpcomingBooking({ status: b.status, bookingDateIso: b.booking_date })
+  );
 
-  const pastBookings = paginatedBookings.filter(b => {
-    const bookingDate = new Date(b.booking_date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return bookingDate < today || b.status === 'completed' || b.status === 'cancelled' || b.status === 'canceled';
-  });
+  const pastBookings = paginatedBookings.filter((b) => isPastBookingListEntry(b));
 
   // Export to CSV
   const handleExportCSV = () => {

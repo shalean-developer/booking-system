@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase-client';
+import { supabase } from '@/lib/supabase/client';
 import { safeGetSession } from '@/lib/logout-utils';
 import { NewHeader } from '@/components/dashboard/new-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

@@ -26,16 +26,24 @@ export async function GET(request: NextRequest) {
 
     // Query bookings first, then get their team assignments
     // This is more efficient than joining
-    const { data: bookings, error: bookingsError } = await supabase
+    const excludeId = request.nextUrl.searchParams.get('exclude_booking_id')?.trim();
+
+    let q = supabase
       .from('bookings')
       .select('id')
       .eq('booking_date', date)
       .eq('service_type', service)
       .neq('status', 'cancelled')
       .eq('requires_team', true);
+    if (excludeId) {
+      q = q.neq('id', excludeId);
+    }
+    const { data: bookings, error: bookingsError } = await q;
 
     if (bookingsError) {
-      console.error('Error fetching bookings:', bookingsError);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('Error fetching bookings:', bookingsError);
+      }
       return NextResponse.json(
         { ok: false, error: 'Failed to fetch team availability' },
         { status: 500 }
@@ -57,7 +65,9 @@ export async function GET(request: NextRequest) {
       .in('booking_id', bookingIds);
 
     if (error) {
-      console.error('Error fetching team availability:', error);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('Error fetching team availability:', error);
+      }
       return NextResponse.json(
         { ok: false, error: 'Failed to fetch team availability' },
         { status: 500 }
@@ -74,7 +84,9 @@ export async function GET(request: NextRequest) {
       bookedTeams,
     });
   } catch (error) {
-    console.error('Error in team availability API:', error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Error in team availability API:', error);
+    }
     return NextResponse.json(
       { ok: false, error: 'Internal server error' },
       { status: 500 }

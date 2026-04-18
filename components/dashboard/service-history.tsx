@@ -8,7 +8,7 @@ import { HistoryCard } from './history-card';
 import { ServiceHistorySkeleton } from './Skeleton';
 import { Clock, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase-client';
+import { supabase } from '@/lib/supabase/client';
 import { useCleanerCache } from '@/lib/hooks/use-cleaner-cache';
 import { devLog } from '@/lib/dev-logger';
 import type { Booking, Cleaner, Review } from '@/types/dashboard';

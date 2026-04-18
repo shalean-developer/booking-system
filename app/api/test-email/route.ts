@@ -1,14 +1,17 @@
 import { NextResponse } from 'next/server';
 import { sendInvoiceEmail, validateResendConfig } from '@/lib/email';
+import { authorizeDebugApiRequest } from '@/lib/debug-api-auth';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/test-email?to=you@example.com
  * Or set TEST_EMAIL_TO in .env.local (no query needed).
+ * Development only; requires admin or DEBUG_API_SECRET.
  */
 export async function GET(req: Request) {
-  console.log('🧪 Testing email...');
+  const denied = await authorizeDebugApiRequest(req);
+  if (denied) return denied;
 
   const { searchParams } = new URL(req.url);
   const to =

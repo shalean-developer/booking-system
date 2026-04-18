@@ -1,5 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCleanerSession, createCleanerSupabaseClient, cleanerIdToUuid } from '@/lib/cleaner-auth';
+import { getResolvedBookingPayoutTotalCents } from '@/lib/earnings-v2';
+
+/** Pending never visible; approved always; legacy rows before v2 still visible. */
+function earningsVisibleForCleanerPayouts(b: {
+  earnings_status?: string | null;
+  cleaner_earnings?: number | null;
+  requires_team?: boolean | null;
+}): boolean {
+  if (b.earnings_status === 'pending') return false;
+  if (b.earnings_status === 'approved') return true;
+  if (b.earnings_status == null) {
+    if (b.cleaner_earnings != null && b.cleaner_earnings > 0) return true;
+    if (b.requires_team) return true;
+  }
+  return false;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +51,10 @@ export async function GET(request: NextRequest) {
         service_type,
         total_amount,
         cleaner_earnings,
+        requires_team,
+        earnings_status,
+        earnings_final,
+        earnings_calculated,
         status,
         customer_name,
         address_line1,
@@ -43,8 +63,7 @@ export async function GET(request: NextRequest) {
         created_at
       `)
       .eq('cleaner_id', cleanerId)
-      .eq('status', 'completed')
-      .not('cleaner_earnings', 'is', null);
+      .eq('status', 'completed');
 
     // Apply date filters if provided
     if (startDate) {
@@ -98,6 +117,10 @@ export async function GET(request: NextRequest) {
               service_type,
               total_amount,
               cleaner_earnings,
+              requires_team,
+              earnings_status,
+              earnings_final,
+              earnings_calculated,
               status,
               customer_name,
               address_line1,
@@ -141,10 +164,12 @@ export async function GET(request: NextRequest) {
       console.log('Error fetching team bookings:', err);
     }
 
-    // 3. Merge individual and team bookings
+    // 3. Merge individual and team bookings (only payouts visible to cleaner)
     const allBookings = [
-      ...(individualBookings || []).map(b => ({ ...b, is_team_booking: false })),
-      ...teamBookings
+      ...(individualBookings || [])
+        .filter(earningsVisibleForCleanerPayouts)
+        .map((b) => ({ ...b, is_team_booking: false })),
+      ...teamBookings.filter(earningsVisibleForCleanerPayouts),
     ];
 
     // 4. Sort and limit
@@ -162,7 +187,9 @@ export async function GET(request: NextRequest) {
     // Calculate totals
     const transactions = (bookings || []).map((b: any) => {
       const tip = b.tip_amount || 0;
-      const cleanerEarnings = b.cleaner_earnings || 0;
+      const cleanerEarnings = b.is_team_booking
+        ? b.cleaner_earnings || 0
+        : getResolvedBookingPayoutTotalCents(b) ?? 0;
       const commissionEarnings = Math.max(cleanerEarnings - tip, 0);
 
       return {

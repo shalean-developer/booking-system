@@ -11,6 +11,7 @@ export type { BookingPaidRow } from '@/lib/payments/booking-types';
 export {
   fulfillPaidBooking,
   fulfillBooking,
+  finalizeBookingPayment,
   finalizePaidBookingServer,
   type FulfillPaidBookingResult,
 } from '@/lib/payments/fulfillBooking';
@@ -25,17 +26,17 @@ const SELECT_COLS =
 export async function paystackVerifyTransaction(
   secretKey: string,
   reference: string,
-): Promise<{ ok: boolean; amountKobo: number }> {
+): Promise<{ ok: boolean; amountKobo: number; currency?: string }> {
   const detailed = await paystackVerifyDetailed(secretKey, reference);
   if (detailed.outcome !== 'success') {
     return { ok: false, amountKobo: 0 };
   }
-  return { ok: true, amountKobo: detailed.amountKobo };
+  return { ok: true, amountKobo: detailed.amountKobo, currency: detailed.currency };
 }
 
 /** Full Paystack verify response — use for polling to avoid false failures while status is still pending. */
 export type PaystackVerifyDetailed =
-  | { outcome: 'success'; amountKobo: number }
+  | { outcome: 'success'; amountKobo: number; currency: string }
   | { outcome: 'pending'; detail?: string }
   | { outcome: 'failed'; reason: string };
 
@@ -55,7 +56,12 @@ export async function paystackVerifyDetailed(
   const json = (await res.json()) as {
     status?: boolean;
     message?: string;
-    data?: { status?: string; amount?: number; gateway_response?: string };
+    data?: {
+      status?: string;
+      amount?: number;
+      currency?: string;
+      gateway_response?: string;
+    };
   };
 
   if (!res.ok) {
@@ -79,9 +85,11 @@ export async function paystackVerifyDetailed(
 
   if (st === 'success') {
     const amountKobo = Number(d.amount);
+    const cur = String(d.currency || 'ZAR').trim().toUpperCase();
     return {
       outcome: 'success',
       amountKobo: Number.isFinite(amountKobo) ? amountKobo : 0,
+      currency: cur.length > 0 ? cur : 'ZAR',
     };
   }
 
@@ -135,7 +143,7 @@ export async function fetchBookingForPaymentVerification(
   return (byLegacy as BookingPaidRow) ?? null;
 }
 
-function referenceMatchesBooking(booking: BookingPaidRow, reference: string): boolean {
+export function referenceMatchesBooking(booking: BookingPaidRow, reference: string): boolean {
   if (reference === booking.id || reference === `booking-${booking.id}`) return true;
   if (booking.paystack_ref && reference === booking.paystack_ref) return true;
   if (booking.payment_reference && reference === booking.payment_reference) return true;

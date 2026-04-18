@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar, CreditCard, CheckCircle, Download, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/lib/supabase-client';
+import { supabase } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { devLog } from '@/lib/dev-logger';
 

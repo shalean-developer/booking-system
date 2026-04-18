@@ -26,6 +26,7 @@ import type {
   ScheduledJob,
   ScheduleEvent,
 } from './cleanerTypes';
+import { isCompletedBooking } from '@/shared/dashboard-data';
 import {
   formatDate,
   formatTime,
@@ -140,8 +141,8 @@ export function useCleaner() {
 
         let totalCompleted = 0;
         if (bookingsJson.ok && Array.isArray(bookingsJson.bookings)) {
-          totalCompleted = bookingsJson.bookings.filter(
-            (b: { status?: string }) => b.status === 'completed',
+          totalCompleted = bookingsJson.bookings.filter((b: { status?: string }) =>
+            isCompletedBooking(b.status),
           ).length;
         }
 
@@ -351,7 +352,7 @@ function useJobsImpl() {
             j.status === 'in_progress',
         ),
       );
-      setCompletedJobs(mineJobs.filter(j => j.status === 'completed'));
+      setCompletedJobs(mineJobs.filter((j) => isCompletedBooking(j.dbStatus)));
     } catch (e) {
       console.error(e);
     } finally {

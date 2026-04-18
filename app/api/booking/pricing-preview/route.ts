@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { computeCheckoutPricing } from '@/lib/booking-checkout-pricing';
 import { computeServerPreSurgeTotalZar } from '@/lib/booking-server-pricing';
+import { validatePricingEngineRequest } from '@/lib/pricing-engine';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,15 @@ export async function POST(req: Request) {
       typeof body.bathrooms === 'number' &&
       Array.isArray(body.extras)
     ) {
+      const useClientCartWhenEngine =
+        body.pricingEngineFinalCents != null &&
+        Number.isFinite(body.pricingEngineFinalCents);
+      if (useClientCartWhenEngine) {
+        const engineCheck = validatePricingEngineRequest(body);
+        if (!engineCheck.ok) {
+          return NextResponse.json({ ok: false, error: engineCheck.error }, { status: 400 });
+        }
+      }
       const serverCart = await computeServerPreSurgeTotalZar(supabase, {
         service,
         bedrooms: body.bedrooms,
@@ -40,7 +50,9 @@ export async function POST(req: Request) {
         provideEquipment: Boolean(body.provideEquipment),
         carpetDetails: body.carpetDetails ?? undefined,
       });
-      preSurgeTotalZar = serverCart.preSurgeTotalZar;
+      if (!useClientCartWhenEngine) {
+        preSurgeTotalZar = serverCart.preSurgeTotalZar;
+      }
     }
 
     const pricing = await computeCheckoutPricing(supabase, {

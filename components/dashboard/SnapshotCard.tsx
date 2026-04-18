@@ -11,6 +11,7 @@ import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { SnapshotCardSkeleton } from './Skeleton';
 import type { Metrics, Booking, SparklineData } from './types';
+import { isCompletedBooking } from '@/shared/dashboard-data';
 import { formatCurrency } from '@/lib/utils/formatting';
 
 // Lazy load the sparkline chart
@@ -166,7 +167,15 @@ export const SnapshotCard = memo(function SnapshotCard({
                         </div>
                         <div className="text-right">
                           <div className="font-semibold">{formatCurrency(booking.price)}</div>
-                          <div className={`text-xs ${booking.status === 'completed' ? 'text-emerald-600' : booking.status === 'confirmed' ? 'text-sky-600' : 'text-muted-foreground'}`}>
+                          <div
+                            className={`text-xs ${
+                              isCompletedBooking(booking.status)
+                                ? 'text-emerald-600'
+                                : booking.status === 'confirmed'
+                                  ? 'text-sky-600'
+                                  : 'text-muted-foreground'
+                            }`}
+                          >
                             {booking.status}
                           </div>
                         </div>

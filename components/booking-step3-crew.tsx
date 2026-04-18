@@ -15,29 +15,18 @@ import {
   CalendarDays,
   Clock,
   MapPin,
-  BadgeCheck,
   Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { BookingFormData, ServiceType } from '@/components/booking-system-types';
+import type { OptimalTeamResult } from '@/lib/team-optimizer';
+import { MAX_TEAM_SIZE, MIN_TEAM_SIZE } from '@/lib/team-optimizer';
 import type { Cleaner as ApiCleaner } from '@/types/booking';
 import { BookingFlowStepIndicator } from '@/components/booking-flow-step-indicator';
 import { BookingFlowLayout } from '@/components/booking/booking-flow-layout';
 import { BookingSummary } from '@/components/booking/booking-summary';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-interface TeamCard {
-  id: string;
-  name: string;
-  initials: string;
-  avatarBg: string;
-  rating: number;
-  reviewCount: number;
-  jobCount: number;
-  availableAt: string;
-  size: number;
-  speciality: string;
-}
 export interface BookingStep3CrewProps {
   data: BookingFormData;
   setData: React.Dispatch<React.SetStateAction<BookingFormData>>;
@@ -48,51 +37,13 @@ export interface BookingStep3CrewProps {
   apiCleaners: ApiCleaner[];
   cleanersLoading: boolean;
   formatDate: (dateStr: string) => string;
+  /** Workload-based recommendation; pricing uses `data.numberOfCleaners` */
+  optimalTeam: OptimalTeamResult;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const AUTO_ASSIGN_ID = 'auto-assign';
-
-/** Primary accent — matches step 1 & 2 (violet). */
-const CLEANING_TEAMS: TeamCard[] = [
-  {
-    id: 't1',
-    name: 'Team Alpha',
-    initials: 'Aα',
-    avatarBg: 'bg-violet-600',
-    rating: 4.9,
-    reviewCount: 302,
-    jobCount: 580,
-    availableAt: 'Your slot',
-    size: 3,
-    speciality: 'Move In/Out Experts',
-  },
-  {
-    id: 't2',
-    name: 'Team Bravo',
-    initials: 'Bβ',
-    avatarBg: 'bg-blue-600',
-    rating: 4.8,
-    reviewCount: 257,
-    jobCount: 490,
-    availableAt: 'Your slot',
-    size: 2,
-    speciality: 'Deep Clean Specialists',
-  },
-  {
-    id: 't3',
-    name: 'Team Sierra',
-    initials: 'Sσ',
-    avatarBg: 'bg-amber-600',
-    rating: 4.7,
-    reviewCount: 189,
-    jobCount: 362,
-    availableAt: 'Your slot',
-    size: 3,
-    speciality: 'Heavy-Duty Restoration',
-  },
-];
 
 const AVATAR_ROTATION = ['bg-pink-500', 'bg-indigo-500', 'bg-emerald-500', 'bg-orange-500'] as const;
 
@@ -115,9 +66,13 @@ function formatTimeDisplay(t: string) {
 }
 
 function cleanerInitials(name: string) {
-  const parts = name.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) return (parts[0]![0] + parts[1]![0]).toUpperCase();
-  return name.slice(0, 2).toUpperCase();
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2);
+  return initials ? initials.toUpperCase() : '?';
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -190,6 +145,7 @@ export function BookingStep3Crew({
   apiCleaners,
   cleanersLoading,
   formatDate,
+  optimalTeam,
 }: BookingStep3CrewProps) {
   const [attempted, setAttempted] = useState(false);
   const [shaking, setShaking] = useState(false);
@@ -197,6 +153,31 @@ export function BookingStep3Crew({
 
   const useTeams = isTeamService(data.service);
   const showCleanerList = data.service === 'standard' || data.service === 'airbnb';
+
+  const selectedTeamSize = Math.min(
+    MAX_TEAM_SIZE,
+    Math.max(MIN_TEAM_SIZE, Math.round(data.numberOfCleaners ?? optimalTeam.teamSize))
+  );
+  const hoursEachSelected =
+    selectedTeamSize > 0 ? optimalTeam.totalWorkHours / selectedTeamSize : optimalTeam.totalWorkHours;
+  const showLargerTeamWarning = selectedTeamSize > optimalTeam.teamSize;
+
+  const setTeamSize = (n: number) => {
+    const clamped = Math.min(MAX_TEAM_SIZE, Math.max(MIN_TEAM_SIZE, Math.round(n)));
+    setData((p) => ({
+      ...p,
+      numberOfCleaners: clamped,
+      teamSizeUserOverride: clamped !== optimalTeam.teamSize,
+    }));
+  };
+
+  const useRecommendedTeamSize = () => {
+    setData((p) => ({
+      ...p,
+      numberOfCleaners: optimalTeam.teamSize,
+      teamSizeUserOverride: false,
+    }));
+  };
 
   const selectedId = useMemo(() => {
     if (data.cleanerId) return data.cleanerId;
@@ -217,15 +198,17 @@ export function BookingStep3Crew({
         avatarBg: AVATAR_ROTATION[i % AVATAR_ROTATION.length]!,
         photo: c.photo_url,
         rating: c.rating ?? 0,
-        reviewCount: 0,
-        jobCount: 0,
-        availableAt: timeLabel,
-        speciality: c.specialties?.[0] ?? c.bio?.slice(0, 48) ?? 'Professional cleaner',
+        reviewCount: c.reviews_count ?? 0,
+        jobCount: c.completed_jobs_count ?? 0,
+        slotTimeLabel: timeLabel,
+        speciality: c.specialties?.[0]?.trim() || c.bio?.trim()?.slice(0, 80) || null,
+        completionRate: c.completion_rate,
       })),
     [apiCleaners, timeLabel]
   );
 
-  const canPickManual = useTeams || showCleanerList;
+  /** Team (deep/move) bookings: no fake team cards — only auto-assign. Standard/Airbnb: API cleaners. */
+  const canPickManual = showCleanerList;
   const needsCleanerFromApi = showCleanerList;
   const hasApiCleaners = mappedCleaners.length > 0;
   const isValid =
@@ -235,10 +218,10 @@ export function BookingStep3Crew({
 
   const selectedName =
     selectedId === AUTO_ASSIGN_ID
-      ? 'Auto-assigned'
-      : useTeams
-        ? CLEANING_TEAMS.find((t) => t.id === selectedId)?.name ?? ''
-        : mappedCleaners.find((c) => c.id === selectedId)?.name ?? '';
+      ? useTeams
+        ? 'Cleaning team'
+        : 'Auto-assigned'
+      : mappedCleaners.find((c) => c.id === selectedId)?.name ?? '';
 
   const handleSelectAuto = () => {
     setData((p) => ({ ...p, cleanerId: '', teamId: '' }));
@@ -246,10 +229,6 @@ export function BookingStep3Crew({
 
   const handleSelectCleaner = (id: string) => {
     setData((p) => ({ ...p, cleanerId: id, teamId: '' }));
-  };
-
-  const handleSelectTeam = (id: string) => {
-    setData((p) => ({ ...p, teamId: id, cleanerId: '' }));
   };
 
   const handleContinue = () => {
@@ -357,6 +336,83 @@ export function BookingStep3Crew({
               </span>
             </div>
           </div>
+
+          <section
+            aria-labelledby="team-size-heading"
+            className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-3"
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center flex-shrink-0">
+                <Users className="w-4 h-4 text-white" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2
+                  id="team-size-heading"
+                  className="text-base font-bold text-gray-900 leading-tight tracking-tight"
+                >
+                  Team size
+                </h2>
+                <p className="text-sm text-violet-700 font-medium mt-1">
+                  Recommended: {optimalTeam.teamSize}{' '}
+                  {optimalTeam.teamSize === 1 ? 'cleaner' : 'cleaners'} (
+                  {optimalTeam.hoursPerCleaner.toFixed(1)} hours each)
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Based on your service and estimated workload (~{optimalTeam.totalWorkHours.toFixed(1)} hrs
+                  total).
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Number of cleaners">
+              {Array.from({ length: MAX_TEAM_SIZE - MIN_TEAM_SIZE + 1 }, (_, i) => MIN_TEAM_SIZE + i).map(
+                (n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setTeamSize(n)}
+                    className={cn(
+                      'min-w-[2.5rem] px-3 py-2 rounded-xl text-sm font-bold border-2 transition-colors',
+                      selectedTeamSize === n
+                        ? 'border-violet-600 bg-violet-50 text-violet-800'
+                        : 'border-gray-200 bg-white text-gray-700 hover:border-violet-300'
+                    )}
+                    aria-pressed={selectedTeamSize === n}
+                  >
+                    {n}
+                  </button>
+                )
+              )}
+            </div>
+
+            <p className="text-xs text-gray-600">
+              Your job: ~{hoursEachSelected.toFixed(1)} hours per cleaner with {selectedTeamSize}{' '}
+              {selectedTeamSize === 1 ? 'cleaner' : 'cleaners'}.
+            </p>
+
+            {showLargerTeamWarning && (
+              <div
+                className="flex gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+                role="status"
+              >
+                <AlertTriangle className="w-4 h-4 flex-shrink-0 text-amber-600 mt-0.5" />
+                <span>
+                  You chose more cleaners than recommended. Cost may be higher; we&apos;ll still do our
+                  best to match your preference.
+                </span>
+              </div>
+            )}
+
+            {data.teamSizeUserOverride && selectedTeamSize !== optimalTeam.teamSize && (
+              <button
+                type="button"
+                onClick={useRecommendedTeamSize}
+                className="text-xs font-semibold text-violet-600 hover:text-violet-800 underline underline-offset-2"
+              >
+                Use recommended ({optimalTeam.teamSize} cleaners)
+              </button>
+            )}
+          </section>
 
           <section aria-labelledby="crew-heading" className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-4">
             <SectionLabel
@@ -480,118 +536,13 @@ export function BookingStep3Crew({
                   ) : needsCleanerFromApi && !hasApiCleaners ? (
                     <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-white p-8 text-center">
                       <Users className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                      <p className="text-sm font-semibold text-gray-800">No cleaners to show yet</p>
+                      <p className="text-sm font-semibold text-gray-800">No cleaners available for this time</p>
                       <p className="text-xs text-gray-500 mt-1">
-                        Try another date or area, or continue with auto-assign.
+                        Try another date, time, or area — or continue with auto-assign.
                       </p>
                     </div>
                   ) : (
                     <AnimatePresence mode="wait">
-                      {useTeams ? (
-                        <motion.div
-                          key="teams"
-                          initial={{ opacity: 0, y: 14 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: 8 }}
-                          transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-                          className="space-y-3"
-                        >
-                          {CLEANING_TEAMS.map((team) => {
-                            const isSelected = selectedId === team.id;
-                            return (
-                              <motion.button
-                                key={team.id}
-                                type="button"
-                                whileTap={{ scale: 0.98 }}
-                                onClick={() => handleSelectTeam(team.id)}
-                                className={cn(
-                                  'w-full text-left rounded-2xl border-2 p-4 transition-all duration-200 cursor-pointer',
-                                  isSelected
-                                    ? 'border-violet-500 bg-violet-50 shadow-sm shadow-violet-100'
-                                    : 'border-gray-200 bg-white hover:border-violet-300 hover:bg-violet-50/40'
-                                )}
-                                aria-pressed={isSelected}
-                              >
-                                <div className="flex items-start gap-4">
-                                  <div
-                                    className={cn(
-                                      'flex-shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center text-white font-extrabold text-sm transition-all duration-200',
-                                      team.avatarBg,
-                                      isSelected ? 'ring-2 ring-offset-2 ring-violet-400' : ''
-                                    )}
-                                  >
-                                    {team.initials}
-                                  </div>
-
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <p
-                                        className={cn(
-                                          'font-bold text-sm leading-tight',
-                                          isSelected ? 'text-gray-900' : 'text-gray-800'
-                                        )}
-                                      >
-                                        {team.name}
-                                      </p>
-                                      <span className="flex items-center gap-0.5 text-[10px] font-bold text-green-600 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
-                                        <BadgeCheck className="w-3 h-3" />
-                                        <span>Verified</span>
-                                      </span>
-                                      <span className="flex items-center gap-0.5 text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">
-                                        <ShieldCheck className="w-3 h-3" />
-                                        <span>Insured</span>
-                                      </span>
-                                    </div>
-
-                                    <p className="text-[11px] text-gray-400 mt-0.5">{team.speciality}</p>
-
-                                    <div className="flex items-center gap-2 mt-1.5">
-                                      <StarRating rating={team.rating} accentText="text-violet-600" />
-                                      <span className="text-xs font-bold text-gray-700">{team.rating}</span>
-                                      <span className="text-xs text-gray-400">({team.reviewCount} reviews)</span>
-                                      <span className="text-gray-300 text-xs">·</span>
-                                      <span className="text-xs text-gray-400">{team.jobCount} jobs</span>
-                                    </div>
-
-                                    <div className="flex items-center gap-3 mt-2">
-                                      <div className="flex items-center gap-1">
-                                        <Users className="w-3 h-3 text-gray-400" />
-                                        <span className="text-xs text-gray-500 font-medium">
-                                          {team.size} cleaners
-                                        </span>
-                                      </div>
-                                      <span
-                                        className={cn(
-                                          'text-[11px] font-bold px-2.5 py-0.5 rounded-full',
-                                          isSelected
-                                            ? 'bg-violet-600 text-white'
-                                            : 'bg-gray-100 text-gray-500'
-                                        )}
-                                      >
-                                        {team.availableAt}
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  <AnimatePresence>
-                                    {isSelected && (
-                                      <motion.div
-                                        initial={{ scale: 0, opacity: 0 }}
-                                        animate={{ scale: 1, opacity: 1 }}
-                                        exit={{ scale: 0, opacity: 0 }}
-                                        transition={{ type: 'spring', stiffness: 420, damping: 20 }}
-                                        className="flex-shrink-0 mt-0.5 text-violet-600"
-                                      >
-                                        <CheckCircle2 className="w-5 h-5" />
-                                      </motion.div>
-                                    )}
-                                  </AnimatePresence>
-                                </div>
-                              </motion.button>
-                            );
-                          })}
-                        </motion.div>
-                      ) : (
                         <motion.div
                           key="individuals"
                           initial={{ opacity: 0, y: 14 }}
@@ -652,28 +603,37 @@ export function BookingStep3Crew({
                                       >
                                         {cleaner.name}
                                       </p>
-                                      <span className="flex items-center gap-0.5 text-[10px] font-bold text-green-600 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
-                                        <BadgeCheck className="w-3 h-3" />
-                                        <span>Verified</span>
-                                      </span>
-                                      <span className="flex items-center gap-0.5 text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">
-                                        <ShieldCheck className="w-3 h-3" />
-                                        <span>Insured</span>
-                                      </span>
                                     </div>
 
-                                    <p className="text-[11px] text-gray-400 mt-0.5">{cleaner.speciality}</p>
+                                    {cleaner.speciality ? (
+                                      <p className="text-[11px] text-gray-400 mt-0.5">{cleaner.speciality}</p>
+                                    ) : null}
 
-                                    <div className="flex items-center gap-2 mt-1.5">
+                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5">
                                       <StarRating
                                         rating={cleaner.rating}
                                         accentText="text-violet-600"
                                       />
-                                      <span className="text-xs font-bold text-gray-700">{cleaner.rating}</span>
-                                      <span className="text-xs text-gray-400">({cleaner.reviewCount} reviews)</span>
+                                      <span className="text-xs font-bold text-gray-700">
+                                        {Number(cleaner.rating).toFixed(1)}
+                                      </span>
+                                      <span className="text-xs text-gray-400">
+                                        {cleaner.reviewCount > 0
+                                          ? `${cleaner.reviewCount} review${cleaner.reviewCount === 1 ? '' : 's'}`
+                                          : 'No reviews yet'}
+                                      </span>
                                       <span className="text-gray-300 text-xs">·</span>
-                                      <span className="text-xs text-gray-400">{cleaner.jobCount} jobs</span>
+                                      <span className="text-xs text-gray-400">
+                                        {cleaner.jobCount > 0
+                                          ? `${cleaner.jobCount} job${cleaner.jobCount === 1 ? '' : 's'} completed`
+                                          : 'No completed jobs yet'}
+                                      </span>
                                     </div>
+                                    {cleaner.completionRate != null && cleaner.completionRate > 0 ? (
+                                      <p className="text-[11px] text-gray-500 mt-0.5">
+                                        Reliability {Math.round(cleaner.completionRate)}%
+                                      </p>
+                                    ) : null}
 
                                     <div className="mt-2">
                                       <span
@@ -684,7 +644,7 @@ export function BookingStep3Crew({
                                             : 'bg-gray-100 text-gray-500'
                                         )}
                                       >
-                                        Available {cleaner.availableAt}
+                                        Your slot · {cleaner.slotTimeLabel}
                                       </span>
                                     </div>
                                   </div>
@@ -707,7 +667,6 @@ export function BookingStep3Crew({
                             );
                           })}
                         </motion.div>
-                      )}
                     </AnimatePresence>
                   )}
                 </>

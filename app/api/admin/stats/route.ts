@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { isAdmin } from '@/lib/supabase-server';
+import { isExcludedFromRevenueReporting } from '@/lib/booking-revenue-exclusion';
 
 export const dynamic = 'force-dynamic';
 
@@ -107,7 +108,7 @@ export async function GET(request: NextRequest) {
     // Only include bookings with valid booking_date (not null)
     const { data: currentBookings, error: bookingsError } = await supabase
       .from('bookings')
-      .select('id, total_amount, booking_date, status')
+      .select('id, total_amount, booking_date, status, payment_status')
       .not('booking_date', 'is', null)
       .gte('booking_date', currentPeriodStartDate)
       .lte('booking_date', currentPeriodEndDate);
@@ -116,7 +117,7 @@ export async function GET(request: NextRequest) {
     // Only include bookings with valid booking_date (not null)
     const { data: previousBookings, error: prevBookingsError } = await supabase
       .from('bookings')
-      .select('id, total_amount, booking_date')
+      .select('id, total_amount, booking_date, status, payment_status')
       .not('booking_date', 'is', null)
       .gte('booking_date', previousPeriodStartDate)
       .lte('booking_date', previousPeriodEndDate);
@@ -125,13 +126,19 @@ export async function GET(request: NextRequest) {
       console.error('Error fetching bookings:', bookingsError || prevBookingsError);
     }
 
-    // Calculate revenue
+    // Calculate revenue (exclude refunded / cancelled — financial reporting)
     const currentRevenue = (currentBookings || [])
-      .filter((b) => b.total_amount && b.total_amount > 0)
+      .filter(
+        (b) =>
+          !isExcludedFromRevenueReporting(b) && b.total_amount && b.total_amount > 0,
+      )
       .reduce((sum, b) => sum + (b.total_amount || 0), 0);
-    
+
     const previousRevenue = (previousBookings || [])
-      .filter((b) => b.total_amount && b.total_amount > 0)
+      .filter(
+        (b) =>
+          !isExcludedFromRevenueReporting(b) && b.total_amount && b.total_amount > 0,
+      )
       .reduce((sum, b) => sum + (b.total_amount || 0), 0);
     
     // Helper function to calculate percentage growth with caps and handling for edge cases
@@ -154,12 +161,18 @@ export async function GET(request: NextRequest) {
     const bookingsGrowth = calculateGrowth(currentBookingsCount, previousBookingsCount);
 
     // Calculate average booking value
-    const bookingsWithAmount = (currentBookings || []).filter((b) => b.total_amount && b.total_amount > 0);
+    const bookingsWithAmount = (currentBookings || []).filter(
+      (b) =>
+        !isExcludedFromRevenueReporting(b) && b.total_amount && b.total_amount > 0,
+    );
     const avgBookingValue = bookingsWithAmount.length > 0
       ? currentRevenue / bookingsWithAmount.length
       : 0;
     
-    const prevBookingsWithAmount = (previousBookings || []).filter((b) => b.total_amount && b.total_amount > 0);
+    const prevBookingsWithAmount = (previousBookings || []).filter(
+      (b) =>
+        !isExcludedFromRevenueReporting(b) && b.total_amount && b.total_amount > 0,
+    );
     const prevAvgBookingValue = prevBookingsWithAmount.length > 0
       ? previousRevenue / prevBookingsWithAmount.length
       : 0;

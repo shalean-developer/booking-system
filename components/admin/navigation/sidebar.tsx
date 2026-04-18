@@ -23,6 +23,7 @@ import {
   BookOpen,
   Server,
   Ticket,
+  PieChart,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -66,6 +67,7 @@ const navigationSections: NavSection[] = [
   {
     title: 'Financial',
     items: [
+  { name: 'Profit', href: '/admin/profit', icon: PieChart },
   { name: 'Payments', href: '/admin/payments', icon: DollarSign },
       { name: 'Invoices', href: '/admin/invoices', icon: FileText },
       { name: 'Pricing', href: '/admin/pricing', icon: Tag },

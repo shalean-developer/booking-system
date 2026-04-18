@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { StarRatingInput } from './star-rating-input';
 import { PhotoUpload } from './photo-upload';
-import { supabase } from '@/lib/supabase-client';
+import { supabase } from '@/lib/supabase/client';
 
 interface Booking {
   id: string;
