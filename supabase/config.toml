@@ -12,3 +12,13 @@ verify_jwt = false
 
 [functions.paystack-webhook]
 verify_jwt = false
+
+# Cron bridges: invoke deployed Next.js /api/cron/* (secrets: CRON_INVOKE_URL, CRON_SECRET, optional CRON_EDGE_KEY)
+[functions.booking-sla]
+verify_jwt = false
+
+[functions.generate-recurring-bookings]
+verify_jwt = false
+
+[functions.daily-content]
+verify_jwt = false

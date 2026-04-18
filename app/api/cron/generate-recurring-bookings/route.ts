@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireCronSecret } from '@/lib/cron-secret';
 import { createServiceClient } from '@/lib/supabase-server';
 import { calculateBookingOccurrencesForMonth, getMonthYearString } from '@/lib/recurring-bookings';
 import { calcTotalAsync } from '@/lib/pricing';
@@ -56,6 +57,9 @@ function generateInvoiceReference(prefix: string): string {
 
 export async function GET(req: NextRequest) {
   try {
+    const unauthorized = requireCronSecret(req);
+    if (unauthorized) return unauthorized;
+
     const svc = createServiceClient();
 
     // Allow manual triggering with ?force=true query parameter (for testing)

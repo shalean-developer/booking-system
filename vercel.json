@@ -1,17 +1,1 @@
-{
-  "crons": [
-    {
-      "path": "/api/cron/generate-recurring-bookings",
-      "schedule": "10 16 * * *"
-    },
-    {
-      "path": "/api/cron/daily-content?secret=YOUR_CRON_SECRET",
-      "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/cron/booking-sla?secret=YOUR_CRON_SECRET",
-      "schedule": "*/10 * * * *"
-    }
-  ]
-}
-
+{}

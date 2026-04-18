@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireCronSecret } from '@/lib/cron-secret';
 import { createServiceClient } from '@/lib/supabase-server';
 import { runBookingSlaSweep } from '@/lib/sla/processBookingSla';
 
 export const dynamic = 'force-dynamic';
-
-function isAuthorized(req: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (!secret) return true;
-  const q = new URL(req.url).searchParams.get('secret');
-  return q === secret;
-}
 
 /**
  * GET /api/cron/booking-sla?secret=CRON_SECRET
@@ -17,9 +11,8 @@ function isAuthorized(req: NextRequest): boolean {
  */
 export async function GET(req: NextRequest) {
   try {
-    if (!isAuthorized(req)) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
+    const unauthorized = requireCronSecret(req);
+    if (unauthorized) return unauthorized;
 
     const supabase = createServiceClient();
     const result = await runBookingSlaSweep(supabase);

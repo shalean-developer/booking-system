@@ -17,19 +17,18 @@ function getOpenAI(): OpenAI {
 }
 
 const API_SECRET = process.env.SEO_CONTENT_API_SECRET;
-const CRON_SECRET = process.env.CRON_SECRET;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL;
 
-// Vercel Cron cannot attach custom Authorization headers, so we accept a shared
-// secret via query param for scheduled calls, while keeping Bearer auth for manual/API tests.
+/** Bearer (manual/API) or `?secret=` matching CRON_SECRET for external schedulers. */
 function isAuthorized(req: Request) {
   const auth = req.headers.get("authorization");
   const url = new URL(req.url);
   const querySecret = url.searchParams.get("secret");
+  const cronSecret = process.env.CRON_SECRET?.trim();
 
   const isManualAuthorized = Boolean(API_SECRET) && auth === `Bearer ${API_SECRET}`;
-  const isCronAuthorized = Boolean(CRON_SECRET) && querySecret === CRON_SECRET;
+  const isCronAuthorized = Boolean(cronSecret) && querySecret === cronSecret;
 
   return isManualAuthorized || isCronAuthorized;
 }
@@ -111,13 +110,6 @@ export async function GET(req: Request) {
     if (!OPENAI_API_KEY) {
       return NextResponse.json(
         { error: "Missing OPENAI_API_KEY environment variable" },
-        { status: 500 }
-      );
-    }
-
-    if (!CRON_SECRET) {
-      return NextResponse.json(
-        { error: "Missing CRON_SECRET environment variable" },
         { status: 500 }
       );
     }

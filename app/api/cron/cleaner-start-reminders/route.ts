@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireCronSecret } from '@/lib/cron-secret';
 import { createServiceClient } from '@/lib/supabase-server';
 import { sendWhatsAppTemplate } from '@/lib/notifications/whatsapp';
 import { logNotification } from '@/lib/notifications/log';
@@ -30,6 +31,9 @@ function toIsoFromDateAndTime(dateStr: string, timeStr: string): string | null {
 
 export async function GET(req: NextRequest) {
   try {
+    const unauthorized = requireCronSecret(req);
+    if (unauthorized) return unauthorized;
+
     const svc = createServiceClient();
 
     // 1) Find bookings starting within next 60 minutes, not yet reminded, acceptable statuses
