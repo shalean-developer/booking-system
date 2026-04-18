@@ -163,6 +163,10 @@ export interface Database {
           phone: string;
           photo_url: string | null;
           areas: string[];
+          bio: string | null;
+          years_experience: number | null;
+          specialties: string[] | null;
+          email: string | null;
           rating: number;
           is_active: boolean;
           is_available: boolean;
@@ -188,6 +192,10 @@ export interface Database {
           phone: string;
           photo_url?: string | null;
           areas: string[];
+          bio?: string | null;
+          years_experience?: number | null;
+          specialties?: string[] | null;
+          email?: string | null;
           rating?: number;
           is_active?: boolean;
           is_available?: boolean;
@@ -213,6 +221,10 @@ export interface Database {
           phone?: string;
           photo_url?: string | null;
           areas?: string[];
+          bio?: string | null;
+          years_experience?: number | null;
+          specialties?: string[] | null;
+          email?: string | null;
           rating?: number;
           is_active?: boolean;
           is_available?: boolean;
