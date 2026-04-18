@@ -21,6 +21,8 @@ interface ExtraPricing {
   price: number;
   effective_date: string;
   end_date: string | null;
+  /** When false, extra is hidden from customer booking extras (pricing_config.is_active) */
+  is_active: boolean;
 }
 
 interface FrequencyDiscount {
@@ -69,18 +71,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // If no data, return empty structure
     if (!pricingConfig || pricingConfig.length === 0) {
-      console.warn('No pricing config found in database');
-      return NextResponse.json({
-        ok: true,
-        pricing: {
-          services: [],
-          extras: [],
-          serviceFee: null,
-          frequencyDiscounts: [],
-        },
-      });
+      console.warn('No active pricing_config rows matched filters; extras may still load below.');
     }
 
     // Fetch services for display names
@@ -103,10 +95,9 @@ export async function GET(request: NextRequest) {
 
     // Track seen combinations to get only the most recent
     const seenServices = new Map<string, boolean>();
-    const seenExtras = new Map<string, boolean>();
     const seenDiscounts = new Map<string, boolean>();
 
-    (pricingConfig || []).forEach((record: any) => {
+    (pricingConfig ?? []).forEach((record: any) => {
       const price = parseFloat(record.price) || 0;
       const serviceName = record.service_type ? servicesMap.get(record.service_type) : null;
 
@@ -149,16 +140,7 @@ export async function GET(request: NextRequest) {
           break;
 
         case 'extra':
-          if (record.item_name && !seenExtras.has(record.item_name)) {
-            seenExtras.set(record.item_name, true);
-            organizedPricing.extras.push({
-              id: record.id,
-              item_name: record.item_name,
-              price: price,
-              effective_date: record.effective_date,
-              end_date: record.end_date,
-            });
-          }
+          // Extras are loaded in a separate query so inactive rows still appear in admin.
           break;
 
         case 'service_fee':
@@ -186,6 +168,38 @@ export async function GET(request: NextRequest) {
           break;
       }
     });
+
+    // Latest row per extra name (includes is_active=false so admin can re-enable)
+    const { data: extraRows, error: extrasError } = await supabase
+      .from('pricing_config')
+      .select('id, item_name, price, effective_date, end_date, is_active')
+      .eq('price_type', 'extra')
+      .is('service_type', null)
+      .lte('effective_date', today)
+      .or(`end_date.is.null,end_date.gte.${today}`)
+      .order('item_name', { ascending: true })
+      .order('effective_date', { ascending: false });
+
+    if (extrasError) {
+      console.error('Error fetching extras for admin pricing:', extrasError);
+    } else {
+      const seenExtraNames = new Map<string, boolean>();
+      (extraRows || []).forEach((row: any) => {
+        const rawName = row.item_name;
+        if (!rawName || typeof rawName !== 'string') return;
+        const name = rawName.trim();
+        if (!name || seenExtraNames.has(name)) return;
+        seenExtraNames.set(name, true);
+        organizedPricing.extras.push({
+          id: row.id,
+          item_name: name,
+          price: parseFloat(row.price) || 0,
+          effective_date: row.effective_date,
+          end_date: row.end_date,
+          is_active: row.is_active !== false,
+        });
+      });
+    }
 
     return NextResponse.json({
       ok: true,

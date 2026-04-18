@@ -73,6 +73,25 @@ export function mapExtraIdsToCanonicalNames(
   return out;
 }
 
+/** Build per-id counts for pricing: uses explicit `extrasQuantities` when set, else duplicate counts in `extras`. */
+export function buildExtrasQuantitiesByIdFromWizard(
+  extras: string[],
+  extrasQuantities?: Record<string, number>
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  const unique = [...new Set(extras)];
+  for (const id of unique) {
+    const explicit = extrasQuantities?.[id];
+    if (typeof explicit === 'number' && explicit > 0) {
+      out[id] = explicit;
+    } else {
+      const count = extras.filter((e) => e === id).length;
+      out[id] = count > 0 ? count : 1;
+    }
+  }
+  return out;
+}
+
 export function aggregateExtraQuantitiesByName(
   extraIds: string[],
   extrasQuantitiesById: Record<string, number> | undefined,

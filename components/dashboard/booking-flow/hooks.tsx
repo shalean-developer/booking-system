@@ -2,21 +2,16 @@
 
 import { useMemo } from 'react';
 import { useBookingFormData, type BookingFormData } from '@/lib/useBookingFormData';
+import { BOOKING_TIME_SLOT_DEFS } from '@/lib/booking-time-slots';
 import type { FlowService, FlowTimeSlot } from './types';
 
-/** Aligned with `TIME_SLOTS` in `components/booking-step2-schedule.tsx` (ids are HH:MM for API). */
-export const DASHBOARD_TIME_SLOTS: FlowTimeSlot[] = [
-  { id: '07:00', time: '7:00 AM', available: true },
-  { id: '08:00', time: '8:00 AM', available: true },
-  { id: '09:00', time: '9:00 AM', available: true },
-  { id: '10:00', time: '10:00 AM', available: false },
-  { id: '11:00', time: '11:00 AM', available: true },
-  { id: '12:00', time: '12:00 PM', available: true },
-  { id: '13:00', time: '1:00 PM', available: false },
-  { id: '14:00', time: '2:00 PM', available: true },
-  { id: '15:00', time: '3:00 PM', available: true },
-  { id: '16:00', time: '4:00 PM', available: false },
-];
+/** Aligned with `BOOKING_TIME_SLOT_DEFS` (ids are HH:MM for API). */
+export const DASHBOARD_TIME_SLOT_DEFS: Pick<FlowTimeSlot, 'id' | 'time'>[] = BOOKING_TIME_SLOT_DEFS.map(
+  (d) => ({
+    id: d.id,
+    time: d.label,
+  })
+);
 
 function mapServices(data: BookingFormData | null): FlowService[] {
   if (!data?.services?.length || !data.pricing) return [];
@@ -45,7 +40,7 @@ export function useBookingForm() {
   return {
     formData: data,
     services,
-    timeSlots: DASHBOARD_TIME_SLOTS,
+    timeSlotDefs: DASHBOARD_TIME_SLOT_DEFS,
     /** First load of `/api/booking/form-data` (no cached payload yet) */
     isInitialLoading: loading && data == null,
     loadError: error,

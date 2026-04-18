@@ -227,7 +227,14 @@ export function useCleanerDashboardData() {
 
           const upcoming = data.bookings
             .filter((b: DatabaseBooking) =>
-              ['pending', 'accepted', 'on_my_way', 'in-progress'].includes(b.status),
+              [
+                'pending',
+                'paid',
+                'assigned',
+                'accepted',
+                'on_my_way',
+                'in-progress',
+              ].includes(b.status),
             )
             .map((b: DatabaseBooking) => transformScheduleEvent(b));
           setScheduleEvents(upcoming);
@@ -336,7 +343,13 @@ function useJobsImpl() {
         rawBookingToJob(b, 'assigned', ratingByBooking[String(b.id)]),
       );
       setAcceptedJobs(
-        mineJobs.filter(j => j.status === 'accepted' || j.status === 'in_progress'),
+        mineJobs.filter(
+          j =>
+            j.status === 'accepted' ||
+            j.status === 'assigned' ||
+            j.status === 'on_my_way' ||
+            j.status === 'in_progress',
+        ),
       );
       setCompletedJobs(mineJobs.filter(j => j.status === 'completed'));
     } catch (e) {
@@ -352,6 +365,19 @@ function useJobsImpl() {
 
   const acceptJob = useCallback(
     async (id: string) => {
+      const mineRes = await fetch('/api/cleaner/bookings', {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      const mineJson = await mineRes.json();
+      const list: Record<string, unknown>[] =
+        mineJson.ok && Array.isArray(mineJson.bookings) ? mineJson.bookings : [];
+      const b = list.find(x => String(x.id) === id);
+      if (b && ['pending', 'paid', 'assigned'].includes(String(b.status))) {
+        await patchBookingStatus(id, 'accepted');
+        await load();
+        return;
+      }
       const res = await fetch(`/api/cleaner/bookings/${id}/claim`, {
         method: 'POST',
         credentials: 'include',
@@ -368,6 +394,24 @@ function useJobsImpl() {
     setAvailableJobs(prev => prev.filter(j => j.id !== id));
   }, []);
 
+  const onMyWay = useCallback(
+    async (id: string) => {
+      const res = await fetch('/api/cleaner/bookings', { credentials: 'include', cache: 'no-store' });
+      const data = await res.json();
+      const list: Record<string, unknown>[] =
+        data.ok && Array.isArray(data.bookings) ? data.bookings : [];
+      const b = list.find(x => String(x.id) === id);
+      if (!b) return;
+      if (String(b.status) === 'on_my_way') {
+        await load();
+        return;
+      }
+      await patchBookingStatus(id, 'on_my_way');
+      await load();
+    },
+    [load],
+  );
+
   const startJob = useCallback(
     async (id: string) => {
       const res = await fetch('/api/cleaner/bookings', { credentials: 'include', cache: 'no-store' });
@@ -377,9 +421,11 @@ function useJobsImpl() {
       const b = list.find(x => String(x.id) === id);
       if (!b) return;
       const s = String(b.status);
-      if (s === 'accepted') await patchBookingStatus(id, 'on_my_way');
-      else if (s === 'on_my_way') await patchBookingStatus(id, 'in-progress');
-      await load();
+      if (s === 'on_my_way') {
+        await patchBookingStatus(id, 'in-progress');
+        await load();
+        return;
+      }
     },
     [load],
   );
@@ -400,6 +446,7 @@ function useJobsImpl() {
     completedJobs,
     acceptJob,
     declineJob,
+    onMyWay,
     startJob,
     completeJob,
     refresh: load,
@@ -602,7 +649,17 @@ export function useSchedule() {
       d.setDate(mon.getDate() + i);
       const key = d.toISOString().split('T')[0];
       const hasJobs = bookings.some(
-        b => String(b.booking_date) === key && ['pending', 'accepted', 'on_my_way', 'in-progress', 'completed'].includes(String(b.status)),
+        b =>
+          String(b.booking_date) === key &&
+          [
+            'pending',
+            'paid',
+            'assigned',
+            'accepted',
+            'on_my_way',
+            'in-progress',
+            'completed',
+          ].includes(String(b.status)),
       );
       days.push({
         id: `sched-${key}`,
@@ -644,9 +701,15 @@ export function useSchedule() {
       .filter(
         b =>
           String(b.booking_date) === selectedDay.dateKey &&
-          ['pending', 'accepted', 'on_my_way', 'in-progress', 'completed'].includes(
-            String(b.status),
-          ),
+          [
+            'pending',
+            'paid',
+            'assigned',
+            'accepted',
+            'on_my_way',
+            'in-progress',
+            'completed',
+          ].includes(String(b.status)),
       )
       .map(b => {
         const pay = rawBookingToJob(b, 'assigned').pay;

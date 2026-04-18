@@ -9,9 +9,12 @@ export interface Database {
           id: string;
           customer_id: string | null;
           cleaner_id: string | null; // UUID
+          assigned_cleaner_id: string | null;
           service_type: string | null;
           booking_date: string;
           booking_time: string;
+          start_time: string | null;
+          end_time: string | null;
           bedrooms: number | null;
           bathrooms: number | null;
           extras: string[] | null;
@@ -31,7 +34,18 @@ export interface Database {
           cleaner_on_my_way_at: string | null;
           cleaner_started_at: string | null;
           cleaner_completed_at: string | null;
+          accepted_at: string | null;
+          on_my_way_at: string | null;
+          started_at: string | null;
+          completed_at: string | null;
+          sla_status: string | null;
+          sla_delay_customer_notified_at: string | null;
+          sla_admin_notified_at: string | null;
+          sla_severity: string | null;
+          reassigned_at: string | null;
+          reassignment_count: number | null;
           expected_end_time: string | null;
+          duration_minutes: number | null;
           customer_rating_id: string | null;
           user_id: string | null;
           price: number | null;
@@ -45,9 +59,12 @@ export interface Database {
           id?: string;
           customer_id?: string | null;
           cleaner_id?: string | null; // UUID
+          assigned_cleaner_id?: string | null;
           service_type?: string | null;
           booking_date: string;
           booking_time: string;
+          start_time?: string | null;
+          end_time?: string | null;
           bedrooms?: number | null;
           bathrooms?: number | null;
           extras?: string[] | null;
@@ -67,7 +84,18 @@ export interface Database {
           cleaner_on_my_way_at?: string | null;
           cleaner_started_at?: string | null;
           cleaner_completed_at?: string | null;
+          accepted_at?: string | null;
+          on_my_way_at?: string | null;
+          started_at?: string | null;
+          completed_at?: string | null;
+          sla_status?: string | null;
+          sla_delay_customer_notified_at?: string | null;
+          sla_admin_notified_at?: string | null;
+          sla_severity?: string | null;
+          reassigned_at?: string | null;
+          reassignment_count?: number | null;
           expected_end_time?: string | null;
+          duration_minutes?: number | null;
           customer_rating_id?: string | null;
           user_id?: string | null;
           price?: number | null;
@@ -81,9 +109,12 @@ export interface Database {
           id?: string;
           customer_id?: string | null;
           cleaner_id?: string | null; // UUID
+          assigned_cleaner_id?: string | null;
           service_type?: string | null;
           booking_date?: string;
           booking_time?: string;
+          start_time?: string | null;
+          end_time?: string | null;
           bedrooms?: number | null;
           bathrooms?: number | null;
           extras?: string[] | null;
@@ -103,7 +134,18 @@ export interface Database {
           cleaner_on_my_way_at?: string | null;
           cleaner_started_at?: string | null;
           cleaner_completed_at?: string | null;
+          accepted_at?: string | null;
+          on_my_way_at?: string | null;
+          started_at?: string | null;
+          completed_at?: string | null;
+          sla_status?: string | null;
+          sla_delay_customer_notified_at?: string | null;
+          sla_admin_notified_at?: string | null;
+          sla_severity?: string | null;
+          reassigned_at?: string | null;
+          reassignment_count?: number | null;
           expected_end_time?: string | null;
+          duration_minutes?: number | null;
           customer_rating_id?: string | null;
           user_id?: string | null;
           price?: number | null;

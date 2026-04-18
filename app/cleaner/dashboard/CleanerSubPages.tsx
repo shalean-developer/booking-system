@@ -23,8 +23,22 @@ import {
   X,
 } from 'lucide-react';
 import { cn } from '../../../lib/utils';
+import { toastCleanerActionError } from './cleanerToast';
 import { useJobs, useEarnings, useCleanerReviews, useSchedule } from './cleanerHooks';
 import type { Job, JobTabId, CleanerPageId, CleanerProfile } from './cleanerTypes';
+
+function formatLifecycleTime(iso: string) {
+  try {
+    return new Date(iso).toLocaleString('en-ZA', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return iso;
+  }
+}
 
 // ─── Shared Sub-Components ────────────────────────────────────────────────────
 
@@ -32,6 +46,8 @@ function JobStatusBadge({ status }: { status: Job['status'] }) {
   const map = {
     available: { label: 'Available', cls: 'bg-blue-50 text-blue-600 border-blue-200' },
     accepted: { label: 'Accepted', cls: 'bg-indigo-50 text-indigo-600 border-indigo-200' },
+    assigned: { label: 'Assigned', cls: 'bg-violet-50 text-violet-600 border-violet-200' },
+    on_my_way: { label: 'On My Way', cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
     in_progress: { label: 'In Progress', cls: 'bg-emerald-50 text-emerald-600 border-emerald-200' },
     completed: { label: 'Completed', cls: 'bg-gray-50 text-gray-500 border-gray-200' },
   };
@@ -68,6 +84,7 @@ function JobsPage({ onNavigate: _onNavigate }: JobsPageProps) {
     completedJobs,
     acceptJob,
     declineJob,
+    onMyWay,
     startJob,
     completeJob,
     loading,
@@ -90,7 +107,7 @@ function JobsPage({ onNavigate: _onNavigate }: JobsPageProps) {
       setDetailJob(null);
     } catch (e) {
       console.error(e);
-      alert(e instanceof Error ? e.message : 'Action failed');
+      toastCleanerActionError(e, 'Action failed');
     } finally {
       setActionLoading(false);
     }
@@ -167,6 +184,26 @@ function JobsPage({ onNavigate: _onNavigate }: JobsPageProps) {
                     <p className="text-xs text-amber-800 leading-relaxed">{detailJob.notes}</p>
                   </div>
                 ) : null}
+                {detailJob.acceptedAt ? (
+                  <p className="text-xs text-gray-400">
+                    Accepted at {formatLifecycleTime(detailJob.acceptedAt)}
+                  </p>
+                ) : null}
+                {detailJob.onMyWayAt ? (
+                  <p className="text-xs text-gray-400">
+                    On the way at {formatLifecycleTime(detailJob.onMyWayAt)}
+                  </p>
+                ) : null}
+                {detailJob.startedAt ? (
+                  <p className="text-xs text-gray-400">
+                    Started at {formatLifecycleTime(detailJob.startedAt)}
+                  </p>
+                ) : null}
+                {detailJob.completedAt ? (
+                  <p className="text-xs text-gray-400">
+                    Completed at {formatLifecycleTime(detailJob.completedAt)}
+                  </p>
+                ) : null}
                 {detailJob.status === 'available' && (
                   <div className="flex gap-3 pt-1">
                     <motion.button
@@ -192,7 +229,39 @@ function JobsPage({ onNavigate: _onNavigate }: JobsPageProps) {
                     </motion.button>
                   </div>
                 )}
+                {detailJob.status === 'assigned' && (
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => handleAction(acceptJob, detailJob.id)}
+                    disabled={actionLoading}
+                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-md"
+                  >
+                    {actionLoading ? (
+                      <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4" />
+                    )}
+                    <span>{actionLoading ? 'Accepting…' : 'Accept Job'}</span>
+                  </motion.button>
+                )}
                 {detailJob.status === 'accepted' && (
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => handleAction(onMyWay, detailJob.id)}
+                    disabled={actionLoading}
+                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-md"
+                  >
+                    {actionLoading ? (
+                      <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <Navigation className="w-4 h-4" />
+                    )}
+                    <span>{actionLoading ? 'Updating…' : 'On My Way'}</span>
+                  </motion.button>
+                )}
+                {detailJob.status === 'on_my_way' && (
                   <motion.button
                     type="button"
                     whileTap={{ scale: 0.97 }}
@@ -205,7 +274,7 @@ function JobsPage({ onNavigate: _onNavigate }: JobsPageProps) {
                     ) : (
                       <Navigation className="w-4 h-4" />
                     )}
-                    <span>{actionLoading ? 'Starting…' : 'Navigate & Start'}</span>
+                    <span>{actionLoading ? 'Starting…' : 'Start Job'}</span>
                   </motion.button>
                 )}
                 {detailJob.status === 'in_progress' && (

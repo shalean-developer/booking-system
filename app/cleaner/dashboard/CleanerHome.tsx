@@ -18,8 +18,26 @@ import {
 } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { SUPPORT_PHONE_HREF, SUPPORT_WHATSAPP_URL } from '@/lib/contact';
+import { toastCleanerActionError } from './cleanerToast';
 import { useJobs, useEarnings } from './cleanerHooks';
 import type { Job, CleanerPageId } from './cleanerTypes';
+
+function digitsOnly(s: string): string {
+  return s.replace(/\D/g, '');
+}
+
+function formatLifecycleTime(iso: string) {
+  try {
+    return new Date(iso).toLocaleString('en-ZA', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return iso;
+  }
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -30,6 +48,7 @@ interface JobDetailModalProps {
   onClose: () => void;
   onAccept?: (id: string) => void;
   onDecline?: (id: string) => void;
+  onMyWay?: (id: string) => void;
   onStart?: (id: string) => void;
   onComplete?: (id: string) => void;
 }
@@ -38,9 +57,16 @@ function JobDetailModal({
   onClose,
   onAccept,
   onDecline,
+  onMyWay,
   onStart,
   onComplete,
 }: JobDetailModalProps) {
+  const callHref = job.customerPhone?.trim()
+    ? `tel:${job.customerPhone.trim()}`
+    : SUPPORT_PHONE_HREF;
+  const waCustomer =
+    job.customerPhone?.trim() &&
+    `https://wa.me/${digitsOnly(job.customerPhone.trim())}`;
   const [loading, setLoading] = useState(false);
   const handleAction = async (fn?: (id: string) => void | Promise<void>) => {
     if (!fn) return;
@@ -51,7 +77,7 @@ function JobDetailModal({
       onClose();
     } catch (e) {
       console.error(e);
-      alert(e instanceof Error ? e.message : 'Something went wrong');
+      toastCleanerActionError(e, 'Something went wrong');
     } finally {
       setLoading(false);
     }
@@ -124,19 +150,41 @@ function JobDetailModal({
             </div>
           ) : null}
 
-          <div className="flex gap-2">
+          {job.acceptedAt ? (
+            <p className="text-xs text-gray-400">Accepted at {formatLifecycleTime(job.acceptedAt)}</p>
+          ) : null}
+          {job.onMyWayAt ? (
+            <p className="text-xs text-gray-400">On the way at {formatLifecycleTime(job.onMyWayAt)}</p>
+          ) : null}
+          {job.startedAt ? (
+            <p className="text-xs text-gray-400">Started at {formatLifecycleTime(job.startedAt)}</p>
+          ) : null}
+          {job.completedAt ? (
+            <p className="text-xs text-gray-400">Completed at {formatLifecycleTime(job.completedAt)}</p>
+          ) : null}
+
+          <div className="grid grid-cols-3 gap-2">
             <a
-              href={SUPPORT_PHONE_HREF}
-              className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl border-2 border-gray-200 text-gray-600 text-xs font-bold hover:border-gray-300 transition-colors"
+              href={callHref}
+              className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl border-2 border-gray-200 text-gray-600 text-[11px] font-bold hover:border-gray-300 transition-colors"
             >
               <Phone className="w-3.5 h-3.5" />
               <span>Call</span>
             </a>
             <a
-              href={SUPPORT_WHATSAPP_URL}
+              href={`https://www.google.com/maps/search/?api=1&query=${job.mapsQuery ?? encodeURIComponent(job.address)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 transition-colors"
+              className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl border-2 border-gray-200 text-gray-600 text-[11px] font-bold hover:border-blue-200 hover:text-blue-600 transition-colors"
+            >
+              <MapPin className="w-3.5 h-3.5" />
+              <span>Map</span>
+            </a>
+            <a
+              href={waCustomer || SUPPORT_WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl bg-emerald-500 text-white text-[11px] font-bold hover:bg-emerald-600 transition-colors"
             >
               <MessageCircle className="w-3.5 h-3.5" />
               <span>WhatsApp</span>
@@ -169,7 +217,41 @@ function JobDetailModal({
             </div>
           )}
 
+          {job.status === 'assigned' && (
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.97 }}
+              onClick={() => handleAction(onAccept)}
+              disabled={loading}
+              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-md"
+            >
+              {loading ? (
+                <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4" />
+              )}
+              <span>{loading ? 'Accepting…' : 'Accept Job'}</span>
+            </motion.button>
+          )}
+
           {job.status === 'accepted' && (
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.97 }}
+              onClick={() => handleAction(onMyWay)}
+              disabled={loading}
+              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-md"
+            >
+              {loading ? (
+                <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              ) : (
+                <Navigation className="w-4 h-4" />
+              )}
+              <span>{loading ? 'Updating…' : 'On My Way'}</span>
+            </motion.button>
+          )}
+
+          {job.status === 'on_my_way' && (
             <motion.button
               type="button"
               whileTap={{ scale: 0.97 }}
@@ -182,7 +264,7 @@ function JobDetailModal({
               ) : (
                 <Navigation className="w-4 h-4" />
               )}
-              <span>{loading ? 'Starting…' : 'Navigate & Start Job'}</span>
+              <span>{loading ? 'Starting…' : 'Start Job'}</span>
             </motion.button>
           )}
 
@@ -212,12 +294,26 @@ function JobDetailModal({
 
 interface ActiveJobCardProps {
   job: Job;
+  onAccept: (id: string) => void | Promise<void>;
+  onMyWay: (id: string) => void | Promise<void>;
   onStart: (id: string) => void;
   onComplete: (id: string) => void;
   onViewDetail: (job: Job) => void;
 }
-function ActiveJobCard({ job, onStart, onComplete, onViewDetail }: ActiveJobCardProps) {
+function ActiveJobCard({ job, onAccept, onMyWay, onStart, onComplete, onViewDetail }: ActiveJobCardProps) {
   const isInProgress = job.status === 'in_progress';
+  const needsAccept = job.status === 'available' || job.status === 'assigned';
+  const badgeLabel = isInProgress
+    ? 'In Progress'
+    : job.status === 'on_my_way'
+      ? 'On My Way'
+      : needsAccept
+        ? job.status === 'assigned'
+          ? 'Assigned'
+          : 'Pending acceptance'
+        : job.status === 'accepted'
+          ? 'Accepted · Upcoming'
+          : 'Active';
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -246,7 +342,7 @@ function ActiveJobCard({ job, onStart, onComplete, onViewDetail }: ActiveJobCard
               ) : (
                 <Clock className="w-3 h-3" />
               )}
-              <span>{isInProgress ? 'In Progress' : 'Accepted · Upcoming'}</span>
+              <span>{badgeLabel}</span>
             </div>
           </div>
           <p className="text-white font-extrabold text-lg">{job.pay}</p>
@@ -269,7 +365,7 @@ function ActiveJobCard({ job, onStart, onComplete, onViewDetail }: ActiveJobCard
               onClick={() => {
                 void Promise.resolve(onComplete(job.id)).catch(err => {
                   console.error(err);
-                  alert(err instanceof Error ? err.message : 'Could not complete job');
+                  toastCleanerActionError(err, 'Could not complete job');
                 });
               }}
               className="flex-1 py-3 rounded-xl bg-white text-blue-700 text-sm font-bold flex items-center justify-center gap-2"
@@ -277,22 +373,52 @@ function ActiveJobCard({ job, onStart, onComplete, onViewDetail }: ActiveJobCard
               <CheckCircle2 className="w-4 h-4" />
               <span>Mark Complete</span>
             </motion.button>
-          ) : (
+          ) : needsAccept ? (
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.97 }}
+              onClick={() => {
+                void Promise.resolve(onAccept(job.id)).catch(err => {
+                  console.error(err);
+                  toastCleanerActionError(err, 'Could not accept job');
+                });
+              }}
+              className="flex-1 py-3 rounded-xl bg-white text-blue-700 text-sm font-bold flex items-center justify-center gap-2"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Accept Job</span>
+            </motion.button>
+          ) : job.status === 'accepted' ? (
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.97 }}
+              onClick={() => {
+                void Promise.resolve(onMyWay(job.id)).catch(err => {
+                  console.error(err);
+                  toastCleanerActionError(err, 'Could not update status');
+                });
+              }}
+              className="flex-1 py-3 rounded-xl bg-white text-blue-700 text-sm font-bold flex items-center justify-center gap-2"
+            >
+              <Navigation className="w-4 h-4" />
+              <span>On My Way</span>
+            </motion.button>
+          ) : job.status === 'on_my_way' ? (
             <motion.button
               type="button"
               whileTap={{ scale: 0.97 }}
               onClick={() => {
                 void Promise.resolve(onStart(job.id)).catch(err => {
                   console.error(err);
-                  alert(err instanceof Error ? err.message : 'Could not update job');
+                  toastCleanerActionError(err, 'Could not update job');
                 });
               }}
               className="flex-1 py-3 rounded-xl bg-white text-blue-700 text-sm font-bold flex items-center justify-center gap-2"
             >
               <Navigation className="w-4 h-4" />
-              <span>Navigate & Start</span>
+              <span>Start Job</span>
             </motion.button>
-          )}
+          ) : null}
           <motion.button
             type="button"
             whileTap={{ scale: 0.97 }}
@@ -384,7 +510,7 @@ function AvailableJobCard({
           onClick={() => {
             void Promise.resolve(onAccept(job.id)).catch(err => {
               console.error(err);
-              alert(err instanceof Error ? err.message : 'Could not accept job');
+              toastCleanerActionError(err, 'Could not accept job');
             });
           }}
           className="flex-[1.5] py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold shadow-sm hover:shadow-md transition-shadow flex items-center justify-center gap-1.5"
@@ -407,7 +533,7 @@ interface CleanerHomeProps {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function CleanerHome({ onNavigate, isOnline }: CleanerHomeProps) {
-  const { loading, activeJob, availableJobs, acceptJob, declineJob, startJob, completeJob } =
+  const { loading, activeJob, availableJobs, acceptJob, declineJob, onMyWay, startJob, completeJob } =
     useJobs();
   const { summary } = useEarnings();
   const [detailJob, setDetailJob] = useState<Job | null>(null);
@@ -435,6 +561,7 @@ export function CleanerHome({ onNavigate, isOnline }: CleanerHomeProps) {
             onClose={() => setDetailJob(null)}
             onAccept={acceptJob}
             onDecline={declineJob}
+            onMyWay={onMyWay}
             onStart={startJob}
             onComplete={completeJob}
           />
@@ -485,6 +612,8 @@ export function CleanerHome({ onNavigate, isOnline }: CleanerHomeProps) {
               </div>
               <ActiveJobCard
                 job={activeJob}
+                onAccept={acceptJob}
+                onMyWay={onMyWay}
                 onStart={startJob}
                 onComplete={completeJob}
                 onViewDetail={setDetailJob}

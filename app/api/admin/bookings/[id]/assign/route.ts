@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { isAdmin } from '@/lib/supabase-server';
+import { sendCleanerNotification } from '@/lib/notifications/sendCleanerNotification';
 
 export const dynamic = 'force-dynamic';
 
@@ -123,14 +124,34 @@ export async function POST(
         .update({ cleaner_id: null })
         .eq('id', id);
     } else if (body.cleaner_id) {
-      // Single cleaner assignment
-      await supabase
+      // Single cleaner assignment — live job list uses status "assigned" + assigned_cleaner_id
+      const { error: assignErr } = await supabase
         .from('bookings')
         .update({
           cleaner_id: body.cleaner_id,
+          assigned_cleaner_id: body.cleaner_id,
+          status: 'assigned',
           updated_at: new Date().toISOString(),
         })
         .eq('id', id);
+
+      if (!assignErr) {
+        try {
+          const [{ data: fullBooking }, { data: cleanerRow }] = await Promise.all([
+            supabase.from('bookings').select('*').eq('id', id).maybeSingle(),
+            supabase.from('cleaners').select('id, name, phone').eq('id', body.cleaner_id).maybeSingle(),
+          ]);
+          if (fullBooking && cleanerRow) {
+            await sendCleanerNotification({
+              type: 'assigned',
+              cleaner: cleanerRow,
+              booking: fullBooking,
+            });
+          }
+        } catch (e) {
+          console.warn('[assign] cleaner notification failed', e);
+        }
+      }
     }
 
     return NextResponse.json({

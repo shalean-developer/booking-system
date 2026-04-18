@@ -12,6 +12,7 @@ import { PopoverTimeSelect } from '@/components/ui/popover-time-select';
 import { supabase } from '@/lib/supabase-client';
 import type { Cleaner, AvailableCleanersResponse } from '@/types/booking';
 import { requiresTeam } from '@/lib/booking-utils';
+import { BOOKING_DEFAULT_CITY } from '@/lib/contact';
 
 // Frequency options
 const FREQUENCY_OPTIONS = [{
@@ -189,10 +190,9 @@ export const WorkerSelection = () => {
         return;
       }
 
-      // Use suburb if available, otherwise fall back to city
-      const location = state.address.suburb || state.address.city;
-
-      if (!state.date || !location) {
+      const suburb = state.address.suburb?.trim() ?? '';
+      const userCity = state.address.city?.trim() ?? '';
+      if (!state.date || (!suburb && !userCity)) {
         setIsLoadingCleaners(false);
         setCleaners([]);
         return;
@@ -202,10 +202,11 @@ export const WorkerSelection = () => {
         setIsLoadingCleaners(true);
         setCleanerError(null);
 
+        const cityParam = userCity || BOOKING_DEFAULT_CITY;
         const params = new URLSearchParams({
           date: state.date || '',
-          city: location,
-          suburb: state.address.suburb || '',
+          suburb,
+          city: cityParam,
         });
         if (state.time) {
           params.set('time', state.time);

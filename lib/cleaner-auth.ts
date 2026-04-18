@@ -409,3 +409,22 @@ export function cleanerIdToUuid(cleanerId: string): string {
   return cleanerId; // Already a valid UUID string
 }
 
+/** Strip secrets from cleaner rows returned to admin or client APIs. */
+export function sanitizeCleanerForAdmin<T extends Record<string, unknown>>(row: T): Omit<
+  T,
+  'password_hash' | 'otp_code' | 'otp_expires_at' | 'otp_last_sent' | 'otp_attempts'
+> {
+  const {
+    password_hash: _ph,
+    otp_code: _oc,
+    otp_expires_at: _oe,
+    otp_last_sent: _ols,
+    otp_attempts: _oa,
+    ...rest
+  } = row;
+  return rest as Omit<
+    T,
+    'password_hash' | 'otp_code' | 'otp_expires_at' | 'otp_last_sent' | 'otp_attempts'
+  >;
+}
+

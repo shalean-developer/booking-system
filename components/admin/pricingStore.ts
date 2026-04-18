@@ -366,6 +366,27 @@ function resolvePriceTypeFromRuleLabel(label: string): 'base' | 'bedroom' | 'bat
   return PRICE_TYPE_BY_RULE_LABEL[key] ?? null;
 }
 
+const PRICING_CONFIG_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function persistExtraActiveFlag(input: { id: string; is_active: boolean }): Promise<void> {
+  if (!PRICING_CONFIG_UUID_RE.test(input.id)) return;
+  try {
+    const response = await fetch(`/api/admin/pricing/${input.id}`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: input.is_active }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.error || 'Failed to update extra visibility');
+    }
+  } catch (error) {
+    console.error('pricingStore extra active persistence failed:', error);
+  }
+}
+
 async function persistPricingUpdate(input: {
   id?: string | null;
   service_type?: string | null;
@@ -671,8 +692,13 @@ export const pricingStore = {
     };
     notify();
     const nextExtra = _data.extras.find((e) => e.id === id) ?? existing;
+
+    if (typeof updates.active === 'boolean' && updates.active !== existing?.active) {
+      void persistExtraActiveFlag({ id, is_active: updates.active });
+    }
+
     const nextPrice = typeof updates.price === 'number' ? updates.price : nextExtra?.price;
-    if (nextExtra && typeof nextPrice === 'number') {
+    if (nextExtra && typeof nextPrice === 'number' && typeof updates.price === 'number') {
       void persistPricingUpdate({
         id,
         price_type: 'extra',

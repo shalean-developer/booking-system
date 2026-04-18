@@ -134,6 +134,12 @@ export function BookingCard({
             Pending
           </Badge>
         );
+      case 'assigned':
+        return (
+          <Badge className="bg-violet-100 text-violet-800 border-violet-200">
+            Assigned
+          </Badge>
+        );
       case 'accepted':
         return (
           <Badge className="bg-purple-100 text-purple-800 border-purple-200">
@@ -346,6 +352,28 @@ export function BookingCard({
                 <>
                   <CheckCircle className="h-4 w-4 mr-2" />
                   Accept Booking
+                </>
+              )}
+            </Button>
+          )}
+
+          {/* Accept admin assignment */}
+          {variant === 'assigned' && booking.status === 'assigned' && onAccept && (
+            <Button
+              onClick={() => handleAction(() => onAccept(booking.id), 'success')}
+              disabled={isActing}
+              className="flex-1 min-w-[100px] bg-violet-600 hover:bg-violet-700"
+              size="sm"
+            >
+              {isActing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Accepting...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Accept Job
                 </>
               )}
             </Button>

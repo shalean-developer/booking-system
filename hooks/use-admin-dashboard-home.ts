@@ -5,6 +5,7 @@ import useSWR from 'swr';
 import { fetcher } from '@/lib/swr-config';
 import { useDashboardStats } from '@/hooks/use-dashboard-stats';
 import { getDateRange } from '@/lib/utils/formatting';
+import { checkBookingSLA } from '@/lib/sla/checkBookingSLA';
 
 function todayYmd(): string {
   const t = new Date();
@@ -96,6 +97,17 @@ export function useAdminDashboardHomeData() {
     `/api/admin/bookings?start=${todayKey}&end=${todayKey}&limit=50&skip_count=1&fields=schedule`,
     fetcher
   );
+
+  useEffect(() => {
+    if (!todayBookingsRes?.ok) return;
+    const rows = todayBookingsRes.bookings ?? [];
+    for (const job of rows) {
+      const issues = checkBookingSLA(job);
+      if (issues.length > 0) {
+        console.warn('[SLA]', job.id, issues);
+      }
+    }
+  }, [todayBookingsRes]);
 
   const {
     data: cleanersRes,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, isAdmin } from '@/lib/supabase-server';
-import { normalizePhoneNumber, validatePhoneNumber } from '@/lib/cleaner-auth';
+import { hashPassword, normalizePhoneNumber, sanitizeCleanerForAdmin, validatePhoneNumber } from '@/lib/cleaner-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +19,7 @@ export async function PATCH(
 
     const { data: existing, error: fetchError } = await supabase
       .from('cleaners')
-      .select('id, phone')
+      .select('id, phone, auth_provider, password_hash')
       .eq('id', id)
       .maybeSingle();
 
@@ -88,6 +88,47 @@ export async function PATCH(
       updateData.is_available = Boolean(body.is_available);
     }
 
+    /** New dashboard password (bcrypt hash stored server-side). */
+    if (body.password !== undefined && body.password !== null && String(body.password).length > 0) {
+      const password = String(body.password);
+      if (password.length < 6) {
+        return NextResponse.json(
+          { ok: false, error: 'Password must be at least 6 characters long' },
+          { status: 400 }
+        );
+      }
+      updateData.password_hash = await hashPassword(password);
+      const currentProvider = (existing.auth_provider as string) || 'both';
+      if (currentProvider === 'otp' && body.auth_provider === undefined) {
+        updateData.auth_provider = 'both';
+      }
+    }
+
+    if (body.auth_provider !== undefined) {
+      const ap = String(body.auth_provider);
+      if (!['password', 'otp', 'both'].includes(ap)) {
+        return NextResponse.json(
+          { ok: false, error: 'Invalid auth_provider. Must be "password", "otp", or "both"' },
+          { status: 400 }
+        );
+      }
+      const willHaveHash =
+        updateData.password_hash !== undefined
+          ? true
+          : Boolean(existing.password_hash);
+      if ((ap === 'password' || ap === 'both') && !willHaveHash) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error:
+              'A password is required when password login is enabled. Send the new password in the same request.',
+          },
+          { status: 400 }
+        );
+      }
+      updateData.auth_provider = ap;
+    }
+
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ ok: false, error: 'No fields to update' }, { status: 400 });
     }
@@ -107,7 +148,7 @@ export async function PATCH(
       );
     }
 
-    return NextResponse.json({ ok: true, cleaner: updated });
+    return NextResponse.json({ ok: true, cleaner: sanitizeCleanerForAdmin(updated as Record<string, unknown>) });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     console.error('PATCH /api/admin/cleaners/[id]:', error);

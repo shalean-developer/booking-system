@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
@@ -8,19 +8,17 @@ import {
   CheckCircle2,
   User,
   CreditCard,
-  Tag,
-  Heart,
   ShieldCheck,
   Loader2,
   AlertTriangle,
-  BadgeCheck,
   ChevronRight,
-  Sparkles,
   Ban,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { BookingFormData } from '@/components/booking-system-types';
 import { BookingFlowStepIndicator } from '@/components/booking-flow-step-indicator';
+import { BookingFlowLayout } from '@/components/booking/booking-flow-layout';
+import { BookingSummary } from '@/components/booking/booking-summary';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,12 +34,6 @@ interface PromoResult {
   type: 'percent' | 'fixed';
   value: number;
   label: string;
-}
-
-interface TipOption {
-  id: string;
-  label: string;
-  value: number;
 }
 
 interface SummaryRow {
@@ -78,6 +70,8 @@ export interface BookingStep4ConfirmationProps {
   /** e.g. "Fri, 20 Jun" for the mobile sticky summary line */
   shortDateLabel: string;
   cleanerLabel: string;
+  /** Individual cleaner avatar; omit or null for team bookings — fallback initials/icon shown */
+  cleanerPhotoUrl?: string | null;
   extrasSummary: string;
   totalZar: number;
   discountAmount: number;
@@ -94,13 +88,6 @@ const PROMO_META: Record<string, PromoResult> = {
   NEWCLIENT: { code: 'NEWCLIENT', type: 'fixed', value: 100, label: 'R100 off' },
   FIRSTCLEAN: { code: 'FIRSTCLEAN', type: 'fixed', value: 100, label: 'R100 off' },
 };
-
-const TIP_OPTIONS: TipOption[] = [
-  { id: 'no-tip', label: 'No Tip', value: 0 },
-  { id: 'tip-50', label: 'R50', value: 50 },
-  { id: 'tip-100', label: 'R100', value: 100 },
-  { id: 'tip-200', label: 'R200', value: 200 },
-];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -223,6 +210,7 @@ export function BookingStep4Confirmation({
   dateTimeLabel,
   shortDateLabel,
   cleanerLabel,
+  cleanerPhotoUrl = null,
   extrasSummary,
   totalZar,
   discountAmount,
@@ -233,11 +221,6 @@ export function BookingStep4Confirmation({
   const [shaking, setShaking] = useState(false);
   const [promoSuccess, setPromoSuccess] = useState('');
   const formRef = useRef<HTMLDivElement>(null);
-
-  const selectedTip = useMemo(
-    () => TIP_OPTIONS.find((t) => t.value === data.tipAmount) ?? TIP_OPTIONS[0],
-    [data.tipAmount]
-  );
 
   const appliedPromo = appliedPromoCode ? PROMO_META[appliedPromoCode.toUpperCase()] : null;
 
@@ -305,7 +288,6 @@ export function BookingStep4Confirmation({
     { id: 'service', label: 'Service', value: serviceTitle },
     { id: 'property', label: 'Property', value: propertySummary },
     { id: 'datetime', label: 'Date & Time', value: dateTimeLabel },
-    { id: 'cleaner', label: 'Cleaner', value: cleanerLabel },
     { id: 'extras', label: 'Extras', value: extrasSummary },
   ];
 
@@ -315,7 +297,7 @@ export function BookingStep4Confirmation({
   return (
     <div className="min-h-screen bg-[#f0f2f5] font-sans">
       {/* ── Header (matches steps 1–3) ── */}
-      <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
+      <header className="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
@@ -336,7 +318,7 @@ export function BookingStep4Confirmation({
       </header>
 
       {paymentError && (
-        <div className="max-w-5xl mx-auto px-4 pt-4">
+        <div className="max-w-6xl mx-auto px-4 pt-4">
           <div className="p-4 rounded-2xl bg-red-50 border border-red-100 flex flex-col sm:flex-row sm:items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
             <div className="min-w-0 flex-1 space-y-3">
@@ -383,17 +365,38 @@ export function BookingStep4Confirmation({
         </div>
       )}
 
-      {/* ── Page layout (matches step 3) ── */}
-      <div
-        ref={formRef}
-        className="max-w-5xl mx-auto px-4 py-8 flex flex-col lg:flex-row gap-6 items-start pb-40 lg:pb-8"
+      <BookingFlowLayout
+        mainRef={formRef}
+        sidebarOnMobile
+        sidebar={
+          <BookingSummary
+            mode="full"
+            step={4}
+            data={data}
+            setData={setData}
+            summaryRows={summaryRows}
+            totalZar={totalZar}
+            discountAmount={discountAmount}
+            cleanerLabel={cleanerLabel}
+            cleanerPhotoUrl={cleanerPhotoUrl}
+            isProcessing={isProcessing}
+            shaking={shaking}
+            onFinalize={handleSubmit}
+            promoInput={promoInput}
+            setPromoInput={setPromoInput}
+            promoError={promoError}
+            setPromoError={setPromoError}
+            onApplyPromo={handleApplyPromoClick}
+            onRemovePromo={handleRemovePromo}
+            promoSuccess={promoSuccess}
+            appliedPromoLabel={appliedPromo?.label ?? null}
+          />
+        }
       >
-        {/* ── LEFT: form ── */}
-        <div className="flex-1 min-w-0 flex flex-col gap-6 w-full">
           <p className="text-xs font-bold tracking-widest text-violet-600 uppercase">Step 4 of 4</p>
 
           <section aria-labelledby="contact-heading">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-4">
               <SectionLabel
                 id="contact-heading"
                 icon={
@@ -467,7 +470,7 @@ export function BookingStep4Confirmation({
           </section>
 
           <section aria-labelledby="payment-heading">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-4">
               <SectionLabel
                 id="payment-heading"
                 icon={
@@ -528,285 +531,7 @@ export function BookingStep4Confirmation({
               </div>
             </div>
           </section>
-
-          <section aria-labelledby="promo-heading">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-              <SectionLabel
-                id="promo-heading"
-                icon={
-                  <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center">
-                    <Tag className="w-4 h-4 text-white" />
-                  </div>
-                }
-                title="Promo Code"
-                subtitle="Have a discount code? Apply it below"
-              />
-
-              <AnimatePresence mode="wait">
-                {data.promoCode ? (
-                  <motion.div
-                    key="applied"
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    className="flex items-center gap-3 bg-green-50 border-2 border-green-300 rounded-xl px-4 py-3"
-                  >
-                    <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-green-700">
-                        <span>{data.promoCode}</span>
-                        <span className="ml-2 text-green-600 font-semibold">
-                          — {appliedPromo?.label ?? 'Discount'}
-                        </span>
-                      </p>
-                      <p className="text-xs text-green-600 mt-0.5">
-                        Saving {formatZarSimple(discountAmount)} on your booking
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleRemovePromo}
-                      className="text-xs text-gray-400 hover:text-red-500 transition-colors font-semibold flex-shrink-0"
-                    >
-                      Remove
-                    </button>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="input"
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                  >
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Enter promo code"
-                        value={promoInput}
-                        onChange={(e) => {
-                          setPromoInput(e.target.value.toUpperCase());
-                          setPromoError('');
-                        }}
-                        onKeyDown={(e) => e.key === 'Enter' && handleApplyPromoClick()}
-                        className={cn(
-                          'flex-1 rounded-xl border-2 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-300 bg-white outline-none transition-all duration-200 uppercase tracking-widest font-mono',
-                          'focus:border-violet-500',
-                          promoError ? 'border-red-400 bg-red-50' : 'border-gray-200 hover:border-gray-300'
-                        )}
-                      />
-                      <button
-                        type="button"
-                        onClick={handleApplyPromoClick}
-                        className="px-5 py-3 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 transition-colors flex-shrink-0 shadow-md shadow-violet-200"
-                      >
-                        Apply
-                      </button>
-                    </div>
-                    <AnimatePresence>
-                      {promoError && (
-                        <motion.p
-                          initial={{ opacity: 0, y: -4 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -4 }}
-                          className="text-xs text-red-500 mt-2 flex items-center gap-1"
-                        >
-                          <AlertTriangle className="w-3 h-3 flex-shrink-0" />
-                          <span>{promoError}</span>
-                        </motion.p>
-                      )}
-                    </AnimatePresence>
-                    {promoSuccess && (
-                      <p className="text-xs text-green-600 mt-2 font-semibold">{promoSuccess}</p>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </section>
-
-          <section aria-labelledby="tip-heading">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-              <SectionLabel
-                id="tip-heading"
-                icon={
-                  <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center">
-                    <Heart className="w-4 h-4 text-white" />
-                  </div>
-                }
-                title="Add a Tip"
-                subtitle="Show appreciation — 100% goes to your cleaner"
-              />
-
-              <div className="flex flex-wrap gap-2">
-                {TIP_OPTIONS.map((tip) => {
-                  const isSelected = selectedTip.id === tip.id;
-                  return (
-                    <motion.button
-                      key={tip.id}
-                      type="button"
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setData((p) => ({ ...p, tipAmount: tip.value }))}
-                      className={cn(
-                        'px-5 py-2.5 rounded-full text-sm font-bold border-2 transition-all duration-200',
-                        isSelected
-                          ? 'bg-violet-600 text-white border-transparent shadow-md shadow-violet-200'
-                          : 'bg-white border-gray-200 text-gray-600 hover:border-violet-300 hover:bg-violet-50/40'
-                      )}
-                    >
-                      {tip.label}
-                    </motion.button>
-                  );
-                })}
-              </div>
-
-              <AnimatePresence>
-                {selectedTip.value > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="mt-4 pt-4 border-t border-gray-100 flex items-center gap-2">
-                      <Heart className="w-3.5 h-3.5 text-violet-500 fill-current" />
-                      <p className="text-xs text-violet-600 font-semibold">
-                        <span>Thank you! </span>
-                        <span>{formatZarSimple(selectedTip.value)} tip added for your cleaner.</span>
-                      </p>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </section>
-        </div>
-
-        {/* ── RIGHT: Sticky Summary (matches step 3) ── */}
-        <aside
-          className="hidden lg:flex w-full lg:w-72 flex-shrink-0 lg:sticky lg:top-6 flex-col gap-4"
-          aria-label="Booking summary"
-        >
-          <div className="rounded-2xl overflow-hidden shadow-md flex flex-col min-h-0">
-            <div className="bg-gradient-to-br from-violet-600 to-violet-800 px-5 py-5 flex-shrink-0">
-              <p className="text-violet-200 text-xs font-semibold tracking-widest uppercase mb-1">Your total</p>
-              <motion.p
-                key={totalZar}
-                initial={{ scale: 1.06, opacity: 0.7 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                className="text-4xl font-extrabold text-white tracking-tight"
-              >
-                {formatZarSimple(totalZar)}
-              </motion.p>
-              <p className="text-violet-300 text-sm mt-1 font-medium">
-                <span>{serviceTitle}</span>
-                {data.promoCode && <span> · {appliedPromo?.label ?? data.promoCode}</span>}
-              </p>
-            </div>
-
-            <div className="flex-1 overflow-y-auto bg-white px-5 py-4 flex flex-col gap-3 min-h-0">
-              {summaryRows.map((row) => (
-                <div key={row.id} className="flex justify-between items-center text-sm text-gray-600">
-                  <span>{row.label}</span>
-                  <motion.span
-                    key={`${row.id}-${row.value}`}
-                    initial={{ opacity: 0.5, y: -2 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-sm font-semibold text-gray-900 text-right max-w-[60%] truncate"
-                  >
-                    {row.value}
-                  </motion.span>
-                </div>
-              ))}
-
-              <AnimatePresence>
-                {discountAmount > 0 && data.promoCode && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-gray-600">Promo</span>
-                      <span className="font-bold text-green-600">−{formatZarSimple(discountAmount)}</span>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              <AnimatePresence>
-                {selectedTip.value > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-gray-600">Tip</span>
-                      <span className="font-bold text-violet-600">+{formatZarSimple(selectedTip.value)}</span>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              <div className="border-t border-gray-100 pt-3 mt-1 flex justify-between items-center">
-                <span className="text-sm font-bold text-gray-900">Total</span>
-                <motion.span
-                  key={totalZar}
-                  initial={{ scale: 1.05 }}
-                  animate={{ scale: 1 }}
-                  transition={{ duration: 0.3 }}
-                  className="text-base font-extrabold text-gray-900"
-                >
-                  {formatZarSimple(totalZar)}
-                </motion.span>
-              </div>
-            </div>
-
-            <div className="flex-shrink-0 px-5 pb-5 pt-3 border-t border-gray-100 bg-white">
-              <motion.button
-                type="button"
-                whileTap={{ scale: 0.97 }}
-                animate={shaking ? { x: [0, -8, 8, -6, 6, -3, 3, 0] } : { x: 0 }}
-                transition={shaking ? { duration: 0.5 } : {}}
-                onClick={handleSubmit}
-                disabled={isProcessing}
-                className={cn(
-                  'w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-200',
-                  isProcessing
-                    ? 'bg-violet-400 text-white cursor-not-allowed'
-                    : 'bg-violet-600 text-white shadow-md shadow-violet-200 hover:bg-violet-700 cursor-pointer'
-                )}
-              >
-                {isProcessing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <ShieldCheck className="w-4 h-4" />
-                )}
-                <span>{isProcessing ? 'Processing…' : 'Finalize Booking'}</span>
-                {!isProcessing && <ArrowRight className="w-4 h-4" />}
-              </motion.button>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5 px-1">
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <ShieldCheck size={13} className="text-green-500 flex-shrink-0" />
-              Secure 256-bit encrypted payment
-            </div>
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />
-              Free cancellation up to 24 hrs before
-            </div>
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <Sparkles size={13} className="text-violet-500 flex-shrink-0" />
-              No hidden fees — ever
-            </div>
-          </div>
-        </aside>
-      </div>
+      </BookingFlowLayout>
 
       {/* ── Mobile bottom bar ── */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-[0_-4px_32px_rgba(0,0,0,0.08)]">

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { createClient } from '@/lib/supabase-server';
 import { isAdmin } from '@/lib/supabase-server';
+import { clearPricingCache } from '@/lib/pricing-db';
 
 export const dynamic = 'force-dynamic';
 
@@ -113,6 +115,9 @@ export async function PATCH(
         { status: 500 }
       );
     }
+
+    clearPricingCache();
+    revalidateTag('booking-form-data', 'max');
 
     return NextResponse.json({
       ok: true,

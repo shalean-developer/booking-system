@@ -22,6 +22,14 @@ import type { ServiceType } from '@/types/booking';
 import { useDashboardBooking, bookingServiceInfo } from '@/shared/booking';
 import { aggregateExtraQuantitiesByName, slugifyExtraId } from '@/lib/booking-pricing-input';
 import type { BookingFormData } from '@/lib/useBookingFormData';
+import { useBookingSlotOccupancy } from '@/lib/use-booking-slot-occupancy';
+import { computeBookingDurationMinutes } from '@/lib/booking-duration';
+import {
+  getAvailabilityStyle,
+  getAvailabilityUrgencyLabel,
+} from '@/lib/booking-slot-availability-styles';
+import { useBookingAbVariant } from '@/hooks/use-booking-ab-variant';
+import { BOOKING_DEFAULT_CITY } from '@/lib/contact';
 
 const STEPS: BookingStep[] = [
   { id: 1, label: 'Service' },
@@ -145,7 +153,7 @@ export interface BookingFlowProps {
 }
 
 export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
-  const { formData, services, timeSlots, isInitialLoading, loadError } = useBookingForm();
+  const { formData, services, timeSlotDefs, isInitialLoading, loadError } = useBookingForm();
   const {
     state,
     setState,
@@ -155,9 +163,84 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
     carpetDetails,
   } = useDashboardBooking({ formData });
   const { user, customerAddressParts } = useProfile();
+
+  const slotDispatchContext = useMemo(
+    () => ({
+      suburb: customerAddressParts?.suburb?.trim() ?? '',
+      city: customerAddressParts?.city?.trim() || BOOKING_DEFAULT_CITY,
+      bedrooms: state.bedrooms,
+      bathrooms: state.bathrooms,
+      extras: state.selectedExtraIds,
+      extrasQuantities: {},
+    }),
+    [
+      customerAddressParts?.suburb,
+      customerAddressParts?.city,
+      state.bedrooms,
+      state.bathrooms,
+      state.selectedExtraIds,
+    ]
+  );
+
+  const slotOcc = useBookingSlotOccupancy(state.date, slotDispatchContext);
+  const { variant: abVariant, track: trackAb } = useBookingAbVariant();
+  const timeSlots = useMemo(() => {
+    return timeSlotDefs.map((def) => {
+      if (slotOcc.status !== 'success') {
+        return {
+          id: def.id,
+          time: def.time,
+          available: false,
+          remaining: 0,
+        };
+      }
+      const remaining = slotOcc.remaining[def.id] ?? 0;
+      return {
+        id: def.id,
+        time: def.time,
+        available: remaining > 0,
+        remaining,
+      };
+    });
+  }, [timeSlotDefs, slotOcc.status, slotOcc.remaining]);
+
+  const firstAvailableSlotId = useMemo(() => {
+    if (slotOcc.status !== 'success') return null;
+    for (const def of timeSlotDefs) {
+      if ((slotOcc.remaining[def.id] ?? 0) > 0) return def.id;
+    }
+    return null;
+  }, [slotOcc.status, slotOcc.remaining, timeSlotDefs]);
+
+  useEffect(() => {
+    if (slotOcc.status !== 'success' || !state.time) return;
+    const rem = slotOcc.remaining[state.time] ?? 0;
+    if (rem <= 0) {
+      setState((s) => ({ ...s, time: '' }));
+    }
+  }, [slotOcc.status, slotOcc.remaining, state.time, setState]);
+
   const DATE_OPTIONS = useNextSevenDays();
 
   const [step, setStep] = useState(1);
+
+  useEffect(() => {
+    if (step !== 2) return;
+    if (
+      slotOcc.status !== 'success' ||
+      (state.time && state.time.length > 0) ||
+      !firstAvailableSlotId
+    ) {
+      return;
+    }
+    setState((s) => ({ ...s, time: firstAvailableSlotId }));
+  }, [step, slotOcc.status, state.time, firstAvailableSlotId, setState]);
+
+  useEffect(() => {
+    if (step !== 2 || !state.time) return;
+    trackAb('slot_selected');
+  }, [step, state.time, trackAb]);
+
   const [paying, setPaying] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [apiCleaners, setApiCleaners] = useState<ApiCleaner[]>([]);
@@ -262,10 +345,21 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
     setCleanersLoading(true);
     const params = new URLSearchParams({
       date: state.date,
-      city: customerAddressParts.city,
+      city: customerAddressParts.city?.trim() || BOOKING_DEFAULT_CITY,
       suburb: customerAddressParts.suburb,
       time: state.time,
     });
+    params.set(
+      'duration_minutes',
+      String(
+        computeBookingDurationMinutes({
+          bedrooms: state.bedrooms,
+          bathrooms: state.bathrooms,
+          extras: state.selectedExtraIds,
+          extrasQuantities: {},
+        })
+      )
+    );
     fetch(`/api/cleaners/available?${params.toString()}`)
       .then((res) => res.json())
       .then((json: { ok?: boolean; cleaners?: ApiCleaner[] }) => {
@@ -281,7 +375,15 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
     return () => {
       cancelled = true;
     };
-  }, [state.date, state.time, customerAddressParts, isTeamService]);
+  }, [
+    state.date,
+    state.time,
+    state.bedrooms,
+    state.bathrooms,
+    state.selectedExtraIds,
+    customerAddressParts,
+    isTeamService,
+  ]);
 
   const flowCleaners: FlowCleaner[] = useMemo(() => {
     if (isTeamService) return TEAM_OPTIONS;
@@ -642,25 +744,74 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
                 </div>
 
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Time</p>
+                {slotOcc.status === 'error' && slotOcc.errorMessage ? (
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-2">
+                    {slotOcc.errorMessage}
+                  </p>
+                ) : null}
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                  {timeSlots.map((slot) => (
-                    <button
-                      key={slot.id}
-                      type="button"
-                      disabled={!slot.available}
-                      onClick={() => slot.available && setState((s) => ({ ...s, time: slot.id }))}
-                      className={cn(
-                        'py-2.5 rounded-xl border-2 text-xs font-bold transition-all',
-                        !slot.available
-                          ? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
-                          : state.time === slot.id
-                            ? 'bg-blue-600 border-blue-600 text-white'
-                            : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
-                      )}
-                    >
-                      {slot.time}
-                    </button>
-                  ))}
+                  {timeSlots.map((slot) => {
+                    const showFullStyle = slotOcc.status === 'success' && !slot.available;
+                    const occupancyReady = slotOcc.status === 'success';
+                    const subline =
+                      slotOcc.status === 'loading'
+                        ? 'Loading…'
+                        : slotOcc.status === 'error'
+                          ? '—'
+                          : getAvailabilityUrgencyLabel(slot.remaining, abVariant ?? 'A');
+                    const highlightLast =
+                      occupancyReady && slot.available && slot.remaining === 1;
+                    const isRecommended =
+                      occupancyReady && slot.available && firstAvailableSlotId === slot.id;
+                    return (
+                      <button
+                        key={slot.id}
+                        type="button"
+                        disabled={!slot.available}
+                        onClick={() => slot.available && setState((s) => ({ ...s, time: slot.id }))}
+                        className={cn(
+                          'py-2.5 rounded-xl border-2 text-xs font-bold transition-all flex flex-col items-center justify-center min-h-[3.25rem]',
+                          slot.available && occupancyReady && 'hover:scale-105 transition-all duration-200 ease-out',
+                          highlightLast && 'ring-2 ring-red-400',
+                          showFullStyle
+                            ? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed line-through'
+                            : !slot.available
+                              ? 'bg-gray-50 border-gray-100 text-gray-400 cursor-not-allowed opacity-80'
+                              : state.time === slot.id
+                                ? 'bg-blue-600 border-blue-600 text-white'
+                                : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
+                        )}
+                      >
+                        {isRecommended && (
+                          <span
+                            className={cn(
+                              'text-[8px] font-bold uppercase tracking-wide mb-0.5 leading-tight',
+                              state.time === slot.id && slot.available
+                                ? 'text-blue-100'
+                                : 'text-blue-600'
+                            )}
+                          >
+                            Recommended
+                          </span>
+                        )}
+                        <span>{slot.time}</span>
+                        <span className="block mt-0.5 no-underline max-w-full">
+                          {occupancyReady ? (
+                            <span
+                              className={cn(
+                                'text-[10px] leading-tight px-2 py-1 rounded font-normal inline-block max-w-full text-center',
+                                getAvailabilityStyle(slot.remaining)
+                              )}
+                            >
+                              {subline}
+                            </span>
+                          ) : (
+                            <span className="block text-[9px] font-normal text-gray-400">{subline}</span>
+                          )}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </motion.div>
             )}
@@ -873,7 +1024,11 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               disabled={!canProceed() || paying || (step === 5 && !customerAddressParts)}
-              onClick={() => (step < 5 ? setStep((s) => s + 1) : handleSubmit())}
+              onClick={() => {
+                if (step === 2 && state.time) trackAb('continue_step2');
+                if (step < 5) setStep((s) => s + 1);
+                else handleSubmit();
+              }}
               className={cn(
                 'flex-1 py-3 rounded-xl text-sm font-extrabold flex items-center justify-center gap-2 transition-all',
                 canProceed() && !paying && (step < 5 || customerAddressParts)

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { DayAvailabilityDisplay } from '@/components/cleaner/day-availability-display';
 import { CleanerMobileBottomNav } from '@/components/cleaner/cleaner-mobile-bottom-nav';
 import { DollarSign, Settings } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface CleanerSession {
   id: string;
@@ -161,8 +162,9 @@ export function MoreClient({ cleaner }: MoreClientProps) {
               <Button
                 className="w-full bg-[#3b82f6] hover:bg-[#2563eb] text-white border border-[#3b82f6]"
                 onClick={() => {
-                  // Could link to contact admin or show info
-                  alert('Please contact your administrator to update your weekly schedule.');
+                  toast.info('Contact your administrator to update your weekly schedule.', {
+                    duration: 5000,
+                  });
                 }}
               >
                 Update Schedule

@@ -22,6 +22,8 @@ import { cn } from '@/lib/utils';
 import type { BookingFormData, ServiceType } from '@/components/booking-system-types';
 import type { Cleaner as ApiCleaner } from '@/types/booking';
 import { BookingFlowStepIndicator } from '@/components/booking-flow-step-indicator';
+import { BookingFlowLayout } from '@/components/booking/booking-flow-layout';
+import { BookingSummary } from '@/components/booking/booking-summary';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface TeamCard {
@@ -36,12 +38,6 @@ interface TeamCard {
   size: number;
   speciality: string;
 }
-interface SummaryRow {
-  id: string;
-  label: string;
-  value: string;
-}
-
 export interface BookingStep3CrewProps {
   data: BookingFormData;
   setData: React.Dispatch<React.SetStateAction<BookingFormData>>;
@@ -266,18 +262,9 @@ export function BookingStep3Crew({
     onContinue();
   };
 
-  const summaryRows: SummaryRow[] = [
-    { id: 'service', label: 'Service', value: serviceTitle },
-    { id: 'price', label: 'Estimate', value: formatZarSimple(pricingTotalZar) },
-    { id: 'date', label: 'Date', value: dateLabel },
-    { id: 'time', label: 'Time', value: timeLabel },
-    { id: 'location', label: 'Location', value: locationLabel },
-    { id: 'crew', label: 'Crew', value: selectedName },
-  ];
-
   return (
     <div className="min-h-screen bg-[#f0f2f5] font-sans">
-      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
+      <div className="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
@@ -295,11 +282,63 @@ export function BookingStep3Crew({
         <BookingFlowStepIndicator activeStep={3} />
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-8 flex flex-col lg:flex-row gap-6 items-start pb-40 lg:pb-8">
-        <div className="flex-1 min-w-0 flex flex-col gap-6 w-full">
+      <BookingFlowLayout
+        sidebar={
+          <BookingSummary
+            mode="preview"
+            step={3}
+            serviceTitle={serviceTitle}
+            propertySummary={`${data.bedrooms} bed · ${data.bathrooms} bath · ${locationLabel}`}
+            extrasSummary={data.extras.length > 0 ? `${data.extras.length} add-on(s)` : 'None'}
+            totalZar={pricingTotalZar}
+            detailRows={[
+              { id: 'date', label: 'Date', value: dateLabel },
+              { id: 'time', label: 'Time', value: timeLabel },
+              { id: 'location', label: 'Location', value: locationLabel },
+              { id: 'crew', label: 'Crew', value: selectedName },
+            ]}
+            footer={
+              <>
+                <motion.button
+                  ref={ctaBtnRef}
+                  type="button"
+                  whileTap={{ scale: 0.97 }}
+                  animate={shaking ? { x: [0, -8, 8, -6, 6, -3, 3, 0] } : { x: 0 }}
+                  transition={shaking ? { duration: 0.5 } : {}}
+                  onClick={handleContinue}
+                  className={cn(
+                    'w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-300 ease-in-out',
+                    isValid
+                      ? 'bg-violet-600 text-white shadow-md shadow-violet-200 hover:bg-violet-700 cursor-pointer'
+                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  )}
+                  aria-disabled={!isValid}
+                >
+                  <span>Continue to Step 4</span>
+                  <ArrowRight className="w-4 h-4" />
+                </motion.button>
+                {attempted && !isValid && (
+                  <p className="text-xs text-red-500 text-center mt-2">Please select a cleaner or team</p>
+                )}
+
+                <div className="flex flex-col gap-1.5 px-0.5 pt-2">
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />
+                    No payment required to book
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />
+                    Free cancellation up to 24 hrs before
+                  </div>
+                </div>
+              </>
+            }
+          />
+        }
+      >
           <p className="text-xs font-bold tracking-widest text-violet-600 uppercase">Step 3 of 4</p>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-4">
             <div className="flex flex-wrap gap-2">
               <div className="flex items-center gap-1.5 bg-gray-50/80 border border-gray-200 rounded-full px-3 py-1.5">
                 <CalendarDays className="w-3.5 h-3.5 text-gray-400" />
@@ -319,7 +358,7 @@ export function BookingStep3Crew({
             </div>
           </div>
 
-          <section aria-labelledby="crew-heading" className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <section aria-labelledby="crew-heading" className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-4">
             <SectionLabel
               id="crew-heading"
               icon={
@@ -675,97 +714,7 @@ export function BookingStep3Crew({
               )}
             </div>
           </section>
-        </div>
-
-        <aside
-          className="hidden lg:flex w-full lg:w-72 flex-shrink-0 lg:sticky lg:top-6 flex-col gap-4"
-          aria-label="Booking summary"
-        >
-          <div className="rounded-2xl overflow-hidden shadow-md flex flex-col min-h-0">
-              <div className="bg-gradient-to-br from-violet-600 to-violet-800 px-5 py-5 flex-shrink-0">
-                <p className="text-violet-200 text-xs font-semibold tracking-widest uppercase mb-1">Your estimate</p>
-                <motion.p
-                  key={pricingTotalZar}
-                  initial={{ scale: 1.06, opacity: 0.7 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                  className="text-4xl font-extrabold text-white tracking-tight"
-                >
-                  {formatZarSimple(pricingTotalZar)}
-                </motion.p>
-                <p className="text-violet-300 text-sm mt-1 font-medium">
-                  <span>{serviceTitle}</span>
-                  <span> · </span>
-                  <span>{selectedName}</span>
-                </p>
-              </div>
-
-              <div className="flex-1 overflow-y-auto bg-white px-5 py-4 flex flex-col gap-3 min-h-0">
-                {summaryRows.map((row) => (
-                  <div key={row.id} className="flex justify-between items-center text-sm text-gray-600">
-                    <span>{row.label}</span>
-                    <motion.span
-                      key={`${row.id}-${row.value}`}
-                      initial={{ opacity: 0.5, y: -2 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="text-sm font-semibold text-gray-900 text-right max-w-[60%] truncate"
-                    >
-                      {row.value}
-                    </motion.span>
-                  </div>
-                ))}
-
-                <div className="border-t border-gray-100 pt-3 mt-1 flex justify-between items-center">
-                  <span className="text-sm font-bold text-gray-900">Total estimate</span>
-                  <motion.span
-                    key={pricingTotalZar}
-                    initial={{ scale: 1.05 }}
-                    animate={{ scale: 1 }}
-                    transition={{ duration: 0.3 }}
-                    className="text-base font-extrabold text-gray-900"
-                  >
-                    {formatZarSimple(pricingTotalZar)}
-                  </motion.span>
-                </div>
-              </div>
-
-              <div className="flex-shrink-0 px-5 pb-5 pt-3 border-t border-gray-100 bg-white">
-                <motion.button
-                  ref={ctaBtnRef}
-                  type="button"
-                  whileTap={{ scale: 0.97 }}
-                  animate={shaking ? { x: [0, -8, 8, -6, 6, -3, 3, 0] } : { x: 0 }}
-                  transition={shaking ? { duration: 0.5 } : {}}
-                  onClick={handleContinue}
-                  className={cn(
-                    'w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-200',
-                    isValid
-                      ? 'bg-violet-600 text-white shadow-md shadow-violet-200 hover:bg-violet-700 cursor-pointer'
-                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  )}
-                  aria-disabled={!isValid}
-                >
-                  <span>Continue to Step 4</span>
-                  <ArrowRight className="w-4 h-4" />
-                </motion.button>
-                {attempted && !isValid && (
-                  <p className="text-xs text-red-500 text-center mt-2">Please select a cleaner or team</p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1.5 px-1">
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />
-                No payment required to book
-              </div>
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />
-                Free cancellation up to 24 hrs before
-              </div>
-            </div>
-        </aside>
-      </div>
+      </BookingFlowLayout>
 
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-[0_-4px_32px_rgba(0,0,0,0.08)]">
         <AnimatePresence>

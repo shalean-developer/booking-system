@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/admin/shared/page-header';
 import { Button } from '@/components/ui/button';
 import { Calendar, ChevronLeft, ChevronRight, Repeat } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, startOfMonth, endOfMonth, getDay, isSameMonth, addMonths, subMonths } from 'date-fns';
+import { checkBookingSLA } from '@/lib/sla/checkBookingSLA';
 
 interface Booking {
   id: string;
@@ -18,6 +19,13 @@ interface Booking {
   cleaner_id?: string | null;
   cleaner_name?: string;
   recurring_schedule_id?: string | null;
+  accepted_at?: string | null;
+  on_my_way_at?: string | null;
+  started_at?: string | null;
+  cleaner_accepted_at?: string | null;
+  cleaner_on_my_way_at?: string | null;
+  cleaner_started_at?: string | null;
+  sla_severity?: string | null;
 }
 
 const statusColors: Record<
@@ -27,6 +35,7 @@ const statusColors: Record<
   pending:      { bg: 'bg-amber-200',   border: 'border-amber-400',   text: 'text-amber-950',   subText: 'text-amber-900',   label: 'Pending' },
   confirmed:    { bg: 'bg-sky-200',     border: 'border-sky-400',     text: 'text-sky-950',     subText: 'text-sky-900',     label: 'Confirmed' },
   accepted:     { bg: 'bg-blue-200',    border: 'border-blue-400',    text: 'text-blue-950',    subText: 'text-blue-900',    label: 'Accepted' },
+  on_my_way:    { bg: 'bg-violet-200', border: 'border-violet-400', text: 'text-violet-950', subText: 'text-violet-900', label: 'On the way' },
   'in-progress':{ bg: 'bg-indigo-200',  border: 'border-indigo-400',  text: 'text-indigo-950',  subText: 'text-indigo-900',  label: 'In Progress' },
   completed:    { bg: 'bg-emerald-200', border: 'border-emerald-400', text: 'text-emerald-950', subText: 'text-emerald-900', label: 'Completed' },
   cancelled:    { bg: 'bg-rose-200',    border: 'border-rose-400',    text: 'text-rose-950',    subText: 'text-rose-900',    label: 'Cancelled' },
@@ -53,6 +62,15 @@ function AdminSchedulePageInner() {
     if (!cleanerId) return bookings;
     return bookings.filter((b) => b.cleaner_id === cleanerId);
   }, [bookings, cleanerId]);
+
+  const slaIssuesByBookingId = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const b of bookingsForView) {
+      const issues = checkBookingSLA(b);
+      if (issues.length) m.set(b.id, issues);
+    }
+    return m;
+  }, [bookingsForView]);
 
   useEffect(() => {
     fetchBookings();
@@ -94,7 +112,14 @@ function AdminSchedulePageInner() {
       const data = await response.json();
 
       if (data.ok) {
-        setBookings(data.bookings || []);
+        const list = data.bookings || [];
+        for (const job of list) {
+          const issues = checkBookingSLA(job);
+          if (issues.length > 0) {
+            console.warn('[SLA]', job.id, issues);
+          }
+        }
+        setBookings(list);
       }
     } catch (error) {
       console.error('Error fetching bookings:', error);
@@ -241,11 +266,12 @@ function AdminSchedulePageInner() {
                     {dayBookings.map((booking) => {
                       const isRecurring = !!booking.recurring_schedule_id;
                       const colors = getBookingColors(booking.status);
+                      const slaIssues = slaIssuesByBookingId.get(booking.id);
                       return (
                         <div
                           key={booking.id}
                           className={`text-xs p-1 rounded border cursor-pointer hover:opacity-80 ${colors.bg} ${colors.border}`}
-                          title={`${booking.customer_name} - ${booking.service_type} at ${formatTime(booking.booking_time)}${isRecurring ? ' (Recurring)' : ''}`}
+                          title={`${booking.customer_name} - ${booking.service_type} at ${formatTime(booking.booking_time)}${isRecurring ? ' (Recurring)' : ''}${slaIssues?.length ? ` — ${slaIssues[0]}` : ''}`}
                         >
                           <div className={`font-medium flex items-center gap-1 ${colors.text}`}>
                             {formatTime(booking.booking_time)}
@@ -255,6 +281,14 @@ function AdminSchedulePageInner() {
                           <div className={`text-xs truncate ${colors.subText}`}>
                             {booking.service_type}
                           </div>
+                          {slaIssues && slaIssues.length > 0 && (
+                            <div className="text-red-600 text-[10px] leading-tight mt-0.5 font-medium">
+                              ⚠️ {slaIssues[0]}
+                            </div>
+                          )}
+                          {booking.sla_severity === 'critical' && (
+                            <div className="text-red-600 text-[9px] font-bold mt-0.5">🚨 Critical Issue</div>
+                          )}
                         </div>
                       );
                     })}
@@ -339,11 +373,12 @@ function AdminSchedulePageInner() {
                         {dayBookings.slice(0, 3).map((booking) => {
                           const isRecurring = !!booking.recurring_schedule_id;
                           const colors = getBookingColors(booking.status);
+                          const slaIssues = slaIssuesByBookingId.get(booking.id);
                           return (
                             <div
                               key={booking.id}
                               className={`text-[10px] p-0.5 rounded border cursor-pointer hover:opacity-80 ${colors.bg} ${colors.border}`}
-                              title={`${booking.customer_name} - ${booking.service_type} at ${formatTime(booking.booking_time)}${isRecurring ? ' (Recurring)' : ''}`}
+                              title={`${booking.customer_name} - ${booking.service_type} at ${formatTime(booking.booking_time)}${isRecurring ? ' (Recurring)' : ''}${slaIssues?.length ? ` — ${slaIssues[0]}` : ''}`}
                             >
                               <div className={`font-medium flex items-center gap-0.5 truncate ${colors.text}`}>
                                 <span className="truncate">{formatTime(booking.booking_time)}</span>
@@ -352,6 +387,9 @@ function AdminSchedulePageInner() {
                               <div className={`truncate text-[9px] ${colors.subText}`}>
                                 {booking.customer_name}
                               </div>
+                              {booking.sla_severity === 'critical' && (
+                                <div className="text-red-600 text-[8px] font-bold truncate">🚨 Critical</div>
+                              )}
                             </div>
                           );
                         })}

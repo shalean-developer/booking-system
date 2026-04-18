@@ -306,8 +306,8 @@ export function MyBookings() {
     }
   };
 
-  const currentBookings = bookings.filter(
-    (b) => ['pending', 'accepted', 'on_my_way', 'in-progress'].includes(b.status)
+  const currentBookings = bookings.filter((b) =>
+    ['pending', 'paid', 'assigned', 'accepted', 'on_my_way', 'in-progress'].includes(b.status),
   );
 
   const pastBookings = bookings.filter((b) => 

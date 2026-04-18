@@ -42,12 +42,14 @@ export interface BookingFormData {
   allowPayLater?: boolean;
 }
 
-const CACHE_DURATION = 60 * 1000; // 1 minute — closer to server `booking-form-data` revalidation after admin pricing saves
+/** In-memory dedupe only (no TTL) — extras/pricing must reflect admin toggles immediately after refetch. */
+const CACHE_DURATION = 0;
 let cachedData: BookingFormData | null = null;
 let cacheTimestamp = 0;
 let fetchingPromise: Promise<BookingFormData> | null = null;
 
 function isCacheValid(): boolean {
+  if (CACHE_DURATION <= 0) return false;
   return cachedData !== null && Date.now() - cacheTimestamp < CACHE_DURATION;
 }
 
@@ -85,7 +87,9 @@ export function useBookingFormData(initialData?: BookingFormData | null, forceRe
         setLoading(true);
         setError(null);
 
-        const response = await fetch('/api/booking/form-data');
+        const response = await fetch('/api/booking/form-data', {
+          cache: 'no-store',
+        });
         const result = await response.json();
 
         if (!result.ok) {
@@ -141,7 +145,7 @@ export function useBookingFormData(initialData?: BookingFormData | null, forceRe
       });
     } else {
       // Stale-while-revalidate: background fetch to refresh cache
-      fetch('/api/booking/form-data')
+      fetch('/api/booking/form-data', { cache: 'no-store' })
         .then((res) => res.json())
         .then((result) => {
           if (result.ok && result.services) {

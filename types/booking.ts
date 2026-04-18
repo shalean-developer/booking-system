@@ -167,6 +167,9 @@ export interface CleanerBooking {
   payment_reference: string;
   created_at: string;
   cleaner_id: string | null;
+  assigned_cleaner_id?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
   requires_team?: boolean;
   // Team booking metadata
   is_team_booking?: boolean;

@@ -29,6 +29,7 @@ type ExtraPricing = {
   id: string;
   item_name: string;
   price: number;
+  is_active?: boolean;
 };
 
 type PricingManageResponse = {
@@ -215,7 +216,7 @@ export function PricingPage() {
           name: extra.item_name,
           price: Number(extra.price) || 0,
           pricingType: 'fixed' as const,
-          active: true,
+          active: extra.is_active !== false,
           icon: '✨',
         }));
         const extraCleanerAliases = [

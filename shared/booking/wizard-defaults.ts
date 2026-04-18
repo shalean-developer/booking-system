@@ -9,6 +9,7 @@ export const WIZARD_DEFAULT_FORM: BookingFormData = {
   propertyType: 'apartment',
   officeSize: '',
   extras: [],
+  extrasQuantities: {},
   cleanerId: '',
   teamId: '',
   workingArea: '',

@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
           end_date
         )
       `)
-      .eq('cleaner_id', cleanerId)
+      .or(`cleaner_id.eq.${cleanerId},assigned_cleaner_id.eq.${cleanerId}`)
       .order('booking_date', { ascending: true })
       .order('booking_time', { ascending: true });
 

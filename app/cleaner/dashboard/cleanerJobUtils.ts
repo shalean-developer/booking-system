@@ -29,8 +29,10 @@ export function estimatePayRands(
 function dbToUiStatus(db: string): JobStatus {
   if (db === 'completed') return 'completed';
   if (db === 'in-progress') return 'in_progress';
+  if (db === 'on_my_way') return 'on_my_way';
+  if (db === 'assigned') return 'assigned';
+  if (db === 'accepted') return 'accepted';
   if (db === 'pending') return 'available';
-  if (db === 'accepted' || db === 'on_my_way') return 'accepted';
   return 'accepted';
 }
 
@@ -48,7 +50,8 @@ export function rawBookingToJob(
   const payRounded = Math.round(pay * 100) / 100;
   const payStr = `R${payRounded.toFixed(0)}`;
   const bookingDate = String(b.booking_date ?? '');
-  const bookingTime = String(b.booking_time ?? '09:00');
+  const startRaw = (b.start_time as string | undefined) || String(b.booking_time ?? '09:00');
+  const bookingTime = startRaw;
   const dbStatus = String(b.status ?? 'pending');
 
   let status: JobStatus;
@@ -57,8 +60,12 @@ export function rawBookingToJob(
     status = 'available';
     storedDbStatus = 'pending';
   } else {
-    status = dbToUiStatus(dbStatus);
     storedDbStatus = dbStatus;
+    if (dbStatus === 'pending') {
+      status = 'available';
+    } else {
+      status = dbToUiStatus(dbStatus);
+    }
   }
 
   const distRaw = b.distance;
@@ -70,6 +77,16 @@ export function rawBookingToJob(
   const notesRaw = b.notes;
   const notesStr =
     typeof notesRaw === 'string' ? notesRaw : notesRaw != null ? String(notesRaw) : '';
+
+  const phoneRaw = b.customer_phone;
+  const customerPhone =
+    typeof phoneRaw === 'string' && phoneRaw.trim() ? phoneRaw.trim() : undefined;
+  const mapsQuery = encodeURIComponent(address);
+
+  const pickIso = (a: unknown, b: unknown): string | undefined => {
+    const s = (typeof a === 'string' && a ? a : typeof b === 'string' && b ? b : '') || '';
+    return s || undefined;
+  };
 
   const job: Job = {
     id: String(b.id),
@@ -86,6 +103,12 @@ export function rawBookingToJob(
     notes: notesStr,
     status,
     dbStatus: storedDbStatus,
+    customerPhone,
+    mapsQuery,
+    acceptedAt: pickIso(b.cleaner_accepted_at, b.accepted_at),
+    onMyWayAt: pickIso(b.cleaner_on_my_way_at, b.on_my_way_at),
+    startedAt: pickIso(b.cleaner_started_at, b.started_at),
+    completedAt: pickIso(b.cleaner_completed_at, b.completed_at),
   };
 
   if (status === 'completed' && rating !== undefined && rating > 0) {
@@ -100,10 +123,24 @@ export function pickActiveRawBooking(
 ): Record<string, unknown> | null {
   const active = bookings.filter(b => {
     const s = String(b.status);
-    return s === 'accepted' || s === 'on_my_way' || s === 'in-progress';
+    return (
+      s === 'pending' ||
+      s === 'paid' ||
+      s === 'assigned' ||
+      s === 'accepted' ||
+      s === 'on_my_way' ||
+      s === 'in-progress'
+    );
   });
   if (active.length === 0) return null;
-  const rank: Record<string, number> = { 'in-progress': 0, on_my_way: 1, accepted: 2 };
+  const rank: Record<string, number> = {
+    'in-progress': 0,
+    on_my_way: 1,
+    assigned: 2,
+    accepted: 3,
+    pending: 4,
+    paid: 5,
+  };
   active.sort((a, b) => (rank[String(a.status)] ?? 9) - (rank[String(b.status)] ?? 9));
   return active[0];
 }

@@ -16,6 +16,7 @@ import type { BookingFormData as ApiFormData } from '@/lib/useBookingFormData';
 import type { BookingFormData as WizardBookingState } from '@/components/booking-system-types';
 import {
   buildCarpetDetailsForPricing,
+  buildExtrasQuantitiesByIdFromWizard,
   formServiceToApi,
   getEffectiveRoomCounts,
 } from '@/lib/booking-pricing-input';
@@ -83,10 +84,10 @@ export function computeLinePricingFromWizard(
 ): BookingPriceResult | null {
   if (!formData?.pricing) return null;
   const eff = getEffectiveRoomCounts(wizard);
-  const extrasQuantitiesById: Record<string, number> = {};
-  wizard.extras.forEach((id) => {
-    extrasQuantitiesById[id] = (extrasQuantitiesById[id] || 0) + 1;
-  });
+  const extrasQuantitiesById = buildExtrasQuantitiesByIdFromWizard(
+    wizard.extras,
+    wizard.extrasQuantities
+  );
   const extrasQuantities = aggregateExtraQuantitiesByName(
     wizard.extras,
     extrasQuantitiesById,

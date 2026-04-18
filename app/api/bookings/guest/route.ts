@@ -10,6 +10,9 @@ import { computeCheckoutPricing } from '@/lib/booking-checkout-pricing';
 import { computeServerPreSurgeTotalZar } from '@/lib/booking-server-pricing';
 import { createBookingLookupToken } from '@/lib/booking-lookup-token';
 import { generateManageToken } from '@/lib/manage-booking-token';
+import { createServiceClient } from '@/lib/supabase-server';
+import { resolveBookingCleanerAndSchedule } from '@/lib/dispatch/resolve-booking-cleaner';
+import { sendCleanerNotification } from '@/lib/notifications/sendCleanerNotification';
 
 /**
  * Guest booking API — pay-later path (no Paystack). Disabled in production unless
@@ -178,37 +181,55 @@ export async function POST(req: Request) {
       }
     }
 
-    // Save booking to database
-    const requiresTeam = body.service === 'Deep' || body.service === 'Move In/Out';
-    
+    const numberOfCleaners = Math.max(1, Math.round(body.numberOfCleaners ?? 1));
+    const requiresTeam =
+      body.service === 'Deep' ||
+      body.service === 'Move In/Out' ||
+      ((body.service === 'Standard' || body.service === 'Airbnb') && numberOfCleaners > 1);
+
     // Extract tip amount (tips go 100% to cleaner, separate from commission)
     const tipAmount = body.tipAmount || 0;
     const tipAmountInCents = Math.round(tipAmount * 100);
     const serviceTotal = adjustedTotalAmount - tipAmount;
-    
+
+    const dispatchSupabase = createServiceClient();
+    const dispatch = await resolveBookingCleanerAndSchedule(dispatchSupabase, {
+      requiresTeam,
+      date: body.date,
+      time: body.time,
+      bedrooms: body.bedrooms,
+      bathrooms: body.bathrooms,
+      extras: body.extras || [],
+      extrasQuantities: body.extrasQuantities || {},
+      addressSuburb: body.address.suburb,
+      addressCity: body.address.city,
+      preferredCleanerId: body.cleaner_id,
+    });
+
+    if (!dispatch.ok) {
+      return NextResponse.json({ ok: false, error: dispatch.error }, { status: dispatch.status });
+    }
+
+    const { cleanerId: resolvedCleanerId, durationMinutes, expectedEndTime } = dispatch;
+
     let cleanerEarnings = 0;
-    let cleanerIdForInsert = null;
-    
-    if (!requiresTeam && body.cleaner_id && body.cleaner_id !== 'manual') {
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (uuidRegex.test(body.cleaner_id)) {
-        cleanerIdForInsert = body.cleaner_id;
-        
-        const { data: cleanerData } = await supabase
-          .from('cleaners')
-          .select('hire_date')
-          .eq('id', body.cleaner_id)
-          .single();
-        
-        const cleanerHireDate = cleanerData?.hire_date || null;
-        cleanerEarnings = calculateCleanerEarnings(
-          adjustedTotalAmount ?? null,
-          body.serviceFee ?? null,
-          cleanerHireDate,
-          tipAmount,
-          body.service ?? null
-        ) * 100;
-      }
+    const cleanerIdForInsert: string | null = requiresTeam ? null : resolvedCleanerId;
+
+    if (!requiresTeam && cleanerIdForInsert) {
+      const { data: cleanerData } = await supabase
+        .from('cleaners')
+        .select('hire_date')
+        .eq('id', cleanerIdForInsert)
+        .single();
+
+      const cleanerHireDate = cleanerData?.hire_date || null;
+      cleanerEarnings = calculateCleanerEarnings(
+        adjustedTotalAmount ?? null,
+        body.serviceFee ?? null,
+        cleanerHireDate,
+        tipAmount,
+        body.service ?? null
+      ) * 100;
     }
 
     const frequencyForDb = body.frequency === 'one-time' ? null : body.frequency;
@@ -248,7 +269,8 @@ export async function POST(req: Request) {
         cleaner_id: requiresTeam ? null : cleanerIdForInsert,
         booking_date: body.date,
         booking_time: body.time,
-        expected_end_time: (body as any).expectedEndTime || null,
+        expected_end_time: expectedEndTime,
+        duration_minutes: durationMinutes,
         service_type: body.service,
         customer_name: `${body.firstName} ${body.lastName}`,
         customer_email: body.email,
@@ -284,6 +306,25 @@ export async function POST(req: Request) {
         { ok: false, error: `Failed to save booking: ${bookingError.message}` },
         { status: 500 }
       );
+    }
+
+    if (cleanerIdForInsert && bookingData) {
+      try {
+        const { data: cleanerRow } = await supabase
+          .from('cleaners')
+          .select('id, name, phone')
+          .eq('id', cleanerIdForInsert)
+          .maybeSingle();
+        if (cleanerRow) {
+          await sendCleanerNotification({
+            type: 'assigned',
+            cleaner: cleanerRow,
+            booking: bookingData,
+          });
+        }
+      } catch (e) {
+        console.warn('[guest booking] cleaner assigned notification failed', e);
+      }
     }
 
     // Log tip activity if tip was given and cleaner is assigned

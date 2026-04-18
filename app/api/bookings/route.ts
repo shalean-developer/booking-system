@@ -4,7 +4,8 @@ import { resolveAdminNotificationEmail } from '@/lib/admin-email';
 import { BookingState } from '@/types/booking';
 import { supabase } from '@/lib/supabase';
 import { validateBookingEnv } from '@/lib/env-validation';
-import { getServerAuthUser } from '@/lib/supabase-server';
+import { getServerAuthUser, createServiceClient } from '@/lib/supabase-server';
+import { resolveBookingCleanerAndSchedule } from '@/lib/dispatch/resolve-booking-cleaner';
 import { calculateCleanerEarnings } from '@/lib/cleaner-earnings';
 import { generateUniqueBookingId } from '@/lib/booking-id';
 import { notifyCleanerAssignment, notifyCustomerAssignment } from '@/lib/notifications/events';
@@ -368,45 +369,50 @@ export async function POST(req: Request) {
         body.service === 'Move In/Out' ||
         ((body.service === 'Standard' || body.service === 'Airbnb') && numberOfCleaners > 1);
       
-      // Calculate cleaner earnings based on experience (only for non-team bookings)
+      const dispatchSupabase = createServiceClient();
+      const dispatch = await resolveBookingCleanerAndSchedule(dispatchSupabase, {
+        requiresTeam,
+        date: body.date!,
+        time: body.time!,
+        bedrooms: body.bedrooms,
+        bathrooms: body.bathrooms,
+        extras: body.extras || [],
+        extrasQuantities: body.extrasQuantities || {},
+        addressSuburb: body.address.suburb,
+        addressCity: body.address.city,
+        preferredCleanerId: body.cleaner_id,
+      });
+
+      if (!dispatch.ok) {
+        return NextResponse.json({ ok: false, error: dispatch.error }, { status: dispatch.status });
+      }
+
+      const { cleanerId: resolvedCleanerId, durationMinutes, expectedEndTime } = dispatch;
+
       let cleanerHireDate = null;
       let cleanerEarnings = 0;
-      
+
       if (requiresTeam) {
-        // For team bookings, earnings will be calculated when team is assigned
         console.log('📋 Team-based booking detected - earnings will be calculated during team assignment');
         cleanerEarnings = 0;
-      } else if (body.cleaner_id && body.cleaner_id !== 'manual') {
+      } else if (resolvedCleanerId) {
         const { data: cleanerData } = await supabase
           .from('cleaners')
           .select('hire_date')
-          .eq('id', body.cleaner_id)
+          .eq('id', resolvedCleanerId)
           .single();
-        
+
         cleanerHireDate = cleanerData?.hire_date || null;
-        // Calculate earnings: commission on service + 100% of tip
         cleanerEarnings = calculateCleanerEarnings(
-          adjustedTotalAmount ?? null, // Total includes tip (after surge)
+          adjustedTotalAmount ?? null,
           body.serviceFee ?? null,
           cleanerHireDate,
-          tipAmount, // Pass tip amount to exclude from commission calculation
-          body.service ?? null // Pass service type for minimum commission check
-        ) * 100; // Convert to cents
+          tipAmount,
+          body.service ?? null
+        ) * 100;
       }
 
-      // Prepare cleaner_id with proper UUID handling
-      let cleanerIdForInsert = null;
-      if (body.cleaner_id && body.cleaner_id !== 'manual') {
-        // Validate UUID format
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        if (uuidRegex.test(body.cleaner_id)) {
-          cleanerIdForInsert = body.cleaner_id;
-        } else {
-          console.error('❌ Invalid UUID format for cleaner_id:', body.cleaner_id);
-          throw new Error('Invalid cleaner ID format');
-        }
-      }
-      // For 'manual' assignments, cleanerIdForInsert remains null (which is correct)
+      const cleanerIdForInsert = requiresTeam ? null : resolvedCleanerId;
 
       // Normalize frequency: convert "one-time" to null for database constraint
       const frequencyForDb = body.frequency === 'one-time' ? null : body.frequency;
@@ -426,7 +432,8 @@ export async function POST(req: Request) {
           cleaner_id: requiresTeam ? null : cleanerIdForInsert, // Use NULL for team bookings (teams tracked separately)
           booking_date: body.date || null,
           booking_time: body.time,
-          expected_end_time: (body as any).expectedEndTime || null,
+          expected_end_time: expectedEndTime,
+          duration_minutes: durationMinutes,
           service_type: body.service,
           customer_name: `${body.firstName} ${body.lastName}`,
           customer_email: body.email,

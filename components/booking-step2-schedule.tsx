@@ -19,10 +19,32 @@ import {
   Zap,
   MessageSquare,
   Phone,
+  X,
 } from 'lucide-react';
 import type { BookingFormData } from '@/components/booking-system-types';
 import { BookingFlowStepIndicator } from '@/components/booking-flow-step-indicator';
-import { SUPPORT_PHONE_DISPLAY, SUPPORT_PHONE_HREF, SUPPORT_WHATSAPP_URL } from '@/lib/contact';
+import { cn } from '@/lib/utils';
+import { BookingFlowLayout } from '@/components/booking/booking-flow-layout';
+import { BookingSummary } from '@/components/booking/booking-summary';
+import { QuantityAddonModal } from '@/components/QuantityAddonModal';
+import {
+  BOOKING_DEFAULT_CITY,
+  SUPPORT_PHONE_DISPLAY,
+  SUPPORT_PHONE_HREF,
+  SUPPORT_WHATSAPP_URL,
+} from '@/lib/contact';
+import { isQuantityAddonTile } from '@/lib/quantity-addons';
+import {
+  BOOKING_TIME_SLOT_DEFS,
+  MAX_BOOKINGS_PER_TIME_SLOT,
+} from '@/lib/booking-time-slots';
+import { useBookingSlotOccupancy } from '@/lib/use-booking-slot-occupancy';
+import {
+  getAvailabilityStyle,
+  getAvailabilityUrgencyLabel,
+} from '@/lib/booking-slot-availability-styles';
+import StickyBookingBar from '@/components/StickyBookingBar';
+import { useBookingAbVariant } from '@/hooks/use-booking-ab-variant';
 
 type Extra = {
   id: string;
@@ -31,11 +53,18 @@ type Extra = {
   sublabel: string;
   price: number;
 };
-type TimeSlot = {
+type TimeSlotWithAvailability = {
   id: string;
   label: string;
+  booked: number;
+  capacity: number;
   available: boolean;
+  remaining: number;
 };
+
+function labelForBookingSlotId(id: string): string {
+  return BOOKING_TIME_SLOT_DEFS.find((d) => d.id === id)?.label ?? id;
+}
 
 /** Maps UI extra ids to `BookingFormData.extras` ids (deep / move services). */
 const EXTRA_UI_ID_TO_BOOKING: Record<string, string> = {
@@ -55,57 +84,44 @@ const EXTRAS: Extra[] = [
     id: 'carpet',
     icon: <Layers size={26} />,
     label: 'Carpet',
-    sublabel: 'Cleaning',
+    sublabel: 'Add-on',
     price: 150,
   },
   {
     id: 'ceiling',
     icon: <PenLine size={26} />,
     label: 'Ceiling',
-    sublabel: 'Cleaning',
+    sublabel: 'Add-on',
     price: 120,
   },
   {
     id: 'garage',
     icon: <Warehouse size={26} />,
     label: 'Garage',
-    sublabel: 'Cleaning',
+    sublabel: 'Add-on',
     price: 200,
   },
   {
     id: 'balcony',
     icon: <Trees size={26} />,
     label: 'Balcony',
-    sublabel: 'Cleaning',
+    sublabel: 'Add-on',
     price: 100,
   },
   {
     id: 'couch',
     icon: <Sofa size={26} />,
     label: 'Couch',
-    sublabel: 'Cleaning',
+    sublabel: 'Add-on',
     price: 180,
   },
   {
     id: 'windows',
     icon: <AppWindow size={26} />,
     label: 'Windows',
-    sublabel: 'Cleaning',
+    sublabel: 'Add-on',
     price: 130,
   },
-];
-
-const TIME_SLOTS: TimeSlot[] = [
-  { id: '07:00', label: '7:00 AM', available: true },
-  { id: '08:00', label: '8:00 AM', available: true },
-  { id: '09:00', label: '9:00 AM', available: true },
-  { id: '10:00', label: '10:00 AM', available: false },
-  { id: '11:00', label: '11:00 AM', available: true },
-  { id: '12:00', label: '12:00 PM', available: true },
-  { id: '13:00', label: '1:00 PM', available: false },
-  { id: '14:00', label: '2:00 PM', available: true },
-  { id: '15:00', label: '3:00 PM', available: true },
-  { id: '16:00', label: '4:00 PM', available: false },
 ];
 
 const DAYS_OF_WEEK = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
@@ -191,7 +207,7 @@ export interface BookingStep2ScheduleProps {
     total: number;
   };
   serviceTitle: string;
-  /** Deep / Move / Standard / Airbnb: add-on tiles from form-data API (Deep/Move falls back to static EXTRAS when empty) */
+  /** Deep / Move / Standard / Airbnb: add-on tiles from form-data API. Pass `[]` when catalog is empty — do not omit (omitting falls back to legacy static tiles for Deep/Move). */
   addonTilesFromPricing?: { id: string; label: string; price: number; icon: React.ReactNode }[];
 }
 
@@ -213,15 +229,20 @@ export function BookingStep2Schedule({
   const [selectedDate, setSelectedDate] = useState<Date | null>(() => parseDateStr(data.date));
   const [selectedTime, setSelectedTime] = useState<string | null>(() => (data.time ? data.time : null));
 
+  const [quantityModal, setQuantityModal] = useState<{
+    uiId: string;
+    label: string;
+    price: number;
+  } | null>(null);
+
   const addonTiles = useMemo(() => {
-    if (addonTilesFromPricing && addonTilesFromPricing.length > 0) {
+    // Always use API-driven tiles from `/api/booking/form-data` only — never fall back to legacy static
+    // EXTRAS (would show Balcony etc. after admins disable them in pricing_config).
+    if (addonTilesFromPricing !== undefined) {
       return addonTilesFromPricing.map((t) => ({
         ...t,
         sublabel: 'Add-on' as const,
       }));
-    }
-    if (data.service === 'deep' || data.service === 'move') {
-      return EXTRAS;
     }
     return [] as typeof EXTRAS;
   }, [addonTilesFromPricing, data.service]);
@@ -248,6 +269,83 @@ export function BookingStep2Schedule({
   const addonsLine = pricing.bedroomAdd + pricing.bathroomAdd + pricing.extraRoomAdd;
   const totalEstimate = pricing.total;
   const canContinue = selectedDate !== null && selectedTime !== null;
+
+  const selectedDateStr = selectedDate ? toDateStr(selectedDate) : null;
+
+  const slotDispatchContext = useMemo(
+    () => ({
+      suburb: data.workingArea?.trim() || '',
+      city: BOOKING_DEFAULT_CITY,
+      bedrooms: data.bedrooms,
+      bathrooms: data.bathrooms,
+      extras: data.extras,
+      extrasQuantities: data.extrasQuantities,
+    }),
+    [data.workingArea, data.bedrooms, data.bathrooms, data.extras, data.extrasQuantities]
+  );
+
+  const slotOcc = useBookingSlotOccupancy(selectedDateStr, slotDispatchContext);
+  const { variant: abVariant, track: trackAb } = useBookingAbVariant();
+  const abLabelVariant = abVariant ?? 'A';
+
+  const timeSlots = useMemo((): TimeSlotWithAvailability[] => {
+    return BOOKING_TIME_SLOT_DEFS.map((def) => {
+      if (slotOcc.status !== 'success') {
+        return {
+          ...def,
+          booked: 0,
+          capacity: 0,
+          available: false,
+          remaining: 0,
+        };
+      }
+      const booked = slotOcc.counts[def.id] ?? 0;
+      const remaining = slotOcc.remaining[def.id] ?? 0;
+      const cap =
+        slotOcc.eligibleCleaners != null && slotOcc.eligibleCleaners > 0
+          ? slotOcc.eligibleCleaners
+          : MAX_BOOKINGS_PER_TIME_SLOT;
+      return {
+        ...def,
+        booked,
+        capacity: cap,
+        available: remaining > 0,
+        remaining,
+      };
+    });
+  }, [slotOcc.status, slotOcc.counts, slotOcc.remaining, slotOcc.eligibleCleaners]);
+
+  const firstAvailableSlotId = useMemo(() => {
+    if (slotOcc.status !== 'success') return null;
+    for (const def of BOOKING_TIME_SLOT_DEFS) {
+      if ((slotOcc.remaining[def.id] ?? 0) > 0) return def.id;
+    }
+    return null;
+  }, [slotOcc.status, slotOcc.remaining]);
+
+  useEffect(() => {
+    if (
+      slotOcc.status !== 'success' ||
+      selectedTime != null ||
+      !firstAvailableSlotId
+    ) {
+      return;
+    }
+    setSelectedTime(firstAvailableSlotId);
+  }, [slotOcc.status, selectedTime, firstAvailableSlotId]);
+
+  useEffect(() => {
+    if (selectedTime) trackAb('slot_selected');
+  }, [selectedTime, trackAb]);
+
+  useEffect(() => {
+    if (slotOcc.status !== 'success' || !selectedTime) return;
+    const rem = slotOcc.remaining[selectedTime] ?? 0;
+    if (rem <= 0) {
+      setSelectedTime(null);
+      setData((prev) => ({ ...prev, time: '' }));
+    }
+  }, [slotOcc.status, slotOcc.remaining, selectedTime, setData]);
 
   const canGoDatePrev = weekStartOffset > 0;
   const canGoDateNext = weekStartOffset + 13 <= MAX_BOOKING_DAYS_FROM_TODAY;
@@ -294,14 +392,19 @@ export function BookingStep2Schedule({
       setData((prev) => {
         const has = prev.extras.includes(id);
         const nextExtras = has ? prev.extras.filter((e) => e !== id) : [...prev.extras, id];
+        const nextEq = { ...prev.extrasQuantities };
+        if (has) {
+          delete nextEq[id];
+        }
         if (id === 'equipment') {
           return {
             ...prev,
             extras: nextExtras,
+            extrasQuantities: nextEq,
             scheduleEquipmentPref: has ? 'own' : 'bring',
           };
         }
-        return { ...prev, extras: nextExtras };
+        return { ...prev, extras: nextExtras, extrasQuantities: nextEq };
       });
       return;
     }
@@ -310,11 +413,55 @@ export function BookingStep2Schedule({
       setData((prev) => {
         const has = prev.extras.includes(storageKey);
         if (has) {
-          return { ...prev, extras: prev.extras.filter((e) => e !== storageKey) };
+          const nextEq = { ...prev.extrasQuantities };
+          delete nextEq[storageKey];
+          return { ...prev, extras: prev.extras.filter((e) => e !== storageKey), extrasQuantities: nextEq };
         }
         return { ...prev, extras: [...prev.extras, storageKey] };
       });
     }
+  };
+
+  const removeQuantityAddonByUiId = (uiId: string) => {
+    const storageKey = EXTRA_UI_ID_TO_BOOKING[uiId] ?? uiId;
+    setData((prev) => {
+      const without = prev.extras.filter((e) => e !== storageKey);
+      const nextEq = { ...prev.extrasQuantities };
+      delete nextEq[storageKey];
+      return { ...prev, extras: without, extrasQuantities: nextEq };
+    });
+  };
+
+  const confirmQuantityAddon = (qty: number) => {
+    if (!quantityModal) return;
+    const storageKey = EXTRA_UI_ID_TO_BOOKING[quantityModal.uiId] ?? quantityModal.uiId;
+    setData((prev) => {
+      const without = prev.extras.filter((e) => e !== storageKey);
+      const nextEq = { ...prev.extrasQuantities };
+      delete nextEq[storageKey];
+      if (qty <= 0) {
+        return { ...prev, extras: without, extrasQuantities: nextEq };
+      }
+      return {
+        ...prev,
+        extras: [...without, storageKey],
+        extrasQuantities: { ...nextEq, [storageKey]: qty },
+      };
+    });
+    setQuantityModal(null);
+  };
+
+  const handleAddonTileClick = (extra: { id: string; label: string; price: number }) => {
+    const qtyServices =
+      data.service === 'deep' ||
+      data.service === 'move' ||
+      data.service === 'standard' ||
+      data.service === 'airbnb';
+    if (qtyServices && isQuantityAddonTile(extra.id)) {
+      setQuantityModal({ uiId: extra.id, label: extra.label, price: extra.price });
+      return;
+    }
+    toggleExtra(extra.id);
   };
 
   const handleDateSelect = (date: Date) => {
@@ -335,6 +482,7 @@ export function BookingStep2Schedule({
 
   const handleContinue = () => {
     if (!canContinue || !selectedDate || !selectedTime) return;
+    trackAb('continue_step2');
     setData((prev) => ({
       ...prev,
       date: toDateStr(selectedDate),
@@ -343,14 +491,9 @@ export function BookingStep2Schedule({
     onContinue();
   };
 
-  const mobileDateSummary = selectedDate
-    ? selectedDate.toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' })
-    : 'Pick a date';
-  const mobileTimeSummary = selectedTime ? TIME_SLOTS.find((t) => t.id === selectedTime)?.label ?? '' : '';
-
   return (
     <div className="min-h-screen bg-[#f0f2f5] font-sans">
-      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
+      <div className="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
@@ -371,12 +514,166 @@ export function BookingStep2Schedule({
         <BookingFlowStepIndicator activeStep={2} />
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-8 flex flex-col lg:flex-row gap-6 items-start pb-40 lg:pb-8 w-full">
-        <div className="flex-1 min-w-0 flex flex-col gap-6 w-full">
+      <BookingFlowLayout
+        className={cn(selectedTime ? 'pb-24 lg:pb-8' : 'pb-8 lg:pb-8')}
+        sidebar={
+          <BookingSummary
+            mode="preview"
+            step={2}
+            serviceTitle={serviceTitle}
+            propertySummary={`${data.bedrooms} bed · ${data.bathrooms} bath${data.workingArea ? ` · ${data.workingArea}` : ''}`}
+            extrasSummary={
+              selectedAddonUiIds.length === 0
+                ? undefined
+                : selectedAddonUiIds
+                    .map((id) => addonTiles.find((e) => e.id === id)?.label)
+                    .filter(Boolean)
+                    .join(', ')
+            }
+            totalZar={totalEstimate}
+            details={
+              <>
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>{serviceTitle}</span>
+                  <span className="font-semibold text-gray-800">R {pricing.basePrice.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>Home size & add-ons</span>
+                  <span className="font-semibold text-gray-800">R {addonsLine.toLocaleString()}</span>
+                </div>
+
+                <AnimatePresence>
+                  {selectedAddonUiIds.map((id) => {
+                    const extra = addonTiles.find((e) => e.id === id);
+                    if (!extra) return null;
+                    const deepMove = data.service === 'deep' || data.service === 'move';
+                    const storageKey = EXTRA_UI_ID_TO_BOOKING[id] ?? id;
+                    const isQty =
+                      (deepMove ||
+                        data.service === 'standard' ||
+                        data.service === 'airbnb') &&
+                      isQuantityAddonTile(id);
+                    const q = isQty ? (data.extrasQuantities[storageKey] ?? 1) : 1;
+                    const lineZar = isQty ? extra.price * q : extra.price;
+                    return (
+                      <motion.div
+                        key={id}
+                        initial={{ opacity: 0, height: 0, y: -4 }}
+                        animate={{ opacity: 1, height: 'auto', y: 0 }}
+                        exit={{ opacity: 0, height: 0, y: -4 }}
+                        transition={{ duration: 0.2 }}
+                        className="flex justify-between text-sm text-gray-600 overflow-hidden"
+                      >
+                        <span className="flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-violet-400 inline-block" />
+                          {extra.label}
+                          {deepMove ? ' Cleaning' : ''}
+                          {isQty && q > 1 ? <span className="text-violet-500">×{q}</span> : null}
+                        </span>
+                        <span className="font-semibold text-violet-600">+R{lineZar.toLocaleString('en-ZA')}</span>
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
+
+                <div className="border-t border-gray-100 pt-3 mt-1">
+                  <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Need help?</p>
+                  <div className="flex flex-col gap-2">
+                    <a
+                      href={SUPPORT_WHATSAPP_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 rounded-xl border border-gray-200 bg-emerald-50/80 px-3 py-2.5 text-sm font-semibold text-emerald-800 hover:bg-emerald-100/80 transition-colors"
+                    >
+                      <MessageSquare size={16} className="text-emerald-600 flex-shrink-0" aria-hidden />
+                      WhatsApp us
+                    </a>
+                    <a
+                      href={SUPPORT_PHONE_HREF}
+                      className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 transition-colors"
+                    >
+                      <Phone size={16} className="text-violet-600 flex-shrink-0" aria-hidden />
+                      Call {SUPPORT_PHONE_DISPLAY}
+                    </a>
+                  </div>
+                </div>
+              </>
+            }
+            footer={
+              <>
+                <motion.button
+                  type="button"
+                  onClick={handleContinue}
+                  animate={canContinue ? { opacity: 1 } : { opacity: 0.45 }}
+                  whileTap={canContinue ? { scale: 0.97 } : {}}
+                  disabled={!canContinue}
+                  className={[
+                    'w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all duration-200 mt-1',
+                    canContinue
+                      ? 'bg-violet-600 text-white shadow-md shadow-violet-200 hover:bg-violet-700 cursor-pointer'
+                      : 'bg-gray-100 text-gray-400 cursor-not-allowed',
+                  ].join(' ')}
+                >
+                  {canContinue ? (
+                    <>
+                      Continue to Step 3 <ArrowRight size={16} />
+                    </>
+                  ) : (
+                    <>Pick a date & time to continue</>
+                  )}
+                </motion.button>
+
+                <div className="flex flex-col gap-1.5 pt-1">
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />
+                    No payment required to book
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />
+                    Free cancellation up to 24 hrs before
+                  </div>
+                </div>
+              </>
+            }
+            after={
+              <AnimatePresence>
+                {(selectedDate || selectedTime) && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 8 }}
+                    className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex flex-col gap-2 transition-all duration-300 ease-in-out"
+                  >
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Your Selection</p>
+                    {selectedDate && (
+                      <div className="flex items-center gap-2 text-sm text-gray-700">
+                        <Calendar size={14} className="text-violet-500" />
+                        <span>{formatSelectedDate(selectedDate)}</span>
+                      </div>
+                    )}
+                    {selectedTime && (
+                      <div className="flex items-center gap-2 text-sm text-gray-700">
+                        <Clock size={14} className="text-violet-500" />
+                        <span>{labelForBookingSlotId(selectedTime)}</span>
+                      </div>
+                    )}
+                    {!selectedTime && selectedDate && (
+                      <p className="text-xs text-amber-500 font-medium flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+                        Still need a start time
+                      </p>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            }
+          />
+        }
+      >
           <p className="text-xs font-bold tracking-widest text-violet-600 uppercase">Step 2 of 4</p>
 
           {showEnhanceSection && (
-            <div className="relative z-10 bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
+            <div className="relative z-10 bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-4">
               <div className="flex items-start gap-3 mb-5">
                 <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center flex-shrink-0">
                   <Zap size={18} className="text-white" />
@@ -392,15 +689,39 @@ export function BookingStep2Schedule({
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 pointer-events-auto">
                 {addonTiles.map((extra) => {
                   const isSelected = selectedAddonUiIds.includes(extra.id);
+                  const storageKey = EXTRA_UI_ID_TO_BOOKING[extra.id] ?? extra.id;
+                  const isQtyTile =
+                    (data.service === 'deep' ||
+                      data.service === 'move' ||
+                      data.service === 'standard' ||
+                      data.service === 'airbnb') &&
+                    isQuantityAddonTile(extra.id);
+                  const unitQty =
+                    isQtyTile && isSelected ? (data.extrasQuantities[storageKey] ?? 1) : 1;
+                  const lineTotalZar = isQtyTile ? extra.price * unitQty : extra.price;
                   return (
+                    <div key={extra.id} className="relative">
+                      {isSelected && isQtyTile && (
+                        <button
+                          type="button"
+                          className="absolute -top-1 -right-1 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+                          aria-label={`Remove ${extra.label} from booking`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            removeQuantityAddonByUiId(extra.id);
+                          }}
+                        >
+                          <X size={14} strokeWidth={2.5} aria-hidden />
+                        </button>
+                      )}
                     <motion.button
-                      key={extra.id}
                       type="button"
-                      onClick={() => toggleExtra(extra.id)}
+                      onClick={() => handleAddonTileClick(extra)}
                       onPointerDown={(e) => e.stopPropagation()}
                       whileTap={{ scale: 0.94 }}
                       className={[
-                        'flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-2 cursor-pointer transition-all duration-200',
+                        'w-full flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-2 cursor-pointer transition-all duration-200',
                         isSelected
                           ? 'border-violet-500 bg-violet-50 shadow-sm shadow-violet-100'
                           : 'border-gray-200 bg-white hover:border-violet-300 hover:bg-violet-50/40',
@@ -424,19 +745,23 @@ export function BookingStep2Schedule({
                         </p>
                         <p className="text-[10px] text-gray-400">{extra.sublabel}</p>
                       </div>
+                      {isSelected && isQtyTile && (
+                        <span className="text-xs text-violet-600 font-semibold">{unitQty} selected</span>
+                      )}
                       {isSelected && (
                         <span className="text-[10px] font-bold text-violet-600 bg-violet-100 px-2 py-0.5 rounded-full">
-                          +R{extra.price}
+                          +R{lineTotalZar.toLocaleString('en-ZA')}
                         </span>
                       )}
                     </motion.button>
+                    </div>
                   );
                 })}
               </div>
             </div>
           )}
 
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-4">
             <div className="flex items-start gap-3 mb-5">
               <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center flex-shrink-0">
                 <Calendar size={18} className="text-white" />
@@ -522,7 +847,7 @@ export function BookingStep2Schedule({
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-4">
             <div className="flex items-center gap-2 mb-4">
               <Clock size={14} className="text-gray-400" />
               <span className="text-sm font-semibold text-gray-600">Start Time</span>
@@ -530,7 +855,7 @@ export function BookingStep2Schedule({
                 <span className="ml-auto text-xs text-gray-400">
                   {selectedTime ? (
                     <span className="text-violet-600 font-semibold">
-                      {TIME_SLOTS.find((t) => t.id === selectedTime)?.label}
+                      {labelForBookingSlotId(selectedTime)}
                     </span>
                   ) : (
                     'Choose a time below'
@@ -558,242 +883,112 @@ export function BookingStep2Schedule({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.25 }}
-                  className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2"
+                  className="space-y-3"
                 >
-                  {TIME_SLOTS.map((slot) => (
-                    <motion.button
-                      key={slot.id}
-                      type="button"
-                      onClick={() => slot.available && setSelectedTime(slot.id)}
-                      disabled={!slot.available}
-                      whileTap={slot.available ? { scale: 0.93 } : {}}
-                      className={[
-                        'py-2.5 px-2 rounded-xl text-xs font-semibold border-2 transition-all duration-150',
-                        !slot.available
-                          ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed line-through'
-                          : selectedTime === slot.id
-                            ? 'border-violet-600 bg-violet-600 text-white shadow-sm shadow-violet-200'
-                            : 'border-gray-200 bg-white text-gray-700 hover:border-violet-400 hover:text-violet-700 hover:bg-violet-50',
-                      ].join(' ')}
-                    >
-                      {slot.label}
-                      {!slot.available && (
-                        <span className="block text-[9px] font-normal mt-0.5 no-underline text-gray-300">Booked</span>
-                      )}
-                    </motion.button>
-                  ))}
+                  {slotOcc.status === 'error' && slotOcc.errorMessage && (
+                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                      {slotOcc.errorMessage}
+                    </p>
+                  )}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                    {timeSlots.map((slot) => {
+                      const showFullStyle =
+                        slotOcc.status === 'success' && !slot.available;
+                      const occupancyReady = slotOcc.status === 'success';
+                      const subline =
+                        slotOcc.status === 'loading'
+                          ? 'Loading…'
+                          : slotOcc.status === 'error'
+                            ? '—'
+                            : getAvailabilityUrgencyLabel(slot.remaining, abLabelVariant);
+                      const highlightLast =
+                        occupancyReady && slot.available && slot.remaining === 1;
+                      const isRecommended =
+                        occupancyReady &&
+                        slot.available &&
+                        firstAvailableSlotId === slot.id;
+                      return (
+                        <motion.button
+                          key={slot.id}
+                          type="button"
+                          onClick={() => slot.available && setSelectedTime(slot.id)}
+                          disabled={!slot.available}
+                          whileTap={slot.available ? { scale: 0.93 } : {}}
+                          className={[
+                            'py-2.5 px-2 rounded-xl text-xs font-semibold border-2',
+                            slot.available && occupancyReady
+                              ? 'hover:scale-105 transition-all duration-200 ease-out'
+                              : 'transition-all duration-200 ease-out',
+                            highlightLast ? 'ring-2 ring-red-400' : '',
+                            showFullStyle
+                              ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed line-through'
+                              : !slot.available
+                                ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed opacity-80'
+                                : selectedTime === slot.id
+                                  ? 'border-violet-600 bg-violet-600 text-white shadow-sm shadow-violet-200'
+                                  : 'border-gray-200 bg-white text-gray-700 hover:border-violet-400 hover:text-violet-700 hover:bg-violet-50',
+                          ].join(' ')}
+                        >
+                          {isRecommended && (
+                            <span
+                              className={[
+                                'block text-[9px] font-bold uppercase tracking-wide mb-0.5 leading-tight',
+                                selectedTime === slot.id && slot.available
+                                  ? 'text-violet-100'
+                                  : 'text-violet-600',
+                              ].join(' ')}
+                            >
+                              Recommended
+                            </span>
+                          )}
+                          {slot.label}
+                          <span className="block mt-0.5 no-underline">
+                            {occupancyReady ? (
+                              <span
+                                className={`text-[10px] leading-tight px-2 py-1 rounded font-normal inline-block text-center ${getAvailabilityStyle(slot.remaining)}`}
+                              >
+                                {subline}
+                              </span>
+                            ) : (
+                              <span className="block text-[9px] font-normal text-gray-400">{subline}</span>
+                            )}
+                          </span>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
-        </div>
+      </BookingFlowLayout>
 
-        <aside
-          className="hidden lg:flex w-full lg:w-72 flex-shrink-0 lg:sticky lg:top-6 flex-col gap-4"
-          aria-label="Pricing summary"
-        >
-          <div className="rounded-2xl overflow-hidden shadow-md">
-            <div className="bg-gradient-to-br from-violet-600 to-violet-800 px-5 py-5">
-              <p className="text-violet-200 text-xs font-semibold tracking-widest uppercase mb-1">Your Estimate</p>
-              <motion.p
-                key={totalEstimate}
-                initial={{ scale: 1.06, opacity: 0.7 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="text-4xl font-extrabold text-white tracking-tight"
-              >
-                R {totalEstimate.toLocaleString()}
-              </motion.p>
-              <p className="text-violet-300 text-sm mt-1 font-medium">{serviceTitle}</p>
-            </div>
+      <StickyBookingBar
+        selectedTime={selectedTime}
+        total={totalEstimate}
+        onContinue={handleContinue}
+        canContinue={canContinue}
+      />
 
-            <div className="bg-white px-5 py-4 flex flex-col gap-3">
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>{serviceTitle}</span>
-                <span className="font-semibold text-gray-800">R {pricing.basePrice.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>Home size & add-ons</span>
-                <span className="font-semibold text-gray-800">R {addonsLine.toLocaleString()}</span>
-              </div>
-
-              <AnimatePresence>
-                {selectedAddonUiIds.map((id) => {
-                  const extra = addonTiles.find((e) => e.id === id);
-                  if (!extra) return null;
-                  const deepMove = data.service === 'deep' || data.service === 'move';
-                  return (
-                    <motion.div
-                      key={id}
-                      initial={{ opacity: 0, height: 0, y: -4 }}
-                      animate={{ opacity: 1, height: 'auto', y: 0 }}
-                      exit={{ opacity: 0, height: 0, y: -4 }}
-                      transition={{ duration: 0.2 }}
-                      className="flex justify-between text-sm text-gray-600 overflow-hidden"
-                    >
-                      <span className="flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-violet-400 inline-block" />
-                        {extra.label}
-                        {deepMove ? ' Cleaning' : ''}
-                      </span>
-                      <span className="font-semibold text-violet-600">+R{extra.price}</span>
-                    </motion.div>
-                  );
-                })}
-              </AnimatePresence>
-
-              <div className="border-t border-gray-100 pt-3 flex justify-between text-sm font-bold text-gray-900">
-                <span>Total estimate</span>
-                <motion.span key={totalEstimate} initial={{ scale: 1.1 }} animate={{ scale: 1 }}>
-                  R {totalEstimate.toLocaleString()}
-                </motion.span>
-              </div>
-
-              <motion.button
-                type="button"
-                onClick={handleContinue}
-                animate={canContinue ? { opacity: 1 } : { opacity: 0.45 }}
-                whileTap={canContinue ? { scale: 0.97 } : {}}
-                disabled={!canContinue}
-                className={[
-                  'w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all duration-200 mt-1',
-                  canContinue
-                    ? 'bg-violet-600 text-white shadow-md shadow-violet-200 hover:bg-violet-700 cursor-pointer'
-                    : 'bg-gray-100 text-gray-400 cursor-not-allowed',
-                ].join(' ')}
-              >
-                {canContinue ? (
-                  <>
-                    Continue to Step 3 <ArrowRight size={16} />
-                  </>
-                ) : (
-                  <>Pick a date & time to continue</>
-                )}
-              </motion.button>
-
-              <div className="flex flex-col gap-1.5 pt-1">
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />
-                  No payment required to book
-                </div>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />
-                  Free cancellation up to 24 hrs before
-                </div>
-              </div>
-
-              <div className="border-t border-gray-100 pt-3 mt-1">
-                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Need help?</p>
-                <div className="flex flex-col gap-2">
-                  <a
-                    href={SUPPORT_WHATSAPP_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 rounded-xl border border-gray-200 bg-emerald-50/80 px-3 py-2.5 text-sm font-semibold text-emerald-800 hover:bg-emerald-100/80 transition-colors"
-                  >
-                    <MessageSquare size={16} className="text-emerald-600 flex-shrink-0" aria-hidden />
-                    WhatsApp us
-                  </a>
-                  <a
-                    href={SUPPORT_PHONE_HREF}
-                    className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 transition-colors"
-                  >
-                    <Phone size={16} className="text-violet-600 flex-shrink-0" aria-hidden />
-                    Call {SUPPORT_PHONE_DISPLAY}
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <AnimatePresence>
-            {(selectedDate || selectedTime) && (
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 8 }}
-                className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col gap-2"
-              >
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Your Selection</p>
-                {selectedDate && (
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Calendar size={14} className="text-violet-500" />
-                    <span>{formatSelectedDate(selectedDate)}</span>
-                  </div>
-                )}
-                {selectedTime && (
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Clock size={14} className="text-violet-500" />
-                    <span>{TIME_SLOTS.find((t) => t.id === selectedTime)?.label}</span>
-                  </div>
-                )}
-                {!selectedTime && selectedDate && (
-                  <p className="text-xs text-amber-500 font-medium flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
-                    Still need a start time
-                  </p>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </aside>
-      </div>
-
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-[0_-4px_32px_rgba(0,0,0,0.08)]">
-        <AnimatePresence>
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            className="overflow-hidden"
-          >
-            <div className="px-4 pt-3 pb-1 flex items-center justify-between gap-3">
-              <div className="min-w-0 flex-1 space-y-0.5">
-                <p className="text-xs text-gray-500 font-medium">
-                  <span className="block truncate">
-                    {mobileDateSummary}
-                    {mobileTimeSummary ? ` · ${mobileTimeSummary}` : selectedDate ? ' · Pick a time' : ''}
-                  </span>
-                </p>
-                <p className="text-xs font-semibold text-violet-600 truncate">{serviceTitle}</p>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <motion.p
-                  key={totalEstimate}
-                  initial={{ y: -4, opacity: 0.6 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  className="text-lg font-extrabold text-gray-900"
-                >
-                  R {totalEstimate.toLocaleString()}
-                </motion.p>
-                <p className="text-[10px] text-gray-400 uppercase tracking-wide">estimated</p>
-              </div>
-            </div>
-          </motion.div>
-        </AnimatePresence>
-
-        <div className="px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          <motion.button
-            type="button"
-            onClick={handleContinue}
-            animate={canContinue ? { opacity: 1 } : { opacity: 0.45 }}
-            whileTap={canContinue ? { scale: 0.97 } : {}}
-            disabled={!canContinue}
-            className={[
-              'w-full py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200',
-              canContinue
-                ? 'bg-violet-600 text-white shadow-md shadow-violet-200 hover:bg-violet-700 cursor-pointer'
-                : 'bg-gray-100 text-gray-400 cursor-not-allowed',
-            ].join(' ')}
-          >
-            {canContinue ? (
-              <>
-                Continue to Step 3 <ArrowRight size={18} />
-              </>
-            ) : (
-              <>Pick a date & time to continue</>
-            )}
-          </motion.button>
-        </div>
-      </div>
+      {quantityModal && (
+        <QuantityAddonModal
+          addon={{
+            id: quantityModal.uiId,
+            name: quantityModal.label,
+            price: quantityModal.price,
+          }}
+          inBooking={data.extras.includes(
+            EXTRA_UI_ID_TO_BOOKING[quantityModal.uiId] ?? quantityModal.uiId
+          )}
+          initialQty={
+            data.extras.includes(EXTRA_UI_ID_TO_BOOKING[quantityModal.uiId] ?? quantityModal.uiId)
+              ? data.extrasQuantities[EXTRA_UI_ID_TO_BOOKING[quantityModal.uiId] ?? quantityModal.uiId] ?? 1
+              : 1
+          }
+          onClose={() => setQuantityModal(null)}
+          onConfirm={confirmQuantityAddon}
+        />
+      )}
     </div>
   );
 }

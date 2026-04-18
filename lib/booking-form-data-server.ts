@@ -193,6 +193,7 @@ export async function getBookingFormData(): Promise<BookingFormDataServer> {
   return unstable_cache(
     getBookingFormDataUncached,
     ['booking-form-data'],
-    { revalidate: 60, tags: ['booking-form-data'] }
+    // Short TTL so disabled extras drop off quickly; admin saves also call `revalidateTag('booking-form-data')`.
+    { revalidate: 30, tags: ['booking-form-data'] }
   )();
 }

@@ -8,6 +8,8 @@ import { generateUniqueBookingId } from '@/lib/booking-id';
 import { validateBookingDiscountAmount } from '@/lib/discount-booking-server';
 import { computeCheckoutPricing } from '@/lib/booking-checkout-pricing';
 import { computeServerPreSurgeTotalZar } from '@/lib/booking-server-pricing';
+import { createServiceClient } from '@/lib/supabase-server';
+import { resolveBookingCleanerAndSchedule } from '@/lib/dispatch/resolve-booking-cleaner';
 
 /**
  * Create a booking without payment (status pending, no Paystack reference).
@@ -249,27 +251,45 @@ export async function POST(req: Request) {
       body.service === 'Move In/Out' ||
       ((body.service === 'Standard' || body.service === 'Airbnb') && numberOfCleaners > 1);
 
+    const dispatchSupabase = createServiceClient();
+    const dispatch = await resolveBookingCleanerAndSchedule(dispatchSupabase, {
+      requiresTeam,
+      date: body.date,
+      time: body.time,
+      bedrooms: body.bedrooms,
+      bathrooms: body.bathrooms,
+      extras: body.extras || [],
+      extrasQuantities: body.extrasQuantities || {},
+      addressSuburb: body.address.suburb,
+      addressCity: body.address.city,
+      preferredCleanerId: body.cleaner_id,
+    });
+
+    if (!dispatch.ok) {
+      return NextResponse.json({ ok: false, error: dispatch.error }, { status: dispatch.status });
+    }
+
+    const { cleanerId: resolvedCleanerId, durationMinutes, expectedEndTime } = dispatch;
+
     let cleanerHireDate = null;
     let cleanerEarnings = 0;
-    let cleanerIdForInsert: string | null = null;
+    const cleanerIdForInsert: string | null = requiresTeam ? null : resolvedCleanerId;
 
-    if (requiresTeam) {
-      cleanerEarnings = 0;
-    } else if (body.cleaner_id && body.cleaner_id !== 'manual') {
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (uuidRegex.test(body.cleaner_id)) {
-        cleanerIdForInsert = body.cleaner_id;
-        const { data: cleanerData } = await supabase.from('cleaners').select('hire_date').eq('id', body.cleaner_id).single();
-        cleanerHireDate = cleanerData?.hire_date || null;
-        cleanerEarnings =
-          calculateCleanerEarnings(
-            adjustedTotalAmount ?? null,
-            serverCart.serviceFeeZar ?? null,
-            cleanerHireDate,
-            tipAmount,
-            body.service ?? null,
-          ) * 100;
-      }
+    if (!requiresTeam && cleanerIdForInsert) {
+      const { data: cleanerData } = await supabase
+        .from('cleaners')
+        .select('hire_date')
+        .eq('id', cleanerIdForInsert)
+        .single();
+      cleanerHireDate = cleanerData?.hire_date || null;
+      cleanerEarnings =
+        calculateCleanerEarnings(
+          adjustedTotalAmount ?? null,
+          serverCart.serviceFeeZar ?? null,
+          cleanerHireDate,
+          tipAmount,
+          body.service ?? null,
+        ) * 100;
     }
 
     const frequencyForDb = body.frequency === 'one-time' ? null : body.frequency;
@@ -284,7 +304,8 @@ export async function POST(req: Request) {
         cleaner_id: requiresTeam ? null : cleanerIdForInsert,
         booking_date: body.date || null,
         booking_time: body.time,
-        expected_end_time: (body as { expectedEndTime?: string }).expectedEndTime || null,
+        expected_end_time: expectedEndTime,
+        duration_minutes: durationMinutes,
         service_type: body.service,
         customer_name: `${body.firstName} ${body.lastName}`,
         customer_email: body.email,

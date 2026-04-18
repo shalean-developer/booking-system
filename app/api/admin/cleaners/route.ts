@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, isAdmin } from '@/lib/supabase-server';
-import { hashPassword, normalizePhoneNumber, validatePhoneNumber } from '@/lib/cleaner-auth';
+import { hashPassword, normalizePhoneNumber, sanitizeCleanerForAdmin, validatePhoneNumber } from '@/lib/cleaner-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,7 +58,7 @@ async function attachCleanerStats(supabase: SupabaseServer, cleaners: any[]) {
         : (ratingMap.get(cleaner.id) || null);
 
     return {
-      ...cleaner,
+      ...sanitizeCleanerForAdmin(cleaner as Record<string, unknown>),
       total_bookings: stats.total,
       completed_bookings: stats.completed,
       total_revenue: stats.revenue,
@@ -121,6 +121,13 @@ export async function GET(request: NextRequest) {
       query = query.eq('is_active', false);
     }
 
+    const searchRaw = searchParams.get('search')?.trim().replace(/,/g, ' ');
+    if (searchRaw) {
+      const safe = searchRaw.replace(/[%_]/g, '\\$&');
+      const p = `%${safe}%`;
+      query = query.or(`name.ilike.${p},email.ilike.${p},phone.ilike.${p}`);
+    }
+
     query = query.range(offset, offset + limit - 1);
 
     const { data: cleaners, error } = await query;
@@ -143,6 +150,12 @@ export async function GET(request: NextRequest) {
       countQuery = countQuery.eq('is_active', true);
     } else if (active === 'false') {
       countQuery = countQuery.eq('is_active', false);
+    }
+
+    if (searchRaw) {
+      const safe = searchRaw.replace(/[%_]/g, '\\$&');
+      const p = `%${safe}%`;
+      countQuery = countQuery.or(`name.ilike.${p},email.ilike.${p},phone.ilike.${p}`);
     }
 
     const { count } = await countQuery;
@@ -300,7 +313,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      cleaner: newCleaner,
+      cleaner: sanitizeCleanerForAdmin(newCleaner as Record<string, unknown>),
       message: 'Cleaner created successfully',
     });
   } catch (error: any) {

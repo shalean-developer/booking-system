@@ -327,9 +327,11 @@ export async function getAvailableCleaners(date: string, options: GetAvailableCl
       return [];
     }
 
-    // Determine day of week from date
-    const dateObj = new Date(date + 'T00:00:00'); // Force consistent parsing
-    const dayOfWeek = dateObj.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    // Civil calendar weekday for YYYY-MM-DD (stable across server TZ)
+    const isoDow = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date.trim());
+    const dayOfWeek = isoDow
+      ? new Date(Date.UTC(parseInt(isoDow[1], 10), parseInt(isoDow[2], 10) - 1, parseInt(isoDow[3], 10))).getUTCDay()
+      : new Date(`${date.trim()}T12:00:00`).getDay();
     const dayColumns = [
       'available_sunday',
       'available_monday',

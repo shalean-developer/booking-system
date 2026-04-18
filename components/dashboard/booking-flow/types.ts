@@ -24,6 +24,8 @@ export interface FlowTimeSlot {
   id: string;
   time: string;
   available: boolean;
+  /** Remaining capacity when availability has loaded */
+  remaining?: number;
 }
 
 export interface FlowExtra {

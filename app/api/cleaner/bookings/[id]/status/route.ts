@@ -4,19 +4,29 @@ import { generateReviewRequestEmail, sendEmail } from '@/lib/email';
 import { createServiceClient } from '@/lib/supabase-server';
 import { sendWhatsAppTemplate } from '@/lib/notifications/whatsapp';
 import { logNotification } from '@/lib/notifications/log';
+import { sendCustomerNotification } from '@/lib/notifications/sendCustomerNotification';
 import { incrementCustomerRewardsForCompletedBooking } from '@/lib/rewards-server';
 
+/**
+ * Cleaner workflow: pending/paid → assigned → accepted → on_my_way → in-progress → completed
+ * (decline/reschedule still allowed where listed.)
+ *
+ * Paid-but-claimed rows often keep DB status `paid` until the cleaner moves the job; the dashboard
+ * maps `paid` to the same UI step as `accepted`, so we allow paid → on_my_way and backfill accept
+ * timestamps when missing.
+ */
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  pending: ['accepted', 'declined', 'reschedule_requested'],
-  /** Payment confirmed — same next steps as pending */
-  paid: ['accepted', 'declined', 'reschedule_requested'],
+  pending: ['accepted', 'assigned', 'declined', 'reschedule_requested'],
+  paid: ['accepted', 'assigned', 'declined', 'reschedule_requested', 'on_my_way'],
+  /** Must accept assignment before en route / start */
+  assigned: ['accepted', 'declined', 'reschedule_requested'],
   accepted: ['on_my_way', 'declined', 'reschedule_requested'],
   confirmed: ['on_my_way', 'declined', 'reschedule_requested'], // legacy
-  on_my_way: ['in-progress'],
+  on_my_way: ['in-progress', 'declined', 'reschedule_requested'],
   'in-progress': ['completed'],
   reschedule_requested: ['accepted'],
   declined: [],
-  completed: [], // No transitions from completed
+  completed: [],
 };
 
 export async function PATCH(
@@ -35,7 +45,11 @@ export async function PATCH(
 
     const { id: bookingId } = await params;
     const body = await request.json();
-    const { status: newStatus, reason, proposed_date, proposed_time, notes } = body;
+    let { status: newStatus, reason, proposed_date, proposed_time, notes } = body;
+
+    if (newStatus === 'in_progress') {
+      newStatus = 'in-progress';
+    }
 
     if (!newStatus) {
       return NextResponse.json(
@@ -66,7 +80,7 @@ export async function PATCH(
     // For team bookings: check if cleaner is a team member
     let isAssigned = false;
 
-    if (booking.cleaner_id === cleanerUuid) {
+    if (booking.cleaner_id === cleanerUuid || booking.assigned_cleaner_id === cleanerUuid) {
       // Individual booking assigned to this cleaner
       isAssigned = true;
     } else if (booking.requires_team) {
@@ -100,32 +114,68 @@ export async function PATCH(
       );
     }
 
-    // Validate status transition
-    const validNextStatuses = VALID_TRANSITIONS[booking.status] || [];
+    // Idempotent: avoid errors on double-submit or stale UI (e.g. already on_my_way)
+    if (booking.status === newStatus) {
+      return NextResponse.json({
+        ok: true,
+        booking,
+        message: 'Already up to date',
+      });
+    }
+
+    const validNextStatuses = [...(VALID_TRANSITIONS[booking.status] || [])];
+
     if (!validNextStatuses.includes(newStatus)) {
       return NextResponse.json(
-        { 
-          ok: false, 
-          error: `Cannot transition from ${booking.status} to ${newStatus}` 
+        {
+          ok: false,
+          error: `Cannot transition from ${booking.status} to ${newStatus}`,
         },
         { status: 400 }
       );
     }
 
+    const now = new Date().toISOString();
+
     // Prepare update data
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       status: newStatus,
     };
 
-    // Set timestamps based on status
-    if (newStatus === 'accepted' && !booking.cleaner_accepted_at) {
-      updateData.cleaner_accepted_at = new Date().toISOString();
-    } else if (newStatus === 'on_my_way' && !booking.cleaner_on_my_way_at) {
-      updateData.cleaner_on_my_way_at = new Date().toISOString();
-    } else if (newStatus === 'in-progress' && !booking.cleaner_started_at) {
-      updateData.cleaner_started_at = new Date().toISOString();
-    } else if (newStatus === 'completed' && !booking.cleaner_completed_at) {
-      updateData.cleaner_completed_at = new Date().toISOString();
+    if (newStatus === 'in-progress') {
+      if (booking.booking_time && !booking.start_time) {
+        updateData.start_time = String(booking.booking_time).slice(0, 5);
+      }
+      if (booking.expected_end_time && !booking.end_time) {
+        updateData.end_time = String(booking.expected_end_time).slice(0, 5);
+      }
+    }
+
+    // Lifecycle timestamps (always refresh on transition into that state)
+    if (newStatus === 'accepted') {
+      updateData.cleaner_accepted_at = now;
+      updateData.accepted_at = now;
+    }
+    if (newStatus === 'on_my_way') {
+      updateData.cleaner_on_my_way_at = now;
+      updateData.on_my_way_at = now;
+      // Claimed paid jobs may never have gone through PATCH accepted; align lifecycle if missing
+      if (
+        booking.status === 'paid' &&
+        !(booking as { cleaner_accepted_at?: string | null }).cleaner_accepted_at &&
+        !(booking as { accepted_at?: string | null }).accepted_at
+      ) {
+        updateData.cleaner_accepted_at = now;
+        updateData.accepted_at = now;
+      }
+    }
+    if (newStatus === 'in-progress') {
+      updateData.cleaner_started_at = now;
+      updateData.started_at = now;
+    }
+    if (newStatus === 'completed') {
+      updateData.cleaner_completed_at = now;
+      updateData.completed_at = now;
     }
 
     // If decline or reschedule, record an internal note for admins
@@ -178,6 +228,20 @@ export async function PATCH(
     }
 
     console.log('✅ Booking status updated:', bookingId, '→', newStatus);
+
+    try {
+      if (newStatus === 'accepted') {
+        await sendCustomerNotification({ type: 'accepted', booking: updatedBooking });
+      } else if (newStatus === 'on_my_way') {
+        await sendCustomerNotification({ type: 'on_my_way', booking: updatedBooking });
+      } else if (newStatus === 'in-progress') {
+        await sendCustomerNotification({ type: 'started', booking: updatedBooking });
+      } else if (newStatus === 'completed') {
+        await sendCustomerNotification({ type: 'completed', booking: updatedBooking });
+      }
+    } catch (notifyErr) {
+      console.warn('⚠️ Customer lifecycle notification failed:', notifyErr);
+    }
 
     // Get cleaner name for activity log and email
     const { data: cleaner } = await supabase

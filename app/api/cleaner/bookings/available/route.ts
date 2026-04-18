@@ -26,6 +26,16 @@ function calculateDistance(
   return R * c;
 }
 
+/** Matches claim API + claim_booking_safe: payment reference required before a cleaner can claim. */
+function bookingHasRecordedPayment(booking: {
+  payment_reference?: string | null;
+  paystack_ref?: string | null;
+}): boolean {
+  const pr = (booking.payment_reference ?? '').trim();
+  const pf = (booking.paystack_ref ?? '').trim();
+  return pr.length > 0 || pf.length > 0;
+}
+
 export async function GET(request: NextRequest) {
   try {
     // Check authentication
@@ -68,8 +78,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Build query for available bookings with recurring schedule information
-    // Exclude team bookings (requires_team = true) since they're assigned by admin
+    // Build query for claimable bookings (same rules as POST .../claim + claim_booking_safe):
+    // paid or pending, no cleaner yet, payment recorded, not team-assigned.
+    // After Paystack, status is usually `paid`; unpaid `pending` rows must not appear here.
     let query = supabase
       .from('bookings')
       .select(`
@@ -86,7 +97,7 @@ export async function GET(request: NextRequest) {
         )
       `)
       .is('cleaner_id', null)
-      .eq('status', 'pending')
+      .in('status', ['pending', 'paid'])
       .eq('requires_team', false) // Exclude team bookings - they're admin assigned
       .order('booking_date', { ascending: true })
       .order('booking_time', { ascending: true });
@@ -111,7 +122,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Filter by areas and calculate distances
-    let filteredBookings = (bookings || []).filter((booking) => {
+    let filteredBookings = (bookings || []).filter((booking) => bookingHasRecordedPayment(booking));
+
+    filteredBookings = filteredBookings.filter((booking) => {
       // Check if booking is in cleaner's service areas
       const bookingCity = booking.address_city || '';
       const bookingSuburb = booking.address_suburb || '';

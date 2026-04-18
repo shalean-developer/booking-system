@@ -7,7 +7,7 @@ import { generateUniqueBookingId } from '@/lib/booking-id';
 export const dynamic = 'force-dynamic';
 
 const SCHEDULE_SELECT =
-  'id, customer_name, customer_email, customer_phone, address_line1, address_suburb, booking_date, booking_time, service_type, status, total_amount, cleaner_id, requires_team, created_at, updated_at';
+  'id, customer_name, customer_email, customer_phone, address_line1, address_suburb, booking_date, booking_time, service_type, status, total_amount, cleaner_id, requires_team, recurring_schedule_id, created_at, updated_at, accepted_at, on_my_way_at, started_at, cleaner_accepted_at, cleaner_on_my_way_at, cleaner_started_at, sla_severity';
 
 export async function GET(request: NextRequest) {
   try {

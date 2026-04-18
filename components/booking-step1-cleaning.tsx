@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo, useId } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircle2,
@@ -33,6 +33,8 @@ import {
 
 import type { BookingFormData } from './booking-system-types';
 import { BookingFlowStepIndicator } from '@/components/booking-flow-step-indicator';
+import { BookingFlowLayout } from '@/components/booking/booking-flow-layout';
+import { BookingSummary } from '@/components/booking/booking-summary';
 
 type ServiceId = 'standard' | 'deep' | 'airbnb' | 'moveinout' | 'carpet';
 type StepPropertyType = 'apartment' | 'house' | 'studio' | 'office';
@@ -70,6 +72,7 @@ interface StepperRowConfig {
   max: number;
   accentClass: string;
 }
+
 interface BreakdownRow {
   id: string;
   label: string;
@@ -447,47 +450,49 @@ const ServiceCard = ({
     whileTap={{ scale: 0.97 }}
     onClick={() => onSelect(service.id)}
     className={[
-      'relative w-full text-left rounded-2xl border-2 p-4 flex items-start gap-3 transition-all duration-200 cursor-pointer shadow-sm',
+      'relative w-full text-left rounded-2xl border-2 p-4 flex flex-col gap-2 transition-all duration-200 cursor-pointer shadow-sm',
       selected
         ? `${service.borderSelected} ${service.bgSelected} shadow-md`
         : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md',
     ].join(' ')}
     aria-pressed={selected}
   >
-    <div
-      className={[
-        'flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-colors duration-200',
-        selected ? `${service.bgSelected} ${service.selectedColor}` : `bg-gray-100 ${service.color}`,
-      ].join(' ')}
-    >
-      {service.icon}
-    </div>
-    <div className="flex-1 min-w-0">
+    <div className="flex items-start gap-3 w-full min-w-0">
+      <div
+        className={[
+          'flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-colors duration-200',
+          selected ? `${service.bgSelected} ${service.selectedColor}` : `bg-gray-100 ${service.color}`,
+        ].join(' ')}
+      >
+        {service.icon}
+      </div>
       <p
-        className={['font-semibold text-sm leading-tight', selected ? 'text-gray-900' : 'text-gray-800'].join(' ')}
+        className={['flex-1 min-w-0 font-semibold text-sm leading-tight', selected ? 'text-gray-900' : 'text-gray-800'].join(
+          ' '
+        )}
       >
         {service.label}
       </p>
-      <p className="text-xs text-gray-500 mt-0.5 leading-snug">{service.tagline}</p>
-      <p className={['text-xs font-bold mt-1', selected ? service.selectedColor : 'text-gray-600'].join(' ')}>
-        {service.id === 'carpet'
-          ? `From ${formatPrice(service.bedroomPrice)}/room`
-          : `From ${formatPrice(service.basePrice)}`}
-      </p>
+      <AnimatePresence>
+        {selected && (
+          <motion.div
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+            className={['flex-shrink-0 mt-0.5', service.selectedColor].join(' ')}
+          >
+            <CheckCircle2 className="w-5 h-5" />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
-    <AnimatePresence>
-      {selected && (
-        <motion.div
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0, opacity: 0 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-          className={['flex-shrink-0 mt-0.5', service.selectedColor].join(' ')}
-        >
-          <CheckCircle2 className="w-5 h-5" />
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <p className="text-xs text-gray-500 leading-snug">{service.tagline}</p>
+    <p className={['text-xs font-bold', selected ? service.selectedColor : 'text-gray-600'].join(' ')}>
+      {service.id === 'carpet'
+        ? `From ${formatPrice(service.bedroomPrice)}/room`
+        : `From ${formatPrice(service.basePrice)}`}
+    </p>
   </motion.button>
 );
 
@@ -500,6 +505,7 @@ const Stepper = ({
   min,
   max,
   accentClass,
+  variant = 'inline',
 }: {
   label: string;
   sublabel?: string;
@@ -509,54 +515,101 @@ const Stepper = ({
   min: number;
   max: number;
   accentClass?: string;
-}) => (
-  <div className="flex items-center justify-between py-3.5 border-b border-gray-100 last:border-0">
-    <div className="flex items-center gap-2.5">
-      {icon && (
-        <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 flex-shrink-0">
-          {icon}
+  variant?: 'inline' | 'card';
+}) => {
+  const decrease = (
+    <motion.button
+      type="button"
+      whileTap={{ scale: 0.88 }}
+      onClick={() => onChange(Math.max(min, value - 1))}
+      disabled={value <= min}
+      className="min-h-10 min-w-10 h-10 w-10 shrink-0 rounded-full border-2 border-gray-300 flex items-center justify-center text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed active:bg-gray-100 transition-colors touch-manipulation"
+      aria-label={`Decrease ${label}`}
+    >
+      <Minus className="w-4 h-4" aria-hidden />
+    </motion.button>
+  );
+
+  const increase = (
+    <motion.button
+      type="button"
+      whileTap={{ scale: 0.88 }}
+      onClick={() => onChange(Math.min(max, value + 1))}
+      disabled={value >= max}
+      className={[
+        'min-h-10 min-w-10 h-10 w-10 shrink-0 rounded-full border-2 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-colors touch-manipulation',
+        accentClass || 'border-violet-500 bg-violet-50 text-violet-600 active:bg-violet-100',
+      ].join(' ')}
+      aria-label={`Increase ${label}`}
+    >
+      <Plus className="w-4 h-4" aria-hidden />
+    </motion.button>
+  );
+
+  const valueDisplay = (
+    <motion.span
+      key={value}
+      initial={{ scale: 1.25, opacity: 0.6 }}
+      animate={{ scale: 1, opacity: 1 }}
+      className={[
+        'text-center text-base font-bold text-gray-900 tabular-nums',
+        variant === 'card' ? 'min-w-[2.5rem] flex-1' : 'w-7',
+      ].join(' ')}
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      {value}
+    </motion.span>
+  );
+
+  if (variant === 'card') {
+    return (
+      <div
+        role="group"
+        aria-label={label}
+        className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm flex flex-col gap-3"
+      >
+        <div className="flex items-start gap-2 min-w-0">
+          {icon && (
+            <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 shrink-0">
+              {icon}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-gray-800">{label}</p>
+            {sublabel && <p className="text-sm text-gray-500 mt-0.5 leading-snug">{sublabel}</p>}
+          </div>
         </div>
-      )}
-      <div>
-        <p className="text-sm font-medium text-gray-800">{label}</p>
-        {sublabel && <p className="text-xs text-gray-400 mt-0.5">{sublabel}</p>}
+        <div className="flex items-center gap-2 sm:gap-3 w-full">
+          {decrease}
+          {valueDisplay}
+          {increase}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-between py-3.5 border-b border-gray-100 last:border-0">
+      <div className="flex items-center gap-2.5 min-w-0">
+        {icon && (
+          <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 flex-shrink-0">
+            {icon}
+          </div>
+        )}
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-gray-800">{label}</p>
+          {sublabel && <p className="text-xs text-gray-400 mt-0.5">{sublabel}</p>}
+        </div>
+      </div>
+      <div className="flex items-center gap-3 shrink-0">
+        {decrease}
+        {valueDisplay}
+        {increase}
       </div>
     </div>
-    <div className="flex items-center gap-3">
-      <motion.button
-        type="button"
-        whileTap={{ scale: 0.88 }}
-        onClick={() => onChange(Math.max(min, value - 1))}
-        disabled={value <= min}
-        className="w-10 h-10 rounded-full border-2 border-gray-300 flex items-center justify-center text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed active:bg-gray-100 transition-colors"
-        aria-label={`Decrease ${label}`}
-      >
-        <Minus className="w-4 h-4" />
-      </motion.button>
-      <motion.span
-        key={value}
-        initial={{ scale: 1.25, opacity: 0.6 }}
-        animate={{ scale: 1, opacity: 1 }}
-        className="w-7 text-center text-base font-bold text-gray-900 tabular-nums"
-      >
-        {value}
-      </motion.span>
-      <motion.button
-        type="button"
-        whileTap={{ scale: 0.88 }}
-        onClick={() => onChange(Math.min(max, value + 1))}
-        disabled={value >= max}
-        className={[
-          'w-10 h-10 rounded-full border-2 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-colors',
-          accentClass || 'border-violet-500 bg-violet-50 text-violet-600 active:bg-violet-100',
-        ].join(' ')}
-        aria-label={`Increase ${label}`}
-      >
-        <Plus className="w-4 h-4" />
-      </motion.button>
-    </div>
-  </div>
-);
+  );
+};
 
 const ToggleRow = ({
   label,
@@ -622,6 +675,8 @@ const AreaDropdown = ({
   const dropRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const areaSearchHintId = useId();
+  const areaListboxId = useId();
   useEffect(() => {
     setSearch(value);
   }, [value]);
@@ -693,14 +748,27 @@ const AreaDropdown = ({
   };
   return (
     <div ref={wrapperRef} className="relative">
+      <span id={areaSearchHintId} className="sr-only">
+        Start typing to filter areas. Choose a match from the list.
+      </span>
       <div
+        role="search"
         className={[
-          'flex items-center gap-2 w-full px-4 py-3 rounded-xl border-2 bg-white transition-all duration-150',
+          'flex items-center gap-2 w-full px-4 py-3 rounded-xl border-2 bg-white transition-all duration-150 cursor-text',
           open ? 'border-violet-500 ring-2 ring-violet-100' : error ? 'border-red-400' : 'border-gray-200',
         ].join(' ')}
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest('button')) return;
+          inputRef.current?.focus();
+          setOpen(true);
+          updateDropdownPosition();
+        }}
       >
         <MapPin
-          className={['w-4 h-4 flex-shrink-0 transition-colors', open ? 'text-violet-500' : 'text-gray-400'].join(' ')}
+          className={['w-4 h-4 flex-shrink-0 pointer-events-none transition-colors', open ? 'text-violet-500' : 'text-gray-400'].join(
+            ' '
+          )}
+          aria-hidden
         />
         <input
           ref={inputRef}
@@ -711,10 +779,13 @@ const AreaDropdown = ({
             setOpen(true);
             updateDropdownPosition();
           }}
-          placeholder="Enter your suburb or area"
-          className="flex-1 bg-transparent text-sm text-gray-800 placeholder-gray-400 outline-none min-w-0"
-          aria-label="Location search"
+          placeholder="Type to search your suburb or area"
+          className="flex-1 bg-transparent text-sm text-gray-800 placeholder:text-gray-500 outline-none min-w-0"
+          aria-label="Search location by suburb or area"
+          aria-describedby={areaSearchHintId}
           aria-expanded={open}
+          aria-controls={open ? areaListboxId : undefined}
+          aria-autocomplete="list"
           role="combobox"
           autoComplete="off"
         />
@@ -739,6 +810,7 @@ const AreaDropdown = ({
         {open && (
           <motion.div
             ref={dropRef}
+            id={areaListboxId}
             key="dropdown"
             initial={{ opacity: 0, y: -6, scaleY: 0.95 }}
             animate={{ opacity: 1, y: 0, scaleY: 1 }}
@@ -981,8 +1053,8 @@ export function BookingStep1Cleaning({
       label: 'Extra Rooms',
       sublabel:
         selectedServiceData && !isCarpet
-          ? `Kitchen, lounge, dining · ${formatPrice(selectedServiceData.extraRoomPrice)} each`
-          : 'Kitchen, lounge, dining',
+          ? `${formatPrice(selectedServiceData.extraRoomPrice)} per extra room`
+          : '',
       icon: <LayoutGrid className="w-4 h-4" />,
       value: extraRooms,
       onChange: (v) => patch({ extraRooms: v }),
@@ -1020,8 +1092,8 @@ export function BookingStep1Cleaning({
       label: 'Extra Rooms',
       sublabel:
         selectedServiceData && !isCarpet
-          ? `Kitchen, lounge, dining · ${formatPrice(selectedServiceData.extraRoomPrice)} each`
-          : 'Kitchen, lounge, dining',
+          ? `${formatPrice(selectedServiceData.extraRoomPrice)} per extra room`
+          : '',
       icon: <LayoutGrid className="w-4 h-4" />,
       value: extraRooms,
       onChange: (v) => patch({ extraRooms: v }),
@@ -1130,7 +1202,7 @@ export function BookingStep1Cleaning({
 
   return (
     <div className="min-h-screen bg-[#f0f2f5] font-sans">
-      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
+      <div className="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3 min-w-0">
           {onBack ? (
             <button
@@ -1149,341 +1221,22 @@ export function BookingStep1Cleaning({
         <BookingFlowStepIndicator activeStep={1} />
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-8 flex flex-col lg:flex-row gap-6 items-start pb-40 lg:pb-8">
-        <div className="flex-1 min-w-0 flex flex-col gap-6 w-full">
-          <p className="text-xs font-bold tracking-widest text-violet-600 uppercase">Step 1 of 4</p>
-
-          <div
-            className={['bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all duration-200', serviceError ? 'ring-2 ring-red-300 ring-offset-2' : ''].join(' ')}
-          >
-            <div className="flex items-start justify-between gap-3 mb-5">
-              <div className="flex items-start gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center flex-shrink-0">
-                  <Sparkles size={18} className="text-white" />
-                </div>
-                <div>
-                  <h2 id="service-heading" className="text-base font-bold text-gray-900">
-                    Choose a service
-                  </h2>
-                  <p className="text-sm text-gray-500">Pick the cleaning package that fits your needs</p>
-                </div>
-              </div>
-              {serviceError && (
-                <motion.span
-                  initial={{ opacity: 0, x: 6 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="flex items-center gap-1 text-xs text-red-500 font-medium flex-shrink-0"
-                >
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  <span>Required</span>
-                </motion.span>
-              )}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-              {servicesResolved.map((service) => (
-                <ServiceCard
-                  key={service.id}
-                  service={service}
-                  selected={selectedService === service.id}
-                  onSelect={handleServiceSelect}
-                />
-              ))}
-            </div>
-          </div>
-
-          <section
-            aria-labelledby="space-heading"
-            className={[
-              'bg-white rounded-2xl shadow-sm border transition-all duration-200',
-              propertyTypeError ? 'border-red-300 ring-2 ring-red-100' : 'border-gray-100',
-            ].join(' ')}
-          >
-            <div className="px-5 py-4 border-b border-gray-100 rounded-t-2xl">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 id="space-heading" className="text-base font-bold text-gray-900">
-                    Your space
-                  </h2>
-                  <p className="text-xs text-gray-500 mt-0.5">Help us tailor the service to your property</p>
-                </div>
-                {propertyTypeError && (
-                  <motion.span
-                    initial={{ opacity: 0, x: 6 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="flex items-center gap-1 text-xs text-red-500 font-medium"
-                  >
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    <span>Required</span>
-                  </motion.span>
-                )}
-              </div>
-            </div>
-
-            <div className="px-5 py-4 space-y-5">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2.5">Property type</label>
-                <div className="flex gap-2 flex-wrap">
-                  {PROPERTY_TYPES.map((pt) => (
-                    <motion.button
-                      key={pt.id}
-                      type="button"
-                      whileTap={{ scale: 0.96 }}
-                      onClick={() => handlePropertyTypeSelect(pt.id)}
-                      className={[
-                        'flex items-center gap-1.5 px-4 py-2.5 rounded-full border-2 text-sm font-medium transition-all duration-150 select-none',
-                        propertyType === pt.id
-                          ? 'border-violet-500 bg-violet-600 text-white shadow-md shadow-violet-200'
-                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300',
-                      ].join(' ')}
-                      aria-pressed={propertyType === pt.id}
-                    >
-                      {pt.icon}
-                      <span>{pt.label}</span>
-                    </motion.button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2.5">
-                  <span>Service location</span>
-                  {locationError && (
-                    <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="ml-2 text-xs text-red-500 font-normal">
-                      — Please select your area
-                    </motion.span>
-                  )}
-                </label>
-                <AreaDropdown
-                  value={location}
-                  onSelect={(v) => patch({ workingArea: v })}
-                  error={locationError}
-                />
-                <p className="text-xs text-gray-400 mt-1.5 ml-1">
-                  Cape Town and surrounds — pick the suburb closest to your address (we use it to match cleaners).
-                </p>
-                {location && (
-                  <p className="text-xs text-gray-500 mt-2 ml-1">
-                    House Cleaning in {location} available with trusted local cleaners.
-                  </p>
-                )}
-              </div>
-            </div>
-          </section>
-
-          <AnimatePresence mode="wait">
-            {isCarpet && (
-              <motion.section
-                key="carpet-rooms"
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 8 }}
-                transition={{ type: 'spring', stiffness: 320, damping: 30 }}
-                aria-labelledby="carpet-heading"
-                className="bg-white rounded-2xl shadow-sm border border-teal-200 overflow-hidden"
-              >
-                <div className="px-5 py-4 border-b border-teal-100 bg-teal-50">
-                  <div className="flex items-center gap-2">
-                    <Layers className="w-4 h-4 text-teal-600" />
-                    <h2 id="carpet-heading" className="text-base font-bold text-gray-900">
-                      Carpet Details
-                    </h2>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-0.5">Adjust quantities for your exact quote</p>
-                </div>
-                <div className="px-5 py-2">
-                  <Stepper
-                    label="Carpeted rooms"
-                    sublabel={`${formatPrice(selectedServiceData?.bedroomPrice ?? 0)} per room`}
-                    icon={<Layers className="w-4 h-4" />}
-                    value={carpetRooms}
-                    onChange={(v) => patch({ carpetRooms: v })}
-                    min={1}
-                    max={20}
-                    accentClass="border-teal-500 bg-teal-50 text-teal-600 active:bg-teal-100"
-                  />
-                  <Stepper
-                    label="Loose rugs"
-                    sublabel={`${formatPrice(selectedServiceData?.bathroomPrice ?? 0)} per rug`}
-                    icon={<LayoutGrid className="w-4 h-4" />}
-                    value={carpetRugs}
-                    onChange={(v) => patch({ carpetRugs: v })}
-                    min={0}
-                    max={10}
-                    accentClass="border-teal-500 bg-teal-50 text-teal-600 active:bg-teal-100"
-                  />
-                  <ToggleRow
-                    label="Extra cleaner"
-                    sublabel={`Faster service · ${formatPrice(extraCleanerUnitZar)} add-on`}
-                    icon={<Star className="w-4 h-4" />}
-                    value={extraCleaner}
-                    onChange={(v) => patch({ carpetExtraCleaner: v })}
-                    activeColor="bg-teal-500"
-                  />
-                </div>
-              </motion.section>
-            )}
-
-            {!isCarpet && isOffice && selectedService && (
-              <motion.section
-                key="office-rooms"
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 8 }}
-                transition={{ type: 'spring', stiffness: 320, damping: 30 }}
-                aria-labelledby="office-heading"
-                className="bg-white rounded-2xl shadow-sm border border-indigo-200 overflow-hidden"
-              >
-                <div className="px-5 py-4 border-b border-indigo-100 bg-indigo-50">
-                  <div className="flex items-center gap-2">
-                    <Briefcase className="w-4 h-4 text-indigo-600" />
-                    <h2 id="office-heading" className="text-base font-bold text-gray-900">
-                      Office Details
-                    </h2>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-0.5">Tell us about your commercial space for a precise quote</p>
-                </div>
-                <div className="px-5 py-2">
-                  {officeSteppers.map((row) => (
-                    <Stepper
-                      key={row.id}
-                      label={row.label}
-                      sublabel={row.sublabel}
-                      icon={row.icon}
-                      value={row.value}
-                      onChange={row.onChange}
-                      min={row.min}
-                      max={row.max}
-                      accentClass={row.accentClass}
-                    />
-                  ))}
-                  <ToggleRow
-                    label="Reception Area"
-                    sublabel={`Include reception · ${formatPrice(scaledOfficeReception)} add-on`}
-                    icon={<PhoneCall className="w-4 h-4" />}
-                    value={hasReception}
-                    onChange={(v) => patch({ officeHasReception: v })}
-                    activeColor="bg-indigo-500"
-                  />
-                </div>
-              </motion.section>
-            )}
-
-            {!isCarpet && isStudio && selectedService && (
-              <motion.section
-                key="studio-rooms"
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 8 }}
-                transition={{ type: 'spring', stiffness: 320, damping: 30 }}
-                aria-labelledby="studio-heading"
-                className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
-              >
-                <div className={['px-5 py-4 border-b border-gray-100', selectedServiceData ? selectedServiceData.bgSelected : ''].join(' ')}>
-                  <div className="flex items-center gap-2">
-                    {selectedServiceData?.icon && (
-                      <div className={['w-5 h-5', selectedServiceData.selectedColor].join(' ')}>{selectedServiceData.icon}</div>
-                    )}
-                    <h2 id="studio-heading" className="text-base font-bold text-gray-900">
-                      Studio Details
-                    </h2>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-0.5">Adjust to match your space for an accurate quote</p>
-                </div>
-                <div className="mx-5 mt-4 flex items-start gap-2.5 bg-violet-50 border border-violet-100 rounded-xl px-4 py-3">
-                  <Info className="w-4 h-4 text-violet-500 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-violet-800 leading-relaxed">
-                    Studios are treated as open-plan spaces with no separate bedroom. Pricing is based on 1 bathroom plus any extra
-                    rooms.
-                  </p>
-                </div>
-                <div className="px-5 py-2">
-                  {studioSteppers.map((row) => (
-                    <Stepper
-                      key={row.id}
-                      label={row.label}
-                      sublabel={row.sublabel}
-                      icon={row.icon}
-                      value={row.value}
-                      onChange={row.onChange}
-                      min={row.min}
-                      max={row.max}
-                      accentClass={row.accentClass}
-                    />
-                  ))}
-                </div>
-              </motion.section>
-            )}
-
-            {!isCarpet && !isOffice && !isStudio && selectedService && (
-              <motion.section
-                key="standard-rooms"
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 8 }}
-                transition={{ type: 'spring', stiffness: 320, damping: 30 }}
-                aria-labelledby="rooms-heading"
-                className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
-              >
-                <div className={['px-5 py-4 border-b border-gray-100', selectedServiceData ? selectedServiceData.bgSelected : ''].join(' ')}>
-                  <div className="flex items-center gap-2">
-                    {selectedServiceData?.icon && (
-                      <div className={['w-5 h-5', selectedServiceData.selectedColor].join(' ')}>{selectedServiceData.icon}</div>
-                    )}
-                    <h2 id="rooms-heading" className="text-base font-bold text-gray-900">
-                      Home Details
-                    </h2>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-0.5">Adjust to match your property for an accurate quote</p>
-                </div>
-                <div className="px-5 py-2">
-                  {residentialSteppers.map((row) => (
-                    <Stepper
-                      key={row.id}
-                      label={row.label}
-                      sublabel={row.sublabel}
-                      icon={row.icon}
-                      value={row.value}
-                      onChange={row.onChange}
-                      min={row.min}
-                      max={row.max}
-                      accentClass={row.accentClass}
-                    />
-                  ))}
-                </div>
-              </motion.section>
-            )}
-          </AnimatePresence>
-        </div>
-
-        <aside
-          className="hidden lg:flex w-full lg:w-72 flex-shrink-0 lg:sticky lg:top-6 flex-col gap-4"
-          aria-label="Pricing summary"
-        >
-          <div className="rounded-2xl overflow-hidden shadow-md">
-            <div className="bg-gradient-to-br from-violet-600 to-violet-800 px-5 py-5">
-              <p className="text-violet-200 text-xs font-semibold tracking-widest uppercase mb-1">Your Estimate</p>
-              <motion.p
-                key={displayTotal}
-                initial={{ scale: 1.06, opacity: 0.7 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="text-4xl font-extrabold text-white tracking-tight"
-              >
-                {displayTotal > 0 ? `R ${displayTotal.toLocaleString()}` : '—'}
-              </motion.p>
-              <p className="text-violet-300 text-sm mt-1 font-medium">
-                {selectedService ? (
-                  <>
-                    {serviceTitle}
-                    {displayTotal > 0 && duration !== '—' ? ` · ${duration}` : ''}
-                  </>
-                ) : (
-                  'Select a service'
-                )}
-              </p>
-            </div>
-
-            <div className="bg-white px-5 py-4 flex flex-col gap-3">
-                {!selectedService && <p className="text-xs text-gray-400 text-center py-3">Select a service to see pricing</p>}
+      <BookingFlowLayout
+        sidebar={
+          <BookingSummary
+            mode="preview"
+            step={1}
+            serviceTitle={serviceTitle}
+            propertySummary={
+              [propertyType, location].filter(Boolean).length
+                ? [propertyType, location].filter(Boolean).join(' · ')
+                : undefined
+            }
+            extrasSummary={data.extras.length > 0 ? `${data.extras.length} add-on(s)` : undefined}
+            totalZar={displayTotal}
+            details={
+              <>
+                {!selectedService && <p className="text-xs text-gray-400 text-center py-2">Select a service to see pricing</p>}
 
                 {propertyType && (
                   <div className="flex items-center gap-2 pb-1">
@@ -1597,16 +1350,10 @@ export function BookingStep1Cleaning({
                     <span className="text-sm font-semibold text-gray-900 truncate max-w-40 text-right">{location}</span>
                   </div>
                 )}
-
-                {displayTotal > 0 && (
-                  <div className="border-t border-gray-100 pt-3 flex justify-between text-sm font-bold text-gray-900">
-                    <span>Total estimate</span>
-                    <motion.span key={displayTotal} initial={{ scale: 1.1 }} animate={{ scale: 1 }}>
-                      R {displayTotal.toLocaleString()}
-                    </motion.span>
-                  </div>
-                )}
-
+              </>
+            }
+            footer={
+              <>
                 <motion.button
                   type="button"
                   onClick={handleContinue}
@@ -1640,10 +1387,317 @@ export function BookingStep1Cleaning({
                     Free cancellation up to 24 hrs before
                   </div>
                 </div>
+              </>
+            }
+          />
+        }
+      >
+          <p className="text-xs font-bold tracking-widest text-violet-600 uppercase">Step 1 of 4</p>
+
+          <div
+            className={['bg-white rounded-xl shadow-sm p-4 space-y-4 border border-gray-100 transition-all duration-200', serviceError ? 'ring-2 ring-red-300 ring-offset-2' : ''].join(' ')}
+          >
+            <div className="flex items-start justify-between gap-3 mb-5">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center flex-shrink-0">
+                  <Sparkles size={18} className="text-white" />
+                </div>
+                <div>
+                  <h2 id="service-heading" className="text-base font-bold text-gray-900">
+                    Choose a service
+                  </h2>
+                  <p className="text-sm text-gray-500">Pick the cleaning package that fits your needs</p>
+                </div>
+              </div>
+              {serviceError && (
+                <motion.span
+                  initial={{ opacity: 0, x: 6 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="flex items-center gap-1 text-xs text-red-500 font-medium flex-shrink-0"
+                >
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>Required</span>
+                </motion.span>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+              {servicesResolved.map((service) => (
+                <ServiceCard
+                  key={service.id}
+                  service={service}
+                  selected={selectedService === service.id}
+                  onSelect={handleServiceSelect}
+                />
+              ))}
             </div>
           </div>
-        </aside>
-      </div>
+
+          <section
+            aria-labelledby="space-heading"
+            className={[
+              'bg-white rounded-xl shadow-sm border transition-all duration-200',
+              propertyTypeError ? 'border-red-300 ring-2 ring-red-100' : 'border-gray-100',
+            ].join(' ')}
+          >
+            <div className="px-5 py-4 border-b border-gray-100 rounded-t-2xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 id="space-heading" className="text-base font-bold text-gray-900">
+                    Your space
+                  </h2>
+                  <p className="text-xs text-gray-500 mt-0.5">Help us tailor the service to your property</p>
+                </div>
+                {propertyTypeError && (
+                  <motion.span
+                    initial={{ opacity: 0, x: 6 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="flex items-center gap-1 text-xs text-red-500 font-medium"
+                  >
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    <span>Required</span>
+                  </motion.span>
+                )}
+              </div>
+            </div>
+
+            <div className="px-5 py-4 space-y-5">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2.5">Property type</label>
+                <div className="flex gap-2 flex-wrap">
+                  {PROPERTY_TYPES.map((pt) => (
+                    <motion.button
+                      key={pt.id}
+                      type="button"
+                      whileTap={{ scale: 0.96 }}
+                      onClick={() => handlePropertyTypeSelect(pt.id)}
+                      className={[
+                        'flex items-center gap-1.5 px-4 py-2.5 rounded-full border-2 text-sm font-medium transition-all duration-150 select-none',
+                        propertyType === pt.id
+                          ? 'border-violet-500 bg-violet-600 text-white shadow-md shadow-violet-200'
+                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300',
+                      ].join(' ')}
+                      aria-pressed={propertyType === pt.id}
+                    >
+                      {pt.icon}
+                      <span>{pt.label}</span>
+                    </motion.button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2.5">
+                  <span>Service location</span>
+                  {locationError && (
+                    <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="ml-2 text-xs text-red-500 font-normal">
+                      — Please select your area
+                    </motion.span>
+                  )}
+                </label>
+                <AreaDropdown
+                  value={location}
+                  onSelect={(v) => patch({ workingArea: v })}
+                  error={locationError}
+                />
+                <p className="text-xs text-gray-400 mt-1.5 ml-1">
+                  Cape Town and surrounds — pick the suburb closest to your address (we use it to match cleaners).
+                </p>
+                {location && (
+                  <p className="text-xs text-gray-500 mt-2 ml-1">
+                    House Cleaning in {location} available with trusted local cleaners.
+                  </p>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <AnimatePresence mode="wait">
+            {isCarpet && (
+              <motion.section
+                key="carpet-rooms"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+                aria-labelledby="carpet-heading"
+                className="bg-white rounded-xl shadow-sm border border-teal-200 overflow-hidden"
+              >
+                <div className="px-5 py-4 border-b border-teal-100 bg-teal-50">
+                  <div className="flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-teal-600" />
+                    <h2 id="carpet-heading" className="text-base font-bold text-gray-900">
+                      Carpet Details
+                    </h2>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">Adjust quantities for your exact quote</p>
+                </div>
+                <div className="px-5 py-2">
+                  <Stepper
+                    label="Carpeted rooms"
+                    sublabel={`${formatPrice(selectedServiceData?.bedroomPrice ?? 0)} per room`}
+                    icon={<Layers className="w-4 h-4" />}
+                    value={carpetRooms}
+                    onChange={(v) => patch({ carpetRooms: v })}
+                    min={1}
+                    max={20}
+                    accentClass="border-teal-500 bg-teal-50 text-teal-600 active:bg-teal-100"
+                  />
+                  <Stepper
+                    label="Loose rugs"
+                    sublabel={`${formatPrice(selectedServiceData?.bathroomPrice ?? 0)} per rug`}
+                    icon={<LayoutGrid className="w-4 h-4" />}
+                    value={carpetRugs}
+                    onChange={(v) => patch({ carpetRugs: v })}
+                    min={0}
+                    max={10}
+                    accentClass="border-teal-500 bg-teal-50 text-teal-600 active:bg-teal-100"
+                  />
+                  <ToggleRow
+                    label="Extra cleaner"
+                    sublabel={`Faster service · ${formatPrice(extraCleanerUnitZar)} add-on`}
+                    icon={<Star className="w-4 h-4" />}
+                    value={extraCleaner}
+                    onChange={(v) => patch({ carpetExtraCleaner: v })}
+                    activeColor="bg-teal-500"
+                  />
+                </div>
+              </motion.section>
+            )}
+
+            {!isCarpet && isOffice && selectedService && (
+              <motion.section
+                key="office-rooms"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+                aria-labelledby="office-heading"
+                className="bg-white rounded-xl shadow-sm border border-indigo-200 overflow-hidden"
+              >
+                <div className="px-5 py-4 border-b border-indigo-100 bg-indigo-50">
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="w-4 h-4 text-indigo-600" />
+                    <h2 id="office-heading" className="text-base font-bold text-gray-900">
+                      Office Details
+                    </h2>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">Tell us about your commercial space for a precise quote</p>
+                </div>
+                <div className="px-5 py-2">
+                  {officeSteppers.map((row) => (
+                    <Stepper
+                      key={row.id}
+                      label={row.label}
+                      sublabel={row.sublabel}
+                      icon={row.icon}
+                      value={row.value}
+                      onChange={row.onChange}
+                      min={row.min}
+                      max={row.max}
+                      accentClass={row.accentClass}
+                    />
+                  ))}
+                  <ToggleRow
+                    label="Reception Area"
+                    sublabel={`Include reception · ${formatPrice(scaledOfficeReception)} add-on`}
+                    icon={<PhoneCall className="w-4 h-4" />}
+                    value={hasReception}
+                    onChange={(v) => patch({ officeHasReception: v })}
+                    activeColor="bg-indigo-500"
+                  />
+                </div>
+              </motion.section>
+            )}
+
+            {!isCarpet && isStudio && selectedService && (
+              <motion.section
+                key="studio-rooms"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+                aria-labelledby="studio-heading"
+                className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+              >
+                <div className={['px-5 py-4 border-b border-gray-100', selectedServiceData ? selectedServiceData.bgSelected : ''].join(' ')}>
+                  <div className="flex items-center gap-2">
+                    {selectedServiceData?.icon && (
+                      <div className={['w-5 h-5', selectedServiceData.selectedColor].join(' ')}>{selectedServiceData.icon}</div>
+                    )}
+                    <h2 id="studio-heading" className="text-base font-bold text-gray-900">
+                      Studio Details
+                    </h2>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">Adjust to match your space for an accurate quote</p>
+                </div>
+                <div className="mx-5 mt-4 flex items-start gap-2.5 bg-violet-50 border border-violet-100 rounded-xl px-4 py-3">
+                  <Info className="w-4 h-4 text-violet-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-violet-800 leading-relaxed">
+                    Studios are treated as open-plan spaces with no separate bedroom. Pricing is based on 1 bathroom plus any extra
+                    rooms.
+                  </p>
+                </div>
+                <div className="px-5 py-2">
+                  {studioSteppers.map((row) => (
+                    <Stepper
+                      key={row.id}
+                      label={row.label}
+                      sublabel={row.sublabel}
+                      icon={row.icon}
+                      value={row.value}
+                      onChange={row.onChange}
+                      min={row.min}
+                      max={row.max}
+                      accentClass={row.accentClass}
+                    />
+                  ))}
+                </div>
+              </motion.section>
+            )}
+
+            {!isCarpet && !isOffice && !isStudio && selectedService && (
+              <motion.section
+                key="standard-rooms"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+                aria-labelledby="rooms-heading"
+                className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+              >
+                <div className={['px-5 py-4 border-b border-gray-100', selectedServiceData ? selectedServiceData.bgSelected : ''].join(' ')}>
+                  <div className="flex items-center gap-2">
+                    {selectedServiceData?.icon && (
+                      <div className={['w-5 h-5', selectedServiceData.selectedColor].join(' ')}>{selectedServiceData.icon}</div>
+                    )}
+                    <h2 id="rooms-heading" className="text-base font-bold text-gray-900">
+                      Home Details
+                    </h2>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">Adjust to match your property for an accurate quote</p>
+                </div>
+                <div className="px-5 py-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {residentialSteppers.map((row) => (
+                      <Stepper
+                        key={row.id}
+                        variant="card"
+                        label={row.label}
+                        sublabel={row.sublabel}
+                        icon={row.icon}
+                        value={row.value}
+                        onChange={row.onChange}
+                        min={row.min}
+                        max={row.max}
+                        accentClass={row.accentClass}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </motion.section>
+            )}
+          </AnimatePresence>
+      </BookingFlowLayout>
 
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-[0_-4px_32px_rgba(0,0,0,0.08)]">
         <AnimatePresence>

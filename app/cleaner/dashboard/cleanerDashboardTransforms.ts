@@ -58,7 +58,14 @@ const combineAddress = (line1?: string, suburb?: string, city?: string): string 
 };
 
 const mapStatus = (dbStatus: string): BookingStatus => {
-  const upcomingStatuses = ['pending', 'accepted', 'on_my_way', 'in-progress'];
+  const upcomingStatuses = [
+    'pending',
+    'paid',
+    'assigned',
+    'accepted',
+    'on_my_way',
+    'in-progress',
+  ];
   if (upcomingStatuses.includes(dbStatus)) return 'upcoming';
   if (dbStatus === 'completed') return 'completed';
   return 'cancelled';

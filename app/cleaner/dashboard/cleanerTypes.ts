@@ -2,7 +2,13 @@ export type CleanerPageId = 'home' | 'jobs' | 'schedule' | 'earnings' | 'profile
 
 export type JobTabId = 'available' | 'accepted' | 'completed';
 
-export type JobStatus = 'available' | 'accepted' | 'in_progress' | 'completed';
+export type JobStatus =
+  | 'available'
+  | 'accepted'
+  | 'assigned'
+  | 'on_my_way'
+  | 'in_progress'
+  | 'completed';
 
 /** @deprecated use JobStatus */
 export type JobUiStatus = 'available' | 'accepted' | 'in_progress';
@@ -24,6 +30,15 @@ export interface Job {
   rating?: number;
   /** API booking status — used for status transitions */
   dbStatus?: string;
+  /** Customer phone for tel: / WhatsApp */
+  customerPhone?: string;
+  /** Full address string for maps */
+  mapsQuery?: string;
+  /** ISO timestamps from booking row (cleaner_* or alias columns) */
+  acceptedAt?: string;
+  onMyWayAt?: string;
+  startedAt?: string;
+  completedAt?: string;
 }
 
 export interface EarningRecord {

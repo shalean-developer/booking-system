@@ -32,9 +32,11 @@ import { BookingStep3Crew } from '@/components/booking-step3-crew';
 import { BookingStep4Confirmation } from '@/components/booking-step4-confirmation';
 import type { BookingFormData, ServiceType } from '@/components/booking-system-types';
 import { BOOKING_DEFAULT_CITY } from '@/lib/contact';
+import { computeBookingDurationMinutes } from '@/lib/booking-duration';
 import { logBookingFlowClient } from '@/lib/debug-booking-flow';
 import {
   buildCarpetDetailsForPricing,
+  buildExtrasQuantitiesByIdFromWizard,
   formServiceToApi,
   getEffectiveRoomCounts,
   slugifyExtraId,
@@ -336,7 +338,11 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
       }
       const next = prev.extras.filter((e) => allowed.has(e));
       if (next.length === prev.extras.length) return prev;
-      return { ...prev, extras: next };
+      const nextQuantities = { ...prev.extrasQuantities };
+      for (const k of Object.keys(nextQuantities)) {
+        if (!next.includes(k)) delete nextQuantities[k];
+      }
+      return { ...prev, extras: next, extrasQuantities: nextQuantities };
     });
   }, [data.service, standardAirbnbExtrasKey, deepMoveExtrasKey]);
 
@@ -553,14 +559,17 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
       }
     }
 
-    hours += (data.extras?.length ?? 0) * 0.25;
+    hours += data.extras.reduce((sum, id) => {
+      const q = data.extrasQuantities[id] ?? 1;
+      return sum + q * 0.25;
+    }, 0);
 
     const roundHalf = (v: number) => Math.round(v * 2) / 2;
     const base = Math.min(12, Math.max(1.5, roundHalf(hours)));
     const min = Math.max(1, roundHalf(base * 0.9));
     const max = Math.max(min, roundHalf(base * 1.1));
     return { label: `Est. ${min}–${max} hrs`, maxHours: max };
-  }, [data]);
+  }, [data, data.extras, data.extrasQuantities]);
 
   /** Compute expected end time (HH:MM) from start time + max duration hours */
   const expectedEndTime = useMemo(() => {
@@ -580,15 +589,26 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
       setApiCleaners([]);
       return;
     }
-    const city = data.workingArea;
+    const suburb = data.workingArea.trim();
     let cancelled = false;
     setCleanersLoading(true);
     const params = new URLSearchParams({
       date: data.date,
-      city,
-      suburb: city,
+      suburb,
+      city: BOOKING_DEFAULT_CITY,
     });
     if (data.time) params.set('time', data.time);
+    params.set(
+      'duration_minutes',
+      String(
+        computeBookingDurationMinutes({
+          bedrooms: data.bedrooms,
+          bathrooms: data.bathrooms,
+          extras: data.extras,
+          extrasQuantities: data.extrasQuantities,
+        })
+      )
+    );
     fetch(`/api/cleaners/available?${params.toString()}`)
       .then((res) => res.json())
       .then((json: { ok?: boolean; cleaners?: ApiCleaner[] }) => {
@@ -602,7 +622,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         if (!cancelled) setCleanersLoading(false);
       });
     return () => { cancelled = true; };
-  }, [data.date, data.workingArea, data.time]);
+  }, [data.date, data.workingArea, data.time, data.bedrooms, data.bathrooms, data.extras, data.extrasQuantities]);
 
   const currentExtras = useMemo(() => {
     if (displayExtrasForService?.length) return displayExtrasForService;
@@ -630,7 +650,11 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
 
   const extrasSummaryForStep4 = useMemo(() => {
     if (data.extras.length === 0) return 'None';
-    const labels = data.extras.map((e) => currentExtras.find((ex) => ex.id === e)?.label ?? e);
+    const labels = data.extras.map((e) => {
+      const label = currentExtras.find((ex) => ex.id === e)?.label ?? e;
+      const q = data.extrasQuantities[e];
+      return q != null && q > 1 ? `${label} ×${q}` : label;
+    });
     const equipmentZar =
       (data.service === 'standard' || data.service === 'airbnb') && data.scheduleEquipmentPref === 'bring'
         ? (formData?.equipment?.charge ?? 0)
@@ -642,7 +666,15 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
       minimumFractionDigits: 0
     }).format(extrasDisplayTotal);
     return `${labels.join(' + ')} (+${zar})`;
-  }, [data.extras, data.service, data.scheduleEquipmentPref, currentExtras, pricing.extrasTotal, formData?.equipment?.charge]);
+  }, [
+    data.extras,
+    data.extrasQuantities,
+    data.service,
+    data.scheduleEquipmentPref,
+    currentExtras,
+    pricing.extrasTotal,
+    formData?.equipment?.charge,
+  ]);
 
   const dateTimeLabelForStep4 = useMemo(
     () => (data.date ? `${formatDate(data.date)} · ${formatTimeDisplay(data.time)}` : 'To be confirmed'),
@@ -681,10 +713,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
     const selectedTeam =
       data.teamId && TEAM_ID_TO_NAME[data.teamId] ? TEAM_ID_TO_NAME[data.teamId] : undefined;
     const eff = getEffectiveRoomCounts(data);
-    const extrasQuantities: Record<string, number> = {};
-    data.extras.forEach((id) => {
-      extrasQuantities[id] = (extrasQuantities[id] || 0) + 1;
-    });
+    const extrasQuantities = buildExtrasQuantitiesByIdFromWizard(data.extras, data.extrasQuantities);
     const previewRes = await fetch('/api/booking/pricing-preview', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -753,10 +782,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
       const requiresTeam = data.service === 'deep' || data.service === 'move';
       const cleanerId = data.cleanerId && UUID_REGEX.test(data.cleanerId) ? data.cleanerId : null;
       const selectedTeam = data.teamId && TEAM_ID_TO_NAME[data.teamId] ? TEAM_ID_TO_NAME[data.teamId] : undefined;
-      const extrasQuantities: Record<string, number> = {};
-      data.extras.forEach((id) => {
-        extrasQuantities[id] = (extrasQuantities[id] || 0) + 1;
-      });
+      const extrasQuantities = buildExtrasQuantitiesByIdFromWizard(data.extras, data.extrasQuantities);
       const eff = getEffectiveRoomCounts(data);
       const totals = checkoutPricingRef.current;
       const totalAmount = totals?.finalTotal ?? pricing.total;
@@ -1067,7 +1093,9 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
           data.service === 'move' ||
           data.service === 'standard' ||
           data.service === 'airbnb'
-            ? (displayExtrasForService ?? undefined)
+            ? formData?.extras
+              ? (displayExtrasForService ?? [])
+              : undefined
             : undefined
         }
       />
@@ -1144,6 +1172,9 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         dateTimeLabel={dateTimeLabelForStep4}
         shortDateLabel={shortDateLabelForStep4}
         cleanerLabel={crewDisplayName}
+        cleanerPhotoUrl={
+          data.teamId ? null : apiCleaners.find((c) => c.id === data.cleanerId)?.photo_url ?? null
+        }
         extrasSummary={extrasSummaryForStep4}
         totalZar={confirmedCheckoutTotalZar ?? pricing.total}
         discountAmount={pricing.discountAmount}

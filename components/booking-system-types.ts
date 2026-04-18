@@ -11,6 +11,8 @@ export interface BookingFormData {
   propertyType: PropertyType;
   officeSize: string;
   extras: string[];
+  /** Per–extra-id quantities (public wizard); keys match `extras` entries (e.g. slugified DB extra ids). */
+  extrasQuantities: Record<string, number>;
   cleanerId: string;
   teamId: string;
   workingArea: string;
