@@ -5,7 +5,30 @@ import {
   listAvailableCleanersForBooking,
 } from '@/lib/dispatch/cleaner-dispatch';
 import { computeBookingDurationMinutes } from '@/lib/booking-duration';
-import type { AvailableCleanersResponse } from '@/types/booking';
+import type { AvailableCleanersResponse, Cleaner } from '@/types/booking';
+import type { Database } from '@/types/database';
+
+type CleanerRow = Database['public']['Tables']['cleaners']['Row'];
+
+/** Public booking API shape; omits `password_hash` and other internal row fields from `select('*')`. */
+function mapCleanerRowToCleaner(row: CleanerRow): Cleaner {
+  return {
+    id: row.id,
+    name: row.name,
+    photo_url: row.photo_url,
+    rating: row.rating,
+    areas: row.areas,
+    bio: row.bio ?? null,
+    years_experience: row.years_experience ?? null,
+    specialties: row.specialties ?? null,
+    phone: row.phone ?? null,
+    email: row.email ?? null,
+    is_active: row.is_active,
+    completion_rate: row.completion_rate,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
 
 function parseJsonExtras(param: string | null): { extras: string[]; quantities: Record<string, number> } {
   if (!param?.trim()) return { extras: [], quantities: {} };
@@ -92,7 +115,7 @@ export async function GET(req: NextRequest) {
 
     const response: AvailableCleanersResponse = {
       ok: true,
-      cleaners,
+      cleaners: cleaners.map(mapCleanerRowToCleaner),
     };
 
     return NextResponse.json(response);
