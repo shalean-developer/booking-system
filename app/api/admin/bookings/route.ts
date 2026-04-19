@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { isAdmin } from '@/lib/supabase-server';
-import { calcTotalAsync } from '@/lib/pricing';
+import { calcTotalSafe } from '@/lib/pricing/calcTotalSafe';
 import { generateUniqueBookingId } from '@/lib/booking-id';
 
 export const dynamic = 'force-dynamic';
@@ -317,13 +317,17 @@ export async function POST(request: NextRequest) {
     const bookingId = generateUniqueBookingId();
 
     // Calculate pricing
-    const pricing = await calcTotalAsync(
+    const pricing = await calcTotalSafe(
       {
-        service: body.service_type,
-        bedrooms: body.bedrooms || 1,
-        bathrooms: body.bathrooms || 1,
-        extras: body.extras || [],
-        extrasQuantities: body.extrasQuantities || {},
+        service_type: body.service_type,
+        bedrooms: body.bedrooms,
+        bathrooms: body.bathrooms,
+        extras: body.extras,
+        extrasQuantities: body.extrasQuantities,
+        extras_quantities: body.extras_quantities,
+        numberOfCleaners: body.numberOfCleaners,
+        number_of_cleaners: body.number_of_cleaners,
+        team_size: body.team_size,
       },
       'one-time'
     );
@@ -445,6 +449,7 @@ export async function POST(request: NextRequest) {
         address_city: body.address_city,
         // Notes are stored in price_snapshot, not as a separate column
         total_amount: pricing.total * 100, // Convert to cents
+        price: pricing.total, // ZAR; must mirror total_amount / 100
         requires_team: requiresTeam,
         price_snapshot: priceSnapshot, // Contains bedrooms, bathrooms, extras, etc.
         status: 'pending',

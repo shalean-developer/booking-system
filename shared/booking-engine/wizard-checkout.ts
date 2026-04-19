@@ -93,6 +93,9 @@ export function buildWizardPendingBookingPayload(
     pricingEngineFinalCents: ctx.pricing.engineFinalCents ?? undefined,
     pricingTotalHours: ctx.estimatedMaxHours,
     pricingTeamSize: ctx.lineCalc?.breakdown.numberOfCleaners ?? 1,
+    pricingMode: data.pricingMode,
+    basicPlannedHours: data.basicPlannedHours ?? undefined,
+    scheduleEquipmentPref: data.scheduleEquipmentPref,
     equipmentCostCents: ctx.companyCosts?.equipmentCostCents,
     extraCleanerFeeCents: ctx.companyCosts?.extraCleanerFeeCents,
   };

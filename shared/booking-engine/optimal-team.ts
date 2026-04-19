@@ -1,21 +1,47 @@
 import type { BookingFormData } from '@/components/booking-system-types';
 import type { ServiceType as ApiServiceType } from '@/types/booking';
-import { formServiceToApi } from '@/lib/booking-pricing-input';
-import { estimateMaxWorkHoursFromWizard } from '@/lib/booking-work-hours';
-import { calculateOptimalTeam } from '@/lib/team-optimizer';
+import {
+  buildWizardTimeInput,
+  calculateJobHours,
+  getRecommendedTeamSize,
+} from '@/lib/time-estimation';
+import { MAX_TEAM_SIZE, MIN_TEAM_SIZE } from '@/lib/team-optimizer';
+import { isBasicEligible, isBasicPlannedPathExtrasValid } from '@/lib/pricing-mode';
 import { resolveWizardNumberOfCleaners } from './calculate';
 import { buildDashboardWizardShim } from './dashboard-wizard-shim';
 
-/** Full team heuristic for crew step (hours, cleaners) — same as legacy `optimalTeam` useMemo. */
+/** Full team heuristic for crew step — aligned with `getRecommendedTeamSize` + pricing engine. */
 export function getWizardOptimalTeamBreakdown(wizard: BookingFormData) {
   if (!wizard.service) {
     return { teamSize: 1, hoursPerCleaner: 3, totalWorkHours: 3 as number };
   }
-  const tw = estimateMaxWorkHoursFromWizard(wizard);
-  return calculateOptimalTeam({
-    totalWorkHours: tw,
-    serviceType: formServiceToApi(wizard.service),
-  });
+  const timeIn = buildWizardTimeInput(wizard);
+  const totalWorkHours = calculateJobHours(timeIn);
+  if (
+    wizard.pricingMode === 'basic' &&
+    wizard.basicPlannedHours != null &&
+    isBasicPlannedPathExtrasValid(timeIn, wizard.extras)
+  ) {
+    const h = wizard.basicPlannedHours;
+    return {
+      teamSize: 1,
+      hoursPerCleaner: h,
+      totalWorkHours: h,
+    };
+  }
+  if (wizard.pricingMode === 'basic' && isBasicEligible(timeIn, wizard.extras)) {
+    return {
+      teamSize: 1,
+      hoursPerCleaner: totalWorkHours,
+      totalWorkHours,
+    };
+  }
+  const teamSize = Math.min(
+    MAX_TEAM_SIZE,
+    Math.max(MIN_TEAM_SIZE, getRecommendedTeamSize(totalWorkHours, timeIn.serviceType))
+  );
+  const hoursPerCleaner = teamSize > 0 ? totalWorkHours / teamSize : totalWorkHours;
+  return { teamSize, hoursPerCleaner, totalWorkHours };
 }
 
 export function getDashboardOptimalTeamSize(input: {
@@ -27,13 +53,12 @@ export function getDashboardOptimalTeamSize(input: {
   extrasQuantitiesById: Record<string, number>;
 }): number {
   const wizard = buildDashboardWizardShim(input);
-  const hours = estimateMaxWorkHoursFromWizard(wizard);
-  const serviceLabel = input.service === 'Move In/Out' ? 'Move In/Out' : input.service;
-  const { teamSize } = calculateOptimalTeam({
-    totalWorkHours: hours,
-    serviceType: serviceLabel,
-  });
-  return teamSize;
+  const timeIn = buildWizardTimeInput(wizard);
+  const hours = calculateJobHours(timeIn);
+  return Math.min(
+    MAX_TEAM_SIZE,
+    Math.max(MIN_TEAM_SIZE, getRecommendedTeamSize(hours, timeIn.serviceType))
+  );
 }
 
 export type OptimalTeamInput =

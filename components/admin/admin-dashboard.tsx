@@ -46,14 +46,13 @@ import {
 import { PricingPage } from './PricingPage';
 import { DashboardHome } from './dashboard-home';
 import { RevenueDashboard } from './revenue-dashboard';
-import { useDashboardStats } from '@/hooks/use-dashboard-stats';
 import type { NavId } from '@/components/admin/types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface NavItem {
   /** Full-page routes under `/admin/...`, not an SPA panel */
-  id: NavId | 'schedule' | 'invoices';
+  id: NavId | 'schedule' | 'invoices' | 'blog';
   label: string;
   icon: React.ReactNode;
   badge?: number;
@@ -352,7 +351,12 @@ export function AdminDashboard() {
     }
   }, []);
 
-  const { stats: navStats } = useDashboardStats('month');
+  const { data: pendingRes, mutate: mutatePendingCounts } = useSWR<{
+    ok: boolean;
+    pendingQuotes?: number;
+    pendingApplications?: number;
+    pendingBookings?: number;
+  }>('/api/admin/pending-counts', fetcher);
 
   const { data: notifData } = useSWR<{ ok: boolean; count?: number }>(
     '/api/admin/notifications/unread-count',
@@ -372,9 +376,9 @@ export function AdminDashboard() {
   }, [router]);
 
   const navItems = useMemo((): NavItem[] => {
-    const b = navStats?.pendingBookings;
-    const q = navStats?.pendingQuotes;
-    const a = navStats?.pendingApplications;
+    const b = pendingRes?.ok ? pendingRes.pendingBookings : undefined;
+    const q = pendingRes?.ok ? pendingRes.pendingQuotes : undefined;
+    const a = pendingRes?.ok ? pendingRes.pendingApplications : undefined;
     return [
       { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-4.5 w-4.5" /> },
       { id: 'revenue', label: 'Revenue', icon: <CircleDollarSign className="h-4.5 w-4.5" /> },
@@ -403,7 +407,7 @@ export function AdminDashboard() {
       },
       { id: 'pricing', label: 'Pricing', icon: <Tags className="h-4.5 w-4.5" /> },
       {
-        id: 'settings',
+        id: 'blog',
         label: 'Blog Management',
         icon: <BookOpen className="h-4.5 w-4.5" />,
         href: '/admin/blog',
@@ -411,7 +415,7 @@ export function AdminDashboard() {
       { id: 'reports', label: 'Reports', icon: <BarChart3 className="h-4.5 w-4.5" /> },
       { id: 'settings', label: 'Settings', icon: <Settings className="h-4.5 w-4.5" /> },
     ];
-  }, [navStats]);
+  }, [pendingRes]);
 
   const handleSearchSubmit = useCallback(() => {
     setActiveNav('bookings');
@@ -438,6 +442,7 @@ export function AdminDashboard() {
       suburb: booking.suburb,
     };
     setNewBookings((prev) => [record, ...prev]);
+    void mutatePendingCounts();
     setToast(
       pending
         ? `Booking ${booking.id} created — complete payment in Paystack or from Bookings.`

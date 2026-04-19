@@ -146,16 +146,22 @@ export interface BookingStep2ScheduleProps {
   onBack: () => void;
   onContinue: () => void;
   pricing: {
-    basePrice: number;
-    bedroomAdd: number;
-    bathroomAdd: number;
-    extraRoomAdd: number;
-    extrasTotal: number;
     total: number;
+    /** Same line items as step 1 / checkout — engine-derived. */
+    dbPricingRows: { id: string; label: string; value: number }[];
+    engineMeta: {
+      estimatedHours: number;
+      hoursPerCleaner: number;
+      marginRateBoostApplied: number;
+      teamSize: number;
+      estimatedJobHours: number;
+    } | null;
   };
   serviceTitle: string;
   /** Deep / Move / Standard / Airbnb: add-on tiles from form-data API. Pass `[]` when catalog is empty — do not omit (omitting falls back to legacy static tiles for Deep/Move). */
   addonTilesFromPricing?: { id: string; label: string; price: number; icon: React.ReactNode }[];
+  /** Set when Quick Clean rules are violated (hours, heavy add-ons, etc.). */
+  pricingModeError?: string;
 }
 
 export function BookingStep2Schedule({
@@ -166,6 +172,7 @@ export function BookingStep2Schedule({
   pricing,
   serviceTitle,
   addonTilesFromPricing,
+  pricingModeError,
 }: BookingStep2ScheduleProps) {
   const [weekStartOffset, setWeekStartOffset] = useState(() => {
     const parsed = parseDateStr(data.date);
@@ -213,7 +220,6 @@ export function BookingStep2Schedule({
     return [];
   }, [data.service, data.extras, addonTiles]);
 
-  const addonsLine = pricing.bedroomAdd + pricing.bathroomAdd + pricing.extraRoomAdd;
   const totalEstimate = pricing.total;
   const canContinue = selectedDate !== null && selectedTime !== null;
 
@@ -478,16 +484,51 @@ export function BookingStep2Schedule({
                     .join(', ')
             }
             totalZar={totalEstimate}
+            pricingContext={
+              pricing.engineMeta
+                ? {
+                    estimatedJobHours:
+                      pricing.engineMeta.estimatedHours ?? pricing.engineMeta.estimatedJobHours,
+                    teamSize: pricing.engineMeta.teamSize,
+                  }
+                : null
+            }
             details={
               <>
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>{serviceTitle}</span>
-                  <span className="font-semibold text-gray-800">R {pricing.basePrice.toLocaleString()}</span>
+                <div className="rounded-xl border border-gray-100 bg-gray-50/90 p-4 space-y-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Price breakdown</p>
+                  <div className="space-y-2.5">
+                    {pricing.dbPricingRows
+                      .filter((r) => r.value !== 0)
+                      .map((row) => (
+                        <div key={row.id} className="flex justify-between items-start gap-3 text-sm">
+                          <span className="text-gray-600">{row.label}</span>
+                          <span className="font-semibold text-gray-900 tabular-nums text-right shrink-0">
+                            R {row.value.toLocaleString('en-ZA')}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                  {pricing.engineMeta ? (
+                    <p className="text-[11px] text-gray-500 leading-snug space-y-0.5">
+                      <span className="block">
+                        Estimated duration:{' '}
+                        {pricing.engineMeta.estimatedHours.toFixed(1)} hours
+                      </span>
+                      <span className="block">Team size: {pricing.engineMeta.teamSize} cleaners</span>
+                      <span className="block">
+                        Est. {pricing.engineMeta.hoursPerCleaner.toFixed(1)}h per cleaner · rounded to nearest R50
+                      </span>
+                    </p>
+                  ) : null}
                 </div>
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>Home size & add-ons</span>
-                  <span className="font-semibold text-gray-800">R {addonsLine.toLocaleString()}</span>
-                </div>
+
+                {selectedAddonUiIds.length > 0 && (
+                  <p className="text-[11px] text-gray-500 leading-snug">
+                    Selected add-ons add time to the job; price follows labour and platform fees (same model as
+                    checkout).
+                  </p>
+                )}
 
                 <AnimatePresence>
                   {selectedAddonUiIds.map((id) => {
@@ -501,7 +542,6 @@ export function BookingStep2Schedule({
                         data.service === 'airbnb') &&
                       isQuantityAddonTile(id);
                     const q = isQty ? (data.extrasQuantities[storageKey] ?? 1) : 1;
-                    const lineZar = isQty ? extra.price * q : extra.price;
                     return (
                       <motion.div
                         key={id}
@@ -517,7 +557,7 @@ export function BookingStep2Schedule({
                           {deepMove ? ' Cleaning' : ''}
                           {isQty && q > 1 ? <span className="text-violet-500">×{q}</span> : null}
                         </span>
-                        <span className="font-semibold text-violet-600">+R{lineZar.toLocaleString('en-ZA')}</span>
+                        <span className="text-violet-600 font-medium text-xs">In total</span>
                       </motion.div>
                     );
                   })}
@@ -616,8 +656,17 @@ export function BookingStep2Schedule({
             }
           />
         }
-      >
+        >
           <p className="text-xs font-bold tracking-widest text-violet-600 uppercase">Step 2 of 4</p>
+
+          {pricingModeError && (
+            <div
+              className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+              role="alert"
+            >
+              {pricingModeError}
+            </div>
+          )}
 
           {showEnhanceSection && (
             <div className="relative z-10 bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-4">

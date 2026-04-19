@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { isAdmin } from '@/lib/supabase-server';
-import { calcTotalAsync } from '@/lib/pricing';
+import { calcTotalSafe } from '@/lib/pricing/calcTotalSafe';
+import { mergeExtrasQuantitiesFromRaw } from '@/lib/pricing/normalizePricingInput';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,10 +94,10 @@ export async function PATCH(
     const body = await request.json();
     const supabase = await createClient();
 
-    // Fetch existing booking to preserve price_snapshot structure
+    // Fetch existing booking to preserve price_snapshot structure and enforce paid-booking rules
     const { data: existingBooking, error: fetchError } = await supabase
       .from('bookings')
-      .select('price_snapshot, service_type')
+      .select('price_snapshot, service_type, status, payment_status, total_amount, price')
       .eq('id', id)
       .single();
 
@@ -109,19 +110,35 @@ export async function PATCH(
     }
 
     const existingPriceSnapshot = (existingBooking?.price_snapshot as any) || {};
-    
+    const isPaidBooking =
+      String(existingBooking?.payment_status || '').toLowerCase() === 'success' ||
+      String(existingBooking?.status || '').toLowerCase() === 'paid';
+
     // Get bedrooms and bathrooms from price_snapshot or use defaults
     const existingBedrooms = existingPriceSnapshot.bedrooms || existingPriceSnapshot.service?.bedroom || 1;
     const existingBathrooms = existingPriceSnapshot.bathrooms || existingPriceSnapshot.service?.bathroom || 1;
+    const mergedExtrasQuantities = mergeExtrasQuantitiesFromRaw({
+      price_snapshot: existingPriceSnapshot,
+      extrasQuantities: body.extrasQuantities,
+      extras_quantities: (body as { extras_quantities?: Record<string, number> }).extras_quantities,
+    });
 
     // Calculate new pricing if service details changed AND no manual total_amount provided
     // If total_amount is provided in body, use it (manual override)
     // Otherwise, always recalculate to ensure price matches current service details
-    let totalAmount = body.total_amount;
-    
+    let totalAmount: number | undefined = isPaidBooking ? undefined : body.total_amount;
+
+    if (isPaidBooking && body.total_amount !== undefined) {
+      console.warn('[admin/bookings PATCH] ignoring body.total_amount — booking already paid', {
+        bookingId: id,
+        attemptedCents: body.total_amount,
+      });
+    }
+
     // If total_amount is not provided (not a manual override), always recalculate
     // This ensures that when admin edits service details, price is automatically updated
-    if (totalAmount === undefined) {
+    // Never recalculate monetary totals for paid bookings (would desync from Paystack charge).
+    if (!isPaidBooking && totalAmount === undefined) {
       // Check if any service details are being updated
       const serviceDetailsChanged = 
         body.service_type || 
@@ -133,13 +150,16 @@ export async function PATCH(
       // Always recalculate if service details changed, or if we have service type to calculate from
       if (serviceDetailsChanged || body.service_type || existingBooking?.service_type) {
         try {
-          const pricing = await calcTotalAsync(
+          const pricing = await calcTotalSafe(
             {
-              service: body.service_type || existingBooking?.service_type || null,
+              service: body.service_type || existingBooking?.service_type,
               bedrooms: body.bedrooms !== undefined ? body.bedrooms : existingBedrooms,
               bathrooms: body.bathrooms !== undefined ? body.bathrooms : existingBathrooms,
               extras: body.extras || existingPriceSnapshot.extras || [],
-              extrasQuantities: body.extrasQuantities || existingPriceSnapshot.extrasQuantities || {},
+              extrasQuantities: body.extrasQuantities,
+              extras_quantities: (body as { extras_quantities?: Record<string, number> }).extras_quantities,
+              numberOfCleaners: (body as { numberOfCleaners?: number }).numberOfCleaners,
+              price_snapshot: existingPriceSnapshot,
             },
             'one-time'
           );
@@ -150,7 +170,7 @@ export async function PATCH(
           // Continue with existing total_amount if calculation fails
         }
       }
-    } else {
+    } else if (!isPaidBooking && totalAmount !== undefined) {
       console.log('💰 Using manual/override price:', totalAmount, 'cents (R' + (totalAmount / 100).toFixed(2) + ')');
     }
 
@@ -160,7 +180,8 @@ export async function PATCH(
       bedrooms: body.bedrooms !== undefined ? body.bedrooms : existingBedrooms,
       bathrooms: body.bathrooms !== undefined ? body.bathrooms : existingBathrooms,
       extras: body.extras || existingPriceSnapshot.extras || [],
-      extrasQuantities: body.extrasQuantities || existingPriceSnapshot.extrasQuantities || {},
+      extrasQuantities: mergedExtrasQuantities,
+      extras_quantities: mergedExtrasQuantities,
       snapshot_date: new Date().toISOString(),
     };
 
@@ -192,10 +213,24 @@ export async function PATCH(
     if (body.address_city) updateData.address_city = body.address_city;
     // Always update total_amount if provided (either manual or calculated)
     // Check both body.total_amount and calculated totalAmount
-    const finalTotalAmount = body.total_amount !== undefined ? body.total_amount : totalAmount;
+    let finalTotalAmount = body.total_amount !== undefined ? body.total_amount : totalAmount;
+    if (isPaidBooking) {
+      finalTotalAmount = undefined;
+      console.log('[admin/bookings PATCH] skipping total_amount/price update — booking already paid', {
+        bookingId: id,
+        stored_total_amount_cents: existingBooking?.total_amount,
+      });
+    }
     if (finalTotalAmount !== undefined && finalTotalAmount !== null) {
       updateData.total_amount = finalTotalAmount;
-      console.log('💰 Setting total_amount:', finalTotalAmount, 'cents (R' + (finalTotalAmount / 100).toFixed(2) + ')');
+      // Keep `price` (ZAR) in sync: admin recalc / override only touched total_amount before,
+      // leaving stale `price` (e.g. R940) while total_amount was 68000 cents (R680).
+      updateData.price = finalTotalAmount / 100;
+      console.log('[admin/bookings PATCH] pricing sync', {
+        bookingId: id,
+        total_amount_cents: finalTotalAmount,
+        price_zar: finalTotalAmount / 100,
+      });
     }
     // Always update cleaner_earnings if provided
     if (body.cleaner_earnings !== undefined && body.cleaner_earnings !== null) {

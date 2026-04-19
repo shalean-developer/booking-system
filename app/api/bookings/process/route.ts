@@ -281,6 +281,7 @@ export async function POST(req: Request) {
               address_city: body.address.city,
               payment_reference: paymentReference,
               total_amount: totalAmountCents,
+              price: totalAmount ?? 0,
               tip_amount: tipCents,
               ...earningsFields,
               requires_team: requiresTeam,

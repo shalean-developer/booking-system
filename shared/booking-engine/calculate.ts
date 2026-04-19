@@ -15,13 +15,13 @@ import { aggregateExtraQuantitiesByName } from '@/lib/booking-pricing-input';
 import type { BookingFormData as ApiFormData } from '@/lib/useBookingFormData';
 import type { BookingFormData as WizardBookingState } from '@/components/booking-system-types';
 import {
-  buildCarpetDetailsForPricing,
-  buildExtrasQuantitiesByIdFromWizard,
-  formServiceToApi,
-  getEffectiveRoomCounts,
-} from '@/lib/booking-pricing-input';
-import { estimateMaxWorkHoursFromWizard } from '@/lib/booking-work-hours';
-import { calculateOptimalTeam, MAX_TEAM_SIZE, MIN_TEAM_SIZE } from '@/lib/team-optimizer';
+  buildWizardTimeInput,
+  calculateJobHours,
+  getTeamSizeForJobHours,
+  mapWizardServiceToTimeServiceType,
+} from '@/lib/time-estimation';
+import { MAX_TEAM_SIZE, MIN_TEAM_SIZE } from '@/lib/team-optimizer';
+import { isBasicEligible, isBasicPlannedPathExtrasValid } from '@/lib/pricing-mode';
 
 export type BookingCalculateInput = {
   pricing: PricingData;
@@ -77,56 +77,57 @@ export function calculateBooking(input: BookingCalculateInput): BookingPriceResu
  * Team size used by the wizard and by `computeLinePricingFromWizard` (single source of truth).
  */
 export function resolveWizardNumberOfCleaners(wizard: WizardBookingState): number {
-  const totalWorkHours = estimateMaxWorkHoursFromWizard(wizard);
-  const optimal = calculateOptimalTeam({
-    totalWorkHours,
-    serviceType: formServiceToApi(wizard.service),
-  });
-  const raw =
-    typeof wizard.numberOfCleaners === 'number' && wizard.numberOfCleaners >= 1
-      ? Math.round(wizard.numberOfCleaners)
-      : optimal.teamSize;
-  return Math.min(MAX_TEAM_SIZE, Math.max(MIN_TEAM_SIZE, raw));
+  const time = buildWizardTimeInput(wizard);
+  if (
+    wizard.pricingMode === 'basic' &&
+    wizard.basicPlannedHours != null &&
+    isBasicPlannedPathExtrasValid(time, wizard.extras)
+  ) {
+    return 1;
+  }
+  if (wizard.pricingMode === 'basic' && isBasicEligible(time, wizard.extras)) {
+    return 1;
+  }
+  const hours = calculateJobHours(time);
+  const team = getTeamSizeForJobHours(
+    hours,
+    wizard.numberOfCleaners,
+    mapWizardServiceToTimeServiceType(wizard.service)
+  );
+  return Math.min(MAX_TEAM_SIZE, Math.max(MIN_TEAM_SIZE, team));
 }
 
 /**
- * Public multi-step wizard — maps room rules + extras into the same engine as dashboard.
+ * Wizard fee shell only — **no catalogue labour**. Totals come from `computeWizardEnginePricingRow`.
  */
 export function computeLinePricingFromWizard(
   wizard: WizardBookingState,
   formData: ApiFormData | null
 ): BookingPriceResult | null {
   if (!formData?.pricing) return null;
-  const eff = getEffectiveRoomCounts(wizard);
-  const extrasQuantitiesById = buildExtrasQuantitiesByIdFromWizard(
-    wizard.extras,
-    wizard.extrasQuantities
-  );
-  const extrasQuantities = aggregateExtraQuantitiesByName(
-    wizard.extras,
-    extrasQuantitiesById,
-    formData.extras.all
-  );
-  const apiService = formServiceToApi(wizard.service);
   const numberOfCleaners = resolveWizardNumberOfCleaners(wizard);
-  return calculateBookingPrice(
-    formData.pricing,
-    {
-      service: apiService,
-      bedrooms: eff.bedrooms,
-      bathrooms: eff.bathrooms,
-      extraRooms: eff.extraRooms,
-      extras: Object.keys(extrasQuantities),
-      extrasQuantities,
-      carpetDetails: buildCarpetDetailsForPricing(wizard),
-      provideEquipment:
-        (wizard.service === 'standard' || wizard.service === 'airbnb') &&
-        wizard.scheduleEquipmentPref === 'bring',
-      equipmentChargeOverride: formData.equipment?.charge,
+  const serviceFee = formData.pricing.serviceFee ?? 49;
+  return {
+    subtotal: 0,
+    serviceFee,
+    frequencyDiscount: 0,
+    frequencyDiscountPercent: 0,
+    total: serviceFee,
+    minimumApplied: 0,
+    breakdown: {
+      base: 0,
+      bedrooms: 0,
+      bathrooms: 0,
+      extraRooms: 0,
+      carpetFitted: 0,
+      carpetLoose: 0,
+      carpetOccupiedFee: 0,
+      extrasTotal: 0,
+      equipmentCharge: 0,
+      laborSubtotalOneCleaner: 0,
       numberOfCleaners,
     },
-    'one-time'
-  );
+  };
 }
 
 export type { BookingPriceResult };

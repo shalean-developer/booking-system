@@ -32,7 +32,17 @@ export interface BookingStep3CrewProps {
   setData: React.Dispatch<React.SetStateAction<BookingFormData>>;
   onBack: () => void;
   onContinue: () => void;
-  pricingTotalZar: number;
+  pricing: {
+    total: number;
+    dbPricingRows: { id: string; label: string; value: number }[];
+    engineMeta: {
+      estimatedHours: number;
+      hoursPerCleaner: number;
+      marginRateBoostApplied: number;
+      teamSize: number;
+      estimatedJobHours: number;
+    } | null;
+  };
   serviceTitle: string;
   apiCleaners: ApiCleaner[];
   cleanersLoading: boolean;
@@ -140,13 +150,14 @@ export function BookingStep3Crew({
   setData,
   onBack,
   onContinue,
-  pricingTotalZar,
+  pricing,
   serviceTitle,
   apiCleaners,
   cleanersLoading,
   formatDate,
   optimalTeam,
 }: BookingStep3CrewProps) {
+  const pricingTotalZar = pricing.total;
   const [attempted, setAttempted] = useState(false);
   const [shaking, setShaking] = useState(false);
   const ctaBtnRef = useRef<HTMLButtonElement>(null);
@@ -270,6 +281,32 @@ export function BookingStep3Crew({
             propertySummary={`${data.bedrooms} bed · ${data.bathrooms} bath · ${locationLabel}`}
             extrasSummary={data.extras.length > 0 ? `${data.extras.length} add-on(s)` : 'None'}
             totalZar={pricingTotalZar}
+            pricingContext={
+              pricing.engineMeta
+                ? {
+                    estimatedJobHours:
+                      pricing.engineMeta.estimatedHours ?? pricing.engineMeta.estimatedJobHours,
+                    teamSize: pricing.engineMeta.teamSize,
+                  }
+                : null
+            }
+            details={
+              <div className="rounded-xl border border-gray-100 bg-gray-50/90 p-4 space-y-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Price breakdown</p>
+                <div className="space-y-2.5">
+                  {pricing.dbPricingRows
+                    .filter((r) => r.value !== 0)
+                    .map((row) => (
+                      <div key={row.id} className="flex justify-between items-start gap-3 text-sm">
+                        <span className="text-gray-600">{row.label}</span>
+                        <span className="font-semibold text-gray-900 tabular-nums text-right shrink-0">
+                          {formatZarSimple(row.value)}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            }
             detailRows={[
               { id: 'date', label: 'Date', value: dateLabel },
               { id: 'time', label: 'Time', value: timeLabel },

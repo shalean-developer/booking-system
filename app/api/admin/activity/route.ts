@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
         .select('id', { count: 'exact', head: true })
         .eq('status', 'pending'),
       supabase
-        .from('cleaner_applications')
+        .from('applications')
         .select('id', { count: 'exact', head: true })
         .eq('status', 'pending'),
     ]);

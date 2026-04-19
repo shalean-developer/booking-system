@@ -5,6 +5,11 @@ import {
   matchBookingServiceToCatalog,
   type ServiceCatalogRow,
 } from '@/lib/admin-service-type-match';
+import {
+  defaultRollingBusinessRanges,
+  halfOpenCreatedAtRangeFromInclusiveYmd,
+  queryParamToYmd,
+} from '@/lib/admin-dashboard-business-range';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,18 +45,21 @@ export async function GET(request: NextRequest) {
 
     const catalogKeys = catalog.map((c) => c.service_type);
 
-    // Get date range from query params
     const { searchParams } = new URL(request.url);
     const dateFrom = searchParams.get('date_from');
     const dateTo = searchParams.get('date_to');
-    
-    // Helper function to get local date string (YYYY-MM-DD) to avoid timezone issues
-    const getLocalDateString = (date: Date): string => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    };
+
+    let startYmd: string;
+    let endYmd: string;
+    if (dateFrom && dateTo) {
+      startYmd = queryParamToYmd(dateFrom);
+      endYmd = queryParamToYmd(dateTo);
+    } else {
+      const r = defaultRollingBusinessRanges(30);
+      startYmd = r.currentStartYmd;
+      endYmd = r.currentEndYmd;
+    }
+    const createdRange = halfOpenCreatedAtRangeFromInclusiveYmd(startYmd, endYmd);
 
     // PostgREST returns at most 1000 rows per request. Aggregate counts require every row
     // in range, so we page in stable order by id.
@@ -66,17 +74,11 @@ export async function GET(request: NextRequest) {
       let q = supabase
         .from('bookings')
         .select('service_type')
+        .eq('payment_status', 'success')
+        .gte('created_at', createdRange.gte)
+        .lt('created_at', createdRange.lt)
         .order('id', { ascending: true })
         .range(from, to);
-
-      if (dateFrom && dateTo) {
-        const dateFromStr = getLocalDateString(new Date(dateFrom));
-        const dateToStr = getLocalDateString(new Date(dateTo));
-        q = q
-          .not('booking_date', 'is', null)
-          .gte('booking_date', dateFromStr)
-          .lte('booking_date', dateToStr);
-      }
 
       const { data: batch, error } = await q;
 

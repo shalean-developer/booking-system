@@ -86,6 +86,9 @@ export interface BookingStep4ConfirmationProps {
   totalZar: number;
   discountAmount: number;
   appliedPromoCode: string;
+  /** Engine breakdown rows (same source as steps 1–3). */
+  enginePriceRows?: { id: string; label: string; value: number }[];
+  pricingContext?: { estimatedJobHours?: number; teamSize?: number } | null;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -225,6 +228,8 @@ export function BookingStep4Confirmation({
   totalZar,
   discountAmount,
   appliedPromoCode,
+  enginePriceRows,
+  pricingContext = null,
 }: BookingStep4ConfirmationProps) {
   const [unit, setUnit] = useState('');
   const [attempted, setAttempted] = useState(false);
@@ -400,6 +405,8 @@ export function BookingStep4Confirmation({
             onRemovePromo={handleRemovePromo}
             promoSuccess={promoSuccess}
             appliedPromoLabel={appliedPromo?.label ?? null}
+            enginePriceRows={enginePriceRows}
+            pricingContext={pricingContext}
           />
         }
       >

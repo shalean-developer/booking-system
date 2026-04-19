@@ -2,6 +2,11 @@
  * Shared formatting utilities for admin dashboard
  */
 
+import {
+  addCalendarDaysYmd,
+  ymdTodayInBusinessTz,
+} from '@/lib/admin-dashboard-business-range';
+
 /**
  * Format currency amount (in cents) to South African Rand format
  * @param cents - Amount in cents
@@ -160,52 +165,13 @@ export function formatDateTime(dateString: string): string {
 }
 
 /**
- * Get date range for a given period
- * @param period - Period type ('today', 'week', 'month', 'year')
- * @returns Object with dateFrom and dateTo ISO strings
+ * Rolling calendar ranges in Africa/Johannesburg (same as admin revenue APIs).
+ * Returns inclusive YYYY-MM-DD bounds (not UTC midnight ISO) so server and DB agree.
  */
 export function getDateRange(period: 'today' | 'week' | 'month' | 'year'): { dateFrom: string; dateTo: string } {
-  const now = new Date();
-  
-  // Set end date to end of current day (23:59:59.999) to include all of today
-  const dateTo = new Date(now);
-  dateTo.setHours(23, 59, 59, 999);
-  
-  let dateFrom: Date;
-
-  switch (period) {
-    case 'today':
-      // Start of today (00:00:00.000)
-      dateFrom = new Date(now);
-      dateFrom.setHours(0, 0, 0, 0);
-      break;
-    case 'week':
-      // 7 days ago at start of day (00:00:00.000)
-      dateFrom = new Date(now);
-      dateFrom.setDate(dateFrom.getDate() - 7);
-      dateFrom.setHours(0, 0, 0, 0);
-      break;
-    case 'month':
-      // 30 days ago at start of day (00:00:00.000)
-      dateFrom = new Date(now);
-      dateFrom.setDate(dateFrom.getDate() - 30);
-      dateFrom.setHours(0, 0, 0, 0);
-      break;
-    case 'year':
-      // 1 year ago at start of day (00:00:00.000)
-      dateFrom = new Date(now);
-      dateFrom.setFullYear(dateFrom.getFullYear() - 1);
-      dateFrom.setHours(0, 0, 0, 0);
-      break;
-    default:
-      // Default to 30 days ago at start of day
-      dateFrom = new Date(now);
-      dateFrom.setDate(dateFrom.getDate() - 30);
-      dateFrom.setHours(0, 0, 0, 0);
-  }
-
-  return {
-    dateFrom: dateFrom.toISOString(),
-    dateTo: dateTo.toISOString(),
-  };
+  const endYmd = ymdTodayInBusinessTz();
+  const inclusiveDays =
+    period === 'today' ? 1 : period === 'week' ? 7 : period === 'month' ? 30 : 365;
+  const startYmd = addCalendarDaysYmd(endYmd, -(inclusiveDays - 1));
+  return { dateFrom: startYmd, dateTo: endYmd };
 }

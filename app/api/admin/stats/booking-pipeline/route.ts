@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, isAdmin } from '@/lib/supabase-server';
+import { queryParamToYmd } from '@/lib/admin-dashboard-business-range';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,13 +17,6 @@ export async function GET(request: NextRequest) {
     const dateFrom = searchParams.get('date_from');
     const dateTo = searchParams.get('date_to');
     
-    const getLocalDateString = (date: Date): string => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    };
-
     // Group related DB statuses into pipeline stages shown in the admin UI
     const buckets: { key: string; statuses: string[] }[] = [
       { key: 'pending', statuses: ['pending', 'reschedule_requested'] },
@@ -41,8 +35,8 @@ export async function GET(request: NextRequest) {
         .in('status', statuses);
 
       if (dateFrom && dateTo) {
-        const dateFromStr = getLocalDateString(new Date(dateFrom));
-        const dateToStr = getLocalDateString(new Date(dateTo));
+        const dateFromStr = queryParamToYmd(dateFrom);
+        const dateToStr = queryParamToYmd(dateTo);
         query = query.gte('booking_date', dateFromStr).lte('booking_date', dateToStr);
       }
 

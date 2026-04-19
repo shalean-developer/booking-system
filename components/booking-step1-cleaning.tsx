@@ -31,11 +31,17 @@ import {
   Info,
 } from 'lucide-react';
 
-import type { BookingFormData } from './booking-system-types';
+import type { BookingFormData, PricingMode } from './booking-system-types';
+import type { PricingResult } from '@/lib/pricing-engine-v2';
 import { BookingFlowStepIndicator } from '@/components/booking-flow-step-indicator';
 import { BookingFlowLayout } from '@/components/booking/booking-flow-layout';
 import { BookingSummary } from '@/components/booking/booking-summary';
-import type { PricingEngineResult } from '@/lib/pricing-engine';
+import { SavingsMessage } from '@/components/booking/savings-message';
+import { UpsellCard } from '@/components/UpsellCard';
+import { getUpsellContent, getUpsellTrigger } from '@/lib/upsell-engine';
+import { getBasicPlannedWizardPricing } from '@/shared/booking-engine/wizard-display-pricing';
+import { Tooltip } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 type ServiceId = 'standard' | 'deep' | 'airbnb' | 'moveinout' | 'carpet';
 type StepPropertyType = 'apartment' | 'house' | 'studio' | 'office';
@@ -72,12 +78,6 @@ interface StepperRowConfig {
   min: number;
   max: number;
   accentClass: string;
-}
-
-interface BreakdownRow {
-  id: string;
-  label: string;
-  value: number;
 }
 
 /** Default illustrative rates when `pricing_config` is unavailable (aligned with `lib/pricing` PRICING fallback). */
@@ -436,66 +436,6 @@ const calcDuration = (serviceId: ServiceId | null, carpetRooms: number): string 
   }
   return DURATION_MAP[serviceId];
 };
-
-const ServiceCard = ({
-  service,
-  selected,
-  onSelect,
-}: {
-  service: ServiceOption;
-  selected: boolean;
-  onSelect: (id: ServiceId) => void;
-}) => (
-  <motion.button
-    type="button"
-    whileTap={{ scale: 0.97 }}
-    onClick={() => onSelect(service.id)}
-    className={[
-      'relative w-full text-left rounded-2xl border-2 p-4 flex flex-col gap-2 transition-all duration-200 cursor-pointer shadow-sm',
-      selected
-        ? `${service.borderSelected} ${service.bgSelected} shadow-md`
-        : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md',
-    ].join(' ')}
-    aria-pressed={selected}
-  >
-    <div className="flex items-start gap-3 w-full min-w-0">
-      <div
-        className={[
-          'flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-colors duration-200',
-          selected ? `${service.bgSelected} ${service.selectedColor}` : `bg-gray-100 ${service.color}`,
-        ].join(' ')}
-      >
-        {service.icon}
-      </div>
-      <p
-        className={['flex-1 min-w-0 font-semibold text-sm leading-tight', selected ? 'text-gray-900' : 'text-gray-800'].join(
-          ' '
-        )}
-      >
-        {service.label}
-      </p>
-      <AnimatePresence>
-        {selected && (
-          <motion.div
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-            className={['flex-shrink-0 mt-0.5', service.selectedColor].join(' ')}
-          >
-            <CheckCircle2 className="w-5 h-5" />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-    <p className="text-xs text-gray-500 leading-snug">{service.tagline}</p>
-    <p className={['text-xs font-bold', selected ? service.selectedColor : 'text-gray-600'].join(' ')}>
-      {service.id === 'carpet'
-        ? `From ${formatPrice(service.bedroomPrice)}/room`
-        : `From ${formatPrice(service.basePrice)}`}
-    </p>
-  </motion.button>
-);
 
 const Stepper = ({
   label,
@@ -894,11 +834,20 @@ export interface BookingStep1CleaningProps {
   servicePricing?: Record<string, { base: number; bedroom: number; bathroom: number; extraRoom: number }> | null;
   /** DB extra price for carpet “extra cleaner”, when configured */
   extraCleanerPriceZar?: number;
-  /**
-   * Optional cost-plus estimate aligned with earnings-v2 (hours + company-only lines).
-   * Does not replace `liveTotalZar`; shown for transparency only.
-   */
-  pricingEngineEstimate?: PricingEngineResult | null;
+  /** Present when live pricing uses the cost-plus engine — for breakdown footnotes only. */
+  engineMeta?: {
+    estimatedHours?: number;
+    hoursPerCleaner: number;
+    marginRateBoostApplied: number;
+    teamSize?: number;
+    estimatedJobHours?: number;
+  } | null;
+  /** Shown under the total explainer (duration / team). */
+  pricingContext?: { estimatedJobHours?: number; teamSize?: number } | null;
+  /** Right-rail copy + breakdown density */
+  summaryTone?: 'basic' | 'premium';
+  /** V2 pricing snapshot (minimum tier, fees) — basic uses accurate `isMinimumApplied`. */
+  pricingV2?: PricingResult | null;
 }
 
 export function BookingStep1Cleaning({
@@ -911,7 +860,10 @@ export function BookingStep1Cleaning({
   dbPricingRows,
   servicePricing,
   extraCleanerPriceZar,
-  pricingEngineEstimate,
+  engineMeta = null,
+  pricingContext = null,
+  summaryTone = 'premium',
+  pricingV2 = null,
 }: BookingStep1CleaningProps) {
   const selectedService = serviceToStepId(data.service);
   const propertyType = data.propertyType as StepPropertyType;
@@ -933,6 +885,15 @@ export function BookingStep1Cleaning({
   const extraCleaner = data.carpetExtraCleaner ?? false;
 
   const [attempted, setAttempted] = useState(false);
+  const [timeOnPage, setTimeOnPage] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeOnPage((t) => t + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const isCarpet = selectedService === 'carpet';
   const isOffice = propertyType === 'office';
   const isStudio = propertyType === 'studio';
@@ -989,14 +950,58 @@ export function BookingStep1Cleaning({
     return calcResidentialPrice(selectedServiceData, effectiveBedrooms, effectiveBathrooms, extraRooms);
   })();
 
-  const displayTotal = liveTotalZar > 0 ? liveTotalZar : illustrativePrice;
-  const useDbBreakdown = Boolean(dbPricingRows && dbPricingRows.length > 0);
+  /** Basic Clean: always derive from `calculateBasicV2` + equipment — not catalog illustrative ZAR or stale parent totals. */
+  const basicWizardPricing = useMemo(
+    () => getBasicPlannedWizardPricing(data),
+    [
+      data.service,
+      data.tipAmount,
+      data.promoCode,
+      data.pricingMode,
+      data.scheduleEquipmentPref,
+      data.basicPlannedHours,
+      data.extras,
+    ]
+  );
+
+  const displayTotal =
+    basicWizardPricing != null
+      ? basicWizardPricing.total
+      : liveTotalZar > 0
+        ? liveTotalZar
+        : illustrativePrice;
+
+  const effectiveDbPricingRows = basicWizardPricing?.dbPricingRows ?? dbPricingRows;
+  const effectivePricingV2 = basicWizardPricing?.v2Breakdown ?? pricingV2;
+  const effectiveEngineMeta = basicWizardPricing?.engineMeta ?? engineMeta;
+
+  const effectivePricingContext =
+    basicWizardPricing?.engineMeta != null
+      ? {
+          estimatedJobHours:
+            basicWizardPricing.engineMeta.estimatedHours ??
+            basicWizardPricing.engineMeta.estimatedJobHours,
+          teamSize: basicWizardPricing.engineMeta.teamSize,
+        }
+      : pricingContext;
+
+  const useDbBreakdown = Boolean(
+    effectiveDbPricingRows && effectiveDbPricingRows.length > 0
+  );
   const duration = durationLabel || calcDuration(selectedService, carpetRooms);
 
-  const serviceError = attempted && !selectedService;
+  const isPremiumMode = data.pricingMode === 'premium';
+  const serviceError = attempted && isPremiumMode && !selectedService;
   const locationError = attempted && !location;
-  const propertyTypeError = attempted && !propertyType;
-  const isValid = !!selectedService && !!location && !!propertyType;
+  const propertyTypeError = attempted && isPremiumMode && !propertyType;
+  const maxBasicH = data.extras.length > 0 ? 8 : 5;
+  const isValid =
+    !!location?.trim() &&
+    (data.pricingMode === 'basic'
+      ? data.basicPlannedHours != null &&
+        data.basicPlannedHours >= 2 &&
+        data.basicPlannedHours <= maxBasicH
+      : !!(selectedService && propertyType));
 
   const patch = useCallback(
     (partial: Partial<BookingFormData>) => {
@@ -1005,9 +1010,52 @@ export function BookingStep1Cleaning({
     [setData]
   );
 
+  const selectExperience = useCallback(
+    (mode: PricingMode) => {
+      if (mode === 'basic') {
+        patch({
+          pricingMode: 'basic',
+          service: 'standard',
+          extras: [],
+          extrasQuantities: {},
+          basicPlannedHours: data.basicPlannedHours ?? 3,
+          propertyType: 'apartment',
+          scheduleEquipmentPref: 'own',
+          numberOfCleaners: 1,
+          teamSizeUserOverride: false,
+        });
+      } else {
+        patch({
+          pricingMode: 'premium',
+          basicPlannedHours: null,
+        });
+      }
+    },
+    [patch, data.basicPlannedHours]
+  );
+
+  const upsellContent = useMemo(() => {
+    if (data.pricingMode !== 'basic') return null;
+    const trigger = getUpsellTrigger({
+      hours: data.basicPlannedHours ?? 0,
+      isMinimumApplied: effectivePricingV2?.isMinimumApplied,
+      timeOnPage,
+    });
+    return trigger ? getUpsellContent(trigger) : null;
+  }, [data.pricingMode, data.basicPlannedHours, effectivePricingV2?.isMinimumApplied, timeOnPage]);
+
+  const handleUpsellUpgrade = useCallback(() => {
+    selectExperience('premium');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [selectExperience]);
+
   const handleServiceSelect = useCallback(
     (id: ServiceId) => {
-      patch({ service: stepIdToService(id) });
+      const svc = stepIdToService(id);
+      patch({
+        service: svc,
+        ...(id !== 'standard' && id !== 'airbnb' ? { pricingMode: 'premium' as PricingMode } : {}),
+      });
     },
     [patch]
   );
@@ -1168,44 +1216,25 @@ export function BookingStep1Cleaning({
     },
   ];
 
-  const residentialBreakdown: BreakdownRow[] =
-    selectedServiceData && !isCarpet
-      ? [
-          { id: 'base', label: 'Base rate', value: selectedServiceData.basePrice },
-          { id: 'bed', label: `Bedrooms (${effectiveBedrooms})`, value: effectiveBedrooms * selectedServiceData.bedroomPrice },
-          {
-            id: 'bath',
-            label: `Bathrooms (${effectiveBathrooms})`,
-            value: effectiveBathrooms * selectedServiceData.bathroomPrice,
-          },
-          { id: 'extra', label: `Extra rooms (${extraRooms})`, value: extraRooms * selectedServiceData.extraRoomPrice },
-        ]
-      : [];
+  const validationMessage =
+    !location?.trim()
+      ? 'Please select your area'
+      : data.pricingMode === 'basic'
+        ? data.basicPlannedHours == null ||
+            data.basicPlannedHours < 2 ||
+            data.basicPlannedHours > maxBasicH
+          ? `Choose how many hours (2–${maxBasicH})`
+          : 'Complete your selections to continue'
+        : !selectedService
+          ? 'Please select a service'
+          : !propertyType
+            ? 'Please select a property type'
+            : 'Please enter your location';
 
-  const officeBreakdown: BreakdownRow[] =
-    selectedServiceData && !isCarpet && isOffice
-      ? [
-          { id: 'base', label: 'Base rate', value: selectedServiceData.basePrice },
-          { id: 'board', label: `Boardrooms (${boardrooms})`, value: boardrooms * selectedServiceData.boardroomPrice },
-          {
-            id: 'priv',
-            label: `Private offices (${privateOffices})`,
-            value: privateOffices * selectedServiceData.privateOfficePrice,
-          },
-          { id: 'open', label: `Open areas (${openAreas})`, value: openAreas * selectedServiceData.openAreaPrice },
-          { id: 'obath', label: `Bathrooms (${officeBathrooms})`, value: officeBathrooms * scaledOfficeBathroom },
-          { id: 'kit', label: `Kitchen / Breakroom (${kitchens})`, value: kitchens * scaledOfficeKitchen },
-          { id: 'recep', label: 'Reception area', value: hasReception ? scaledOfficeReception : 0 },
-        ]
-      : [];
-
-  const validationMessage = !selectedService
-    ? 'Please select a service'
-    : !propertyType
-      ? 'Please select a property type'
-      : 'Please enter your location';
-
-  const serviceTitle = selectedServiceData?.label ?? 'Cleaning';
+  const serviceTitle =
+    data.pricingMode === 'basic'
+      ? 'Basic Clean'
+      : selectedServiceData?.label ?? 'Cleaning';
 
   return (
     <div className="min-h-screen bg-[#f0f2f5] font-sans">
@@ -1222,7 +1251,7 @@ export function BookingStep1Cleaning({
           ) : null}
           <div className="min-w-0">
             <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Shalean Cleaning Services</p>
-            <h1 className="text-lg font-bold text-gray-900 leading-tight">Service & property</h1>
+            <h1 className="text-lg font-bold text-gray-900 leading-tight">Book your clean</h1>
           </div>
         </div>
         <BookingFlowStepIndicator activeStep={1} />
@@ -1233,19 +1262,29 @@ export function BookingStep1Cleaning({
           <BookingSummary
             mode="preview"
             step={1}
+            summaryTone={summaryTone}
+            previewAnchor={
+              data.pricingMode === 'premium' ? 'Most homes like yours cost R800–R1400' : undefined
+            }
+            pricingContext={effectivePricingContext}
             serviceTitle={serviceTitle}
             propertySummary={
-              [propertyType, location].filter(Boolean).length
-                ? [propertyType, location].filter(Boolean).join(' · ')
-                : undefined
+              data.pricingMode === 'basic'
+                ? location || undefined
+                : [propertyType, location].filter(Boolean).length
+                  ? [propertyType, location].filter(Boolean).join(' · ')
+                  : undefined
             }
             extrasSummary={data.extras.length > 0 ? `${data.extras.length} add-on(s)` : undefined}
             totalZar={displayTotal}
+            previewPricingMode="default"
             details={
               <>
-                {!selectedService && <p className="text-xs text-gray-400 text-center py-2">Select a service to see pricing</p>}
+                {!selectedService && data.pricingMode !== 'basic' && (
+                  <p className="text-xs text-gray-400 text-center py-2">Select a service to see pricing</p>
+                )}
 
-                {propertyType && (
+                {propertyType && data.pricingMode !== 'basic' && (
                   <div className="flex items-center gap-2 pb-1">
                     <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Property</span>
                     <span className="text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full capitalize">
@@ -1255,144 +1294,73 @@ export function BookingStep1Cleaning({
                 )}
 
                 {useDbBreakdown && (
-                  <div className="space-y-2">
-                    {dbPricingRows!
-                      .filter((r) => r.value !== 0)
-                      .map((row) => (
-                        <div key={row.id} className="flex justify-between items-center">
-                          <span className="text-sm text-gray-500">{row.label}</span>
-                          <motion.span
-                            key={`${row.id}-${row.value}`}
-                            initial={{ opacity: 0.5, y: -2 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="text-sm font-semibold text-gray-900"
-                          >
-                            {formatPrice(row.value)}
-                          </motion.span>
+                  <div className="rounded-xl border border-gray-100 bg-gray-50/90 p-4 space-y-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Price breakdown</p>
+                    {summaryTone === 'basic' && effectivePricingV2?.isMinimumApplied ? (
+                      <div className="rounded-lg border border-amber-100 bg-amber-50/90 px-3 py-2 text-xs text-amber-950">
+                        <p className="font-semibold">Minimum booking applied</p>
+                        <p className="text-amber-900/90 mt-0.5">
+                          Includes up to {data.basicPlannedHours} hours of cleaning time.
+                        </p>
+                      </div>
+                    ) : summaryTone === 'basic' && data.basicPlannedHours != null ? (
+                      <p className="text-xs text-gray-600">
+                        Estimated price based on your selected hours
+                      </p>
+                    ) : null}
+                    <div className="space-y-2.5">
+                      {effectiveDbPricingRows!
+                        .filter((r) => r.value !== 0)
+                        .map((row) => (
+                          <div key={row.id} className="flex justify-between items-start gap-3 text-sm">
+                            <span className="text-gray-600">{row.label}</span>
+                            <motion.span
+                              key={`${row.id}-${row.value}`}
+                              initial={{ opacity: 0.5, y: -2 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="font-semibold text-gray-900 tabular-nums text-right shrink-0"
+                            >
+                              {row.id === 'v2_service' ? `+ ${formatPrice(row.value)}` : formatPrice(row.value)}
+                            </motion.span>
+                          </div>
+                        ))}
+                      {displayTotal > 0 ? (
+                        <div className="flex justify-between items-start gap-3 text-sm font-bold text-gray-900 pt-1 border-t border-gray-200">
+                          <span>Total Due</span>
+                          <span className="tabular-nums">{formatPrice(displayTotal)}</span>
                         </div>
-                      ))}
-                  </div>
-                )}
-
-                {useDbBreakdown && pricingEngineEstimate ? (
-                  <div className="mt-3 pt-3 border-t border-gray-100 rounded-lg bg-slate-50/90 px-3 py-2.5 text-left">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
-                      Earnings-aligned estimate
-                    </p>
-                    <p className="text-lg font-bold text-slate-900">
-                      R{' '}
-                      {(pricingEngineEstimate.finalPrice / 100).toLocaleString('en-ZA', {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0,
-                      })}
-                    </p>
-                    <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                      Cost floor + margin (excludes equipment &amp; extra-cleaner fees from the cleaner pool). Rounded to
-                      R50. For comparison only — your live total above uses standard pricing.
-                    </p>
-                    <details className="mt-2 text-[11px] text-slate-600">
-                      <summary className="cursor-pointer font-medium text-slate-700 select-none">
-                        Breakdown
-                      </summary>
-                      <ul className="mt-2 space-y-1 pl-0 list-none">
-                        <li className="flex justify-between gap-2">
-                          <span>Labour cost floor</span>
-                          <span>R {(pricingEngineEstimate.costFloor / 100).toLocaleString('en-ZA')}</span>
-                        </li>
-                        <li className="flex justify-between gap-2">
-                          <span>Margin ({Math.round(pricingEngineEstimate.marginRate * 100)}%)</span>
-                          <span>R {(pricingEngineEstimate.margin / 100).toLocaleString('en-ZA')}</span>
-                        </li>
-                        <li className="flex justify-between gap-2">
-                          <span>Hrs / cleaner</span>
-                          <span>{pricingEngineEstimate.hoursPerCleaner.toFixed(1)}</span>
-                        </li>
-                        {pricingEngineEstimate.marginRateBoostApplied > 0 ? (
-                          <li className="flex justify-between gap-2 text-amber-800">
-                            <span>Margin boost (earnings guard)</span>
-                            <span>+{Math.round(pricingEngineEstimate.marginRateBoostApplied * 100)}%</span>
-                          </li>
-                        ) : null}
-                      </ul>
-                    </details>
-                  </div>
-                ) : null}
-
-                {!useDbBreakdown && selectedServiceData && !isCarpet && isOffice && (
-                  <div className="space-y-2">
-                    {officeBreakdown
-                      .filter((r) => r.value > 0)
-                      .map((row) => (
-                        <div key={row.id} className="flex justify-between items-center">
-                          <span className="text-sm text-gray-500">{row.label}</span>
-                          <motion.span
-                            key={`${row.id}-${row.value}`}
-                            initial={{ opacity: 0.5, y: -2 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="text-sm font-semibold text-gray-900"
-                          >
-                            {formatPrice(row.value)}
-                          </motion.span>
-                        </div>
-                      ))}
-                  </div>
-                )}
-
-                {!useDbBreakdown && selectedServiceData && !isCarpet && !isOffice && (
-                  <div className="space-y-2">
-                    {residentialBreakdown
-                      .filter((r) => r.value > 0)
-                      .map((row) => (
-                        <div key={row.id} className="flex justify-between items-center">
-                          <span className="text-sm text-gray-500">{row.label}</span>
-                          <motion.span
-                            key={`${row.id}-${row.value}`}
-                            initial={{ opacity: 0.5, y: -2 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="text-sm font-semibold text-gray-900"
-                          >
-                            {formatPrice(row.value)}
-                          </motion.span>
-                        </div>
-                      ))}
-                  </div>
-                )}
-
-                {!useDbBreakdown && isCarpet && (
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-500">
-                        Carpeted rooms ({carpetRooms})
-                      </span>
-                      <motion.span
-                        key={carpetRooms}
-                        initial={{ opacity: 0.5, y: -2 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="text-sm font-semibold text-gray-900"
-                      >
-                        {formatPrice(carpetRooms * (selectedServiceData?.bedroomPrice ?? 0))}
-                      </motion.span>
+                      ) : null}
                     </div>
-                    {carpetRugs > 0 && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-500">Loose rugs ({carpetRugs})</span>
-                        <motion.span
-                          key={carpetRugs}
-                          initial={{ opacity: 0.5, y: -2 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="text-sm font-semibold text-gray-900"
-                        >
-                          {formatPrice(carpetRugs * (selectedServiceData?.bathroomPrice ?? 0))}
-                        </motion.span>
-                      </div>
-                    )}
-                    {extraCleaner && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-500">Extra cleaner</span>
-                        <span className="text-sm font-semibold text-gray-900">{formatPrice(extraCleanerUnitZar)}</span>
-                      </div>
-                    )}
+                    {effectiveEngineMeta && effectiveEngineMeta.marginRateBoostApplied > 0 ? (
+                      <p className="text-[11px] text-amber-900 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5 leading-snug">
+                        Includes a pricing safeguard so payouts stay sustainable for cleaners.
+                      </p>
+                    ) : null}
+                    {effectiveEngineMeta ? (
+                      <p className="text-[11px] text-gray-500 leading-snug space-y-0.5">
+                        <span className="block">
+                          Estimated duration:{' '}
+                          {(effectiveEngineMeta.estimatedHours ?? effectiveEngineMeta.estimatedJobHours ?? 0).toFixed(1)} hours
+                        </span>
+                        {effectiveEngineMeta.teamSize != null && effectiveEngineMeta.teamSize > 0 ? (
+                          <span className="block">Team size: {effectiveEngineMeta.teamSize} cleaners</span>
+                        ) : null}
+                        {summaryTone !== 'basic' ? (
+                          <span className="block">
+                            Est. {effectiveEngineMeta.hoursPerCleaner.toFixed(1)}h per cleaner · time-based total
+                          </span>
+                        ) : (
+                          <span className="block">Quick clean · 1 cleaner · all-in estimate + service fee</span>
+                        )}
+                      </p>
+                    ) : null}
                   </div>
+                )}
+
+                {!useDbBreakdown && selectedService && (
+                  <p className="text-xs text-gray-500 text-center py-2">
+                    Price details appear when your booking configuration is loaded.
+                  </p>
                 )}
 
                 {location && (
@@ -1445,43 +1413,227 @@ export function BookingStep1Cleaning({
       >
           <p className="text-xs font-bold tracking-widest text-violet-600 uppercase">Step 1 of 4</p>
 
-          <div
-            className={['bg-white rounded-xl shadow-sm p-4 space-y-4 border border-gray-100 transition-all duration-200', serviceError ? 'ring-2 ring-red-300 ring-offset-2' : ''].join(' ')}
-          >
-            <div className="flex items-start justify-between gap-3 mb-5">
-              <div className="flex items-start gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center flex-shrink-0">
-                  <Sparkles size={18} className="text-white" />
+          <section aria-labelledby="experience-heading" className="space-y-3">
+            <h2 id="experience-heading" className="text-lg font-bold text-gray-900">
+              Choose cleaning experience
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button
+                type="button"
+                onClick={() => selectExperience('basic')}
+                className={cn(
+                  'text-left rounded-2xl border-2 p-5 md:p-6 transition-all duration-200',
+                  data.pricingMode === 'basic'
+                    ? 'border-violet-500 bg-white shadow-lg shadow-violet-200/50 ring-2 ring-violet-400/25'
+                    : 'border-gray-200 bg-white hover:border-violet-300'
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-lg font-bold text-gray-900">Basic Clean</span>
+                  <span className="text-xl leading-none" aria-hidden>
+                    🔥
+                  </span>
                 </div>
-                <div>
-                  <h2 id="service-heading" className="text-base font-bold text-gray-900">
-                    Choose a service
-                  </h2>
-                  <p className="text-sm text-gray-500">Pick the cleaning package that fits your needs</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-violet-600 mt-1">
+                  Most Affordable
+                </p>
+                <p className="text-sm text-gray-600 mt-1">Simple, affordable cleaning</p>
+                <p className="text-sm font-semibold text-violet-700 mt-3">From R250 · tiered rates (about R50–R65/h)</p>
+                <ul className="mt-3 space-y-1.5 text-xs text-gray-600">
+                  <li className="flex gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-violet-500 shrink-0 mt-0.5" />
+                    1 cleaner
+                  </li>
+                  <li className="flex gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-violet-500 shrink-0 mt-0.5" />
+                    Up to 5 hours
+                  </li>
+                  <li className="flex gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-violet-500 shrink-0 mt-0.5" />
+                    No heavy add-ons
+                  </li>
+                </ul>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => selectExperience('premium')}
+                className={cn(
+                  'text-left rounded-2xl border-2 p-5 md:p-6 transition-all duration-200',
+                  data.pricingMode === 'premium'
+                    ? 'border-violet-500 bg-white shadow-md shadow-violet-100'
+                    : 'border-gray-200 bg-white hover:border-violet-300'
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-lg font-bold text-gray-900">Premium Clean</span>
+                  <Sparkles className="w-5 h-5 text-violet-500 shrink-0" aria-hidden />
+                </div>
+                <p className="text-sm text-gray-600 mt-2">Thorough, professional service</p>
+                <p className="text-sm font-semibold text-violet-700 mt-3">From R800+</p>
+                <ul className="mt-3 space-y-1.5 text-xs text-gray-600">
+                  <li className="flex gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-violet-500 shrink-0 mt-0.5" />
+                    Team of cleaners
+                  </li>
+                  <li className="flex gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-violet-500 shrink-0 mt-0.5" />
+                    Deep cleaning available
+                  </li>
+                  <li className="flex gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-violet-500 shrink-0 mt-0.5" />
+                    Full customization
+                  </li>
+                </ul>
+              </button>
+            </div>
+          </section>
+
+          {data.pricingMode === 'basic' && (
+            <section className="rounded-2xl border border-violet-100/80 bg-white p-5 shadow-md shadow-violet-100/40 space-y-5">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">How many hours do you need?</h3>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {(data.extras.length > 0 ? ([8] as const) : ([2, 3, 4, 5] as const)).map(
+                    (h) => (
+                    <button
+                      key={h}
+                      type="button"
+                      onClick={() => patch({ basicPlannedHours: h })}
+                      className={cn(
+                        'min-w-[4.75rem] rounded-xl border-2 px-4 py-2.5 text-sm font-bold transition-all',
+                        data.basicPlannedHours === h
+                          ? 'border-violet-600 bg-violet-600 text-white shadow-md'
+                          : 'border-gray-200 bg-white text-gray-900 hover:border-violet-300'
+                      )}
+                    >
+                      {h}h
+                    </button>
+                  ))}
+                </div>
+                {data.extras.length > 0 ? (
+                  <p className="text-xs text-gray-500 mt-2 leading-snug">
+                    Add-ons use the full-day Quick Clean bundle (8h, fixed price incl. service fee).
+                  </p>
+                ) : null}
+                <SavingsMessage
+                  variant="basic"
+                  hours={data.basicPlannedHours}
+                  rateUsed={effectivePricingV2?.rateUsed}
+                  isExtrasFullDayBundle={effectivePricingV2?.isExtrasFullDayBundle}
+                />
+                {effectivePricingV2?.isMinimumApplied && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Minimum booking: R250 (covers up to 3 hours)
+                  </p>
+                )}
+                {data.basicPlannedHours === 3 && effectivePricingV2?.isMinimumApplied && (
+                  <p className="text-xs text-purple-600 mt-1">
+                    You&apos;re using the full minimum — add 1 more hour for better value
+                  </p>
+                )}
+              </div>
+              {data.pricingMode === 'basic' && upsellContent && (
+                <UpsellCard content={upsellContent} onUpgrade={handleUpsellUpgrade} />
+              )}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Service location</label>
+                <AreaDropdown
+                  value={location}
+                  onSelect={(v) => patch({ workingArea: v })}
+                  error={locationError}
+                />
+                <p className="text-xs text-gray-400 mt-1.5">We use this to match cleaners near you.</p>
+              </div>
+              {data.basicPlannedHours != null && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="rounded-xl border border-violet-100 bg-gradient-to-br from-violet-50 to-white p-4"
+                >
+                  <p className="text-sm font-semibold text-gray-900">Need a deeper clean?</p>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Upgrade to Premium for teams, deep cleaning, and full customization.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => selectExperience('premium')}
+                    className="mt-3 text-sm font-bold text-violet-700 hover:underline"
+                  >
+                    Upgrade to Premium →
+                  </button>
+                  <ul className="mt-2 space-y-1 text-xs text-gray-600">
+                    <li>✔ More thorough</li>
+                    <li>✔ More cleaners</li>
+                    <li>✔ Better results</li>
+                  </ul>
+                </motion.div>
+              )}
+            </section>
+          )}
+
+          {data.pricingMode === 'premium' && (
+            <>
+              <SavingsMessage variant="premium" />
+              <div
+                className={[
+                  'bg-white rounded-xl shadow-sm p-4 sm:p-5 space-y-4 border border-gray-100 transition-all duration-200',
+                  serviceError ? 'ring-2 ring-red-300 ring-offset-2' : '',
+                ].join(' ')}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 id="service-heading" className="text-base font-bold text-gray-900">
+                      Service type
+                    </h2>
+                    <p className="text-sm text-gray-500">Swipe on mobile — hover for a price hint</p>
+                  </div>
+                  {serviceError && (
+                    <motion.span
+                      initial={{ opacity: 0, x: 6 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="flex items-center gap-1 text-xs text-red-500 font-medium flex-shrink-0"
+                    >
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      <span>Required</span>
+                    </motion.span>
+                  )}
+                </div>
+                <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory [-webkit-overflow-scrolling:touch]">
+                  {servicesResolved.map((service) => (
+                    <Tooltip
+                      key={service.id}
+                      content={
+                        <span>
+                          Est. from {formatPrice(service.basePrice)} — final price depends on rooms &amp; add-ons
+                        </span>
+                      }
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleServiceSelect(service.id)}
+                        className={cn(
+                          'snap-start shrink-0 w-[155px] sm:w-[170px] rounded-xl border-2 p-4 text-left transition-all',
+                          selectedService === service.id
+                            ? 'border-violet-600 bg-violet-50 shadow-md'
+                            : 'border-gray-100 bg-white hover:border-violet-200'
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            'w-10 h-10 rounded-lg flex items-center justify-center mb-2',
+                            service.bgSelected
+                          )}
+                        >
+                          {service.icon}
+                        </div>
+                        <p className="text-sm font-bold text-gray-900 leading-tight">{service.label}</p>
+                        <p className="text-[11px] text-gray-500 mt-1 line-clamp-2">{service.tagline}</p>
+                      </button>
+                    </Tooltip>
+                  ))}
                 </div>
               </div>
-              {serviceError && (
-                <motion.span
-                  initial={{ opacity: 0, x: 6 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="flex items-center gap-1 text-xs text-red-500 font-medium flex-shrink-0"
-                >
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  <span>Required</span>
-                </motion.span>
-              )}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-              {servicesResolved.map((service) => (
-                <ServiceCard
-                  key={service.id}
-                  service={service}
-                  selected={selectedService === service.id}
-                  onSelect={handleServiceSelect}
-                />
-              ))}
-            </div>
-          </div>
 
           <section
             aria-labelledby="space-heading"
@@ -1748,6 +1900,8 @@ export function BookingStep1Cleaning({
               </motion.section>
             )}
           </AnimatePresence>
+            </>
+          )}
       </BookingFlowLayout>
 
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-[0_-4px_32px_rgba(0,0,0,0.08)]">
@@ -1760,7 +1914,12 @@ export function BookingStep1Cleaning({
             <div className="px-4 pt-3 pb-1 flex items-center justify-between gap-3">
               <div className="min-w-0 flex-1 pr-2 space-y-0.5">
                 <p className="text-xs text-gray-500 font-medium truncate">
-                  {selectedService ? (
+                  {data.pricingMode === 'basic' ? (
+                    <>
+                      Quick Clean (1 cleaner)
+                      {data.basicPlannedHours != null ? ` · ${data.basicPlannedHours}h` : ''}
+                    </>
+                  ) : selectedService ? (
                     <>
                       {serviceTitle}
                       {displayTotal > 0 && duration !== '—' ? ` · ${duration}` : ''}
@@ -1769,7 +1928,13 @@ export function BookingStep1Cleaning({
                     'Select a service & property'
                   )}
                 </p>
-                {propertyType ? (
+                {data.pricingMode === 'basic' ? (
+                  location ? (
+                    <p className="text-xs font-semibold text-violet-600 truncate">{location}</p>
+                  ) : (
+                    <p className="text-xs text-gray-400">Area required</p>
+                  )
+                ) : propertyType ? (
                   <p className="text-xs font-semibold text-violet-600 capitalize truncate">{propertyType}</p>
                 ) : (
                   <p className="text-xs text-gray-400">Property &amp; area required</p>
@@ -1809,7 +1974,11 @@ export function BookingStep1Cleaning({
                 Continue to Step 2 <ArrowRight size={18} />
               </>
             ) : (
-              <>Complete service, property & area to continue</>
+              <>
+                {data.pricingMode === 'basic'
+                  ? 'Choose hours & area to continue'
+                  : 'Complete service, property & area to continue'}
+              </>
             )}
           </motion.button>
           {attempted && !isValid && (

@@ -35,4 +35,6 @@ export const WIZARD_DEFAULT_FORM: BookingFormData = {
   carpetExtraCleaner: false,
   numberOfCleaners: 1,
   teamSizeUserOverride: false,
+  pricingMode: 'basic',
+  basicPlannedHours: 3,
 };

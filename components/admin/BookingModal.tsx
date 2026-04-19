@@ -19,7 +19,8 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { calcTotalAsync, generateTimeSlots, type BookingPriceResult } from '@/lib/pricing';
+import { generateTimeSlots, type BookingPriceResult } from '@/lib/pricing';
+import { calcTotalSafe } from '@/lib/pricing/calcTotalSafe';
 import type { ServiceType } from '@/types/booking';
 import type { BookingFormDataServer } from '@/lib/booking-form-data-server';
 
@@ -41,7 +42,7 @@ export interface BookingFormData {
   notes: string;
   bedrooms: string;
   bathrooms: string;
-  /** Extra labels matching `pricing_config` / `calcTotalAsync` */
+  /** Extra labels matching `pricing_config` / catalog pricing */
   selectedExtras: string[];
 }
 
@@ -235,13 +236,12 @@ export const BookingModal = ({
       const beds = parseRoomCount(form.bedrooms);
       const baths = parseRoomCount(form.bathrooms);
       try {
-        const result = await calcTotalAsync(
+        const result = await calcTotalSafe(
           {
             service: form.serviceType as ServiceType,
             bedrooms: beds,
             bathrooms: baths,
             extras: form.selectedExtras,
-            extrasQuantities: {},
           },
           'one-time'
         );

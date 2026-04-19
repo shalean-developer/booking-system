@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase-server';
 import { isAdmin } from '@/lib/supabase-server';
-import { calcTotalAsync } from '@/lib/pricing';
+import { calcTotalSafe } from '@/lib/pricing/calcTotalSafe';
 
 export const dynamic = 'force-dynamic';
 
@@ -102,13 +102,13 @@ export async function POST(request: NextRequest) {
       } else {
         // Calculate pricing
         const pricingFrequency = mapFrequency(schedule.frequency);
-        const pricing = await calcTotalAsync(
+        const pricing = await calcTotalSafe(
           {
-            service: schedule.service_type as any,
+            service_type: schedule.service_type,
             bedrooms: schedule.bedrooms,
             bathrooms: schedule.bathrooms,
             extras: schedule.extras || [],
-            extrasQuantities: schedule.extras_quantities || {},
+            extras_quantities: schedule.extras_quantities,
           },
           pricingFrequency
         );

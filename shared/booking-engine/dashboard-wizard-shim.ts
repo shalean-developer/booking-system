@@ -45,5 +45,7 @@ export function buildDashboardWizardShim(input: {
     promoCode: '',
     discountAmount: 0,
     numberOfCleaners: 1,
+    pricingMode: 'premium',
+    basicPlannedHours: null,
   };
 }

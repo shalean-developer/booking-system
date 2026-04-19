@@ -51,11 +51,15 @@ export {
   type WizardDisplayPricing,
 } from './wizard-display-pricing';
 
+export { assertSinglePricingSource } from '@/lib/pricing-single-source';
+
 export { BOOKING_PROMO_CODES, applyPromoDiscount } from './promo-codes';
 
 export {
   computeWizardEnginePricingRow,
   deriveWizardCompanyCostsCents,
+  deriveWizardEngineCompanyLinesCents,
+  getWizardEngineCompanyCostsCents,
 } from './wizard-engine-pricing';
 
 export { buildWizardPendingBookingPayload, type WizardPendingPricingContext } from './wizard-checkout';

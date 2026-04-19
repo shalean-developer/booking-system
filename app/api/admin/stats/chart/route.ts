@@ -2,13 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { isAdmin } from '@/lib/supabase-server';
 import { isExcludedFromRevenueReporting } from '@/lib/booking-revenue-exclusion';
+import {
+  defaultRollingBusinessRanges,
+  halfOpenCreatedAtRangeFromInclusiveYmd,
+  queryParamToYmd,
+  ymdFromInstantInBusinessTz,
+} from '@/lib/admin-dashboard-business-range';
 
 export const dynamic = 'force-dynamic';
+
+const PAGE_SIZE = 1000;
+const MAX_PAGES = 500;
 
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
   console.log('[API] /api/admin/stats/chart - Request started');
-  
+
   try {
     if (!(await isAdmin())) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 403 });
@@ -16,78 +25,65 @@ export async function GET(request: NextRequest) {
 
     const supabase = await createClient();
 
-    // Get date range parameters
     const { searchParams } = new URL(request.url);
     const dateFrom = searchParams.get('date_from');
     const dateTo = searchParams.get('date_to');
 
-    // Build date filter - default to last 30 days if no dates provided
-    // Use booking_date (when service is scheduled) instead of created_at
-    let bookingsQuery = supabase
-      .from('bookings')
-      .select('id, total_amount, booking_date, status, payment_status');
-
-    // Helper function to get local date string (YYYY-MM-DD) to avoid timezone issues
-    const getLocalDateString = (date: Date): string => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    };
-
-    // Convert date range to date strings for booking_date (DATE field)
-    // Use local date to avoid timezone issues
-    let dateFromStr: string;
-    let dateToStr: string;
-
-    if (dateFrom) {
-      const dateFromDate = new Date(dateFrom);
-      dateFromStr = getLocalDateString(dateFromDate);
-      bookingsQuery = bookingsQuery.gte('booking_date', dateFromStr);
+    let startYmd: string;
+    let endYmd: string;
+    if (dateFrom && dateTo) {
+      startYmd = queryParamToYmd(dateFrom);
+      endYmd = queryParamToYmd(dateTo);
     } else {
-      // Default to last 30 days, starting from beginning of day
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      dateFromStr = getLocalDateString(thirtyDaysAgo);
-      bookingsQuery = bookingsQuery.gte('booking_date', dateFromStr);
+      const r = defaultRollingBusinessRanges(30);
+      startYmd = r.currentStartYmd;
+      endYmd = r.currentEndYmd;
     }
 
-    if (dateTo) {
-      const dateToDate = new Date(dateTo);
-      dateToStr = getLocalDateString(dateToDate);
-      bookingsQuery = bookingsQuery.lte('booking_date', dateToStr);
-    } else {
-      // Default to today (local date)
-      dateToStr = getLocalDateString(new Date());
-      bookingsQuery = bookingsQuery.lte('booking_date', dateToStr);
+    const { gte, lt } = halfOpenCreatedAtRangeFromInclusiveYmd(startYmd, endYmd);
+
+    const bookings: {
+      total_amount: number | null;
+      status: string | null;
+      payment_status?: string | null;
+      created_at: string | null;
+    }[] = [];
+
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      const { data: batch, error: bookingsError } = await supabase
+        .from('bookings')
+        .select('id, total_amount, booking_date, status, payment_status, created_at')
+        .eq('payment_status', 'success')
+        .gte('created_at', gte)
+        .lt('created_at', lt)
+        .order('created_at', { ascending: true })
+        .range(from, to);
+
+      if (bookingsError) {
+        console.error('Error fetching bookings for chart:', bookingsError);
+        return NextResponse.json({ ok: true, data: [] });
+      }
+      if (!batch?.length) break;
+      bookings.push(...(batch as typeof bookings));
+      if (batch.length < PAGE_SIZE) break;
     }
 
-    const { data: bookings, error: bookingsError } = await bookingsQuery
-      .order('booking_date', { ascending: true });
-
-    if (bookingsError) {
-      console.error('Error fetching bookings for chart:', bookingsError);
-      return NextResponse.json({
-        ok: true,
-        data: [],
-      });
-    }
-
-    // Group by booking_date (when service is scheduled)
     const chartDataMap = new Map<string, { date: string; revenue: number; bookings: number }>();
 
-    bookings?.forEach((booking) => {
+    bookings.forEach((booking) => {
       if (
         isExcludedFromRevenueReporting({
-          payment_status: (booking as { payment_status?: string | null }).payment_status,
+          payment_status: booking.payment_status,
           status: booking.status,
         })
       ) {
         return;
       }
-      // booking_date is already a date string (YYYY-MM-DD)
-      const date = booking.booking_date || '';
-      if (!date) return; // Skip bookings without a booking_date
+      const created = booking.created_at;
+      if (!created) return;
+      const date = ymdFromInstantInBusinessTz(created);
 
       const existing = chartDataMap.get(date) || { date, revenue: 0, bookings: 0 };
       existing.revenue += booking.total_amount || 0;
@@ -95,7 +91,6 @@ export async function GET(request: NextRequest) {
       chartDataMap.set(date, existing);
     });
 
-    // Convert to array and format
     const chartData = Array.from(chartDataMap.values()).map((item) => ({
       date: item.date,
       revenue: item.revenue,
@@ -122,4 +117,3 @@ export async function GET(request: NextRequest) {
     });
   }
 }
-

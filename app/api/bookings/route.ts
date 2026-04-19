@@ -471,6 +471,22 @@ export async function POST(req: Request) {
       const manageToken = generateManageToken();
       manageTokenForEmail = manageToken;
 
+      console.log('[bookings] pricing breakdown before insert', {
+        route: 'POST /api/bookings',
+        bookingId,
+        preSurgeTotalZar: checkoutPricing.preSurgeTotalZar,
+        discountZar: body.discountAmount || 0,
+        serviceFeeZar: body.serviceFee || 0,
+        frequencyDiscountZar: body.frequencyDiscount || 0,
+        tipZar: body.tipAmount || 0,
+        surgeZar: checkoutPricing.surgeAmountZar,
+        finalTotalZar: adjustedTotalAmount,
+        total_amount_cents: totalAmountCents,
+        price_zar: adjustedTotalAmount,
+        total_amount_equals_price_times_100:
+          totalAmountCents === Math.round(adjustedTotalAmount * 100),
+      });
+
       const { data, error: bookingError } = await supabase
         .from('bookings')
         .insert({
@@ -490,6 +506,7 @@ export async function POST(req: Request) {
           address_city: body.address.city,
           payment_reference: body.paymentReference,
           total_amount: totalAmountCents, // Convert rands to cents (includes tip and surge)
+          price: adjustedTotalAmount, // ZAR; mirror total_amount / 100
           tip_amount: tipAmountInCents, // Store tip separately (goes 100% to cleaner)
           ...earningsFields,
           requires_team: requiresTeam, // Flag for team-based bookings

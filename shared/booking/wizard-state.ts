@@ -7,10 +7,35 @@ function normalizeWizardParsed(merged: BookingFormData): BookingFormData {
     typeof merged.numberOfCleaners === 'number' && merged.numberOfCleaners >= 1
       ? Math.min(MAX_TEAM_SIZE, Math.max(MIN_TEAM_SIZE, Math.round(merged.numberOfCleaners)))
       : WIZARD_DEFAULT_FORM.numberOfCleaners;
+  const mode =
+    merged.pricingMode === 'basic' || merged.pricingMode === 'premium'
+      ? merged.pricingMode
+      : WIZARD_DEFAULT_FORM.pricingMode;
+  const rawBasicH = merged.basicPlannedHours as number | string | null | undefined;
+  let coercedBasicH = NaN;
+  if (typeof rawBasicH === 'number') {
+    coercedBasicH = rawBasicH;
+  } else if (typeof rawBasicH === 'string') {
+    const t = rawBasicH.trim();
+    if (t !== '') coercedBasicH = Number(t);
+  }
+  const hasExtras =
+    Array.isArray(merged.extras) && merged.extras.length > 0;
+  const maxBasicH = hasExtras ? 8 : 5;
+  const basicH =
+    mode === 'premium'
+      ? null
+      : Number.isFinite(coercedBasicH) &&
+          coercedBasicH >= 2 &&
+          coercedBasicH <= maxBasicH
+        ? coercedBasicH
+        : WIZARD_DEFAULT_FORM.basicPlannedHours;
   return {
     ...merged,
     numberOfCleaners: n,
     teamSizeUserOverride: Boolean(merged.teamSizeUserOverride),
+    pricingMode: mode,
+    basicPlannedHours: basicH,
   };
 }
 

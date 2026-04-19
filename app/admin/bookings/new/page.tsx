@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { calcTotalAsync } from '@/lib/pricing';
+import { calcTotalSafe } from '@/lib/pricing/calcTotalSafe';
 import { generateTimeSlots } from '@/lib/pricing';
 import { ArrowLeft, Loader2, Search } from 'lucide-react';
 import Link from 'next/link';
@@ -207,7 +207,7 @@ export default function NewBookingPage() {
     if (!serviceType) return;
 
     try {
-      const result = await calcTotalAsync(
+      const result = await calcTotalSafe(
         {
           service: serviceType as ServiceType,
           bedrooms,

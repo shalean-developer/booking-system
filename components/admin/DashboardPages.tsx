@@ -60,6 +60,7 @@ import useSWR from 'swr';
 import { useRouter } from 'next/navigation';
 import { fetcher } from '@/lib/swr-config';
 import { getDateRange } from '@/lib/utils/formatting';
+import { addCalendarDaysYmd, ymdTodayInBusinessTz } from '@/lib/admin-dashboard-business-range';
 import { useDashboardStats } from '@/hooks/use-dashboard-stats';
 import { formatCurrency } from '@/lib/utils/formatting';
 import { AdminCleanersUnified } from './admin-cleaners-unified';
@@ -1576,8 +1577,15 @@ export const ReportsPage = () => {
   const [period, setPeriod] = useState<'month' | 'quarter' | 'year'>('year');
   const formatZARShort = (v: number) => `R${(v / 1000).toFixed(0)}k`;
 
-  const rangeKey = period === 'month' ? 'month' : period === 'quarter' ? 'month' : 'year';
-  const { dateFrom, dateTo } = useMemo(() => getDateRange(rangeKey === 'year' ? 'year' : 'month'), [rangeKey]);
+  const { dateFrom, dateTo } = useMemo(() => {
+    if (period === 'quarter') {
+      const endYmd = ymdTodayInBusinessTz();
+      const startYmd = addCalendarDaysYmd(endYmd, -89);
+      return { dateFrom: startYmd, dateTo: endYmd };
+    }
+    return getDateRange(period === 'year' ? 'year' : 'month');
+  }, [period]);
+
   const qs = `date_from=${encodeURIComponent(dateFrom)}&date_to=${encodeURIComponent(dateTo)}`;
   const { data: chartRes } = useSWR<{ ok: boolean; data: { date: string; revenue: number; bookings: number }[] }>(
     `/api/admin/stats/chart?${qs}`,
@@ -1587,7 +1595,10 @@ export const ReportsPage = () => {
     `/api/admin/stats/service-breakdown?${qs}`,
     fetcher
   );
-  const { stats: repStats } = useDashboardStats(rangeKey === 'year' ? 'year' : 'month');
+  const { stats: repStats } = useDashboardStats(
+    period === 'quarter' ? 'custom' : period === 'year' ? 'year' : 'month',
+    period === 'quarter' ? { from: dateFrom, to: dateTo } : undefined
+  );
 
   const monthlyRevenue = useMemo(() => {
     const pts = chartRes?.ok ? chartRes.data ?? [] : [];

@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingState } from '@/components/admin/shared/loading-state';
-import { calcTotalAsync } from '@/lib/pricing';
+import { calcTotalSafe } from '@/lib/pricing/calcTotalSafe';
 import { generateTimeSlots } from '@/lib/pricing';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { computeHourlyEquivalentRandsPerCleaner, type EarningsBreakdownStored } from '@/lib/earnings-v2';
@@ -199,7 +199,7 @@ export default function EditBookingPage({ params }: { params: Promise<{ id: stri
     if (!serviceType) return;
 
     try {
-      const result = await calcTotalAsync(
+      const result = await calcTotalSafe(
         {
           service: serviceType as ServiceType,
           bedrooms,

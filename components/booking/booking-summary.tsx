@@ -27,8 +27,10 @@ export type BookingSummaryProps =
       propertySummary?: string;
       /** Extras / add-ons summary — shown from step ≥ 3 */
       extrasSummary?: string;
-      /** Live estimate total (always reflects current selections). */
+      /** Live total (same source as checkout). */
       totalZar: number;
+      /** @deprecated Ignored — kept for call-site compatibility. */
+      previewPricingMode?: 'default' | 'optimized';
       /** Extra line items (e.g. date, crew) — shown from step ≥ 3 */
       detailRows?: BookingSummaryRow[];
       /** Rich breakdown (step 1 DB rows, step 2 addon lines, etc.) */
@@ -37,6 +39,12 @@ export type BookingSummaryProps =
       footer?: React.ReactNode;
       /** Secondary card below main summary (e.g. “Your selection” on step 2) */
       after?: React.ReactNode;
+      /** Optional duration / team (engine meta) — shown under the explainer. */
+      pricingContext?: { estimatedJobHours?: number; teamSize?: number } | null;
+      /** Basic = short copy; Premium = full engine explanation */
+      summaryTone?: 'basic' | 'premium';
+      /** Step 1 premium — price anchoring above the total (conversion). */
+      previewAnchor?: string;
     }
   | {
       mode: 'full';
@@ -59,6 +67,9 @@ export type BookingSummaryProps =
       onRemovePromo: () => void;
       promoSuccess?: string;
       appliedPromoLabel?: string | null;
+      /** Engine-aligned line items (same as steps 1–3). */
+      enginePriceRows?: { id: string; label: string; value: number }[];
+      pricingContext?: { estimatedJobHours?: number; teamSize?: number } | null;
     };
 
 export function BookingSummary(props: BookingSummaryProps) {
@@ -69,10 +80,14 @@ export function BookingSummary(props: BookingSummaryProps) {
       propertySummary,
       extrasSummary,
       totalZar,
+      previewPricingMode: _previewPricingMode = 'default',
       detailRows = [],
       details,
       footer,
       after,
+      pricingContext = null,
+      summaryTone = 'premium',
+      previewAnchor,
     } = props;
 
     const displayTotal = totalZar;
@@ -83,9 +98,14 @@ export function BookingSummary(props: BookingSummaryProps) {
 
     return (
       <aside aria-label="Booking summary" className={summaryShellClass}>
-        <div className={cn('rounded-2xl overflow-hidden shadow-md', shellMotion)}>
+        <div className={cn('rounded-2xl overflow-hidden shadow-md border border-violet-500/20', shellMotion)}>
           <div className="bg-gradient-to-br from-violet-600 to-violet-800 px-5 py-5">
-            <p className="text-violet-200 text-xs font-semibold tracking-widest uppercase mb-1">Your estimate</p>
+            {previewAnchor ? (
+              <p className="text-violet-100/95 text-xs font-medium leading-snug mb-2 border-b border-white/10 pb-2">
+                {previewAnchor}
+              </p>
+            ) : null}
+            <p className="text-violet-200 text-xs font-semibold tracking-widest uppercase mb-1">Total Price</p>
             <motion.p
               key={displayTotal}
               initial={{ scale: 1.04, opacity: 0.85 }}
@@ -95,7 +115,25 @@ export function BookingSummary(props: BookingSummaryProps) {
             >
               {displayTotal > 0 ? formatZarSimple(displayTotal) : '—'}
             </motion.p>
-            <p className="text-violet-300 text-sm mt-1 font-medium line-clamp-2">{serviceTitle || 'Select a service'}</p>
+            <p className="text-violet-200/90 text-[11px] mt-2 leading-snug max-w-[320px]">
+              {summaryTone === 'basic'
+                ? 'Tiered rates (min R250). Estimated price includes booking cover; then a fixed service fee. No heavy add-ons on Basic.'
+                : 'This price is based on estimated cleaning time, team size, and service requirements. Estimated price includes booking cover, plus a fixed service fee.'}
+            </p>
+            {pricingContext &&
+            (pricingContext.estimatedJobHours != null || pricingContext.teamSize != null) ? (
+              <p className="text-violet-200/85 text-[11px] mt-1.5 leading-snug max-w-[320px]">
+                {pricingContext.estimatedJobHours != null && pricingContext.estimatedJobHours > 0 ? (
+                  <span className="block">
+                    Estimated duration: {pricingContext.estimatedJobHours.toFixed(1)} hours
+                  </span>
+                ) : null}
+                {pricingContext.teamSize != null && pricingContext.teamSize > 0 ? (
+                  <span className="block">Team size: {pricingContext.teamSize} cleaners</span>
+                ) : null}
+              </p>
+            ) : null}
+            <p className="text-violet-300 text-sm mt-2 font-medium line-clamp-2">{serviceTitle || 'Select a service'}</p>
           </div>
 
           <div className="bg-white px-5 py-4 flex flex-col gap-3">
@@ -161,7 +199,7 @@ export function BookingSummary(props: BookingSummaryProps) {
 
             {displayTotal > 0 && (
               <div className="border-t border-gray-100 pt-3 flex justify-between text-sm font-bold text-gray-900">
-                <span>Total estimate</span>
+                <span>Total Price</span>
                 <motion.span
                   key={displayTotal}
                   initial={{ scale: 1.05 }}
@@ -201,6 +239,8 @@ export function BookingSummary(props: BookingSummaryProps) {
     onRemovePromo,
     promoSuccess = '',
     appliedPromoLabel = null,
+    enginePriceRows,
+    pricingContext: fullPricingContext = null,
   } = props;
 
   return (
@@ -234,6 +274,37 @@ export function BookingSummary(props: BookingSummaryProps) {
               </motion.span>
             </div>
           ))}
+
+          {enginePriceRows && enginePriceRows.length > 0 ? (
+            <div className="rounded-lg border border-gray-100 bg-gray-50/90 p-2.5 space-y-2">
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Price breakdown</p>
+              {enginePriceRows
+                .filter((r) => r.value !== 0)
+                .map((row) => (
+                  <div key={row.id} className="flex justify-between items-start gap-2 text-xs">
+                    <span className="text-gray-600 shrink-0">{row.label}</span>
+                    <span className="font-semibold text-gray-900 tabular-nums text-right">{formatZarSimple(row.value)}</span>
+                  </div>
+                ))}
+              <p className="text-[10px] text-gray-500 leading-snug pt-0.5 border-t border-gray-100 mt-1">
+                This price is based on estimated cleaning time, team size, and service requirements. It includes
+                cleaner pay, booking cover, and service costs.
+              </p>
+              {fullPricingContext &&
+              (fullPricingContext.estimatedJobHours != null || fullPricingContext.teamSize != null) ? (
+                <p className="text-[10px] text-gray-500">
+                  {fullPricingContext.estimatedJobHours != null && fullPricingContext.estimatedJobHours > 0 ? (
+                    <span className="block">
+                      Estimated duration: {fullPricingContext.estimatedJobHours.toFixed(1)} hours
+                    </span>
+                  ) : null}
+                  {fullPricingContext.teamSize != null && fullPricingContext.teamSize > 0 ? (
+                    <span className="block">Team size: {fullPricingContext.teamSize} cleaners</span>
+                  ) : null}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="border-t border-gray-100 pt-2 mt-0.5">
             <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Promo code</p>
@@ -334,7 +405,7 @@ export function BookingSummary(props: BookingSummaryProps) {
         <div className="h-px bg-gray-100 flex-shrink-0" />
 
         <div className="p-3 flex justify-between items-start gap-3 bg-gray-50/80">
-          <span className="text-sm font-bold text-gray-900 shrink-0">Total</span>
+          <span className="text-sm font-bold text-gray-900 shrink-0">Total Price</span>
           <motion.span
             key={totalZar}
             initial={{ scale: 1.05 }}

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase-server';
 import { isAdmin } from '@/lib/supabase-server';
 import { calculateBookingOccurrencesForMonth, getMonthYearString } from '@/lib/recurring-bookings';
-import { calcTotalAsync } from '@/lib/pricing';
+import { calcTotalSafe } from '@/lib/pricing/calcTotalSafe';
 import { generateUniqueBookingId } from '@/lib/booking-id';
 import type { RecurringSchedule } from '@/types/recurring';
 import { buildEarningsInsertFields } from '@/lib/earnings-v2';
@@ -204,13 +204,14 @@ export async function POST(
       };
     } else {
       const pricingFrequency = mapFrequencyToPricingFrequency(schedule.frequency);
-      const pricing = await calcTotalAsync(
+      const pricing = await calcTotalSafe(
         {
-          service: schedule.service_type as any,
+          service_type: schedule.service_type,
           bedrooms: schedule.bedrooms,
           bathrooms: schedule.bathrooms,
           extras: schedule.extras || [],
-          extrasQuantities: schedule.extras_quantities || schedule.extrasQuantities || {},
+          extrasQuantities: schedule.extrasQuantities,
+          extras_quantities: schedule.extras_quantities,
         },
         pricingFrequency
       );

@@ -1,7 +1,11 @@
+import type { PricingMode } from '@/lib/pricing-mode';
+
 export type ServiceType = 'standard' | 'deep' | 'move' | 'airbnb' | 'carpet';
 export type PropertyType = 'apartment' | 'house' | 'office' | 'studio';
 
 export type PaymentMethod = 'online' | 'later';
+
+export type { PricingMode };
 
 export interface BookingFormData {
   service: ServiceType;
@@ -44,4 +48,8 @@ export interface BookingFormData {
   numberOfCleaners: number;
   /** When true, workload changes do not auto-update `numberOfCleaners` */
   teamSizeUserOverride?: boolean;
+  /** Quick Clean (affordable) vs Premium Clean (full engine). */
+  pricingMode: PricingMode;
+  /** Basic flow only: fixed duration buttons (2–5h). Drives pricing when `pricingMode === 'basic'`. */
+  basicPlannedHours: number | null;
 }

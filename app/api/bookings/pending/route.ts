@@ -11,7 +11,10 @@ import { computeCheckoutPricing } from '@/lib/booking-checkout-pricing';
 import { computeServerPreSurgeTotalZar } from '@/lib/booking-server-pricing';
 import { createServiceClient } from '@/lib/supabase-server';
 import { resolveBookingCleanerAndSchedule } from '@/lib/dispatch/resolve-booking-cleaner';
-import { validatePricingEngineRequest } from '@/lib/pricing-engine';
+import {
+  recomputeEngineFinalCentsFromBookingBody,
+  validatePricingEngineRequest,
+} from '@/lib/pricing-engine';
 
 /**
  * Create a booking without payment (status pending, no Paystack reference).
@@ -52,22 +55,11 @@ export async function POST(req: Request) {
     }
 
     const tipAmountEarly = body.tipAmount || 0;
-    const preSurgeTotal =
+    const discountAmountClaimed = body.discountAmount || 0;
+    const preSurgeFromClient =
       typeof body.preSurgeTotal === 'number' && Number.isFinite(body.preSurgeTotal)
         ? body.preSurgeTotal
-        : body.totalAmount;
-    const discountAmountClaimed = body.discountAmount || 0;
-    const subtotalBeforeDiscount = preSurgeTotal - tipAmountEarly + discountAmountClaimed;
-
-    const discountCheck = await validateBookingDiscountAmount(supabase, {
-      discountCode: body.discountCode,
-      discountAmountClaimedZar: discountAmountClaimed,
-      subtotalBeforeDiscountZar: subtotalBeforeDiscount,
-      serviceType: body.service,
-    });
-    if (!discountCheck.ok) {
-      return NextResponse.json({ ok: false, error: discountCheck.error }, { status: discountCheck.status });
-    }
+        : body.totalAmount ?? 0;
 
     let serverCart: Awaited<ReturnType<typeof computeServerPreSurgeTotalZar>>;
     try {
@@ -93,16 +85,35 @@ export async function POST(req: Request) {
       );
     }
 
-    if (Math.abs(serverCart.preSurgeTotalZar - preSurgeTotal) > 0.02) {
-      console.warn('[bookings/pending] pre-surge mismatch; using server total', {
-        clientPreSurgeTotalZar: preSurgeTotal,
+    const engineCents = recomputeEngineFinalCentsFromBookingBody(body);
+    const engineZar = engineCents != null ? engineCents / 100 : null;
+    const subtotalBeforeDiscount =
+      engineZar != null
+        ? engineZar
+        : preSurgeFromClient - tipAmountEarly + discountAmountClaimed;
+
+    const discountCheck = await validateBookingDiscountAmount(supabase, {
+      discountCode: body.discountCode,
+      discountAmountClaimedZar: discountAmountClaimed,
+      subtotalBeforeDiscountZar: subtotalBeforeDiscount,
+      serviceType: body.service,
+    });
+    if (!discountCheck.ok) {
+      return NextResponse.json({ ok: false, error: discountCheck.error }, { status: discountCheck.status });
+    }
+
+    if (engineZar == null && Math.abs(serverCart.preSurgeTotalZar - preSurgeFromClient) > 0.02) {
+      console.warn('[bookings/pending] pre-surge mismatch (catalog path)', {
+        clientPreSurgeTotalZar: preSurgeFromClient,
         serverPreSurgeTotalZar: serverCart.preSurgeTotalZar,
       });
     }
 
-    const useEngineCart =
-      body.pricingEngineFinalCents != null && Number.isFinite(body.pricingEngineFinalCents);
-    const preSurgeForCheckout = useEngineCart ? preSurgeTotal : serverCart.preSurgeTotalZar;
+    /** Authoritative pre-surge ZAR: always recomputed from engine when payload includes engine fields; never trust client cart. */
+    const preSurgeForCheckout =
+      engineZar != null
+        ? Math.max(0, engineZar - discountAmountClaimed) + tipAmountEarly
+        : serverCart.preSurgeTotalZar;
 
     const checkoutPricing = await computeCheckoutPricing(supabase, {
       date: body.date,
@@ -299,7 +310,7 @@ export async function POST(req: Request) {
     const pb = serverCart.calc.breakdown;
     let equipmentCostCentsForEarnings: number;
     let extraCleanerFeeCentsForEarnings: number;
-    if (useEngineCart) {
+    if (engineCents != null) {
       equipmentCostCentsForEarnings = Math.max(0, Math.round(Number(body.equipmentCostCents) || 0));
       extraCleanerFeeCentsForEarnings = Math.max(0, Math.round(Number(body.extraCleanerFeeCents) || 0));
     } else {
@@ -314,12 +325,12 @@ export async function POST(req: Request) {
     }
 
     const earningsTeamSize =
-      useEngineCart && body.pricingTeamSize != null && Number.isFinite(body.pricingTeamSize)
+      engineCents != null && body.pricingTeamSize != null && Number.isFinite(body.pricingTeamSize)
         ? Math.max(1, Math.round(body.pricingTeamSize))
         : numberOfCleaners;
 
     const earningsDurationMinutes =
-      useEngineCart && body.pricingTotalHours != null && Number.isFinite(body.pricingTotalHours)
+      engineCents != null && body.pricingTotalHours != null && Number.isFinite(body.pricingTotalHours)
         ? Math.max(30, Math.round(body.pricingTotalHours * 60))
         : durationMinutes ?? null;
 
@@ -338,6 +349,22 @@ export async function POST(req: Request) {
 
     const frequencyForDb = body.frequency === 'one-time' ? null : body.frequency;
     const bookingNotes = body.notes?.trim() ? body.notes.trim() : null;
+
+    console.log('[bookings/pending] pricing breakdown before insert', {
+      bookingId,
+      basePriceZar: serverCart.basePriceZar,
+      extrasTotalZar: serverCart.extrasTotalZar,
+      serviceFeeZar: serverCart.serviceFeeZar,
+      frequencyDiscountZar: serverCart.frequencyDiscountZar,
+      discountZar: body.discountAmount || 0,
+      preSurgeTotalZar: checkoutPricing.preSurgeTotalZar,
+      surgeZar: surgeAmount,
+      finalTotalZar: adjustedTotalAmount,
+      total_amount_cents: totalAmountCents,
+      price_zar: adjustedTotalAmount,
+      total_amount_equals_price_times_100:
+        totalAmountCents === Math.round(adjustedTotalAmount * 100),
+    });
 
     const { data: bookingRows, error: bookingError } = await supabase
       .from('bookings')

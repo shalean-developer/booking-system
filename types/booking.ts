@@ -1,5 +1,7 @@
 // Core booking data types
 
+import type { PricingMode } from '@/lib/pricing-mode';
+
 export type ServiceType = 'Standard' | 'Deep' | 'Move In/Out' | 'Airbnb' | 'Carpet';
 
 export interface BookingCarpetDetails {
@@ -64,6 +66,11 @@ export interface BookingState {
   /** Company-only lines (cents), must match engine inputs */
   equipmentCostCents?: number;
   extraCleanerFeeCents?: number;
+  /** Quick Clean vs Premium — must match server engine validation */
+  pricingMode?: PricingMode;
+  /** Basic planned-hours flow (2–5) — must match engine when `pricingMode === 'basic'` */
+  basicPlannedHours?: number | null;
+  scheduleEquipmentPref?: 'bring' | 'own';
 }
 
 // Cleaner data types

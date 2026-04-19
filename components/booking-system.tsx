@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useLayoutEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   Star,
@@ -36,6 +36,8 @@ import { getBookingDurationMinutes } from '@/shared/booking-engine/duration';
 import { logBookingFlowClient } from '@/lib/debug-booking-flow';
 import type { PricingEngineResult } from '@/lib/pricing-engine';
 import { estimateBookingDurationRange } from '@/lib/booking-work-hours';
+import { isBasicPlannedPathExtrasValid } from '@/lib/pricing-mode';
+import { buildWizardTimeInput } from '@/lib/time-estimation';
 import {
   buildCarpetDetailsForPricing,
   buildExtrasQuantitiesByIdFromWizard,
@@ -45,17 +47,18 @@ import {
 } from '@/lib/booking-pricing-input';
 import {
   computeWizardDisplayPricing,
+  type WizardDisplayPricing,
 } from '@/shared/booking-engine/wizard-display-pricing';
 import {
   computeWizardEnginePricingRow,
-  deriveWizardCompanyCostsCents,
+  getWizardEngineCompanyCostsCents,
 } from '@/shared/booking-engine/wizard-engine-pricing';
 import { getWizardOptimalTeamBreakdown } from '@/shared/booking-engine/optimal-team';
 import { buildWizardPendingBookingPayload, BOOKING_PROMO_CODES } from '@/shared/booking-engine';
 import { useBooking } from '@/shared/booking';
 import { BOOKING_FORM_SESSION_KEY } from '@/lib/booking-form-session';
 
-export type { BookingFormData, PropertyType, ServiceType } from '@/components/booking-system-types';
+export type { BookingFormData, PropertyType, ServiceType, PricingMode } from '@/components/booking-system-types';
 
 const API_TYPE_TO_SERVICE_ID: Record<string, ServiceType> = {
   'Standard': 'standard',
@@ -206,6 +209,33 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
     initialService,
     serviceFromPath,
   });
+
+  /** Basic + add-ons: fixed 8h bundle — keep planned hours in sync when extras toggle (layout: avoid step-1 hour chip flash). */
+  useLayoutEffect(() => {
+    if (data.pricingMode !== 'basic') return;
+    const hasExtras = data.extras.length > 0;
+    if (hasExtras && data.basicPlannedHours !== 8) {
+      setData((p) => ({ ...p, basicPlannedHours: 8 }));
+      return;
+    }
+    if (!hasExtras && data.basicPlannedHours === 8) {
+      setData((p) => ({ ...p, basicPlannedHours: 5 }));
+    }
+  }, [data.pricingMode, data.extras.length, data.basicPlannedHours, setData]);
+
+  /** Quick Clean (basic): Extra Cleaner + Supplies Kit are not offered — drop if present in session. */
+  useLayoutEffect(() => {
+    if (data.pricingMode !== 'basic') return;
+    const stripIds = new Set(['extra_cleaner', 'equipment']);
+    setData((prev) => {
+      const next = prev.extras.filter((e) => !stripIds.has(e));
+      if (next.length === prev.extras.length) return prev;
+      const nextQ = { ...prev.extrasQuantities };
+      for (const id of stripIds) delete nextQ[id];
+      return { ...prev, extras: next, extrasQuantities: nextQ };
+    });
+  }, [data.pricingMode, setData]);
+
   const [errors, setErrors] = useState<Partial<Record<keyof BookingFormData, string>>>({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState('');
@@ -384,6 +414,9 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
       icon: resolveExtraIcon(name),
     }));
     if (data.service === 'standard' || data.service === 'airbnb') {
+      if (data.pricingMode === 'basic') {
+        return fromApi;
+      }
       return [
         ...fromApi,
         {
@@ -406,7 +439,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
       ];
     }
     return fromApi;
-  }, [formData, data.service]);
+  }, [formData, data.service, data.pricingMode]);
 
   const estimatedDuration = useMemo(() => estimateBookingDurationRange(data), [data]);
 
@@ -422,26 +455,37 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
   }, [optimalTeam.teamSize, data.teamSizeUserOverride, setData]);
 
   const companyCostsForEngine = useMemo(
-    () => deriveWizardCompanyCostsCents(lineCalc, data.service),
-    [lineCalc, data.service]
+    () =>
+      lineCalc
+        ? getWizardEngineCompanyCostsCents({
+            wizard: data,
+            lineCalc,
+            catalogExtraNames: formData?.extras.all,
+          })
+        : null,
+    [lineCalc, data, formData?.extras.all]
   );
 
   const enginePricing = useMemo((): PricingEngineResult | null => {
     return computeWizardEnginePricingRow({
       lineCalc,
       dataService: data.service,
-      estimatedMaxHours: estimatedDuration.maxHours,
+      wizard: data,
+      catalogExtraNames: formData?.extras.all,
     });
-  }, [lineCalc, data.service, estimatedDuration.maxHours]);
+  }, [lineCalc, data.service, data, data.pricingMode, formData?.extras.all]);
 
   const pricing = useMemo(() => {
-    if (!formData?.pricing) {
+    const maxBasicH = data.extras.length > 0 ? 8 : 5;
+    const basicHoursReady =
+      data.pricingMode === 'basic' &&
+      data.basicPlannedHours != null &&
+      data.basicPlannedHours >= 2 &&
+      data.basicPlannedHours <= maxBasicH;
+
+    /** Without API pricing, `lineCalc` is null — still run display pricing for Basic so totals use `calculateBasicV2`, not catalog illustrative ZAR. */
+    if (!formData?.pricing && !basicHoursReady) {
       return {
-        basePrice: 0,
-        bedroomAdd: 0,
-        bathroomAdd: 0,
-        extraRoomAdd: 0,
-        extrasTotal: 0,
         tipAmount: data.tipAmount,
         discountAmount: 0,
         subtotal: 0,
@@ -450,6 +494,8 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         frequencyDiscount: 0,
         dbPricingRows: [] as { id: string; label: string; value: number }[],
         engineFinalCents: null as number | null,
+        v2Breakdown: null,
+        engineMeta: null as WizardDisplayPricing['engineMeta'],
       };
     }
     return computeWizardDisplayPricing({
@@ -457,11 +503,26 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         service: data.service,
         tipAmount: data.tipAmount,
         promoCode: data.promoCode,
+        pricingMode: data.pricingMode,
+        scheduleEquipmentPref: data.scheduleEquipmentPref,
+        basicPlannedHours: data.basicPlannedHours,
+        extras: data.extras,
       },
       lineCalc,
       enginePricing,
     });
-  }, [data.service, data.tipAmount, data.promoCode, formData?.pricing, lineCalc, enginePricing]);
+  }, [
+    data.service,
+    data.tipAmount,
+    data.promoCode,
+    data.pricingMode,
+    data.scheduleEquipmentPref,
+    data.basicPlannedHours,
+    data.extras,
+    formData?.pricing,
+    lineCalc,
+    enginePricing,
+  ]);
 
   const effRoomCounts = useMemo(() => getEffectiveRoomCounts(data), [data]);
 
@@ -543,30 +604,36 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
   }, [data.service, data.propertyType, effRoomCounts]);
 
   const extrasSummaryForStep4 = useMemo(() => {
-    if (data.extras.length === 0) return 'None';
+    const equipmentZar =
+      (data.service === 'standard' || data.service === 'airbnb') && data.scheduleEquipmentPref === 'bring'
+        ? (formData?.equipment?.charge ?? 0)
+        : 0;
+    const zarFmt = (n: number) =>
+      new Intl.NumberFormat('en-ZA', {
+        style: 'currency',
+        currency: 'ZAR',
+        minimumFractionDigits: 0,
+      }).format(n);
+
+    if (data.extras.length === 0) {
+      if (equipmentZar <= 0) return 'None';
+      return `Supplies kit (${zarFmt(equipmentZar)})`;
+    }
+
     const labels = data.extras.map((e) => {
       const label = currentExtras.find((ex) => ex.id === e)?.label ?? e;
       const q = data.extrasQuantities[e];
       return q != null && q > 1 ? `${label} ×${q}` : label;
     });
-    const equipmentZar =
-      (data.service === 'standard' || data.service === 'airbnb') && data.scheduleEquipmentPref === 'bring'
-        ? (formData?.equipment?.charge ?? 0)
-        : 0;
-    const extrasDisplayTotal = pricing.extrasTotal + equipmentZar;
-    const zar = new Intl.NumberFormat('en-ZA', {
-      style: 'currency',
-      currency: 'ZAR',
-      minimumFractionDigits: 0
-    }).format(extrasDisplayTotal);
-    return `${labels.join(' + ')} (+${zar})`;
+    const extraLine = `${labels.join(' + ')} (adds time; priced via labour)`;
+    if (equipmentZar <= 0) return extraLine;
+    return `${extraLine} · Supplies kit (${zarFmt(equipmentZar)})`;
   }, [
     data.extras,
     data.extrasQuantities,
     data.service,
     data.scheduleEquipmentPref,
     currentExtras,
-    pricing.extrasTotal,
     formData?.equipment?.charge,
   ]);
 
@@ -580,7 +647,17 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
   const validateStep = useCallback(() => {
     const newErrors: Partial<Record<keyof BookingFormData, string>> = {};
     if (step === 1) {
-      if (!data.workingArea) newErrors.workingArea = 'Location is required';
+      if (!data.workingArea?.trim()) newErrors.workingArea = 'Location is required';
+      if (data.pricingMode === 'basic') {
+        const maxBasicH = data.extras.length > 0 ? 8 : 5;
+        if (
+          data.basicPlannedHours == null ||
+          data.basicPlannedHours < 2 ||
+          data.basicPlannedHours > maxBasicH
+        ) {
+          newErrors.basicPlannedHours = 'Choose how many hours you need';
+        }
+      }
     }
     if (step === 2) {
       if (!data.date) newErrors.date = 'Date is required';
@@ -588,6 +665,20 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
       if (data.service === 'standard' || data.service === 'airbnb') {
         if (data.scheduleEquipmentPref !== 'bring' && data.scheduleEquipmentPref !== 'own') {
           newErrors.scheduleEquipmentPref = 'Please choose an equipment option';
+        }
+      }
+      if (data.pricingMode === 'basic') {
+        const t = buildWizardTimeInput(data, formData?.extras.all);
+        if (!isBasicPlannedPathExtrasValid(t, data.extras)) {
+          newErrors.pricingMode =
+            'Quick Clean covers up to 5 hours with one cleaner and no heavy add-ons. Switch to Premium Clean or adjust your selections.';
+        } else if (
+          data.extras.length > 0 &&
+          data.basicPlannedHours != null &&
+          data.basicPlannedHours !== 8
+        ) {
+          newErrors.basicPlannedHours =
+            'Add-ons use the 8-hour Quick Clean bundle — hours were updated to match.';
         }
       }
     }
@@ -600,7 +691,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [step, data]);
+  }, [step, data, formData?.extras.all]);
 
   const fetchCheckoutPricingPreview = useCallback(async () => {
     const apiService = formServiceToApi(data.service);
@@ -635,6 +726,9 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         equipmentCostCents: companyCostsForEngine?.equipmentCostCents,
         extraCleanerFeeCents: companyCostsForEngine?.extraCleanerFeeCents,
         serviceFee: pricing.serviceFee,
+        pricingMode: data.pricingMode,
+        basicPlannedHours: data.basicPlannedHours ?? undefined,
+        scheduleEquipmentPref: data.scheduleEquipmentPref,
       }),
     });
     const preview = await previewRes.json();
@@ -656,6 +750,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
     lineCalc,
     estimatedDuration.maxHours,
     companyCostsForEngine,
+    data.pricingMode,
   ]);
 
   useEffect(() => {
@@ -959,6 +1054,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         setData={setData}
         onBack={handleBack}
         onContinue={handleNext}
+        pricingModeError={errors.pricingMode}
         pricing={pricing}
         serviceTitle={displayServices.find((s) => s.id === data.service)?.title ?? 'Cleaning'}
         addonTilesFromPricing={
@@ -982,10 +1078,21 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         setData={setData}
         onBack={() => router.push('/')}
         onContinue={handleNext}
+        summaryTone={data.pricingMode}
         liveTotalZar={pricing.total}
         durationLabel={estimatedDuration.label}
-        pricingEngineEstimate={enginePricing}
+        engineMeta={pricing.engineMeta}
+        pricingContext={
+          pricing.engineMeta
+            ? {
+                estimatedJobHours:
+                  pricing.engineMeta.estimatedHours ?? pricing.engineMeta.estimatedJobHours,
+                teamSize: pricing.engineMeta.teamSize,
+              }
+            : null
+        }
         dbPricingRows={pricing.dbPricingRows}
+        pricingV2={pricing.v2Breakdown}
         servicePricing={formData?.pricing?.services}
         extraCleanerPriceZar={
           formData?.extras?.prices?.['Carpet occupied property'] ??
@@ -1004,7 +1111,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         setData={setData}
         onBack={handleBack}
         onContinue={handleNext}
-        pricingTotalZar={pricing.total}
+        pricing={pricing}
         serviceTitle={displayServices.find((s) => s.id === data.service)?.title ?? 'Cleaning'}
         apiCleaners={apiCleaners}
         cleanersLoading={cleanersLoading}
@@ -1054,6 +1161,16 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         totalZar={confirmedCheckoutTotalZar ?? pricing.total}
         discountAmount={pricing.discountAmount}
         appliedPromoCode={data.promoCode}
+        enginePriceRows={pricing.dbPricingRows}
+        pricingContext={
+          pricing.engineMeta
+            ? {
+                estimatedJobHours:
+                  pricing.engineMeta.estimatedHours ?? pricing.engineMeta.estimatedJobHours,
+                teamSize: pricing.engineMeta.teamSize,
+              }
+            : null
+        }
       />
     );
   }
