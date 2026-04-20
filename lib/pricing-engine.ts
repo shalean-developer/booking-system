@@ -18,17 +18,16 @@ import {
   type WizardServiceKey,
 } from '@/lib/pricing-service-config';
 import {
-  isBasicEligible,
-  BASIC_MAX_JOB_HOURS,
   timeInputFromBookingSnapshot,
   type PricingMode,
 } from '@/lib/pricing-mode';
 import {
-  BASIC_EXTRAS_FULL_DAY_HOURS,
-  calculateBasicV2,
   applyV2FeesToPremiumEngineBase,
   type PricingResult as PricingEngineV2Result,
 } from '@/lib/pricing-engine-v2';
+import { calculateBookingUnified } from '@/lib/pricing/calculateBookingUnified';
+import { calculateBookingV4 } from '@/lib/pricing/v4/calculateBookingV4';
+import type { QuickCleanSettings } from '@/lib/quick-clean-settings';
 
 export type { PricingMode } from '@/lib/pricing-mode';
 
@@ -55,6 +54,24 @@ export type PricingInput = {
   equipmentCost?: number;
   serviceFee?: number;
 };
+
+/**
+ * R50-aligning floor used by premium labour totals and Basic V2 totals + equipment.
+ */
+export function applyServiceMinBookingFloorCents(
+  rawTotalCents: number,
+  serviceType: PricingInput['serviceType']
+): { finalCents: number; minUpliftCents: number } {
+  const minBookingCents = getMinBookingCentsForEngineService(serviceType);
+  if (rawTotalCents >= minBookingCents) {
+    return { finalCents: rawTotalCents, minUpliftCents: 0 };
+  }
+  const bumped = Math.ceil(minBookingCents / ROUND_STEP_CENTS) * ROUND_STEP_CENTS;
+  return {
+    finalCents: bumped,
+    minUpliftCents: bumped - rawTotalCents,
+  };
+}
 
 export function mapWizardServiceToPricingEngineService(
   id: 'standard' | 'airbnb' | 'deep' | 'move' | 'carpet'
@@ -91,6 +108,16 @@ function clampTeamSize(n: number): number {
   return Math.max(1, Math.floor(Number.isFinite(n) ? n : 1));
 }
 
+/** @deprecated Legacy hourly margin path — prefer `calculateBookingV4` for Deep/Move/Carpet. */
+function mapEngineServiceToV4(
+  st: PricingInput['serviceType']
+): 'deep' | 'move' | 'carpet' | null {
+  if (st === 'Deep') return 'deep';
+  if (st === 'Move' || st === 'MoveOut') return 'move';
+  if (st === 'Carpet') return 'carpet';
+  return null;
+}
+
 export function mapPricingInputServiceToEarningsService(
   serviceType: PricingInput['serviceType']
 ): string {
@@ -104,6 +131,44 @@ export function requiresTeamForPricingInput(input: PricingInput): boolean {
   if (s === 'Deep' || s === 'Move' || s === 'MoveOut') return true;
   if ((s === 'Standard' || s === 'Airbnb') && team > 1) return true;
   return false;
+}
+
+function unifiedEngineResultForStandardAirbnb(input: {
+  mode: PricingMode;
+  time: TimeInput;
+  serviceType: 'Standard' | 'Airbnb';
+  equipmentCents: number;
+  extrasIds: string[];
+  extrasQuantities?: Record<string, number> | null;
+}): PricingEngineResult {
+  const hasExtraCleaner = input.extrasIds.some(
+    (id) => id === 'extra_cleaner' || id.includes('extra_cleaner')
+  );
+  const uni = calculateBookingUnified({
+    service_type: input.serviceType === 'Standard' ? 'standard' : 'airbnb',
+    pricing_mode: input.mode === 'basic' ? 'quick' : 'premium',
+    bedrooms: Math.max(1, input.time.bedrooms),
+    bathrooms: Math.max(0, input.time.bathrooms),
+    extra_rooms: Math.max(0, input.time.extraRooms),
+    extras: input.extrasIds,
+    extrasQuantities: input.extrasQuantities,
+    has_extra_cleaner: input.mode !== 'basic' && hasExtraCleaner,
+  });
+  const cleaningCents = Math.round(uni.final_price_zar * 100);
+  const finalPrice = cleaningCents + input.equipmentCents;
+  return {
+    finalPrice,
+    costFloor: cleaningCents,
+    margin: 0,
+    marginRate: 0,
+    jobHours: uni.hours,
+    hoursPerCleaner: uni.duration,
+    basePriceBeforeCompanyLines: cleaningCents,
+    roundingAdjustmentCents: 0,
+    minBookingUpliftCents: 0,
+    rawTotalBeforeMinCents: finalPrice,
+    marginRateBoostApplied: 0,
+  };
 }
 
 /**
@@ -185,7 +250,7 @@ function assertServicePricingHierarchy(timeBase: Pick<TimeInput, 'bedrooms' | 'b
     totals[0] < totals[1] &&
     totals[1] < totals[2] &&
     totals[2] < totals[3] &&
-    totals[3] < totals[4];
+    totals[2] < totals[4];
 
   if (!ok) {
     const payload = {
@@ -200,7 +265,7 @@ function assertServicePricingHierarchy(timeBase: Pick<TimeInput, 'bedrooms' | 'b
     };
     // Advisory only — config drift must not break booking UI in dev; tune `SERVICE_CONFIG` when this fires.
     console.warn(
-      '[pricing-engine] Tier ordering check failed (expected standard < airbnb < carpet < deep < move)',
+      '[pricing-engine] Tier ordering check failed (expected standard < airbnb < carpet; carpet < deep & carpet < move — deep vs move order not required)',
       JSON.stringify(payload, null, 2)
     );
   }
@@ -229,14 +294,8 @@ export function calculatePricingEngine(input: PricingInput): PricingEngineResult
     equipmentCents,
   });
 
-  const minBookingCents = getMinBookingCentsForEngineService(input.serviceType);
-  let finalPrice = fp.roundedTotalCents;
-  let minUplift = 0;
-  if (finalPrice < minBookingCents) {
-    const bumped = Math.ceil(minBookingCents / ROUND_STEP_CENTS) * ROUND_STEP_CENTS;
-    minUplift = bumped - fp.roundedTotalCents;
-    finalPrice = bumped;
-  }
+  const { finalCents: finalPrice, minUpliftCents: minUplift } =
+    applyServiceMinBookingFloorCents(fp.roundedTotalCents, input.serviceType);
 
   const marginAmount = fp.subtotalAfterMarginCents - fp.labourCents;
 
@@ -274,7 +333,8 @@ export function calculateSafePrice(input: PricingInput): PricingEngineResult {
   return calculatePricingEngine(input);
 }
 
-export const calculateBookingPrice = calculateSafePrice;
+/** Deep/Move/Carpet time×rate engine — Standard/Airbnb use `calculateFinalBookingPrice` / unified cart instead. */
+export const calculateEnginePrice = calculateSafePrice;
 
 export function calculateSafePriceFromJobTime(
   params: Omit<PricingInput, 'totalHours' | 'teamSize'> & {
@@ -306,37 +366,8 @@ export function calculateSafePriceFromJobTime(
   });
 }
 
-function buildBasicPricingEngineResult(input: {
-  hours: number;
-  serviceFeeCents: number;
-  equipmentCents: number;
-  hasExtras: boolean;
-}): PricingEngineResult {
-  const hasExtras = input.hasExtras;
-  const h = hasExtras
-    ? BASIC_EXTRAS_FULL_DAY_HOURS
-    : Math.min(BASIC_MAX_JOB_HOURS, Math.max(2, input.hours));
-  const v2: PricingEngineV2Result = calculateBasicV2(h, { hasExtras });
-  const equipmentExtra = Math.max(0, input.equipmentCents);
-  const finalPrice = v2.totalCents + equipmentExtra;
-
-  return {
-    finalPrice,
-    costFloor: v2.cleaningCents,
-    margin: 0,
-    marginRate: 0,
-    jobHours: h,
-    hoursPerCleaner: h,
-    basePriceBeforeCompanyLines: v2.cleaningCents,
-    roundingAdjustmentCents: 0,
-    minBookingUpliftCents: v2.isMinimumApplied ? 1 : 0,
-    rawTotalBeforeMinCents: finalPrice,
-    marginRateBoostApplied: 0,
-  };
-}
-
 /**
- * Dual pricing entry: Quick Clean (basic) when eligible, else premium time-based engine.
+ * Wizard / snapshot pricing: Standard & Airbnb use unified V4 + `calculateBookingUnified`; Deep/Move/Carpet use `calculateBookingV4` only.
  */
 export function calculatePrice(
   mode: PricingMode,
@@ -347,87 +378,61 @@ export function calculatePrice(
     serviceFeeCents?: number;
     equipmentCents?: number;
     extrasIds?: string[];
-    /** When set (2–8 with extras bundle), Basic uses Pricing V2 (planned-hours flow). */
-    basicJobHoursOverride?: number;
+    extrasQuantities?: Record<string, number> | null;
+    quickCleanSettings?: QuickCleanSettings;
   }
 ): PricingEngineResult {
   const equipmentCents =
     params.equipmentCents ??
     getEquipmentCentsForEngineService(params.serviceType);
-  const serviceFeeCents = Math.max(0, Math.round(params.serviceFeeCents ?? 0));
-  const extrasIds = params.extrasIds ?? [];
-
-  /** Session / JSON can store hours as string; `Number.isFinite("5")` is false and skipped the planned-hours branch. */
-  const plannedHoursRaw = params.basicJobHoursOverride;
-  const plannedHours =
-    plannedHoursRaw == null
-      ? null
-      : typeof plannedHoursRaw === 'number'
-        ? plannedHoursRaw
-        : Number(plannedHoursRaw);
-  if (
-    mode === 'basic' &&
-    plannedHours != null &&
-    Number.isFinite(plannedHours)
-  ) {
-    const hasExtras = extrasIds.length > 0;
-    const h = hasExtras
-      ? BASIC_EXTRAS_FULL_DAY_HOURS
-      : Math.min(BASIC_MAX_JOB_HOURS, Math.max(2, plannedHours));
-    return buildBasicPricingEngineResult({
-      hours: h,
-      serviceFeeCents,
+  if (params.serviceType === 'Standard' || params.serviceType === 'Airbnb') {
+    return unifiedEngineResultForStandardAirbnb({
+      mode,
+      time: params.time,
+      serviceType: params.serviceType,
       equipmentCents,
-      hasExtras,
+      extrasIds: params.extrasIds ?? [],
+      extrasQuantities: params.extrasQuantities,
     });
   }
 
-  const hours = calculateJobHours(params.time);
-  validateTimeDrivenHours(params.time, hours);
-
-  const useBasic = mode === 'basic' && isBasicEligible(params.time, extrasIds);
-
-  if (useBasic) {
-    const hasExtras = extrasIds.length > 0;
-    return buildBasicPricingEngineResult({
-      hours: hasExtras
-        ? BASIC_EXTRAS_FULL_DAY_HOURS
-        : Math.min(hours, BASIC_MAX_JOB_HOURS),
-      serviceFeeCents,
-      equipmentCents,
-      hasExtras,
-    });
+  const v4Service = mapEngineServiceToV4(params.serviceType);
+  if (!v4Service) {
+    throw new Error(`calculatePrice: unsupported service ${params.serviceType}`);
   }
-
-  const baseEngine = calculateSafePriceFromJobTime({
-    serviceType: params.serviceType,
-    time: params.time,
-    teamSize: params.teamSize,
-    serviceFee: 0,
+  const v4 = calculateBookingV4({
+    service_type: v4Service,
+    bedrooms: Math.max(1, params.time.bedrooms),
+    bathrooms: v4Service === 'carpet' ? 0 : Math.max(0, params.time.bathrooms),
+    extra_rooms: 0,
+    carpets: v4Service === 'carpet' ? Math.max(1, params.time.bedrooms) : undefined,
+    rugs: v4Service === 'carpet' ? Math.max(0, params.time.bathrooms) : 0,
+    extras: params.extrasIds ?? [],
+    extrasQuantities: params.extrasQuantities,
   });
-  const v2 = applyV2FeesToPremiumEngineBase(baseEngine);
+  const cleaningCents = Math.round(v4.price_zar * 100);
+  const finalPrice = cleaningCents + equipmentCents;
   return {
-    finalPrice: v2.totalCents,
-    costFloor: v2.cleaningCents,
+    finalPrice,
+    costFloor: cleaningCents,
     margin: 0,
     marginRate: 0,
-    jobHours: baseEngine.jobHours,
-    hoursPerCleaner: baseEngine.hoursPerCleaner,
-    basePriceBeforeCompanyLines: v2.cleaningCents,
+    jobHours: v4.hours,
+    hoursPerCleaner: v4.duration,
+    basePriceBeforeCompanyLines: cleaningCents,
     roundingAdjustmentCents: 0,
-    minBookingUpliftCents: baseEngine.minBookingUpliftCents,
-    rawTotalBeforeMinCents: v2.totalCents,
+    minBookingUpliftCents: 0,
+    rawTotalBeforeMinCents: finalPrice,
     marginRateBoostApplied: 0,
   };
 }
 
-/** Premium V2: existing job-time engine (service fee stripped) + booking cover + fixed service fee. */
+/** @deprecated Prefer `calculateBookingV4` — legacy job-time × margin + V2 fee layer. */
 export function calculatePremiumV2(
   job: Parameters<typeof calculateSafePriceFromJobTime>[0]
 ): PricingEngineV2Result {
-  return applyV2FeesToPremiumEngineBase(
-    calculateSafePriceFromJobTime({ ...job, serviceFee: 0 })
-  );
+  const baseEngine = calculateSafePriceFromJobTime({ ...job, serviceFee: 0 });
+  return applyV2FeesToPremiumEngineBase(baseEngine);
 }
 
 export function mapApiServiceToPricingEngineService(
@@ -497,29 +502,25 @@ export function buildCustomerPriceBreakdownZar(
   return rows;
 }
 
-function engineFromBookingSnapshotBody(body: {
-  service?: string | null;
-  pricingMode?: PricingMode;
-  pricingTotalHours?: number;
-  pricingTeamSize?: number;
-  equipmentCostCents?: number;
-  serviceFee?: number;
-  bedrooms?: number;
-  bathrooms?: number;
-  extraRooms?: number;
-  extras?: string[];
-  extrasQuantities?: Record<string, number>;
-  basicPlannedHours?: number | null;
-  scheduleEquipmentPref?: 'bring' | 'own';
-}): PricingEngineResult | null {
-  if (
-    body.service == null ||
-    body.pricingTotalHours == null ||
-    !Number.isFinite(body.pricingTotalHours) ||
-    body.pricingTotalHours <= 0
-  ) {
-    return null;
-  }
+function engineFromBookingSnapshotBody(
+  body: {
+    service?: string | null;
+    pricingMode?: PricingMode;
+    pricingTotalHours?: number;
+    pricingTeamSize?: number;
+    equipmentCostCents?: number;
+    serviceFee?: number;
+    bedrooms?: number;
+    bathrooms?: number;
+    extraRooms?: number;
+    extras?: string[];
+    extrasQuantities?: Record<string, number>;
+    basicPlannedHours?: number | null;
+    scheduleEquipmentPref?: 'bring' | 'own';
+  },
+  _quickCleanSettings?: QuickCleanSettings
+): PricingEngineResult | null {
+  if (body.service == null) return null;
   if (
     typeof body.bedrooms !== 'number' ||
     typeof body.bathrooms !== 'number' ||
@@ -528,12 +529,7 @@ function engineFromBookingSnapshotBody(body: {
     return null;
   }
   const time = timeInputFromBookingSnapshot(body);
-  const computedHours = calculateJobHours(time);
   const st = mapApiServiceToPricingEngineService(body.service);
-  const teamSize = clampTeamSize(
-    Number(body.pricingTeamSize) ||
-      getRecommendedTeamSize(computedHours, time.serviceType)
-  );
   const eqConfigured =
     Math.max(0, Math.round(Number(body.equipmentCostCents) || 0)) ||
     getEquipmentCentsForEngineService(st);
@@ -542,78 +538,126 @@ function engineFromBookingSnapshotBody(body: {
       ? Math.max(0, Math.round(Number(body.equipmentCostCents) || 0))
       : eqConfigured;
   const mode: PricingMode = body.pricingMode === 'basic' ? 'basic' : 'premium';
-  const basicOverride =
-    body.pricingMode === 'basic' && body.basicPlannedHours != null
-      ? Number(body.basicPlannedHours)
-      : undefined;
-  return calculatePrice(mode, {
-    time,
-    serviceType: st,
-    teamSize,
-    serviceFeeCents: Math.max(0, Math.round((Number(body.serviceFee) || 0) * 100)),
-    equipmentCents,
-    extrasIds: body.extras,
-    basicJobHoursOverride: basicOverride,
+
+  if (st === 'Standard' || st === 'Airbnb') {
+    return unifiedEngineResultForStandardAirbnb({
+      mode,
+      time,
+      serviceType: st,
+      equipmentCents,
+      extrasIds: body.extras,
+      extrasQuantities: body.extrasQuantities,
+    });
+  }
+
+  const v4Service = mapEngineServiceToV4(st);
+  if (!v4Service) return null;
+
+  const v4 = calculateBookingV4({
+    service_type: v4Service,
+    bedrooms: Math.max(1, body.bedrooms || 1),
+    bathrooms: v4Service === 'carpet' ? 0 : Math.max(0, body.bathrooms || 0),
+    extra_rooms: 0,
+    rugs: v4Service === 'carpet' ? Math.max(0, body.bathrooms || 0) : 0,
+    extras: body.extras ?? [],
+    extrasQuantities: body.extrasQuantities,
   });
+  const cleaningCents = Math.round(v4.price_zar * 100);
+  const finalPrice = cleaningCents + equipmentCents;
+  return {
+    finalPrice,
+    costFloor: cleaningCents,
+    margin: 0,
+    marginRate: 0,
+    jobHours: v4.hours,
+    hoursPerCleaner: v4.duration,
+    basePriceBeforeCompanyLines: cleaningCents,
+    roundingAdjustmentCents: 0,
+    minBookingUpliftCents: 0,
+    rawTotalBeforeMinCents: finalPrice,
+    marginRateBoostApplied: 0,
+  };
 }
 
-export function recomputeEngineFinalCentsFromBookingBody(body: {
-  service?: string | null;
-  pricingTotalHours?: number;
-  pricingTeamSize?: number;
-  equipmentCostCents?: number;
-  extraCleanerFeeCents?: number;
-  serviceFee?: number;
-  pricingMode?: PricingMode;
-  bedrooms?: number;
-  bathrooms?: number;
-  extraRooms?: number;
-  extras?: string[];
-  extrasQuantities?: Record<string, number>;
-  basicPlannedHours?: number | null;
-  scheduleEquipmentPref?: 'bring' | 'own';
-}): number | null {
-  const fromSnapshot = engineFromBookingSnapshotBody(body);
+export function recomputeEngineFinalCentsFromBookingBody(
+  body: {
+    service?: string | null;
+    pricingTotalHours?: number;
+    pricingTeamSize?: number;
+    equipmentCostCents?: number;
+    extraCleanerFeeCents?: number;
+    serviceFee?: number;
+    pricingMode?: PricingMode;
+    bedrooms?: number;
+    bathrooms?: number;
+    extraRooms?: number;
+    extras?: string[];
+    extrasQuantities?: Record<string, number>;
+    basicPlannedHours?: number | null;
+    scheduleEquipmentPref?: 'bring' | 'own';
+  },
+  _quickCleanSettings?: QuickCleanSettings
+): number | null {
+  const stEarly = mapApiServiceToPricingEngineService(body.service);
+  if (stEarly === 'Standard' || stEarly === 'Airbnb') {
+    return null;
+  }
+
+  const fromSnapshot = engineFromBookingSnapshotBody(body, _quickCleanSettings);
   if (fromSnapshot != null) {
     return fromSnapshot.finalPrice;
   }
-  if (
-    body.service == null ||
-    body.pricingTotalHours == null ||
-    !Number.isFinite(body.pricingTotalHours) ||
-    body.pricingTotalHours <= 0
-  ) {
-    return null;
-  }
   const st = mapApiServiceToPricingEngineService(body.service);
-  const eqBody = Math.max(0, Math.round(Number(body.equipmentCostCents) || 0));
-  const result = calculateBookingPrice({
-    serviceType: st,
-    totalHours: Number(body.pricingTotalHours) || 0,
-    teamSize: Math.max(1, Math.round(Number(body.pricingTeamSize) || 1)),
-    equipmentCost: eqBody > 0 ? eqBody : getEquipmentCentsForEngineService(st),
-    serviceFee: Math.max(0, Math.round((Number(body.serviceFee) || 0) * 100)),
-  });
-  return result.finalPrice;
+  const v4s = mapEngineServiceToV4(st);
+  if (
+    v4s &&
+    typeof body.bedrooms === 'number' &&
+    typeof body.bathrooms === 'number' &&
+    Array.isArray(body.extras)
+  ) {
+    const v4 = calculateBookingV4({
+      service_type: v4s,
+      bedrooms: Math.max(1, body.bedrooms || 1),
+      bathrooms: v4s === 'carpet' ? 0 : Math.max(0, body.bathrooms || 0),
+      extra_rooms: 0,
+      rugs: v4s === 'carpet' ? Math.max(0, body.bathrooms || 0) : 0,
+      extras: body.extras ?? [],
+      extrasQuantities: body.extrasQuantities,
+    });
+    const eqBody = Math.max(0, Math.round(Number(body.equipmentCostCents) || 0));
+    return (
+      Math.round(v4.price_zar * 100) +
+      (eqBody > 0 ? eqBody : getEquipmentCentsForEngineService(st))
+    );
+  }
+  return null;
 }
 
-export function validatePricingEngineRequest(body: {
-  service?: string | null;
-  pricingEngineFinalCents?: number;
-  pricingTotalHours?: number;
-  pricingTeamSize?: number;
-  equipmentCostCents?: number;
-  extraCleanerFeeCents?: number;
-  serviceFee?: number;
-  pricingMode?: PricingMode;
-  bedrooms?: number;
-  bathrooms?: number;
-  extraRooms?: number;
-  extras?: string[];
-  extrasQuantities?: Record<string, number>;
-  basicPlannedHours?: number | null;
-  scheduleEquipmentPref?: 'bring' | 'own';
-}): { ok: true } | { ok: false; error: string } {
+export function validatePricingEngineRequest(
+  body: {
+    service?: string | null;
+    pricingEngineFinalCents?: number;
+    pricingTotalHours?: number;
+    pricingTeamSize?: number;
+    equipmentCostCents?: number;
+    extraCleanerFeeCents?: number;
+    serviceFee?: number;
+    pricingMode?: PricingMode;
+    bedrooms?: number;
+    bathrooms?: number;
+    extraRooms?: number;
+    extras?: string[];
+    extrasQuantities?: Record<string, number>;
+    basicPlannedHours?: number | null;
+    scheduleEquipmentPref?: 'bring' | 'own';
+  },
+  _quickCleanSettings?: QuickCleanSettings
+): { ok: true } | { ok: false; error: string } {
+  const st = mapApiServiceToPricingEngineService(body.service);
+  if (st === 'Standard' || st === 'Airbnb') {
+    return { ok: true };
+  }
+
   if (
     body.pricingEngineFinalCents == null ||
     !Number.isFinite(body.pricingEngineFinalCents)
@@ -630,12 +674,23 @@ export function validatePricingEngineRequest(body: {
     typeof body.bathrooms === 'number' &&
     Array.isArray(body.extras)
   ) {
-    const time = timeInputFromBookingSnapshot(body);
-    const hours = calculateJobHours(time);
-    if (Math.abs(hours - th) > 0.51) {
+    const v4Service = mapEngineServiceToV4(st);
+    const hoursExpected =
+      v4Service != null
+        ? calculateBookingV4({
+            service_type: v4Service,
+            bedrooms: Math.max(1, body.bedrooms || 1),
+            bathrooms: v4Service === 'carpet' ? 0 : Math.max(0, body.bathrooms || 0),
+            extra_rooms: 0,
+            rugs: v4Service === 'carpet' ? Math.max(0, body.bathrooms || 0) : 0,
+            extras: body.extras ?? [],
+            extrasQuantities: body.extrasQuantities,
+          }).hours
+        : calculateJobHours(timeInputFromBookingSnapshot(body));
+    if (Math.abs(hoursExpected - th) > 0.51) {
       return { ok: false, error: 'Pricing hours mismatch' };
     }
-    const serverEngine = engineFromBookingSnapshotBody(body);
+    const serverEngine = engineFromBookingSnapshotBody(body, _quickCleanSettings);
     if (serverEngine != null) {
       if (
         Math.abs(
@@ -648,8 +703,7 @@ export function validatePricingEngineRequest(body: {
     }
   }
 
-  const st = mapApiServiceToPricingEngineService(body.service);
-  const serverEngine = calculateBookingPrice({
+  const serverEngine = calculateEnginePrice({
     serviceType: st,
     totalHours: th,
     teamSize: Math.max(1, Math.round(Number(body.pricingTeamSize) || 1)),
@@ -657,7 +711,7 @@ export function validatePricingEngineRequest(body: {
       0,
       Math.round(Number(body.equipmentCostCents) || 0) || getEquipmentCentsForEngineService(st)
     ),
-    serviceFee: Math.max(0, Math.round((Number(body.serviceFee) || 0) * 100)),
+    serviceFee: 0,
   });
   if (
     Math.abs(serverEngine.finalPrice - Math.round(body.pricingEngineFinalCents)) > 5000

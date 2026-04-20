@@ -52,6 +52,12 @@ interface DashboardHomeProps {
   onNavigate: (page: PageId) => void;
 }
 
+function formatTierLabel(tier: string | null | undefined) {
+  const t = (tier ?? '').trim();
+  if (!t) return '';
+  return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+}
+
 export function DashboardHome({ onNavigate }: DashboardHomeProps) {
   const { cancelBooking, rateBooking, rescheduleBooking } = useBookings();
   const { bookings, upcomingBookings, isLoading: loading } = useCustomerDashboardData();
@@ -507,18 +513,18 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
               </div>
               <div>
                 <p className="text-sm font-bold text-gray-900">
-                  {user.rewardTier ? `${user.rewardTier} Member` : 'Rewards'}
+                  {user.rewardTier ? `${formatTierLabel(user.rewardTier)} member` : 'Rewards'}
                 </p>
                 <p className="text-xs text-gray-400">
                   {user.rewardsProgressEnabled && user.nextTierName && user.rewardTarget != null
-                    ? `${user.rewardPoints} / ${user.rewardTarget} pts to ${user.nextTierName}`
-                    : `${user.rewardPoints} pts`}
+                    ? `${user.tierBookingsCompleted} / ${user.rewardTarget} cleans to ${user.nextTierName}`
+                    : `${user.rewardPoints} pts · 100 pts = R10 off`}
                 </p>
               </div>
               {user.rewardTier ? (
                 <div className="ml-auto flex-shrink-0">
                   <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1 uppercase">
-                    {user.rewardTier}
+                    {formatTierLabel(user.rewardTier)}
                   </span>
                 </div>
               ) : null}
@@ -535,16 +541,22 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
                   />
                 </div>
                 <div className="flex justify-between mt-1.5">
-                  <p className="text-[10px] text-gray-400">{user.rewardTier ?? 'Rewards'}</p>
+                  <p className="text-[10px] text-gray-400">
+                    {formatTierLabel(user.rewardTier) || 'Rewards'}
+                  </p>
                   <p className="text-[10px] text-gray-400">
                     {user.nextTierName && user.rewardTarget != null
-                      ? `${user.nextTierName} at ${user.rewardTarget} pts`
+                      ? `${user.nextTierName} at ${user.rewardTarget} cleans`
                       : 'Top tier'}
                   </p>
                 </div>
               </>
             ) : (
-              <p className="text-xs text-gray-500">Rewards coming soon — points update when jobs complete.</p>
+              <p className="text-xs text-gray-500">
+                {user.rewardPoints > 0
+                  ? 'Points update when each job is paid. Redeem at checkout (100 pts = R10).'
+                  : 'Book a clean to earn points — 1 pt per R10 spent, plus first-booking bonuses.'}
+              </p>
             )}
             <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-2">

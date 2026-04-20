@@ -24,8 +24,16 @@ import {
 import { cn } from '@/lib/utils';
 import type { CleanerBooking } from '@/types/booking';
 import { isCompletedBooking } from '@/shared/dashboard-data';
+import {
+  estimateCleanerEarningsZar,
+  hoursFromBookingSnapshot,
+  teamSizeFromBooking,
+} from '@/lib/cleaner/earnings-rates';
 
 interface Booking extends CleanerBooking {
+  accept_mode?: 'claim' | 'join';
+  open_team_slots?: number;
+  team_target_size?: number;
   cleaner_claimed_at?: string | null;
   cleaner_accepted_at?: string | null;
   cleaner_on_my_way_at?: string | null;
@@ -41,6 +49,7 @@ interface BookingCardProps {
   onClaim?: (bookingId: string) => Promise<void>;
   onAccept?: (bookingId: string) => Promise<void>;  // NEW
   onOnMyWay?: (bookingId: string) => Promise<void>; // NEW
+  onArrived?: (bookingId: string) => Promise<void>;
   onStart?: (bookingId: string) => Promise<void>;
   onComplete?: (bookingId: string) => Promise<void>;
   onViewDetails?: (booking: Booking) => void;
@@ -55,6 +64,7 @@ export function BookingCard({
   onClaim,
   onAccept,
   onOnMyWay,
+  onArrived,
   onStart,
   onComplete,
   onViewDetails,
@@ -153,6 +163,12 @@ export function BookingCard({
             On My Way
           </Badge>
         );
+      case 'arrived':
+        return (
+          <Badge className="bg-cyan-100 text-cyan-800 border-cyan-200">
+            Arrived
+          </Badge>
+        );
       case 'in-progress':
         return (
           <Badge className="bg-blue-100 text-blue-800 border-blue-200">
@@ -208,6 +224,15 @@ export function BookingCard({
     }
   };
 
+  const estLabourZar =
+    variant === 'available'
+      ? estimateCleanerEarningsZar({
+          serviceType: booking.service_type,
+          hours: hoursFromBookingSnapshot(booking),
+          teamSize: teamSizeFromBooking(booking),
+        })
+      : null;
+
   const getFrequencyLabel = (frequency: string) => {
     switch (frequency) {
       case 'weekly':
@@ -227,7 +252,7 @@ export function BookingCard({
 
   return (
     <div ref={cardRef}>
-      <Card className="overflow-hidden border-2 hover:shadow-md transition-shadow">
+      <Card className="overflow-hidden border-2 rounded-2xl hover:shadow-md transition-shadow">
       <CardContent className="p-4">
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
@@ -236,6 +261,14 @@ export function BookingCard({
               <h3 className="font-semibold text-gray-900">
                 {booking.service_type || 'Cleaning Service'}
               </h3>
+              {booking.accept_mode === 'join' && (
+                <Badge className="bg-indigo-100 text-indigo-900 border-indigo-200 flex items-center gap-1">
+                  <Users className="h-3 w-3" />
+                  {typeof booking.open_team_slots === 'number'
+                    ? `${booking.open_team_slots} spot(s) left`
+                    : 'Team job'}
+                </Badge>
+              )}
               {getStatusBadge()}
               {booking.is_team_booking && (
                 <Badge className="bg-purple-100 text-purple-800 border-purple-200 flex items-center gap-1">
@@ -267,25 +300,37 @@ export function BookingCard({
               </p>
             )}
           </div>
-          {(booking.cleaner_earnings || booking.team_earnings) && (
+          {(variant === 'available' && estLabourZar != null) ||
+          !!(booking.cleaner_earnings || booking.team_earnings) ? (
             <div className="text-right">
-              <div className="text-lg font-bold text-primary">
-                {formatAmount(booking.team_earnings || booking.cleaner_earnings)}
-              </div>
-              {booking.is_team_booking && (
-                <div className="text-xs text-gray-500">
-                  Team earnings
-                </div>
+              {variant === 'available' && estLabourZar != null && (
+                <>
+                  <div className="text-lg font-bold text-emerald-700">
+                    ~R{estLabourZar.toFixed(0)}
+                  </div>
+                  <div className="text-xs text-gray-500">Est. labour</div>
+                </>
               )}
-              {/* Show tip only if customer gave a tip */}
-              {booking.tip_amount && booking.tip_amount > 0 && (
-                <div className="text-xs text-yellow-600 font-medium mt-0.5 flex items-center justify-end gap-0.5">
-                  <span>💰</span>
-                  <span>+{formatAmount(booking.tip_amount)} tip</span>
-                </div>
+              {(booking.cleaner_earnings || booking.team_earnings) && (
+                <>
+                  <div className="text-lg font-bold text-primary">
+                    {formatAmount(booking.team_earnings || booking.cleaner_earnings)}
+                  </div>
+                  {booking.is_team_booking && (
+                    <div className="text-xs text-gray-500">
+                      Team earnings
+                    </div>
+                  )}
+                  {booking.tip_amount && booking.tip_amount > 0 && (
+                    <div className="text-xs text-yellow-600 font-medium mt-0.5 flex items-center justify-end gap-0.5">
+                      <span>💰</span>
+                      <span>+{formatAmount(booking.tip_amount)} tip</span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Date & Time */}
@@ -330,8 +375,10 @@ export function BookingCard({
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Claiming...
                 </>
+              ) : booking.accept_mode === 'join' ? (
+                'Join crew'
               ) : (
-                'Claim Booking'
+                'Claim job'
               )}
             </Button>
           )}
@@ -402,8 +449,30 @@ export function BookingCard({
             </Button>
           )}
 
-          {/* Start Booking Button - only for on_my_way status */}
-          {variant === 'assigned' && booking.status === 'on_my_way' && onStart && (
+          {/* Arrived — after en route */}
+          {variant === 'assigned' && booking.status === 'on_my_way' && onArrived && (
+            <Button
+              onClick={() => handleAction(() => onArrived(booking.id))}
+              disabled={isActing}
+              className="flex-1 min-w-[110px] bg-cyan-600 hover:bg-cyan-700"
+              size="sm"
+            >
+              {isActing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <MapPin className="h-4 w-4 mr-2" />
+                  I&apos;ve Arrived
+                </>
+              )}
+            </Button>
+          )}
+
+          {/* Start Booking — only after arrived (or legacy skip) */}
+          {variant === 'assigned' && booking.status === 'arrived' && onStart && (
             <Button
               onClick={() => handleAction(() => onStart(booking.id), 'medium')}
               disabled={isActing}
@@ -418,7 +487,7 @@ export function BookingCard({
               ) : (
                 <>
                   <PlayCircle className="h-4 w-4 mr-2" />
-                  Start Booking
+                  Start Cleaning
                 </>
               )}
             </Button>

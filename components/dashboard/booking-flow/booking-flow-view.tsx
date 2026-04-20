@@ -194,10 +194,19 @@ export type BookingFlowViewProps = {
     frequencyDiscount: number;
   } | null;
   checkoutFinalZar: number | null;
+  /** Dynamic pricing note when surge multiplier is above 1 (Standard/Airbnb server surge). */
+  surgePricingNote?: string | null;
   currentService: FlowService | undefined;
   currentCleaner: FlowCleaner | undefined;
   rewardPoints: number;
   supportWhatsAppHref: string;
+  /** Standard/Airbnb loyalty redemption on step 5 */
+  showLoyaltyCheckout?: boolean;
+  loyaltyBalance?: number;
+  applyLoyaltyPoints?: boolean;
+  onApplyLoyaltyPointsChange?: (v: boolean) => void;
+  useLoyaltyPointsInput?: number;
+  onUseLoyaltyPointsInputChange?: (v: number) => void;
 };
 
 export function BookingFlowView({
@@ -254,10 +263,17 @@ export function BookingFlowView({
   displayTotalZar,
   linePricing,
   checkoutFinalZar,
+  surgePricingNote = null,
   currentService,
   currentCleaner,
   rewardPoints,
   supportWhatsAppHref,
+  showLoyaltyCheckout = false,
+  loyaltyBalance = 0,
+  applyLoyaltyPoints = false,
+  onApplyLoyaltyPointsChange,
+  useLoyaltyPointsInput = 0,
+  onUseLoyaltyPointsInputChange,
 }: BookingFlowViewProps) {
   const summaryDateShort =
     parsedSummaryDate &&
@@ -811,7 +827,7 @@ export function BookingFlowView({
                                 </>
                               ) : (
                                 <span className="text-[10px] text-gray-500">
-                                  {cleaner.reviews?.trim() ? cleaner.reviews : 'Team booking'}
+                                  {cleaner.reviews?.trim() ? cleaner.reviews : 'Coordinated crew'}
                                 </span>
                               )}
                             </div>
@@ -1009,6 +1025,42 @@ export function BookingFlowView({
                   </div>
                 )}
 
+                {showLoyaltyCheckout && onApplyLoyaltyPointsChange && onUseLoyaltyPointsInputChange && (
+                  <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 space-y-3">
+                    <p className="text-[13px] font-bold text-emerald-900">
+                      You have {loyaltyBalance} points (R{loyaltyBalance} value)
+                    </p>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-gray-300 text-emerald-600"
+                        checked={applyLoyaltyPoints}
+                        onChange={(e) => onApplyLoyaltyPointsChange(e.target.checked)}
+                      />
+                      <span className="text-[13px] font-semibold text-gray-900">Use points on this booking</span>
+                    </label>
+                    {applyLoyaltyPoints && (
+                      <div>
+                        <label htmlFor="dash-loyalty-pts" className="block text-[11px] font-semibold text-gray-600 mb-1">
+                          Points (max {loyaltyBalance})
+                        </label>
+                        <input
+                          id="dash-loyalty-pts"
+                          type="number"
+                          min={0}
+                          max={loyaltyBalance}
+                          value={useLoyaltyPointsInput || ''}
+                          onChange={(e) => {
+                            const n = Math.max(0, Math.floor(Number(e.target.value) || 0));
+                            onUseLoyaltyPointsInputChange(Math.min(n, loyaltyBalance));
+                          }}
+                          className="w-full max-w-[200px] rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
                   <p className="text-[10.5px] font-bold text-gray-400 uppercase tracking-widest mb-3">
                     Checkout
@@ -1032,6 +1084,15 @@ export function BookingFlowView({
                     <p className="text-xs text-blue-600 mt-0.5 break-words">{displayAddress}</p>
                   </div>
                 </div>
+
+                {step === 5 && surgePricingNote && (
+                  <div
+                    role="status"
+                    className="p-4 rounded-2xl bg-amber-50 border border-amber-100 text-sm text-amber-950 leading-relaxed"
+                  >
+                    {surgePricingNote}
+                  </div>
+                )}
 
                 {!hasCustomerAddress && (
                   <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-xl p-3">

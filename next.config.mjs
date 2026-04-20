@@ -648,10 +648,16 @@ const nextConfig = {
       },
     ];
   },
-  // Internal rewrites for booking flow migration
-  // No booking rewrites: allow old and new booking flows separately.
+  // SEO: flat local URLs → programmatic landing pages under `/growth/local/...`
   async rewrites() {
-    return [];
+    return [
+      { source: '/cleaning-services-:area', destination: '/growth/local/cleaning-services/:area' },
+      { source: '/deep-cleaning-:area', destination: '/growth/local/deep-cleaning/:area' },
+      { source: '/move-out-cleaning-:area', destination: '/growth/local/move-out-cleaning/:area' },
+      { source: '/same-day-cleaning-:area', destination: '/growth/local/same-day-cleaning/:area' },
+      { source: '/affordable-cleaning-:area', destination: '/growth/local/affordable-cleaning/:area' },
+      { source: '/weekly-cleaning-:area', destination: '/growth/local/weekly-cleaning/:area' },
+    ];
   },
   // Experimental optimizations
   experimental: {

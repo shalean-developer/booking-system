@@ -7,6 +7,7 @@ export type JobStatus =
   | 'accepted'
   | 'assigned'
   | 'on_my_way'
+  | 'arrived'
   | 'in_progress'
   | 'completed';
 

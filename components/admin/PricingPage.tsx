@@ -15,6 +15,7 @@ import {
   ExtraRoomsSection,
   PriceCalculator,
 } from './pricing-sections';
+import { DynamicPricingRulesSection } from './dynamic-pricing-rules-section';
 
 type ServicePricing = {
   service_type: string;
@@ -407,6 +408,10 @@ export function PricingPage() {
           </motion.div>
         ))}
       </motion.div>
+
+      <div className="mb-6">
+        <DynamicPricingRulesSection onToast={handleToast} />
+      </div>
 
       {!loadingLivePrices && !loadError && (
         <div className="space-y-4 pb-8">

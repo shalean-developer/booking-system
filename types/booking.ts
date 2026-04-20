@@ -1,6 +1,7 @@
 // Core booking data types
 
 import type { PricingMode } from '@/lib/pricing-mode';
+import type { TeamSelection } from '@/lib/constants/booking-teams';
 
 export type ServiceType = 'Standard' | 'Deep' | 'Move In/Out' | 'Airbnb' | 'Carpet';
 
@@ -24,6 +25,8 @@ export interface BookingState {
   provideEquipment?: boolean;
   /** Required for accurate Carpet pricing server-side */
   carpetDetails?: BookingCarpetDetails | null;
+  /** Carpet V4: rug count (optional; aligns with `carpetDetails.numberOfLooseCarpets`). */
+  rugs?: number;
   extras: string[];
   extrasQuantities: Record<string, number>;
   notes: string;
@@ -39,15 +42,25 @@ export interface BookingState {
     line1: string;
     suburb: string;
     city: string;
+    /** From map pin / geocoding — used for routing-aware cleaner assignment. */
+    latitude?: number;
+    longitude?: number;
   };
   cleaner_id?: string; // Selected cleaner ID
-  selected_team?: string; // Selected team name (Team A, B, C)
+  /** Canonical crew only (`Team A` | `B` | `C`). Omit or leave undefined for auto-assign. */
+  selected_team?: string;
+  /**
+   * Preferred explicit crew intent: auto-dispatch vs a concrete team.
+   * When set, servers should derive `selected_team` via `resolveBookingSelectedTeam`.
+   */
+  team_selection?: TeamSelection;
   requires_team?: boolean; // True if booking requires team assignment
   customer_id?: string; // Customer profile ID (UUID)
+  /** Loyalty points to redeem on this booking (1 pt = R1); server clamps to balance and labour line. */
+  use_points?: number;
   paymentReference?: string; // Paystack payment reference
-  totalAmount?: number; // Final total in ZAR (after surge) — must match Paystack charge
-  /** Cart total in ZAR before surge (required for server-side surge + Paystack amount checks) */
-  preSurgeTotal?: number;
+  /** Final cart total in ZAR — must match server authoritative pricing / Paystack charge */
+  totalAmount?: number;
   /** True when service requires equipment and the mandatory fee applies */
   equipment_required?: boolean;
   /** Equipment fee in ZAR for required-equipment services */
@@ -55,6 +68,8 @@ export interface BookingState {
   serviceFee?: number; // NEW: Service fee amount
   frequencyDiscount?: number; // NEW: Discount amount based on frequency
   discountCode?: string; // Discount code applied
+  /** Alias for admin / mobile clients — same as discountCode */
+  promo_code?: string;
   discountAmount?: number; // Discount amount from discount code
   tipAmount?: number; // Tip amount (goes 100% to cleaner)
   /** Pricing engine output (cents) — pre-discount, pre-tip, pre-surge; validated on server */
@@ -68,7 +83,7 @@ export interface BookingState {
   extraCleanerFeeCents?: number;
   /** Quick Clean vs Premium — must match server engine validation */
   pricingMode?: PricingMode;
-  /** Basic planned-hours flow (2–5) — must match engine when `pricingMode === 'basic'` */
+  /** Quick Clean: scheduled hours (tier + extras, max 6) — must match engine when `pricingMode === 'basic'` */
   basicPlannedHours?: number | null;
   scheduleEquipmentPref?: 'bring' | 'own';
 }
@@ -208,5 +223,10 @@ export interface CleanerBooking {
     start_date: string;
     end_date?: string;
   } | null;
+  /** Pricing / duration metadata (DB or list payloads) for earnings estimates */
+  price_snapshot?: unknown;
+  total_hours?: number | null;
+  duration_minutes?: number | null;
+  team_size?: number | null;
 }
 

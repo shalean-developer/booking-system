@@ -15,15 +15,18 @@ export type RoomTimeRates = {
 };
 
 /**
- * Tiered minimum totals (cents) so strict standard < airbnb < carpet < deep < move
- * holds when raw estimates would otherwise floor to the same R600-style minimum.
+ * Minimum job totals (cents) per service — **floors only** (quotes already above stay unchanged).
+ *
+ * Used by the premium labour engine and, after Basic V2 totals, by `applyServiceMinBookingFloorCents`.
+ * **Quick Clean (Basic)** headline prices are driven mainly by `lib/pricing-engine-v2` tier rates;
+ * use `BASIC_TIER_RATE_MULTIPLIER` there to lower typical large-home estimates.
  */
 export const SERVICE_MIN_BOOKING_CENTS: Record<WizardServiceKey, number> = {
-  standard: 60_000,
-  airbnb: 65_000,
-  carpet: 70_000,
-  deep: 75_000,
-  move: 80_000,
+  standard: 25_000,
+  airbnb: 28_000,
+  carpet: 30_000,
+  deep: 120_000,
+  move: 98_000,
 };
 
 export const SERVICE_CONFIG: Record<
@@ -60,13 +63,14 @@ export const SERVICE_CONFIG: Record<
     /** Higher margin vs carpet so deep stays above carpet + equipment when hours are close (same time-driven model). */
     /** Slightly higher base than 4.5h so small homes (e.g. 1 bed / 1 bath) still price above carpet + equipment. */
     baseTime: 5.0,
-    teamSize: 2,
+    /** Minimum cleaners for heuristics; `getRecommendedTeamSize` can still suggest 2+ from job hours. */
+    teamSize: 1,
     margin: 0.48,
     timeRates: { bedroom: 0.75, bathroom: 1.25, extraRoom: 0.75 },
   },
   move: {
     baseTime: 5.0,
-    teamSize: 2,
+    teamSize: 1,
     margin: 0.45,
     timeRates: { bedroom: 1.0, bathroom: 1.5, extraRoom: 1.0 },
   },

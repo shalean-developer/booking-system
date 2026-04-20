@@ -7,17 +7,27 @@ export interface BookingFlowLayoutProps {
   sidebar: React.ReactNode;
   /** Step 4 shows the summary above the form on small screens; steps 1–3 hide it until `lg`. */
   sidebarOnMobile?: boolean;
+  /** When `sidebarOnMobile` is true, stack main column first, then sidebar (checkout Step 4). */
+  mobileSidebarAfterMain?: boolean;
   mainRef?: React.RefObject<HTMLDivElement | null>;
   className?: string;
+  /** Tailwind gap class for the main column stack (e.g. `gap-7`). */
+  mainColumnClassName?: string;
 }
 
 export function BookingFlowLayout({
   children,
   sidebar,
   sidebarOnMobile = false,
+  mobileSidebarAfterMain = false,
   mainRef,
   className,
+  mainColumnClassName,
 }: BookingFlowLayoutProps) {
+  const mainOrderMobile = sidebarOnMobile && mobileSidebarAfterMain ? 'order-1' : 'order-2';
+  const sidebarOrderMobile =
+    sidebarOnMobile && mobileSidebarAfterMain ? 'order-2' : sidebarOnMobile ? 'order-1' : 'order-1';
+
   return (
     <div
       ref={mainRef}
@@ -26,11 +36,21 @@ export function BookingFlowLayout({
         className
       )}
     >
-      <div className="order-2 lg:order-1 min-w-0 flex flex-col gap-6 w-full">{children}</div>
+      <div
+        className={cn(
+          mainOrderMobile,
+          'lg:order-1 min-w-0 flex flex-col gap-6 w-full',
+          mainColumnClassName
+        )}
+      >
+        {children}
+      </div>
       <div
         className={cn(
           'w-full flex-shrink-0 lg:self-stretch',
-          sidebarOnMobile ? 'order-1 lg:order-2' : 'hidden lg:block order-1 lg:order-2'
+          sidebarOnMobile
+            ? cn(sidebarOrderMobile, 'lg:order-2')
+            : 'hidden lg:block order-1 lg:order-2'
         )}
       >
         <div className="sticky top-24 self-start">{sidebar}</div>

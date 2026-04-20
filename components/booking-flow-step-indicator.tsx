@@ -7,12 +7,16 @@ import { CheckCircle2 } from 'lucide-react';
 export function BookingFlowStepIndicator({
   activeStep,
   allComplete = false,
+  stepHint,
 }: {
   activeStep: 1 | 2 | 3 | 4;
   /** When true, all four steps show completed (green) — e.g. post-payment confirmation. */
   allComplete?: boolean;
+  /** e.g. “Takes ~1 min” on step 1 — reduces perceived effort */
+  stepHint?: string;
 }) {
   return (
+    <div className="flex flex-col items-end gap-0.5">
     <div className="flex items-center gap-2">
       {([1, 2, 3, 4] as const).map((stepNum) => (
         <React.Fragment key={stepNum}>
@@ -42,6 +46,10 @@ export function BookingFlowStepIndicator({
           )}
         </React.Fragment>
       ))}
+    </div>
+    {stepHint ? (
+      <p className="text-[10px] font-medium text-gray-400 whitespace-nowrap hidden sm:block">{stepHint}</p>
+    ) : null}
     </div>
   );
 }

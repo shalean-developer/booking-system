@@ -555,13 +555,22 @@ function SignInForm({ returnTo, passwordResetSuccess }: SignInFormProps) {
 
 interface SignUpFormProps {
   validReferrer: string;
+  /** Pre-filled from `?ref=SHALEAN…` when not a UUID */
+  initialReferralCode?: string;
   onSessionSuccess: () => void;
   onVerificationRequired: (email: string) => void;
   onError: (message: string) => void;
 }
-function SignUpForm({ validReferrer, onSessionSuccess, onVerificationRequired, onError }: SignUpFormProps) {
+function SignUpForm({
+  validReferrer,
+  initialReferralCode = '',
+  onSessionSuccess,
+  onVerificationRequired,
+  onError,
+}: SignUpFormProps) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [referralCodeInput, setReferralCodeInput] = useState(initialReferralCode);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -713,6 +722,7 @@ function SignUpForm({ validReferrer, onSessionSuccess, onVerificationRequired, o
               email,
               auth_user_id: authData.user.id,
               referred_by_customer_id: validReferrer || undefined,
+              referral_code: referralCodeInput.trim() || undefined,
               profile: {
                 fullName: fullName.trim(),
                 firstName: firstName ?? null,
@@ -783,6 +793,22 @@ function SignUpForm({ validReferrer, onSessionSuccess, onVerificationRequired, o
         placeholder="you@example.com"
         autoComplete="email"
       />
+      {!validReferrer && (
+        <InputField
+          id="signup-referral"
+          name="referralCode"
+          label="Referral code (optional)"
+          type="text"
+          value={referralCodeInput}
+          onChange={(value) => {
+            setReferralCodeInput(value.toUpperCase());
+            onError('');
+          }}
+          icon={<Info className="w-4 h-4" />}
+          placeholder="SHALEAN…"
+          autoComplete="off"
+        />
+      )}
       <InputField
         id="signup-password"
         name="password"
@@ -959,8 +985,15 @@ interface AuthCardProps {
   returnTo: string;
   passwordResetSuccess: boolean;
   validReferrer: string;
+  initialReferralCode: string;
 }
-function AuthCard({ initialTab, returnTo, passwordResetSuccess, validReferrer }: AuthCardProps) {
+function AuthCard({
+  initialTab,
+  returnTo,
+  passwordResetSuccess,
+  validReferrer,
+  initialReferralCode,
+}: AuthCardProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<AuthTab>(initialTab);
   const [success, setSuccess] = useState(false);
@@ -1079,6 +1112,7 @@ function AuthCard({ initialTab, returnTo, passwordResetSuccess, validReferrer }:
               ) : (
                 <SignUpForm
                   validReferrer={validReferrer}
+                  initialReferralCode={initialReferralCode}
                   onSessionSuccess={handleSignupSessionSuccess}
                   onVerificationRequired={handleVerificationRequired}
                   onError={(msg) => setCardError(msg)}
@@ -1148,8 +1182,12 @@ function ShaleanAuthInner({ initialTab = 'signin' }: ShaleanAuthProps) {
     }
   }, []);
   const passwordReset = searchParams.get('passwordReset');
-  const referrerCustomerId = searchParams.get('ref')?.trim() ?? '';
+  const refParam = searchParams.get('ref')?.trim() ?? '';
+  const codeParam = searchParams.get('code')?.trim() ?? '';
+  const referrerCustomerId = refParam || codeParam;
   const validReferrer = UUID_RE.test(referrerCustomerId) ? referrerCustomerId : '';
+  const initialReferralCode =
+    !validReferrer && /^SHALEAN/i.test(referrerCustomerId) ? referrerCustomerId.toUpperCase() : '';
 
   return (
     <div className="min-h-screen w-full flex">
@@ -1169,6 +1207,7 @@ function ShaleanAuthInner({ initialTab = 'signin' }: ShaleanAuthProps) {
             returnTo={returnTo}
             passwordResetSuccess={passwordReset === 'success'}
             validReferrer={validReferrer}
+            initialReferralCode={initialReferralCode}
           />
         </motion.div>
 

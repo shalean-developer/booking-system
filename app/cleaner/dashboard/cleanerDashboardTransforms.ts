@@ -64,6 +64,7 @@ const mapStatus = (dbStatus: string): BookingStatus => {
     'assigned',
     'accepted',
     'on_my_way',
+    'arrived',
     'in-progress',
   ];
   if (upcomingStatuses.includes(dbStatus)) return 'upcoming';

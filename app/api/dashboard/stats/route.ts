@@ -1,20 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
-import { getCustomerDashboardStats } from '@/lib/dashboard-data/customer-stats';
+import {
+  getCustomerDashboardStats,
+  type CustomerDashboardStats,
+} from '@/lib/dashboard-data/customer-stats';
 
 /** KPIs are DB counts only — must match dashboard business rules. */
-export type DashboardStatsPayload = {
-  upcomingCount: number;
-  completedCount: number;
-  cancelledCount: number;
-  activePlans: number;
-  rewardPoints: number;
-  lastCleaningCompleted: string | null;
-  balanceDue: number;
-  totalBookings: number;
-  totalSpentCents: number;
-  hoursCleaned: number;
-};
+export type DashboardStatsPayload = CustomerDashboardStats;
 
 export async function GET(request: Request) {
   try {
@@ -43,7 +35,7 @@ export async function GET(request: Request) {
 
     const { data: customer, error: customerError } = await supabase
       .from('customers')
-      .select('id, rewards_points')
+      .select('id, rewards_points, loyalty_lifetime_points, user_tier, referral_code')
       .eq('auth_user_id', authUser.id)
       .maybeSingle();
 
@@ -65,6 +57,10 @@ export async function GET(request: Request) {
       totalBookings: 0,
       totalSpentCents: 0,
       hoursCleaned: 0,
+      userTier: 'bronze',
+      loyaltyLifetimePoints: 0,
+      nextTierName: null,
+      nextTierBookingThreshold: null,
     };
 
     if (!customer) {
@@ -75,7 +71,12 @@ export async function GET(request: Request) {
 
     let stats: DashboardStatsPayload;
     try {
-      stats = await getCustomerDashboardStats(supabase, customer.id, rewardPoints);
+      stats = await getCustomerDashboardStats(
+        supabase,
+        customer.id,
+        rewardPoints,
+        (customer as { loyalty_lifetime_points?: number | null }).loyalty_lifetime_points
+      );
     } catch (e) {
       if (process.env.NODE_ENV !== 'production') {
         console.error('dashboard/stats', e);

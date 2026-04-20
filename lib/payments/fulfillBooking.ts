@@ -21,6 +21,7 @@ import { generateManageToken } from '@/lib/manage-booking-token';
 import type { BookingPaidRow } from '@/lib/payments/booking-types';
 import { logPaymentIntegrity, redactPaymentReference } from '@/lib/payment-integrity-log';
 import { recordPaymentValidationFailure } from '@/lib/payment-validation-tracker';
+import { applyLoyaltyAndReferralRewardsOnPayment } from '@/lib/loyalty/apply-payment-rewards';
 
 async function fetchManageTokenForEmail(
   supabase: SupabaseClient,
@@ -447,6 +448,20 @@ export async function fulfillPaidBooking(params: {
   });
 
   console.log('[fulfillPaidBooking] done', { bookingId: booking.id, zohoId });
+
+  try {
+    await applyLoyaltyAndReferralRewardsOnPayment({
+      supabase,
+      bookingId: wonBooking.id,
+      customerId: wonBooking.customer_id ?? null,
+      amountZar,
+      pointsRedeemed: Math.max(0, Math.floor(Number(wonBooking.points_redeemed) || 0)),
+      bookingDateYmd: String(wonBooking.booking_date ?? '').slice(0, 10) || undefined,
+    });
+  } catch (e) {
+    console.error('[loyalty] applyLoyaltyAndReferralRewardsOnPayment', e);
+  }
+
   return { ok: true, zoho_invoice_id: zohoId };
 }
 

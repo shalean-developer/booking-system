@@ -445,7 +445,7 @@ export function SuburbPageTemplate({
     },
     "telephone": phoneNumber,
     "email": emailAddress,
-    "url": `https://shalean.co.za/location/${citySlug}/${suburbSlug}`,
+    "url": `https://shalean.co.za/growth/local/cleaning-services/${suburbSlug}`,
     "sameAs": [gbpUrl], // Connect to Google Business Profile
     "priceRange": "R200-R1500", // Overall price range
     "hasOfferCatalog": {
@@ -482,37 +482,7 @@ export function SuburbPageTemplate({
     ],
     "openingHours": serviceHoursValue.replace(/–/g, "-"),
     "description": description,
-    "hasMap": mapUrl,
-    ...(averageRating && {
-      "aggregateRating": {
-        "@type": "AggregateRating",
-        "ratingValue": averageRating.toFixed(1),
-        "reviewCount": testimonialItems.length,
-        "bestRating": "5",
-        "worstRating": "1"
-      }
-    }),
-    ...(testimonialItems.length > 0 && {
-      "review": testimonialItems.map((testimonial, index) => ({
-        "@type": "Review",
-        "itemReviewed": {
-          "@type": "LocalBusiness",
-          "name": "Shalean Cleaning Services",
-          "@id": "https://shalean.co.za"
-        },
-        "author": {
-          "@type": "Person",
-          "name": testimonial.name || `Customer ${index + 1}`
-        },
-        "reviewBody": testimonial.content.replace(/[“”]/g, '"'),
-        "reviewRating": {
-          "@type": "Rating",
-          "ratingValue": `${Math.min(Math.max(testimonial.rating ?? 5, 1), 5)}`,
-          "bestRating": "5",
-          "worstRating": "1"
-        }
-      }))
-    })
+    "hasMap": mapUrl
   };
 
   // Generate breadcrumb structured data
@@ -530,19 +500,19 @@ export function SuburbPageTemplate({
         "@type": "ListItem",
         "position": 2,
         "name": "Service Areas",
-        "item": "https://shalean.co.za/location"
+        "item": "https://shalean.co.za/growth/local/cleaning-services/cape-town"
       },
       {
         "@type": "ListItem",
         "position": 3,
         "name": city,
-        "item": `https://shalean.co.za/location/${citySlug}`
+        "item": `https://shalean.co.za/growth/local/cleaning-services/${citySlug}`
       },
       {
         "@type": "ListItem",
         "position": 4,
         "name": suburb,
-        "item": `https://shalean.co.za/location/${citySlug}/${suburbSlug}`
+        "item": `https://shalean.co.za/growth/local/cleaning-services/${suburbSlug}`
       }
     ]
   };

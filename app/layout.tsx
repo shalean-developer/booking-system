@@ -6,9 +6,11 @@ import { cn } from "@/lib/utils";
 import { GBP_LISTING_URL } from "@/lib/public-site-urls";
 import { ORGANIZATION_SAME_AS, SITE_PHONE_DISPLAY, SITE_SUPPORT_EMAIL } from "@/lib/site-config";
 import { stringifyStructuredData } from "@/lib/structured-data-validator";
+import { SITE_URL } from "@/lib/metadata";
 import ToasterWrapper from "./components/toaster";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
 import { AnalyticsConsent } from "@/components/analytics-consent";
+import { GrowthTrackingProvider } from "@/components/growth-tracking-provider";
 import { BookingProvider } from "@/context/BookingContext"; // ✅ ADDED
 
 const inter = Inter({ 
@@ -47,12 +49,22 @@ export default function RootLayout({
   const organizationSchema = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    "@id": "https://shalean.co.za/#organization",
+    "@id": `${SITE_URL}/#organization`,
     "name": "Shalean Cleaning Services",
-    "url": "https://shalean.co.za",
+    "url": SITE_URL,
     "telephone": SITE_PHONE_DISPLAY,
     "email": SITE_SUPPORT_EMAIL,
     "sameAs": [GBP_LISTING_URL, ...ORGANIZATION_SAME_AS],
+  };
+
+  const websiteSchema = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": `${SITE_URL}/#website`,
+    name: "Shalean Cleaning Services",
+    url: SITE_URL,
+    inLanguage: "en-ZA",
+    publisher: { "@id": `${SITE_URL}/#organization` },
   };
 
   return (
@@ -61,6 +73,10 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: stringifyStructuredData(organizationSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: stringifyStructuredData(websiteSchema) }}
         />
       </head>
 
@@ -82,13 +98,15 @@ export default function RootLayout({
 
         {/* ✅ BOOKING CONTEXT WRAP */}
         <BookingProvider>
-          <ToasterWrapper />
-          <ServiceWorkerRegister />
-          <AnalyticsConsent />
+          <GrowthTrackingProvider>
+            <ToasterWrapper />
+            <ServiceWorkerRegister />
+            <AnalyticsConsent />
 
-          <div className="min-h-screen">
-            {children}
-          </div>
+            <div className="min-h-screen">
+              {children}
+            </div>
+          </GrowthTrackingProvider>
         </BookingProvider>
 
       </body>

@@ -23,7 +23,11 @@ export async function fetcher<T>(url: string): Promise<T> {
       url.includes('/api/admin/stats') ||
       url.includes('/api/admin/pending-counts') ||
       url.includes('/api/admin/activity') ||
-      url.includes('/api/admin/notifications/unread-count');
+      url.includes('/api/admin/notifications/unread-count') ||
+      url.includes('/api/admin/analytics') ||
+      url.includes('/api/admin/forecast') ||
+      url.includes('/api/admin/quick-clean-settings') ||
+      url.includes('/api/admin/supply-alerts');
     const timeoutMs = longTimeout ? 90_000 : 30_000;
 
     // Check if AbortController is supported

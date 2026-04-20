@@ -374,7 +374,7 @@ export function getRelatedSuburbs(
     .slice(0, limit)
     .map((entry) => ({
       name: normalizeSuburbDisplayName(entry.slug, entry.name),
-      href: `/location/${citySlug}/${entry.slug}`,
+      href: `/growth/local/cleaning-services/${entry.slug}`,
     }));
 }
 

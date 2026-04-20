@@ -54,6 +54,7 @@ function JobStatusBadge({ status }: { status: Job['status'] }) {
     accepted: { label: 'Accepted', cls: 'bg-indigo-50 text-indigo-600 border-indigo-200' },
     assigned: { label: 'Assigned', cls: 'bg-violet-50 text-violet-600 border-violet-200' },
     on_my_way: { label: 'On My Way', cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+    arrived: { label: 'Arrived', cls: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
     in_progress: { label: 'In Progress', cls: 'bg-emerald-50 text-emerald-600 border-emerald-200' },
     completed: { label: 'Completed', cls: 'bg-gray-50 text-gray-500 border-gray-200' },
   };
@@ -280,7 +281,23 @@ function JobsPage({ onNavigate: _onNavigate }: JobsPageProps) {
                     ) : (
                       <Navigation className="w-4 h-4" />
                     )}
-                    <span>{actionLoading ? 'Starting…' : 'Start Job'}</span>
+                    <span>{actionLoading ? 'Updating…' : 'Mark Arrived'}</span>
+                  </motion.button>
+                )}
+                {detailJob.status === 'arrived' && (
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => handleAction(startJob, detailJob.id)}
+                    disabled={actionLoading}
+                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-md"
+                  >
+                    {actionLoading ? (
+                      <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4" />
+                    )}
+                    <span>{actionLoading ? 'Starting…' : 'Start Cleaning'}</span>
                   </motion.button>
                 )}
                 {detailJob.status === 'in_progress' && (

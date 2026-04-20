@@ -182,6 +182,7 @@ export async function POST(
           cleaner_id: body.cleaner_id,
           assigned_cleaner_id: body.cleaner_id,
           status: 'assigned',
+          tracking_status: 'assigned',
           updated_at: new Date().toISOString(),
         })
         .eq('id', id);

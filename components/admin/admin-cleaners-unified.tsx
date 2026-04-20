@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
+import { CleanerCoverageForm } from '@/components/admin/CleanerCoverageForm';
 import { PageHeader } from '@/components/admin/shared/page-header';
 import { FilterBar } from '@/components/admin/shared/filter-bar';
 import { EmptyState } from '@/components/admin/shared/empty-state';
@@ -72,6 +73,11 @@ export interface AdminCleanerRow {
   is_active: boolean;
   is_available?: boolean;
   areas?: string[];
+  /** Coverage suburbs; empty in UI falls back to `areas`. */
+  working_areas?: string[];
+  coverage_radius_km?: number;
+  base_latitude?: number | null;
+  base_longitude?: number | null;
   total_bookings?: number;
   completed_bookings?: number;
   average_rating?: number | null;
@@ -136,6 +142,11 @@ export function AdminCleanersUnified({ variant = 'full' }: { variant?: AdminClea
   const [editCleanerId, setEditCleanerId] = useState<string | null>(null);
   const [editCleaner, setEditCleaner] = useState({ name: '', email: '', phone: '', areasStr: '' });
   const [editSaving, setEditSaving] = useState(false);
+
+  const editingCleanerRow = useMemo(
+    () => (editCleanerId ? cleaners.find((c) => c.id === editCleanerId) ?? null : null),
+    [cleaners, editCleanerId],
+  );
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -936,14 +947,17 @@ export function AdminCleanersUnified({ variant = 'full' }: { variant?: AdminClea
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setShowEditForm(false)}
+              onClick={() => {
+                setShowEditForm(false);
+                setEditCleanerId(null);
+              }}
               className="fixed inset-0 bg-black/40"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 8 }}
-              className="relative w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-2xl"
+              className="relative max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
             >
               <h3 className="text-sm font-extrabold text-gray-900">Edit cleaner</h3>
               {(['name', 'email', 'phone'] as const).map((key) => (

@@ -140,23 +140,23 @@ function StatusToggle({ isOnline, onToggle }: StatusToggleProps) {
 const CLEANER_NOTIFICATIONS = [
   {
     id: 'cn-001',
-    title: 'New Job Available',
-    body: 'Move-Out Clean in Gardens — R550',
-    time: '2 min ago',
+    title: 'New job assigned',
+    body: 'Standard clean added to your schedule — tap Jobs to accept.',
+    time: 'Just now',
     read: false,
   },
   {
     id: 'cn-002',
-    title: 'Payment Received',
-    body: 'R225 deposited for Standard Clean (Thabo V.)',
-    time: '1 hr ago',
+    title: 'High demand in your area',
+    body: 'More bookings than usual nearby. Stay online to get offers.',
+    time: '12 min ago',
     read: false,
   },
   {
     id: 'cn-003',
-    title: 'Review Received',
-    body: 'You received a 5★ review from Nokwanda Z.',
-    time: 'Yesterday',
+    title: 'Reminder',
+    body: 'You have an upcoming job tomorrow morning.',
+    time: '1 hr ago',
     read: true,
   },
 ];

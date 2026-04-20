@@ -43,10 +43,10 @@ const navigationItems = [
 ];
 
 const locationsDropdownItems = [
-  { name: 'Cape Town', href: '/location/cape-town' },
-  { name: 'Johannesburg', href: '/location/johannesburg' },
-  { name: 'Pretoria', href: '/location/pretoria' },
-  { name: 'Durban', href: '/location/durban' },
+  { name: 'Cape Town', href: '/growth/local/cleaning-services/cape-town' },
+  { name: 'Johannesburg', href: '/growth/local/cleaning-services/johannesburg' },
+  { name: 'Pretoria', href: '/growth/local/cleaning-services/pretoria' },
+  { name: 'Durban', href: '/growth/local/cleaning-services/durban' },
 ];
 
 interface Service {

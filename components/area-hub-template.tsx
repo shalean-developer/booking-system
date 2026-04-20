@@ -185,7 +185,7 @@ export function AreaHubTemplate({
             {suburbs.map((suburb) => (
               <Link
                 key={suburb.slug}
-                href={`/location/${city.toLowerCase().replace(/\s+/g, '-')}/${suburb.slug}`}
+                href={`/growth/local/cleaning-services/${suburb.slug}`}
                 className={`flex items-center gap-2 p-4 rounded-lg border-2 transition-all group ${
                   suburb.available !== false 
                     ? 'border-gray-200 hover:border-primary hover:bg-primary/5' 

@@ -8,6 +8,8 @@ import {
   formServiceToApi,
   getEffectiveRoomCounts,
 } from '@/lib/booking-pricing-input';
+import { isBookingTeamName } from '@/shared/booking-engine/booking-team-names';
+import type { TeamSelection } from '@/lib/constants/booking-teams';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -20,13 +22,15 @@ export type WizardPendingPricingContext = {
     engineFinalCents: number | null;
   };
   lineCalc: BookingPriceResult | null;
-  checkoutPreSurge: number | undefined;
-  checkoutFinal: number | undefined;
+  /** Server-confirmed total (ZAR) from pricing preview; falls back to client line total. */
+  checkoutTotalZar: number | undefined;
   estimatedMaxHours: number;
   companyCosts: {
     equipmentCostCents: number;
     extraCleanerFeeCents: number;
   } | null;
+  /** Loyalty redemption — must match server `loyalty_points_used` from pricing preview. */
+  use_points?: number;
 };
 
 /**
@@ -39,17 +43,23 @@ export function buildWizardPendingBookingPayload(
   equipmentChargeZar: number | undefined,
   ctx: WizardPendingPricingContext
 ): BookingPayload {
-  const nameParts = data.name.trim().split(/\s+/);
+  const rawName = data.name.trim() || 'Customer';
+  const nameParts = rawName.split(/\s+/);
   const firstName = nameParts[0] || '';
   const lastName = nameParts.slice(1).join(' ') || '';
   const apiService = formServiceToApi(data.service);
   const requiresTeam = data.service === 'deep' || data.service === 'move';
   const cleanerId = data.cleanerId && UUID_REGEX.test(data.cleanerId) ? data.cleanerId : null;
-  const selectedTeam = requiresTeam ? 'Team booking' : undefined;
+  const selectedTeam =
+    requiresTeam && data.teamId && isBookingTeamName(data.teamId) ? data.teamId : undefined;
+  const team_selection: TeamSelection | undefined = requiresTeam
+    ? selectedTeam
+      ? { type: 'manual', team: selectedTeam }
+      : { type: 'auto' }
+    : undefined;
   const extrasQuantities = buildExtrasQuantitiesByIdFromWizard(data.extras, data.extrasQuantities);
   const eff = getEffectiveRoomCounts(data);
-  const totalsPre = ctx.checkoutFinal ?? ctx.pricing.total;
-  const totalsSurge = ctx.checkoutPreSurge ?? ctx.pricing.total;
+  const serverTotal = ctx.checkoutTotalZar ?? ctx.pricing.total;
   const equipmentRequired =
     (data.service === 'standard' || data.service === 'airbnb') && data.scheduleEquipmentPref === 'bring';
   const equipmentFee =
@@ -74,17 +84,22 @@ export function buildWizardPendingBookingPayload(
     lastName,
     email: data.email.trim(),
     phone: data.phone.trim(),
-    address: { line1: data.address.trim(), suburb: data.workingArea || '', city: BOOKING_DEFAULT_CITY },
+    address: {
+      line1: data.address.trim() || data.workingArea.trim() || '—',
+      suburb: data.workingArea || '',
+      city: BOOKING_DEFAULT_CITY,
+    },
     cleaner_id: cleanerId || undefined,
+    team_selection,
     selected_team: selectedTeam,
     requires_team: requiresTeam,
     ...(paymentReference ? { paymentReference } : {}),
     expectedEndTime: expectedEndTime || undefined,
-    totalAmount: totalsPre,
-    preSurgeTotal: totalsSurge,
+    totalAmount: serverTotal,
     serviceFee: ctx.pricing.serviceFee,
     frequencyDiscount: ctx.pricing.frequencyDiscount,
     discountCode: data.promoCode || undefined,
+    promo_code: data.promoCode || undefined,
     discountAmount: ctx.pricing.discountAmount,
     tipAmount: data.tipAmount,
     equipment_required: equipmentRequired,
@@ -98,5 +113,6 @@ export function buildWizardPendingBookingPayload(
     scheduleEquipmentPref: data.scheduleEquipmentPref,
     equipmentCostCents: ctx.companyCosts?.equipmentCostCents,
     extraCleanerFeeCents: ctx.companyCosts?.extraCleanerFeeCents,
+    ...(typeof ctx.use_points === 'number' && ctx.use_points > 0 ? { use_points: ctx.use_points } : {}),
   };
 }

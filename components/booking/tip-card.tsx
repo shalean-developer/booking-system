@@ -18,6 +18,7 @@ export interface TipCardProps {
   cleanerPhotoUrl?: string | null;
   /** True when the booking uses a team label (no individual photo). */
   isTeam?: boolean;
+  headerTone?: 'dark' | 'blue';
   tipAmount: number;
   onTipChange: (value: number) => void;
   className?: string;
@@ -31,6 +32,7 @@ export function TipCard({
   cleanerName,
   cleanerPhotoUrl = null,
   isTeam = false,
+  headerTone = 'dark',
   tipAmount,
   onTipChange,
   className,
@@ -72,7 +74,12 @@ export function TipCard({
     >
       <div className="relative">
         {/* Dark header — extra bottom padding for avatar overlap */}
-        <div className="bg-zinc-950 text-white px-4 pt-3 pb-8 pl-14 min-h-[4.5rem]">
+        <div
+          className={cn(
+            'text-white px-4 pt-3 pb-8 pl-14 min-h-[4.5rem]',
+            headerTone === 'blue' ? 'bg-gradient-to-r from-primary to-blue-500' : 'bg-zinc-950'
+          )}
+        >
           <p className="text-[11px] font-medium text-white/75 tracking-wide">An upfront tip for</p>
           <p className="text-base font-bold text-white leading-snug truncate pr-1">{cleanerName}</p>
         </div>
@@ -152,7 +159,7 @@ export function TipCard({
                   <label className="sr-only" htmlFor="tip-custom-amount">
                     Custom tip in rands
                   </label>
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <div className="flex items-center gap-2 w-full sm:flex-1 sm:min-w-0">
                     <span className="text-sm font-semibold text-gray-500">R</span>
                     <input
                       ref={inputRef}
@@ -170,15 +177,15 @@ export function TipCard({
                         }
                       }}
                       disabled={disabled}
-                      className="flex-1 rounded-lg border-2 border-gray-200 px-3 py-2 text-sm font-semibold text-gray-900 placeholder:text-gray-300 focus:border-green-600 focus:outline-none focus:ring-0"
+                      className="w-full min-w-0 rounded-lg border-2 border-gray-200 px-3 py-2 text-sm font-semibold text-gray-900 placeholder:text-gray-300 focus:border-green-600 focus:outline-none focus:ring-0"
                     />
                   </div>
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:gap-2">
                     <button
                       type="button"
                       disabled={disabled}
                       onClick={applyCustom}
-                      className="rounded-lg bg-green-700 px-4 py-2 text-sm font-bold text-white hover:bg-green-800 transition-colors disabled:opacity-50"
+                      className="w-full sm:w-auto rounded-lg bg-green-700 px-4 py-2 text-sm font-bold text-white hover:bg-green-800 transition-colors disabled:opacity-50"
                     >
                       Apply
                     </button>
@@ -188,7 +195,7 @@ export function TipCard({
                         setCustomOpen(false);
                         setCustomDraft('');
                       }}
-                      className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50"
+                      className="w-full sm:w-auto rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50"
                     >
                       Cancel
                     </button>

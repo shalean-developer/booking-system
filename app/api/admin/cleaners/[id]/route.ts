@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient, isAdmin } from '@/lib/supabase-server';
+import { createClient, createServiceClient, isAdmin } from '@/lib/supabase-server';
 import { hashPassword, normalizePhoneNumber, sanitizeCleanerForAdmin, validatePhoneNumber } from '@/lib/cleaner-auth';
 
 export const dynamic = 'force-dynamic';
@@ -80,6 +80,29 @@ export async function PATCH(
       }
     }
 
+    /** Named suburbs for V1 coverage (optional; falls back to `areas` when empty). */
+    if (body.working_areas !== undefined) {
+      const raw = body.working_areas;
+      const arr = Array.isArray(raw)
+        ? raw.map((a: string) => String(a).trim()).filter(Boolean)
+        : String(raw)
+            .split(',')
+            .map((s: string) => s.trim())
+            .filter(Boolean);
+      updateData.working_areas = arr;
+    }
+
+    if (body.coverage_radius_km !== undefined) {
+      const n = parseInt(String(body.coverage_radius_km), 10);
+      if (!Number.isFinite(n) || n < 1 || n > 200) {
+        return NextResponse.json(
+          { ok: false, error: 'coverage_radius_km must be between 1 and 200' },
+          { status: 400 },
+        );
+      }
+      updateData.coverage_radius_km = n;
+    }
+
     if (body.is_active !== undefined) {
       updateData.is_active = Boolean(body.is_active);
     }
@@ -129,7 +152,45 @@ export async function PATCH(
       updateData.auth_provider = ap;
     }
 
+    let baseLocationRpcError: string | null = null;
+    if (body.base_latitude !== undefined && body.base_longitude !== undefined) {
+      const lat = Number(body.base_latitude);
+      const lng = Number(body.base_longitude);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        try {
+          const svc = createServiceClient();
+          const { error: rpcErr } = await svc.rpc('set_cleaner_base_location', {
+            p_id: id,
+            p_lat: lat,
+            p_lng: lng,
+          });
+          if (rpcErr) {
+            baseLocationRpcError = rpcErr.message;
+          }
+        } catch (e) {
+          baseLocationRpcError = e instanceof Error ? e.message : 'RPC failed';
+        }
+      }
+    }
+
     if (Object.keys(updateData).length === 0) {
+      if (baseLocationRpcError) {
+        return NextResponse.json({ ok: false, error: baseLocationRpcError }, { status: 500 });
+      }
+      if (body.base_latitude !== undefined && body.base_longitude !== undefined) {
+        const { data: row, error: fetchErr } = await supabase
+          .from('cleaners')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+        if (fetchErr || !row) {
+          return NextResponse.json({ ok: false, error: 'Cleaner not found' }, { status: 404 });
+        }
+        return NextResponse.json({
+          ok: true,
+          cleaner: sanitizeCleanerForAdmin(row as Record<string, unknown>),
+        });
+      }
       return NextResponse.json({ ok: false, error: 'No fields to update' }, { status: 400 });
     }
 

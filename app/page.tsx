@@ -3,6 +3,7 @@ import { createMetadata } from "@/lib/metadata";
 import { getSeoConfig } from "@/lib/seo-config";
 import { HomeContent } from "./home-content";
 import { HomeStructuredData } from "@/components/home-structured-data";
+import { HomeFaqStructuredData } from "@/components/home-faq-structured-data";
 
 // Home page metadata - ensure indexable
 export const metadata: Metadata = {
@@ -24,6 +25,7 @@ export default function HomePage() {
   return (
     <>
       <HomeStructuredData />
+      <HomeFaqStructuredData />
       <HomeContent />
     </>
   );

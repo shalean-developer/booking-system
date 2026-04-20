@@ -1,13 +1,8 @@
 import type { PricingEngineResult } from '@/lib/pricing-engine';
-import {
-  mapWizardServiceToPricingEngineService,
-} from '@/lib/pricing-engine';
-import {
-  BASIC_EXTRAS_FULL_DAY_HOURS,
-  calculateBasicV2,
-  SERVICE_FEE_CENTS,
-  type PricingResult,
-} from '@/lib/pricing-engine-v2';
+import { mapWizardServiceToPricingEngineService } from '@/lib/pricing-engine';
+import type { PricingResult } from '@/lib/pricing-engine-v2';
+import { calculateBookingUnified } from '@/lib/pricing/calculateBookingUnified';
+import type { QuickCleanSettings } from '@/lib/quick-clean-settings';
 import { getEquipmentCentsForEngineService } from '@/lib/pricing-service-config';
 import { assertSinglePricingSource } from '@/lib/pricing-single-source';
 import type { BookingFormData } from '@/components/booking-system-types';
@@ -25,7 +20,7 @@ export type WizardDisplayPricing = {
   frequencyDiscount: number;
   dbPricingRows: { id: string; label: string; value: number }[];
   engineFinalCents: number | null;
-  /** Engine V2 snapshot — same math as checkout (`cleaningCents` includes merged cover). */
+  /** Engine snapshot — aligns with unified + legacy fee display */
   v2Breakdown: PricingResult | null;
   engineMeta: {
     /** Wall-clock hours (time model) — same as `estimatedJobHours`. */
@@ -42,8 +37,10 @@ function buildV2LineItems(
   options: {
     equipmentZar: number;
     pricingMode: 'basic' | 'premium';
-    /** Basic planned-hours UI: keep rows aligned with `calculateBasicV2` if engine ever diverged. */
+    /** Override cleaning line (cents) for display alignment. */
     cleaningCentsOverride?: number;
+    /** Standard/Airbnb unified tables are all-in (no separate service fee row). */
+    allInPricing?: boolean;
   }
 ): { id: string; label: string; value: number }[] {
   const cleaningCents =
@@ -62,66 +59,85 @@ function buildV2LineItems(
     });
   }
 
-  rows.push({
-    id: 'v2_service',
-    label: 'Service Fee',
-    value: SERVICE_FEE_CENTS / 100,
-  });
+  if (options.pricingMode !== 'basic' && engineRow.minBookingUpliftCents > 0) {
+    rows.push({
+      id: 'minimum_booking',
+      label: 'Minimum booking',
+      value: engineRow.minBookingUpliftCents / 100,
+    });
+  }
 
   return rows.filter((r) => r.value !== 0);
 }
 
-/**
- * When `formData.pricing` is still loading (`lineCalc` null) or the engine row failed to build,
- * the wizard used to show catalog “illustrative” totals that ignore `basicPlannedHours`.
- * This path keeps Step 1 aligned with **`lib/pricing-engine-v2`** (`calculateBasicV2`), not `lib/pricing.ts`.
- */
-function buildBasicPlannedHoursFallback(
+function buildQuickCleanDisplayFallback(
   data: Pick<
     BookingFormData,
     | 'service'
+    | 'bedrooms'
+    | 'bathrooms'
+    | 'extraRooms'
     | 'tipAmount'
     | 'promoCode'
     | 'pricingMode'
     | 'scheduleEquipmentPref'
-    | 'basicPlannedHours'
     | 'extras'
+    | 'extrasQuantities'
   >,
   lineCalc: BookingPriceResult | null
 ): WizardDisplayPricing {
-  const hasExtras = (data.extras?.length ?? 0) > 0;
-  const hRaw = data.basicPlannedHours!;
-  const h = hasExtras ? BASIC_EXTRAS_FULL_DAY_HOURS : hRaw;
-  const v2 = calculateBasicV2(h, { hasExtras });
+  const hasExtraCleaner = (data.extras ?? []).some(
+    (id) => id === 'extra_cleaner' || id.includes('extra_cleaner')
+  );
+  const uni = calculateBookingUnified({
+    service_type: data.service === 'standard' ? 'standard' : 'airbnb',
+    pricing_mode: 'quick',
+    bedrooms: Math.max(1, data.bedrooms),
+    bathrooms: Math.max(0, data.bathrooms ?? 0),
+    extra_rooms: Math.max(0, data.extraRooms ?? 0),
+    extras: data.extras ?? [],
+    extrasQuantities: data.extrasQuantities,
+    has_extra_cleaner: false,
+  });
   const st = mapWizardServiceToPricingEngineService(data.service);
   const equipmentZar =
     data.scheduleEquipmentPref === 'bring'
       ? getEquipmentCentsForEngineService(st) / 100
       : 0;
   const equipmentCents = Math.round(Math.max(0, equipmentZar) * 100);
-  const finalCents = v2.totalCents + equipmentCents;
+  const cleaningCents = Math.round(uni.final_price_zar * 100);
+  const rawCombined = cleaningCents + equipmentCents;
+
+  const v2: PricingResult = {
+    cleaningCents,
+    serviceFeeCents: 0,
+    coverFeeCents: 0,
+    totalCents: cleaningCents,
+    hours: uni.hours,
+    hoursPerCleaner: uni.duration,
+  };
 
   const dummyEngine: PricingEngineResult = {
-    finalPrice: finalCents,
-    costFloor: v2.cleaningCents,
+    finalPrice: rawCombined,
+    costFloor: cleaningCents,
     margin: 0,
     marginRate: 0,
-    jobHours: h,
-    hoursPerCleaner: h,
-    basePriceBeforeCompanyLines: v2.cleaningCents,
+    jobHours: uni.hours,
+    hoursPerCleaner: uni.duration,
+    basePriceBeforeCompanyLines: cleaningCents,
     roundingAdjustmentCents: 0,
-    minBookingUpliftCents: v2.isMinimumApplied ? 1 : 0,
-    rawTotalBeforeMinCents: finalCents,
+    minBookingUpliftCents: 0,
+    rawTotalBeforeMinCents: rawCombined,
     marginRateBoostApplied: 0,
   };
 
   const dbPricingRows = buildV2LineItems(dummyEngine, {
     equipmentZar,
     pricingMode: 'basic',
-    cleaningCentsOverride: v2.cleaningCents,
+    cleaningCentsOverride: cleaningCents,
   });
 
-  const baseForPromoZar = finalCents / 100;
+  const baseForPromoZar = rawCombined / 100;
   const discountAmount = applyPromoDiscount(baseForPromoZar, data.promoCode);
   const total =
     Math.max(0, baseForPromoZar - discountAmount) + data.tipAmount;
@@ -131,45 +147,44 @@ function buildBasicPlannedHoursFallback(
     discountAmount,
     subtotal: lineCalc?.subtotal ?? 0,
     total,
-    serviceFee: lineCalc?.serviceFee ?? SERVICE_FEE_CENTS / 100,
+    serviceFee: 0,
     frequencyDiscount: lineCalc?.frequencyDiscount ?? 0,
     dbPricingRows,
-    engineFinalCents: finalCents,
+    engineFinalCents: rawCombined,
     v2Breakdown: v2,
     engineMeta: {
-      estimatedHours: h,
-      hoursPerCleaner: h,
+      estimatedHours: uni.hours,
+      hoursPerCleaner: uni.duration,
       marginRateBoostApplied: 0,
-      teamSize: 1,
-      estimatedJobHours: h,
+      teamSize: uni.team_size,
+      estimatedJobHours: uni.hours,
     },
   };
 }
 
 /**
- * Step 1 Basic: same math as `computeWizardDisplayPricing` fallback — always follows `basicPlannedHours`
- * (avoids catalog illustrative ZAR + parent memo edge cases).
+ * Step 1 Quick Clean: unified table pricing when API pricing not loaded.
  */
 export function getBasicPlannedWizardPricing(
   data: Pick<
     BookingFormData,
     | 'service'
+    | 'bedrooms'
+    | 'bathrooms'
+    | 'extraRooms'
     | 'tipAmount'
     | 'promoCode'
     | 'pricingMode'
     | 'scheduleEquipmentPref'
-    | 'basicPlannedHours'
     | 'extras'
-  >
+    | 'extrasQuantities'
+  >,
+  _quickCleanSettings?: QuickCleanSettings
 ): WizardDisplayPricing | null {
-  const hasExtras = (data.extras?.length ?? 0) > 0;
-  const h = Number(data.basicPlannedHours);
-  if (data.pricingMode !== 'basic' || !Number.isFinite(h) || h < 2) {
-    return null;
-  }
-  if (!hasExtras && h > 5) return null;
-  if (hasExtras && h > 8) return null;
-  return buildBasicPlannedHoursFallback(data, null);
+  void _quickCleanSettings;
+  if (data.pricingMode !== 'basic') return null;
+  if (data.service !== 'standard' && data.service !== 'airbnb') return null;
+  return buildQuickCleanDisplayFallback(data, null);
 }
 
 /**
@@ -179,28 +194,32 @@ export function computeWizardDisplayPricing(input: {
   data: Pick<
     BookingFormData,
     | 'service'
+    | 'bedrooms'
+    | 'bathrooms'
+    | 'extraRooms'
     | 'tipAmount'
     | 'promoCode'
     | 'pricingMode'
     | 'scheduleEquipmentPref'
-    | 'basicPlannedHours'
     | 'extras'
+    | 'extrasQuantities'
   >;
   lineCalc: BookingPriceResult | null;
   enginePricing: PricingEngineResult | null;
+  quickCleanSettings?: QuickCleanSettings;
 }): WizardDisplayPricing {
-  const { data, lineCalc, enginePricing } = input;
+  const { data, lineCalc, enginePricing, quickCleanSettings } = input;
+  void quickCleanSettings;
 
-  const hasExtras = (data.extras?.length ?? 0) > 0;
-  const bh = data.basicPlannedHours;
-  const basicPlannedReady =
+  const isQuickCleanService =
+    data.service === 'standard' || data.service === 'airbnb';
+  const basicFallbackReady =
     data.pricingMode === 'basic' &&
-    bh != null &&
-    bh >= 2 &&
-    (hasExtras ? bh <= 8 : bh <= 5);
+    isQuickCleanService &&
+    (!lineCalc || enginePricing == null);
 
-  if (basicPlannedReady && (!lineCalc || enginePricing == null)) {
-    return buildBasicPlannedHoursFallback(data, lineCalc);
+  if (basicFallbackReady) {
+    return buildQuickCleanDisplayFallback(data, lineCalc);
   }
 
   if (!lineCalc) {
@@ -226,7 +245,22 @@ export function computeWizardDisplayPricing(input: {
 
   const calc = lineCalc;
   const engineRow = enginePricing;
-  const teamSize = Math.max(1, Math.round(calc.breakdown.numberOfCleaners ?? 1));
+  const pricingMode = data.pricingMode ?? 'premium';
+
+  const inferredTeamFromEngine =
+    engineRow != null && engineRow.hoursPerCleaner > 0.01
+      ? Math.max(
+          1,
+          Math.round(engineRow.jobHours / engineRow.hoursPerCleaner)
+        )
+      : 1;
+
+  const teamSize =
+    pricingMode === 'basic'
+      ? 1
+      : isQuickCleanService && engineRow != null
+        ? inferredTeamFromEngine
+        : Math.max(1, Math.round(calc.breakdown.numberOfCleaners ?? 1));
 
   const baseForPromoZar =
     engineRow != null ? engineRow.finalPrice / 100 : calc.total;
@@ -246,22 +280,43 @@ export function computeWizardDisplayPricing(input: {
         ? getEquipmentCentsForEngineService(st) / 100
         : 0;
 
-    const mode = data.pricingMode ?? 'premium';
+    const mode = pricingMode;
 
-    if (mode === 'basic' && data.basicPlannedHours != null) {
-      v2Breakdown = calculateBasicV2(data.basicPlannedHours, {
-        hasExtras: (data.extras?.length ?? 0) > 0,
-      });
+    if (mode === 'basic' && isQuickCleanService) {
+      v2Breakdown = {
+        cleaningCents: engineRow.costFloor,
+        serviceFeeCents: 0,
+        coverFeeCents: 0,
+        totalCents: engineRow.costFloor,
+        hours: engineRow.jobHours,
+        hoursPerCleaner: engineRow.hoursPerCleaner,
+      };
       dbPricingRows = buildV2LineItems(engineRow, {
         equipmentZar,
         pricingMode: mode,
         cleaningCentsOverride: v2Breakdown.cleaningCents,
+        allInPricing: true,
+      });
+    } else if (isQuickCleanService) {
+      v2Breakdown = {
+        cleaningCents: engineRow.costFloor,
+        coverFeeCents: 0,
+        serviceFeeCents: 0,
+        totalCents: engineRow.finalPrice,
+        hours: engineRow.jobHours,
+        hoursPerCleaner: engineRow.hoursPerCleaner,
+        isMinimumApplied: engineRow.minBookingUpliftCents > 0,
+      };
+      dbPricingRows = buildV2LineItems(engineRow, {
+        equipmentZar,
+        pricingMode: mode,
+        allInPricing: true,
       });
     } else {
       v2Breakdown = {
         cleaningCents: engineRow.costFloor,
         coverFeeCents: 0,
-        serviceFeeCents: SERVICE_FEE_CENTS,
+        serviceFeeCents: 0,
         totalCents: engineRow.finalPrice,
         hours: engineRow.jobHours,
         hoursPerCleaner: engineRow.hoursPerCleaner,
@@ -291,7 +346,7 @@ export function computeWizardDisplayPricing(input: {
     discountAmount,
     subtotal: calc.subtotal,
     total,
-    serviceFee: calc.serviceFee,
+    serviceFee: 0,
     frequencyDiscount: calc.frequencyDiscount,
     dbPricingRows,
     engineFinalCents: engineRow?.finalPrice ?? null,

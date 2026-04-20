@@ -28,7 +28,7 @@ export function BlogPostCTA({ relatedServices }: BlogPostCTAProps = {}) {
           Ready for a Professional Clean?
         </h2>
         <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-          Let our expert team handle your cleaning needs. Book trusted cleaners in <Link href="/location/cape-town" className="text-primary hover:underline font-medium">Cape Town</Link>, <Link href="/location/johannesburg" className="text-primary hover:underline font-medium">Johannesburg</Link>, <Link href="/location/pretoria" className="text-primary hover:underline font-medium">Pretoria</Link>, and <Link href="/location/durban" className="text-primary hover:underline font-medium">Durban</Link>.
+          Let our expert team handle your cleaning needs. Book trusted cleaners in <Link href="/growth/local/cleaning-services/cape-town" className="text-primary hover:underline font-medium">Cape Town</Link>, <Link href="/growth/local/cleaning-services/johannesburg" className="text-primary hover:underline font-medium">Johannesburg</Link>, <Link href="/growth/local/cleaning-services/pretoria" className="text-primary hover:underline font-medium">Pretoria</Link>, and <Link href="/growth/local/cleaning-services/durban" className="text-primary hover:underline font-medium">Durban</Link>.
         </p>
         
         {/* Related Services Quick Links */}
@@ -52,7 +52,7 @@ export function BlogPostCTA({ relatedServices }: BlogPostCTAProps = {}) {
             </Link>
           </Button>
           <Button size="lg" variant="outline" className="border-primary text-primary hover:bg-primary/10 bg-white px-10 py-4 text-lg" asChild>
-            <Link href="/location/cape-town">
+            <Link href="/growth/local/cleaning-services/cape-town">
               View Service Areas
             </Link>
           </Button>

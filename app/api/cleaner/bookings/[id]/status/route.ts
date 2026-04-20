@@ -7,9 +7,29 @@ import { logNotification } from '@/lib/notifications/log';
 import { sendCustomerNotification } from '@/lib/notifications/sendCustomerNotification';
 import { incrementCustomerRewardsForCompletedBooking } from '@/lib/rewards-server';
 import { creditWalletForCompletedBooking } from '@/lib/wallet';
+import { isCleanerAssignedToBooking } from '@/lib/cleaner-booking-assignment';
+import { logCleanerAppDev } from '@/lib/cleaner-app-log';
+
+function trackingStatusForLifecycle(newStatus: string): string | null {
+  switch (newStatus) {
+    case 'on_my_way':
+      return 'en_route';
+    case 'arrived':
+      return 'arrived';
+    case 'in-progress':
+      return 'cleaning';
+    case 'completed':
+      return 'completed';
+    case 'accepted':
+    case 'assigned':
+      return 'assigned';
+    default:
+      return null;
+  }
+}
 
 /**
- * Cleaner workflow: pending/paid → assigned → accepted → on_my_way → in-progress → completed
+ * Cleaner workflow: pending/paid → assigned → accepted → on_my_way → arrived → in-progress → completed
  * (decline/reschedule still allowed where listed.)
  *
  * Paid-but-claimed rows often keep DB status `paid` until the cleaner moves the job; the dashboard
@@ -23,7 +43,8 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
   assigned: ['accepted', 'declined', 'reschedule_requested'],
   accepted: ['on_my_way', 'declined', 'reschedule_requested'],
   confirmed: ['on_my_way', 'declined', 'reschedule_requested'], // legacy
-  on_my_way: ['in-progress', 'declined', 'reschedule_requested'],
+  on_my_way: ['arrived', 'in-progress', 'declined', 'reschedule_requested'],
+  arrived: ['in-progress', 'declined', 'reschedule_requested'],
   'in-progress': ['completed'],
   reschedule_requested: ['accepted'],
   declined: [],
@@ -76,37 +97,7 @@ export async function PATCH(
       );
     }
 
-    // Check if booking is assigned to this cleaner
-    // For individual bookings: check cleaner_id
-    // For team bookings: check if cleaner is a team member
-    let isAssigned = false;
-
-    if (booking.cleaner_id === cleanerUuid || booking.assigned_cleaner_id === cleanerUuid) {
-      // Individual booking assigned to this cleaner
-      isAssigned = true;
-    } else if (booking.requires_team) {
-      // Team booking - check if cleaner is a team member
-      try {
-        const { data: teamMembership } = await supabase
-          .from('booking_team_members')
-          .select(`
-            booking_team_id,
-            booking_teams!inner(booking_id)
-          `)
-          .eq('cleaner_id', cleanerUuid);
-        
-        if (teamMembership && teamMembership.length > 0) {
-          const isMemberOfThisBooking = teamMembership.some(
-            (membership: any) => membership.booking_teams.booking_id === bookingId
-          );
-          if (isMemberOfThisBooking) {
-            isAssigned = true;
-          }
-        }
-      } catch (err) {
-        console.error('Error checking team membership:', err);
-      }
-    }
+    const isAssigned = await isCleanerAssignedToBooking(supabase, bookingId, cleanerUuid, booking);
 
     if (!isAssigned) {
       return NextResponse.json(
@@ -142,6 +133,11 @@ export async function PATCH(
     const updateData: Record<string, unknown> = {
       status: newStatus,
     };
+
+    const ts = trackingStatusForLifecycle(newStatus);
+    if (ts) {
+      updateData.tracking_status = ts;
+    }
 
     if (newStatus === 'in-progress') {
       if (booking.booking_time && !booking.start_time) {
@@ -229,6 +225,12 @@ export async function PATCH(
     }
 
     console.log('✅ Booking status updated:', bookingId, '→', newStatus);
+
+    logCleanerAppDev({
+      cleaner_id: session.id,
+      action: `status:${newStatus}`,
+      booking_id: bookingId,
+    });
 
     try {
       if (newStatus === 'accepted') {

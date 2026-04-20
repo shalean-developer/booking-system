@@ -2,29 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCleanerSession, createCleanerSupabaseClient, cleanerIdToUuid } from '@/lib/cleaner-auth';
 import { createServiceClient } from '@/lib/supabase-server';
 import { checkBookingAvailability } from '@/lib/availability-check';
-
-/**
- * Calculate distance between two coordinates (Haversine formula)
- * Returns distance in kilometers
- */
-function calculateDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
-  const R = 6371; // Earth's radius in km
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
+import { teamSizeFromBooking } from '@/lib/cleaner/earnings-rates';
 
 /** Matches claim API + claim_booking_safe: payment reference required before a cleaner can claim. */
 function bookingHasRecordedPayment(booking: {
@@ -51,7 +29,6 @@ export async function GET(request: NextRequest) {
     const dateFilter = searchParams.get('date');
     const lat = searchParams.get('lat');
     const lng = searchParams.get('lng');
-    const maxDistance = parseInt(searchParams.get('maxDistance') || '50'); // km
 
     const supabase = await createCleanerSupabaseClient();
     const serviceSupabase = createServiceClient();
@@ -171,9 +148,109 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    const soloWithMode = filteredBookings.map((b) => ({
+      ...b,
+      accept_mode: 'claim' as const,
+    }));
+
+    // Team jobs: open slots until team_size (cleaners self-join via POST .../join)
+    const today = new Date().toISOString().split('T')[0];
+
+    let teamQuery = serviceSupabase
+      .from('bookings')
+      .select('*')
+      .eq('requires_team', true)
+      .in('status', ['pending', 'paid', 'assigned'])
+      .order('booking_date', { ascending: true })
+      .order('booking_time', { ascending: true });
+
+    if (dateFilter) {
+      teamQuery = teamQuery.gte('booking_date', dateFilter);
+    } else {
+      teamQuery = teamQuery.gte('booking_date', today);
+    }
+
+    const { data: teamCandidates, error: teamErr } = await teamQuery;
+
+    if (teamErr) {
+      console.error('[available] team query', teamErr);
+    }
+
+    const teamOpen: Array<Record<string, unknown>> = [];
+
+    for (const tb of teamCandidates ?? []) {
+      const row = tb as Record<string, unknown>;
+      if (!bookingHasRecordedPayment(tb as { payment_reference?: string; paystack_ref?: string })) continue;
+
+      const bookingCity = String(row.address_city ?? '');
+      const bookingSuburb = String(row.address_suburb ?? '');
+      const areaOk = cleaner.areas.some((area: string) => {
+        const areaLower = area.toLowerCase();
+        return (
+          bookingCity.toLowerCase().includes(areaLower) ||
+          bookingSuburb.toLowerCase().includes(areaLower)
+        );
+      });
+      if (!areaOk) continue;
+
+      const ts = teamSizeFromBooking(
+        tb as { team_size?: number | null; price_snapshot?: unknown }
+      );
+      const bookingId = String(row.id ?? '');
+
+      const { data: teamRow } = await serviceSupabase
+        .from('booking_teams')
+        .select('id')
+        .eq('booking_id', bookingId)
+        .maybeSingle();
+
+      let memberCount = 0;
+      let alreadyMember = false;
+      if (teamRow) {
+        const { data: mems } = await serviceSupabase
+          .from('booking_team_members')
+          .select('cleaner_id')
+          .eq('booking_team_id', (teamRow as { id: string }).id);
+        memberCount = mems?.length ?? 0;
+        alreadyMember = !!mems?.some(
+          (m: { cleaner_id: string }) => m.cleaner_id === session.id
+        );
+      }
+      if (alreadyMember) continue;
+      if (memberCount >= ts) continue;
+
+      teamOpen.push({
+        ...row,
+        accept_mode: 'join' as const,
+        open_team_slots: ts - memberCount,
+        team_target_size: ts,
+      });
+    }
+
+    let combined = [...soloWithMode, ...teamOpen];
+
+    if (preferences && (preferences.auto_decline_outside_availability || preferences.auto_decline_below_min_value)) {
+      combined = combined.filter((booking: any) => {
+        const result = checkBookingAvailability(preferences, {
+          booking_date: booking.booking_date,
+          booking_time: booking.booking_time,
+          service_type: booking.service_type,
+          total_amount: booking.total_amount || 0,
+          distance_km: booking.distance || null,
+        });
+        return result.allowed;
+      });
+    }
+
+    combined.sort((a: any, b: any) => {
+      const da = `${a.booking_date}T${String(a.booking_time).slice(0, 5)}`;
+      const db = `${b.booking_date}T${String(b.booking_time).slice(0, 5)}`;
+      return da.localeCompare(db);
+    });
+
     return NextResponse.json({
       ok: true,
-      bookings: filteredBookings,
+      bookings: combined,
     });
   } catch (error) {
     console.error('Error in available bookings route:', error);

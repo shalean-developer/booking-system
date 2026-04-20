@@ -1,9 +1,11 @@
 import { MetadataRoute } from 'next'
 import { getPublishedPosts } from '@/lib/blog-server'
-import { CITY_AREA_DATA } from '@/lib/location-data'
+import { LOCAL_SEO_SERVICE_IDS } from '@/lib/growth/local-seo-services'
+import { LOCAL_SEO_LOCATIONS } from '@/lib/growth/local-seo-locations'
+import { SITE_URL } from '@/lib/metadata'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = 'https://shalean.co.za'
+  const baseUrl = SITE_URL
   
   // Get all published blog posts (only published posts are included)
   // Wrap in try-catch to handle database errors gracefully
@@ -25,61 +27,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.75,
     }))
   
-  // Service pages included in search results.
-  // Keep only canonical, index-worthy pages here.
-  const servicePages = [
-    'regular-cleaning', 'airbnb-cleaning', 'office-cleaning', 
-    'apartment-cleaning', 'window-cleaning', 'home-maintenance', 
-    'deep-cleaning', 'move-turnover',
-    'carpet-cleaning', 'one-time-cleaning',
-    'post-construction-cleaning'
-  ];
-
-  const serviceEntries: MetadataRoute.Sitemap = servicePages.map((service) => ({
-    url: `${baseUrl}/services/${service}`,
-    lastModified: new Date(),
-    changeFrequency: 'monthly' as const,
-    priority: 0.9,
-  }));
-
-  // Dynamically generate location pages from CITY_AREA_DATA
-  const locationEntries: MetadataRoute.Sitemap = []
-  const suburbEntries: MetadataRoute.Sitemap = []
-  
-  // Process each city in CITY_AREA_DATA
-  for (const [citySlug, areas] of Object.entries(CITY_AREA_DATA)) {
-    // Add area hub pages
-    for (const area of areas) {
-      locationEntries.push({
-        url: `${baseUrl}/location/${citySlug}/${area.slug}`,
+  const growthPages: MetadataRoute.Sitemap = [];
+  for (const service of LOCAL_SEO_SERVICE_IDS) {
+    for (const location of LOCAL_SEO_LOCATIONS) {
+      growthPages.push({
+        url: `${SITE_URL}/growth/local/${service}/${location.slug}`,
         lastModified: new Date(),
-        changeFrequency: 'monthly' as const,
-        priority: 0.8,
-      })
-      
-      // Add suburb pages for this area
-      for (const suburb of area.suburbs) {
-        suburbEntries.push({
-          url: `${baseUrl}/location/${citySlug}/${suburb.slug}`,
-          lastModified: new Date(),
-          changeFrequency: 'monthly' as const,
-          priority: 0.6,
-        })
-      }
+        changeFrequency: 'weekly',
+        priority: 0.75,
+      });
     }
   }
-
-  // Other city pages (not in CITY_AREA_DATA)
-  const otherCities = [
-    'east-london', 'grahamstown', 'jeffreys-bay', 'port-elizabeth'
-  ];
-
-  const otherCityEntries: MetadataRoute.Sitemap = otherCities.map((city) => ({
-    url: `${baseUrl}/location/${city}`,
-    lastModified: new Date(),
-    changeFrequency: 'monthly',
-    priority: 0.6,
-  }));
 
   return [
     {
@@ -185,50 +143,32 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.6,
     },
     {
-      url: `${baseUrl}/sitemap-html`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.5,
-    },
-    {
-      url: `${baseUrl}/location`,
+      url: `${baseUrl}/cleaning-prices-cape-town`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.7,
     },
     {
-      url: `${baseUrl}/location/cape-town`,
+      url: `${baseUrl}/move-out-cleaning-checklist`,
       lastModified: new Date(),
-      changeFrequency: 'weekly' as const,
-      priority: 0.9,
+      changeFrequency: 'monthly',
+      priority: 0.7,
     },
     {
-      url: `${baseUrl}/location/johannesburg`,
+      url: `${baseUrl}/weekly-cleaning-guide`,
       lastModified: new Date(),
-      changeFrequency: 'weekly' as const,
-      priority: 0.85,
+      changeFrequency: 'monthly',
+      priority: 0.7,
     },
     {
-      url: `${baseUrl}/location/pretoria`,
+      url: `${baseUrl}/sitemap-html`,
       lastModified: new Date(),
-      changeFrequency: 'monthly' as const,
-      priority: 0.8,
+      changeFrequency: 'monthly',
+      priority: 0.5,
     },
-    {
-      url: `${baseUrl}/location/durban`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly' as const,
-      priority: 0.8,
-    },
-    // Add all service pages
-    ...serviceEntries,
-    // Add all location area hub pages (dynamically generated)
-    ...locationEntries,
-    // Add all suburb pages (dynamically generated)
-    ...suburbEntries,
     // Add all blog posts
     ...blogEntries,
-    // Add other city pages
-    ...otherCityEntries,
+    // Add programmatic growth local pages
+    ...growthPages,
   ]
 }

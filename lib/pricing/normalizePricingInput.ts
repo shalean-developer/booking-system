@@ -1,4 +1,5 @@
 import type { CalculateBookingPriceInput } from '@/lib/pricing';
+import type { PricingMode } from '@/lib/pricing-mode';
 import type { ServiceType } from '@/types/booking';
 
 const SERVICE_TYPES: ServiceType[] = ['Standard', 'Deep', 'Move In/Out', 'Airbnb', 'Carpet'];
@@ -53,6 +54,7 @@ export type RawBookingLikePricing = {
   equipmentChargeOverride?: number | null;
   carpetDetails?: CalculateBookingPriceInput['carpetDetails'];
   price_snapshot?: PriceSnapshotPricingFragment | null;
+  pricingMode?: PricingMode | string | null;
 };
 
 function resolveService(raw: RawBookingLikePricing): ServiceType | null {
@@ -108,7 +110,7 @@ function roundExtraRooms(n: unknown): number {
 }
 
 /**
- * Single catalog-pricing input for `calcTotalAsync` / `calculateBookingPrice`.
+ * Single catalog-pricing input for `calcTotalAsync` / `calculateFinalBookingPrice`.
  * Throws if `service` cannot be resolved.
  */
 export function normalizePricingInput(raw: RawBookingLikePricing): CalculateBookingPriceInput {
@@ -162,6 +164,11 @@ export function normalizePricingInput(raw: RawBookingLikePricing): CalculateBook
   }
   if (numberOfCleaners !== undefined) {
     input.numberOfCleaners = numberOfCleaners;
+  }
+
+  const pm = raw.pricingMode;
+  if (pm === 'basic' || pm === 'premium') {
+    input.pricingMode = pm;
   }
 
   return input;

@@ -33,6 +33,7 @@ export async function GET() {
 
     return NextResponse.json({
       ok: true,
+      cleaner_id: session.id,
       profile: {
         bio: cleaner.bio || '',
         years_experience: cleaner.years_experience || 0,

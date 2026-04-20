@@ -1,16 +1,13 @@
 import type { BookingFormData, ServiceType as WizardServiceType } from '@/components/booking-system-types';
 import type { BookingPriceResult } from './calculate';
 import { getEquipmentCentsForEngineService } from '@/lib/pricing-service-config';
-import {
-  buildWizardTimeInput,
-  calculateJobHours,
-  getTeamSizeForJobHours,
-} from '@/lib/time-estimation';
+import { buildWizardTimeInput } from '@/lib/time-estimation';
 import {
   calculatePrice,
   mapWizardServiceToPricingEngineService,
   type PricingEngineResult,
 } from '@/lib/pricing-engine';
+import type { QuickCleanSettings } from '@/lib/quick-clean-settings';
 
 /** Equipment / extra-cleaner cents for payloads — engine uses config equipment + no extra-cleaner fee line. */
 export function getWizardEngineCompanyCostsCents(input: {
@@ -57,8 +54,9 @@ export function computeWizardEnginePricingRow(input: {
   dataService: WizardServiceType | undefined;
   wizard: BookingFormData;
   catalogExtraNames?: string[];
+  quickCleanSettings?: QuickCleanSettings;
 }): PricingEngineResult | null {
-  const { lineCalc, dataService, wizard, catalogExtraNames } = input;
+  const { lineCalc, dataService, wizard, catalogExtraNames, quickCleanSettings } = input;
   if (!lineCalc || !dataService) return null;
 
   const time = buildWizardTimeInput(wizard, catalogExtraNames);
@@ -68,30 +66,39 @@ export function computeWizardEnginePricingRow(input: {
       ? 0
       : getEquipmentCentsForEngineService(st);
 
-  if (wizard.pricingMode === 'basic' && wizard.basicPlannedHours != null) {
-    return calculatePrice('basic', {
+  if (wizard.pricingMode === 'basic') {
+    const row = calculatePrice('basic', {
       serviceType: st,
       time,
       teamSize: 1,
-      serviceFeeCents: Math.round(lineCalc.serviceFee * 100),
+      serviceFeeCents: 0,
       equipmentCents,
       extrasIds: wizard.extras,
-      basicJobHoursOverride: wizard.basicPlannedHours,
+      extrasQuantities: wizard.extrasQuantities,
+      quickCleanSettings,
     });
+    const uni = lineCalc.unifiedPricing;
+    if (uni) {
+      return { ...row, jobHours: uni.hours, hoursPerCleaner: uni.duration };
+    }
+    return row;
   }
 
-  const teamSize = getTeamSizeForJobHours(
-    calculateJobHours(time),
-    wizard.numberOfCleaners,
-    time.serviceType
-  );
+  const teamSize = Math.max(1, Math.round(wizard.numberOfCleaners ?? 1));
 
-  return calculatePrice(wizard.pricingMode ?? 'premium', {
+  const row = calculatePrice(wizard.pricingMode ?? 'premium', {
     serviceType: st,
     time,
     teamSize,
     serviceFeeCents: Math.round(lineCalc.serviceFee * 100),
     equipmentCents: getEquipmentCentsForEngineService(st),
     extrasIds: wizard.extras,
+    extrasQuantities: wizard.extrasQuantities,
+    quickCleanSettings,
   });
+  const uni = lineCalc.unifiedPricing;
+  if (uni) {
+    return { ...row, jobHours: uni.hours, hoursPerCleaner: uni.duration };
+  }
+  return row;
 }

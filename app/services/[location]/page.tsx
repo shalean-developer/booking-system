@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { Header } from "@/components/header";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import ServiceStructuredData from "@/components/service-structured-data";
 import { Button } from "@/components/ui/button";
 import {
   createMetadata,
@@ -41,16 +42,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: "Service area | Shalean Cleaning Services" };
   }
 
-  const pageTitle =
-    page.meta_title?.trim() ||
-    truncateText(`${page.title} | Shalean Cleaning`, 70);
-  const rawDesc =
-    page.meta_description?.trim() ||
-    `Professional home cleaning in ${page.city}. Book vetted cleaners online — flexible scheduling and satisfaction guaranteed.`;
-  const description =
-    rawDesc.length > DESCRIPTION_MAX_LENGTH
-      ? truncateText(rawDesc, DESCRIPTION_MAX_LENGTH)
-      : rawDesc;
+  const { pageTitle, description } = getServiceLocationSeoContent(page);
 
   const keywordList = page.keywords
     ? page.keywords
@@ -67,6 +59,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: pageTitle,
     description,
     canonical: `${SITE_URL}/services/${page.slug}`,
+    robots: "noindex,follow",
     ...(keywordList && keywordList.length > 0 && { keywords: keywordList }),
     ogType: "website",
     ogImage: {
@@ -80,6 +73,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 const BOOK_HREF = "/booking/service/standard/plan";
 
+function getServiceLocationSeoContent(page: {
+  title: string;
+  city: string;
+  meta_title: string | null;
+  meta_description: string | null;
+}) {
+  const pageTitle =
+    page.meta_title?.trim() ||
+    truncateText(`${page.title} | Shalean Cleaning`, 70);
+  const rawDesc =
+    page.meta_description?.trim() ||
+    `Professional home cleaning in ${page.city}. Book vetted cleaners online — flexible scheduling and satisfaction guaranteed.`;
+  const description =
+    rawDesc.length > DESCRIPTION_MAX_LENGTH
+      ? truncateText(rawDesc, DESCRIPTION_MAX_LENGTH)
+      : rawDesc;
+
+  return { pageTitle, description };
+}
+
 export default async function ServiceLocationPage({ params }: Props) {
   const { location } = await params;
   const page = await getPublishedLocationPageBySlug(location);
@@ -87,6 +100,9 @@ export default async function ServiceLocationPage({ params }: Props) {
   if (!page) {
     notFound();
   }
+
+  const { pageTitle, description } = getServiceLocationSeoContent(page);
+  const serviceUrl = `${SITE_URL}/services/${page.slug}`;
 
   const jsonLd = cleanStructuredData({
     "@context": "https://schema.org",
@@ -117,6 +133,11 @@ export default async function ServiceLocationPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-white">
+      <ServiceStructuredData
+        name={pageTitle}
+        description={description}
+        url={serviceUrl}
+      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: stringifyStructuredData(jsonLd) }}

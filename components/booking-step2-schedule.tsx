@@ -9,7 +9,6 @@ import {
   ChevronRight,
   Calendar,
   Clock,
-  CheckCircle2,
   Layers,
   PenLine,
   Warehouse,
@@ -17,8 +16,6 @@ import {
   Sofa,
   AppWindow,
   Zap,
-  MessageSquare,
-  Phone,
   X,
 } from 'lucide-react';
 import type { BookingFormData } from '@/components/booking-system-types';
@@ -27,27 +24,25 @@ import { cn } from '@/lib/utils';
 import { BookingFlowLayout } from '@/components/booking/booking-flow-layout';
 import { BookingSummary } from '@/components/booking/booking-summary';
 import { QuantityAddonModal } from '@/components/QuantityAddonModal';
-import {
-  BOOKING_DEFAULT_CITY,
-  SUPPORT_PHONE_DISPLAY,
-  SUPPORT_PHONE_HREF,
-  SUPPORT_WHATSAPP_URL,
-} from '@/lib/contact';
+import { BOOKING_DEFAULT_CITY } from '@/lib/contact';
 import { isQuantityAddonTile } from '@/lib/quantity-addons';
 import {
   BOOKING_TIME_SLOT_DEFS,
   MAX_BOOKINGS_PER_TIME_SLOT,
 } from '@/lib/booking-time-slots';
 import { useBookingSlotOccupancy } from '@/lib/use-booking-slot-occupancy';
+import { useUnifiedAvailability, type UnifiedAvailabilityBody } from '@/lib/use-unified-availability';
+import { wizardHasExtraCleaner } from '@/lib/pricing-mode';
 import {
-  getAvailabilityStyle,
   getAvailabilityUrgencyLabel,
 } from '@/lib/booking-slot-availability-styles';
-import StickyBookingBar from '@/components/StickyBookingBar';
+import { getDateDemandBadge } from '@/lib/booking-date-badges';
+import { StickyCTA } from '@/components/booking/mobile/sticky-cta';
+import { TimeSlotPicker } from '@/components/booking/mobile/time-slot-picker';
+import { StepLayout } from '@/components/booking/mobile/step-layout';
 import { useBookingAbVariant } from '@/hooks/use-booking-ab-variant';
 import {
   MAX_BOOKING_DAYS_FROM_TODAY,
-  DAYS_OF_WEEK,
   toDateStr,
   parseDateStr,
   daysFromTodayStart,
@@ -72,10 +67,54 @@ type TimeSlotWithAvailability = {
   capacity: number;
   available: boolean;
   remaining: number;
+  recommended?: boolean;
 };
 
 function labelForBookingSlotId(id: string): string {
   return BOOKING_TIME_SLOT_DEFS.find((d) => d.id === id)?.label ?? id;
+}
+
+function formatDurationMinutesLabel(totalMinutes: number): string {
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  if (h <= 0) return `${m}m`;
+  if (m <= 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
+function formatYmdFriendly(dateYmd: string): string {
+  const d = parseDateStr(dateYmd);
+  if (!d) return dateYmd;
+  return d.toLocaleDateString('en-ZA', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  });
+}
+
+function formatUnifiedSlotRangeLabel(start: string, end: string): string {
+  return `${start} – ${end}`;
+}
+
+function parseSlotStartToMinutes(slotId: string): number {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(slotId.trim());
+  if (!m) return 0;
+  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+}
+
+/** Compact "07:00" for slot buttons */
+function formatSlotCompactTime(slotId: string): string {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(slotId.trim());
+  if (!m) return slotId;
+  return `${String(m[1]).padStart(2, '0')}:${m[2]}`;
+}
+
+function formatCompactWeekday(d: Date) {
+  return d.toLocaleDateString('en-ZA', { weekday: 'short' });
+}
+
+function formatCompactDayMonth(d: Date) {
+  return d.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' });
 }
 
 /** Maps UI extra ids to `BookingFormData.extras` ids (deep / move services). */
@@ -87,6 +126,9 @@ const EXTRA_UI_ID_TO_BOOKING: Record<string, string> = {
   couch: 'couch',
   windows: 'exterior_windows',
 };
+
+// Keep Laundry / Ironing as simple toggles (no qty modal).
+const NO_QUANTITY_MODAL_EXTRA_IDS = new Set<string>(['laundry', 'ironing']);
 
 const TODAY = new Date();
 TODAY.setHours(0, 0, 0, 0);
@@ -225,6 +267,41 @@ export function BookingStep2Schedule({
 
   const selectedDateStr = selectedDate ? toDateStr(selectedDate) : null;
 
+  const useUnifiedAvailabilityFlow = data.service === 'standard' || data.service === 'airbnb';
+
+  const unifiedAvailabilityBody = useMemo((): UnifiedAvailabilityBody | null => {
+    if (!useUnifiedAvailabilityFlow || !selectedDateStr) return null;
+    return {
+      date: selectedDateStr,
+      suburb: data.workingArea?.trim() || '',
+      city: BOOKING_DEFAULT_CITY,
+      service_type: data.service === 'airbnb' ? 'airbnb' : 'standard',
+      pricing_mode: data.pricingMode === 'basic' ? 'quick' : 'premium',
+      bedrooms: data.bedrooms,
+      bathrooms: data.bathrooms,
+      extra_rooms: data.extraRooms,
+      extras: data.extras,
+      extrasQuantities: data.extrasQuantities,
+      has_extra_cleaner: wizardHasExtraCleaner(data.extras),
+    };
+  }, [
+    useUnifiedAvailabilityFlow,
+    selectedDateStr,
+    data.workingArea,
+    data.service,
+    data.pricingMode,
+    data.bedrooms,
+    data.bathrooms,
+    data.extraRooms,
+    data.extras,
+    data.extrasQuantities,
+  ]);
+
+  const unifiedAvail = useUnifiedAvailability(
+    Boolean(unifiedAvailabilityBody),
+    unifiedAvailabilityBody
+  );
+
   const slotDispatchContext = useMemo(
     () => ({
       suburb: data.workingArea?.trim() || '',
@@ -237,11 +314,29 @@ export function BookingStep2Schedule({
     [data.workingArea, data.bedrooms, data.bathrooms, data.extras, data.extrasQuantities]
   );
 
-  const slotOcc = useBookingSlotOccupancy(selectedDateStr, slotDispatchContext);
+  const slotOcc = useBookingSlotOccupancy(
+    useUnifiedAvailabilityFlow ? null : selectedDateStr,
+    slotDispatchContext
+  );
   const { variant: abVariant, track: trackAb } = useBookingAbVariant();
   const abLabelVariant = abVariant ?? 'A';
 
   const timeSlots = useMemo((): TimeSlotWithAvailability[] => {
+    if (useUnifiedAvailabilityFlow) {
+      if (unifiedAvail.status !== 'success') {
+        return [];
+      }
+      const need = Math.max(1, unifiedAvail.teamSize ?? 1);
+      return unifiedAvail.slots.map((s) => ({
+        id: s.start,
+        label: formatUnifiedSlotRangeLabel(s.start, s.end),
+        booked: 0,
+        capacity: Math.max(need, s.assignable_cleaners),
+        available: s.available,
+        remaining: s.available ? Math.max(0, s.assignable_cleaners - need) : 0,
+        recommended: s.recommended,
+      }));
+    }
     return BOOKING_TIME_SLOT_DEFS.map((def) => {
       if (slotOcc.status !== 'success') {
         return {
@@ -266,39 +361,138 @@ export function BookingStep2Schedule({
         remaining,
       };
     });
-  }, [slotOcc.status, slotOcc.counts, slotOcc.remaining, slotOcc.eligibleCleaners]);
+  }, [
+    useUnifiedAvailabilityFlow,
+    unifiedAvail.status,
+    unifiedAvail.slots,
+    unifiedAvail.teamSize,
+    slotOcc.status,
+    slotOcc.counts,
+    slotOcc.remaining,
+    slotOcc.eligibleCleaners,
+  ]);
 
   const firstAvailableSlotId = useMemo(() => {
+    if (useUnifiedAvailabilityFlow) {
+      if (unifiedAvail.status !== 'success') return null;
+      const rec = unifiedAvail.slots.find((s) => s.recommended && s.available);
+      if (rec) return rec.start;
+      const first = unifiedAvail.slots.find((s) => s.available);
+      return first?.start ?? null;
+    }
     if (slotOcc.status !== 'success') return null;
     for (const def of BOOKING_TIME_SLOT_DEFS) {
       if ((slotOcc.remaining[def.id] ?? 0) > 0) return def.id;
     }
     return null;
-  }, [slotOcc.status, slotOcc.remaining]);
+  }, [useUnifiedAvailabilityFlow, unifiedAvail.status, unifiedAvail.slots, slotOcc.status, slotOcc.remaining]);
+
+  const unifiedHasNoBookableSlot = useMemo(() => {
+    if (!useUnifiedAvailabilityFlow || unifiedAvail.status !== 'success') return false;
+    if (unifiedAvail.slots.length === 0) return true;
+    return !unifiedAvail.slots.some((s) => s.available);
+  }, [useUnifiedAvailabilityFlow, unifiedAvail.status, unifiedAvail.slots]);
+
+  const slotUrgencyBanner = useMemo(() => {
+    if (!selectedDate || timeSlots.length === 0) return null;
+    const avail = timeSlots.filter((s) => s.available);
+    if (avail.length === 0) return null;
+    const almostGone = avail.filter((s) => s.remaining <= 1).length;
+    const tight = avail.filter((s) => s.available && s.remaining <= 3).length;
+    if (almostGone >= 1) return 'few' as const;
+    if (tight >= 2) return 'fast' as const;
+    return null;
+  }, [selectedDate, timeSlots]);
+
+  const flatSortedSlots = useMemo(() => {
+    if (timeSlots.length === 0) return [];
+    return [...timeSlots].sort((a, b) => parseSlotStartToMinutes(a.id) - parseSlotStartToMinutes(b.id));
+  }, [timeSlots]);
+
+  const selectedTimeDisplayLabel = useMemo(() => {
+    if (!selectedTime) return null;
+    if (useUnifiedAvailabilityFlow && unifiedAvail.status === 'success') {
+      const sl = timeSlots.find((s) => s.id === selectedTime);
+      return sl?.label ?? selectedTime;
+    }
+    return labelForBookingSlotId(selectedTime);
+  }, [selectedTime, useUnifiedAvailabilityFlow, unifiedAvail.status, timeSlots]);
+
+  const mobileSlotItems = useMemo(
+    () =>
+      flatSortedSlots.map((slot) => {
+        const occupancyReady = useUnifiedAvailabilityFlow ? unifiedAvail.status === 'success' : slotOcc.status === 'success';
+        const demandPopular =
+          occupancyReady && slot.available && !slot.recommended && slot.remaining <= 3 && slot.remaining > 1;
+        const demandFew = occupancyReady && slot.available && slot.remaining === 1;
+        let caption = '';
+        if (!slot.available) caption = 'Unavailable';
+        else if (demandFew) caption = 'Few left';
+        else if (demandPopular) caption = 'Popular';
+        else caption = getAvailabilityUrgencyLabel(slot.remaining, abLabelVariant);
+
+        return {
+          id: slot.id,
+          label: formatSlotCompactTime(slot.id),
+          caption,
+          disabled: !slot.available,
+          recommended: Boolean(slot.recommended),
+        };
+      }),
+    [
+      flatSortedSlots,
+      useUnifiedAvailabilityFlow,
+      unifiedAvail.status,
+      slotOcc.status,
+      abLabelVariant,
+    ]
+  );
 
   useEffect(() => {
-    if (
-      slotOcc.status !== 'success' ||
-      selectedTime != null ||
-      !firstAvailableSlotId
-    ) {
+    if (useUnifiedAvailabilityFlow) {
+      if (unifiedAvail.status !== 'success' || selectedTime != null || !firstAvailableSlotId) return;
+      setSelectedTime(firstAvailableSlotId);
       return;
     }
+    if (slotOcc.status !== 'success' || selectedTime != null || !firstAvailableSlotId) return;
     setSelectedTime(firstAvailableSlotId);
-  }, [slotOcc.status, selectedTime, firstAvailableSlotId]);
+  }, [
+    useUnifiedAvailabilityFlow,
+    unifiedAvail.status,
+    slotOcc.status,
+    selectedTime,
+    firstAvailableSlotId,
+  ]);
 
   useEffect(() => {
     if (selectedTime) trackAb('slot_selected');
   }, [selectedTime, trackAb]);
 
   useEffect(() => {
+    if (useUnifiedAvailabilityFlow) {
+      if (unifiedAvail.status !== 'success' || !selectedTime) return;
+      const row = unifiedAvail.slots.find((s) => s.start === selectedTime);
+      if (!row || !row.available) {
+        setSelectedTime(null);
+        setData((prev) => ({ ...prev, time: '' }));
+      }
+      return;
+    }
     if (slotOcc.status !== 'success' || !selectedTime) return;
     const rem = slotOcc.remaining[selectedTime] ?? 0;
     if (rem <= 0) {
       setSelectedTime(null);
       setData((prev) => ({ ...prev, time: '' }));
     }
-  }, [slotOcc.status, slotOcc.remaining, selectedTime, setData]);
+  }, [
+    useUnifiedAvailabilityFlow,
+    unifiedAvail.status,
+    unifiedAvail.slots,
+    slotOcc.status,
+    slotOcc.remaining,
+    selectedTime,
+    setData,
+  ]);
 
   const canGoDatePrev = weekStartOffset > 0;
   const canGoDateNext = weekStartOffset + 13 <= MAX_BOOKING_DAYS_FROM_TODAY;
@@ -321,6 +515,24 @@ export function BookingStep2Schedule({
     setSelectedTime(data.time || null);
     setWeekStartOffset(offsetForDateToBeVisible(parsed));
   }, [data.date, data.time, setData]);
+
+  /** Earliest day in the visible strip when nothing selected yet */
+  useEffect(() => {
+    if (selectedDate != null) return;
+    if (selectableDates.length === 0) return;
+    const first = selectableDates.find((d) => isAllowedBookingDate(d));
+    if (first) setSelectedDate(first);
+  }, [selectedDate, selectableDates]);
+
+  /** Keep selection aligned when changing week */
+  useEffect(() => {
+    if (!selectedDate || selectableDates.length === 0) return;
+    const visible = selectableDates.some((d) => isSameDay(d, selectedDate));
+    if (!visible) {
+      setSelectedDate(selectableDates[0] ?? null);
+      setSelectedTime(null);
+    }
+  }, [weekStartOffset, selectableDates, selectedDate]);
 
   useEffect(() => {
     if (data.service !== 'standard' && data.service !== 'airbnb') return;
@@ -410,7 +622,11 @@ export function BookingStep2Schedule({
       data.service === 'move' ||
       data.service === 'standard' ||
       data.service === 'airbnb';
-    if (qtyServices && isQuantityAddonTile(extra.id)) {
+    if (
+      qtyServices &&
+      isQuantityAddonTile(extra.id) &&
+      !NO_QUANTITY_MODAL_EXTRA_IDS.has(extra.id)
+    ) {
       setQuantityModal({ uiId: extra.id, label: extra.label, price: extra.price });
       return;
     }
@@ -431,6 +647,33 @@ export function BookingStep2Schedule({
   const goDateNext = () => {
     if (!canGoDateNext) return;
     setWeekStartOffset((o) => o + 7);
+  };
+
+  const handleTryAnotherDay = () => {
+    if (!selectedDate) {
+      if (canGoDateNext) goDateNext();
+      return;
+    }
+    const idx = selectableDates.findIndex((d) => isSameDay(d, selectedDate));
+    if (idx >= 0 && idx < selectableDates.length - 1) {
+      handleDateSelect(selectableDates[idx + 1]!);
+      return;
+    }
+    if (canGoDateNext) goDateNext();
+  };
+
+  const handleGoToNextAvailableDay = () => {
+    if (!unifiedAvail.nextAvailableDay) {
+      handleTryAnotherDay();
+      return;
+    }
+    const d = parseDateStr(unifiedAvail.nextAvailableDay);
+    if (!d || !isAllowedBookingDate(d)) {
+      handleTryAnotherDay();
+      return;
+    }
+    setWeekStartOffset(offsetForDateToBeVisible(d));
+    handleDateSelect(d);
   };
 
   const handleContinue = () => {
@@ -457,32 +700,46 @@ export function BookingStep2Schedule({
             <ArrowLeft size={18} className="text-gray-500" />
           </button>
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">
+            <p className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
               Shalean Cleaning Services
             </p>
-            <h1 className="text-lg font-bold text-gray-900 leading-tight">Extras & Schedule</h1>
+            <h1 className="text-lg font-bold text-foreground leading-tight">Choose a date &amp; time</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">Takes ~1 min</p>
           </div>
         </div>
 
-        <BookingFlowStepIndicator activeStep={2} />
+        <BookingFlowStepIndicator activeStep={2} stepHint="Takes ~1 min" />
       </div>
 
       <BookingFlowLayout
-        className={cn(selectedTime ? 'pb-24 lg:pb-8' : 'pb-8 lg:pb-8')}
+        className={cn(selectedTime ? 'pb-28 lg:pb-8' : 'pb-8 lg:pb-8')}
         sidebar={
+          <motion.div
+            key={`${selectedDate ? toDateStr(selectedDate) : 'none'}-${selectedTime ?? ''}-${totalEstimate}`}
+            initial={{ opacity: 0.88, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+            className="w-full"
+          >
           <BookingSummary
             mode="preview"
             step={2}
             serviceTitle={serviceTitle}
             propertySummary={`${data.bedrooms} bed · ${data.bathrooms} bath${data.workingArea ? ` · ${data.workingArea}` : ''}`}
-            extrasSummary={
-              selectedAddonUiIds.length === 0
-                ? undefined
-                : selectedAddonUiIds
-                    .map((id) => addonTiles.find((e) => e.id === id)?.label)
-                    .filter(Boolean)
-                    .join(', ')
-            }
+            bookingDetails={{
+              where:
+                [data.address?.trim(), data.workingArea?.trim()].filter(Boolean).join(' · ') ||
+                data.workingArea?.trim() ||
+                'Add your area',
+              what: serviceTitle,
+              when:
+                selectedDate && selectedTime
+                  ? `${formatSelectedDateLong(selectedDate)} · ${selectedTimeDisplayLabel ?? labelForBookingSlotId(selectedTime)}`
+                  : 'Choose date & time',
+            }}
+            onFindCleaner={handleContinue}
+            findCleanerCtaDisabled={!canContinue}
+            primaryCtaLabel="Continue to details →"
             totalZar={totalEstimate}
             pricingContext={
               pricing.engineMeta
@@ -493,172 +750,16 @@ export function BookingStep2Schedule({
                   }
                 : null
             }
-            details={
-              <>
-                <div className="rounded-xl border border-gray-100 bg-gray-50/90 p-4 space-y-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Price breakdown</p>
-                  <div className="space-y-2.5">
-                    {pricing.dbPricingRows
-                      .filter((r) => r.value !== 0)
-                      .map((row) => (
-                        <div key={row.id} className="flex justify-between items-start gap-3 text-sm">
-                          <span className="text-gray-600">{row.label}</span>
-                          <span className="font-semibold text-gray-900 tabular-nums text-right shrink-0">
-                            R {row.value.toLocaleString('en-ZA')}
-                          </span>
-                        </div>
-                      ))}
-                  </div>
-                  {pricing.engineMeta ? (
-                    <p className="text-[11px] text-gray-500 leading-snug space-y-0.5">
-                      <span className="block">
-                        Estimated duration:{' '}
-                        {pricing.engineMeta.estimatedHours.toFixed(1)} hours
-                      </span>
-                      <span className="block">Team size: {pricing.engineMeta.teamSize} cleaners</span>
-                      <span className="block">
-                        Est. {pricing.engineMeta.hoursPerCleaner.toFixed(1)}h per cleaner · rounded to nearest R50
-                      </span>
-                    </p>
-                  ) : null}
-                </div>
-
-                {selectedAddonUiIds.length > 0 && (
-                  <p className="text-[11px] text-gray-500 leading-snug">
-                    Selected add-ons add time to the job; price follows labour and platform fees (same model as
-                    checkout).
-                  </p>
-                )}
-
-                <AnimatePresence>
-                  {selectedAddonUiIds.map((id) => {
-                    const extra = addonTiles.find((e) => e.id === id);
-                    if (!extra) return null;
-                    const deepMove = data.service === 'deep' || data.service === 'move';
-                    const storageKey = EXTRA_UI_ID_TO_BOOKING[id] ?? id;
-                    const isQty =
-                      (deepMove ||
-                        data.service === 'standard' ||
-                        data.service === 'airbnb') &&
-                      isQuantityAddonTile(id);
-                    const q = isQty ? (data.extrasQuantities[storageKey] ?? 1) : 1;
-                    return (
-                      <motion.div
-                        key={id}
-                        initial={{ opacity: 0, height: 0, y: -4 }}
-                        animate={{ opacity: 1, height: 'auto', y: 0 }}
-                        exit={{ opacity: 0, height: 0, y: -4 }}
-                        transition={{ duration: 0.2 }}
-                        className="flex justify-between text-sm text-gray-600 overflow-hidden"
-                      >
-                        <span className="flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-violet-400 inline-block" />
-                          {extra.label}
-                          {deepMove ? ' Cleaning' : ''}
-                          {isQty && q > 1 ? <span className="text-violet-500">×{q}</span> : null}
-                        </span>
-                        <span className="text-violet-600 font-medium text-xs">In total</span>
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-
-                <div className="border-t border-gray-100 pt-3 mt-1">
-                  <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Need help?</p>
-                  <div className="flex flex-col gap-2">
-                    <a
-                      href={SUPPORT_WHATSAPP_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 rounded-xl border border-gray-200 bg-emerald-50/80 px-3 py-2.5 text-sm font-semibold text-emerald-800 hover:bg-emerald-100/80 transition-colors"
-                    >
-                      <MessageSquare size={16} className="text-emerald-600 flex-shrink-0" aria-hidden />
-                      WhatsApp us
-                    </a>
-                    <a
-                      href={SUPPORT_PHONE_HREF}
-                      className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 transition-colors"
-                    >
-                      <Phone size={16} className="text-violet-600 flex-shrink-0" aria-hidden />
-                      Call {SUPPORT_PHONE_DISPLAY}
-                    </a>
-                  </div>
-                </div>
-              </>
-            }
-            footer={
-              <>
-                <motion.button
-                  type="button"
-                  onClick={handleContinue}
-                  animate={canContinue ? { opacity: 1 } : { opacity: 0.45 }}
-                  whileTap={canContinue ? { scale: 0.97 } : {}}
-                  disabled={!canContinue}
-                  className={[
-                    'w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all duration-200 mt-1',
-                    canContinue
-                      ? 'bg-violet-600 text-white shadow-md shadow-violet-200 hover:bg-violet-700 cursor-pointer'
-                      : 'bg-gray-100 text-gray-400 cursor-not-allowed',
-                  ].join(' ')}
-                >
-                  {canContinue ? (
-                    <>
-                      Continue to Step 3 <ArrowRight size={16} />
-                    </>
-                  ) : (
-                    <>Pick a date & time to continue</>
-                  )}
-                </motion.button>
-
-                <div className="flex flex-col gap-1.5 pt-1">
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />
-                    No payment required to book
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />
-                    Free cancellation up to 24 hrs before
-                  </div>
-                </div>
-              </>
-            }
-            after={
-              <AnimatePresence>
-                {(selectedDate || selectedTime) && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 8 }}
-                    className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex flex-col gap-2 transition-all duration-300 ease-in-out"
-                  >
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Your Selection</p>
-                    {selectedDate && (
-                      <div className="flex items-center gap-2 text-sm text-gray-700">
-                        <Calendar size={14} className="text-violet-500" />
-                        <span>{formatSelectedDateLong(selectedDate)}</span>
-                      </div>
-                    )}
-                    {selectedTime && (
-                      <div className="flex items-center gap-2 text-sm text-gray-700">
-                        <Clock size={14} className="text-violet-500" />
-                        <span>{labelForBookingSlotId(selectedTime)}</span>
-                      </div>
-                    )}
-                    {!selectedTime && selectedDate && (
-                      <p className="text-xs text-amber-500 font-medium flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
-                        Still need a start time
-                      </p>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            }
           />
+          </motion.div>
         }
         >
-          <p className="text-xs font-bold tracking-widest text-violet-600 uppercase">Step 2 of 4</p>
-
+        <StepLayout
+          step={2}
+          totalSteps={4}
+          title="Choose date and time"
+          subtitle="Select the best slot, then continue"
+        >
           {pricingModeError && (
             <div
               className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
@@ -757,213 +858,250 @@ export function BookingStep2Schedule({
             </div>
           )}
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-4">
-            <div className="flex items-start gap-3 mb-5">
-              <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center flex-shrink-0">
-                <Calendar size={18} className="text-white" />
+          <div
+            id="booking-schedule-anchor"
+            className="rounded-2xl border border-border/70 bg-card shadow-md shadow-black/[0.06] p-4 sm:p-5 space-y-5 scroll-mt-24"
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                <Calendar size={18} aria-hidden />
               </div>
-              <div>
-                <h2 className="text-base font-bold text-gray-900">Schedule</h2>
-                <p className="text-sm text-gray-500">Pick a date and preferred start time</p>
+              <div className="min-w-0">
+                <h2 className="text-base font-bold text-foreground leading-tight">Pick your slot</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Next 7 days · swipe on mobile</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 mb-3">
-              <Calendar size={14} className="text-gray-400" />
-              <span className="text-sm font-semibold text-gray-600">Date</span>
-              {selectedDate && (
-                <span className="ml-auto max-w-[min(100%,11rem)] sm:max-w-none text-xs font-medium text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-200 truncate text-right">
-                  {formatSelectedDateLong(selectedDate)}
-                </span>
-              )}
-            </div>
-
-            <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50/40">
-              <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-3 border-b border-gray-100 bg-gray-50/60">
+            <div className="rounded-xl border border-border/80 overflow-hidden bg-muted/15">
+              <div className="flex items-center justify-between gap-2 px-2 sm:px-3 py-2.5 border-b border-border/60 bg-muted/25">
                 <button
                   type="button"
                   onClick={goDatePrev}
                   disabled={!canGoDatePrev}
                   aria-label="Previous dates"
-                  className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg border border-gray-200 bg-white hover:bg-white hover:shadow-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="h-9 w-9 shrink-0 flex items-center justify-center rounded-lg border border-border bg-background hover:bg-muted/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                 >
-                  <ChevronLeft size={18} className="text-gray-700" />
+                  <ChevronLeft size={18} className="text-foreground" />
                 </button>
-                <div className="min-w-0 text-center flex-1">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Pick a week</p>
-                  <p className="text-sm font-bold text-gray-800 mt-0.5 truncate">{formatWeekRangeLabel(selectableDates)}</p>
-                </div>
+                <p className="min-w-0 text-center text-xs font-semibold text-muted-foreground truncate px-1">
+                  {formatWeekRangeLabel(selectableDates)}
+                </p>
                 <button
                   type="button"
                   onClick={goDateNext}
                   disabled={!canGoDateNext}
                   aria-label="Next dates"
-                  className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg border border-gray-200 bg-white hover:bg-white hover:shadow-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="h-9 w-9 shrink-0 flex items-center justify-center rounded-lg border border-border bg-background hover:bg-muted/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                 >
-                  <ChevronRight size={18} className="text-gray-700" />
+                  <ChevronRight size={18} className="text-foreground" />
                 </button>
               </div>
 
-              <div className="p-3 sm:p-4">
-                <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+              <div className="p-2 sm:p-3">
+                <div className="flex sm:grid sm:grid-cols-7 gap-2 overflow-x-auto sm:overflow-visible snap-x snap-mandatory pb-1 scrollbar-thin">
                   {selectableDates.map((cellDate) => {
-                    const dow = DAYS_OF_WEEK[cellDate.getDay()];
-                    const dayNum = cellDate.getDate();
-                    const todayCell = isToday(cellDate);
+                    const demandBadge = getDateDemandBadge(cellDate);
                     const isSelected = selectedDate ? isSameDay(cellDate, selectedDate) : false;
+                    const todayCell = isToday(cellDate);
                     return (
                       <motion.button
                         key={toDateStr(cellDate)}
                         type="button"
                         onClick={() => handleDateSelect(cellDate)}
-                        whileTap={{ scale: 0.94 }}
-                        className={[
-                          'flex flex-col items-center justify-center rounded-xl py-2 px-0.5 sm:py-3 sm:px-2 min-h-[3.5rem] sm:min-h-[4.25rem] transition-all duration-150',
+                        whileTap={{ scale: 0.96 }}
+                        className={cn(
+                          'relative flex min-w-[4.75rem] sm:min-w-0 flex-col items-center justify-center rounded-xl py-2.5 px-1.5 snap-center transition-all duration-150',
                           isSelected
-                            ? 'bg-violet-600 text-white shadow-md shadow-violet-200'
+                            ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
                             : todayCell
-                              ? 'ring-2 ring-violet-400 bg-white text-violet-700 font-bold hover:bg-violet-50'
-                              : 'bg-white text-gray-700 border border-gray-200 hover:border-violet-300 hover:bg-violet-50/50',
-                        ].join(' ')}
+                              ? 'ring-2 ring-primary/40 bg-background text-foreground'
+                              : 'border border-border/80 bg-background text-foreground hover:border-primary/40 hover:bg-primary/5'
+                        )}
                       >
+                        {demandBadge ? (
+                          <span
+                            className={cn(
+                              'absolute -top-1 left-1/2 -translate-x-1/2 max-w-[5.5rem] truncate rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide',
+                              demandBadge.variant === 'amber' && 'bg-amber-100 text-amber-900',
+                              demandBadge.variant === 'violet' && 'bg-violet-100 text-violet-900',
+                              demandBadge.variant === 'emerald' && 'bg-emerald-100 text-emerald-900',
+                              isSelected && 'bg-primary-foreground/20 text-primary-foreground'
+                            )}
+                          >
+                            {demandBadge.label}
+                          </span>
+                        ) : null}
                         <span
-                          className={[
-                            'text-[9px] sm:text-[10px] font-bold tracking-wider',
-                            isSelected ? 'text-violet-100' : 'text-gray-400',
-                          ].join(' ')}
+                          className={cn(
+                            'text-[11px] font-semibold',
+                            isSelected ? 'text-primary-foreground/90' : 'text-muted-foreground'
+                          )}
                         >
-                          {dow}
+                          {formatCompactWeekday(cellDate)}
                         </span>
-                        <span className="text-base sm:text-lg font-bold tabular-nums leading-tight mt-0.5">{dayNum}</span>
+                        <span
+                          className={cn(
+                            'text-sm font-bold tabular-nums leading-tight mt-0.5',
+                            demandBadge ? 'mt-2' : ''
+                          )}
+                        >
+                          {formatCompactDayMonth(cellDate)}
+                        </span>
                       </motion.button>
                     );
                   })}
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-4">
-            <div className="flex items-center gap-2 mb-4">
-              <Clock size={14} className="text-gray-400" />
-              <span className="text-sm font-semibold text-gray-600">Start Time</span>
-              {selectedDate && (
-                <span className="ml-auto text-xs text-gray-400">
-                  {selectedTime ? (
-                    <span className="text-violet-600 font-semibold">
-                      {labelForBookingSlotId(selectedTime)}
-                    </span>
-                  ) : (
-                    'Choose a time below'
-                  )}
-                </span>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Clock size={15} className="text-muted-foreground shrink-0" aria-hidden />
+                <span className="text-sm font-semibold text-foreground">Start time</span>
+                {selectedTime && selectedDate ? (
+                  <span className="ml-auto truncate text-xs font-medium text-primary">
+                    {selectedTimeDisplayLabel ?? labelForBookingSlotId(selectedTime)}
+                  </span>
+                ) : null}
+              </div>
+
+              {useUnifiedAvailabilityFlow && (
+                <p className="text-[11px] text-muted-foreground">
+                  Price may vary slightly by time (demand-based).
+                </p>
               )}
-            </div>
 
-            <AnimatePresence mode="wait">
-              {!selectedDate ? (
-                <motion.div
-                  key="empty"
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  className="rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 py-8 flex flex-col items-center gap-2"
-                >
-                  <Calendar size={28} className="text-gray-300" />
-                  <p className="text-sm text-gray-400 font-medium">Select a date first to see available times</p>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="slots"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.25 }}
-                  className="space-y-3"
-                >
-                  {slotOcc.status === 'error' && slotOcc.errorMessage && (
-                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                      {slotOcc.errorMessage}
-                    </p>
-                  )}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-                    {timeSlots.map((slot) => {
-                      const showFullStyle =
-                        slotOcc.status === 'success' && !slot.available;
-                      const occupancyReady = slotOcc.status === 'success';
-                      const subline =
-                        slotOcc.status === 'loading'
-                          ? 'Loading…'
-                          : slotOcc.status === 'error'
-                            ? '—'
-                            : getAvailabilityUrgencyLabel(slot.remaining, abLabelVariant);
-                      const highlightLast =
-                        occupancyReady && slot.available && slot.remaining === 1;
-                      const isRecommended =
-                        occupancyReady &&
-                        slot.available &&
-                        firstAvailableSlotId === slot.id;
-                      return (
-                        <motion.button
-                          key={slot.id}
+              <AnimatePresence mode="wait">
+                {!selectedDate ? (
+                  <motion.div
+                    key="empty"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    className="rounded-xl border border-dashed border-border py-8 flex flex-col items-center gap-2 text-center px-3"
+                  >
+                    <Calendar size={26} className="text-muted-foreground/50" />
+                    <p className="text-sm text-muted-foreground font-medium">Choose a day to see times</p>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="slots"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.22 }}
+                    className="space-y-3"
+                  >
+                    {(useUnifiedAvailabilityFlow
+                      ? unifiedAvail.status === 'error' && unifiedAvail.errorMessage
+                      : slotOcc.status === 'error' && slotOcc.errorMessage) && (
+                      <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200/80 rounded-lg px-3 py-2">
+                        {useUnifiedAvailabilityFlow ? unifiedAvail.errorMessage : slotOcc.errorMessage}
+                      </p>
+                    )}
+                    {useUnifiedAvailabilityFlow &&
+                      (unifiedAvail.status === 'loading' || unifiedAvail.status === 'idle') && (
+                        <p className="text-xs text-muted-foreground text-center py-6">Loading times…</p>
+                      )}
+                    {useUnifiedAvailabilityFlow &&
+                      unifiedAvail.status === 'success' &&
+                      unifiedAvail.durationMinutes != null && (
+                        <p className="text-xs font-medium text-foreground">
+                          Est. duration {formatDurationMinutesLabel(unifiedAvail.durationMinutes)}
+                        </p>
+                      )}
+                    {useUnifiedAvailabilityFlow &&
+                      unifiedAvail.status === 'success' &&
+                      unifiedAvail.latestStart &&
+                      !unifiedHasNoBookableSlot && (
+                        <p className="text-xs font-semibold text-violet-800 bg-violet-50 border border-violet-200 rounded-lg px-3 py-2">
+                          To fit this job today, start by {unifiedAvail.latestStart}.
+                        </p>
+                      )}
+
+                    {slotUrgencyBanner === 'few' ? (
+                      <p className="text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                        Only a few times left
+                      </p>
+                    ) : slotUrgencyBanner === 'fast' ? (
+                      <p className="text-xs font-semibold text-orange-800 bg-orange-50 border border-orange-100 rounded-lg px-3 py-2">
+                        Slots are filling fast today
+                      </p>
+                    ) : null}
+
+                    {useUnifiedAvailabilityFlow && unifiedAvail.status === 'success' && unifiedHasNoBookableSlot && (
+                      <div
+                        className="rounded-xl border border-border bg-muted/30 px-4 py-8 text-center space-y-4"
+                        role="status"
+                      >
+                        <p className="text-sm font-semibold text-foreground">No times available for this day</p>
+                        {unifiedAvail.requiredDurationMinutes != null ? (
+                          <p className="text-xs text-muted-foreground">
+                            This job requires {formatDurationMinutesLabel(unifiedAvail.requiredDurationMinutes)}.
+                          </p>
+                        ) : null}
+                        {unifiedAvail.suggestion ? (
+                          <p className="text-xs text-muted-foreground">{unifiedAvail.suggestion}</p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            Try an earlier start time or choose another day.
+                          </p>
+                        )}
+                        {unifiedAvail.latestStart ? (
+                          <p className="text-xs text-muted-foreground">
+                            Latest possible start for this day is {unifiedAvail.latestStart}.
+                          </p>
+                        ) : null}
+                        {unifiedAvail.nextAvailableDay ? (
+                          <button
+                            type="button"
+                            onClick={handleGoToNextAvailableDay}
+                            className="inline-flex items-center gap-1 text-sm font-bold text-primary hover:underline"
+                          >
+                            Next available: {formatYmdFriendly(unifiedAvail.nextAvailableDay)}{' '}
+                            <ArrowRight size={14} aria-hidden />
+                          </button>
+                        ) : null}
+                        <button
                           type="button"
-                          onClick={() => slot.available && setSelectedTime(slot.id)}
-                          disabled={!slot.available}
-                          whileTap={slot.available ? { scale: 0.93 } : {}}
-                          className={[
-                            'py-2.5 px-2 rounded-xl text-xs font-semibold border-2',
-                            slot.available && occupancyReady
-                              ? 'hover:scale-105 transition-all duration-200 ease-out'
-                              : 'transition-all duration-200 ease-out',
-                            highlightLast ? 'ring-2 ring-red-400' : '',
-                            showFullStyle
-                              ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed line-through'
-                              : !slot.available
-                                ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed opacity-80'
-                                : selectedTime === slot.id
-                                  ? 'border-violet-600 bg-violet-600 text-white shadow-sm shadow-violet-200'
-                                  : 'border-gray-200 bg-white text-gray-700 hover:border-violet-400 hover:text-violet-700 hover:bg-violet-50',
-                          ].join(' ')}
+                          onClick={handleTryAnotherDay}
+                          className="inline-flex items-center gap-1 text-sm font-bold text-primary hover:underline"
                         >
-                          {isRecommended && (
-                            <span
-                              className={[
-                                'block text-[9px] font-bold uppercase tracking-wide mb-0.5 leading-tight',
-                                selectedTime === slot.id && slot.available
-                                  ? 'text-violet-100'
-                                  : 'text-violet-600',
-                              ].join(' ')}
-                            >
-                              Recommended
-                            </span>
-                          )}
-                          {slot.label}
-                          <span className="block mt-0.5 no-underline">
-                            {occupancyReady ? (
-                              <span
-                                className={`text-[10px] leading-tight px-2 py-1 rounded font-normal inline-block text-center ${getAvailabilityStyle(slot.remaining)}`}
-                              >
-                                {subline}
-                              </span>
-                            ) : (
-                              <span className="block text-[9px] font-normal text-gray-400">{subline}</span>
-                            )}
-                          </span>
-                        </motion.button>
-                      );
-                    })}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                          Try another day <ArrowRight size={14} aria-hidden />
+                        </button>
+                      </div>
+                    )}
+
+                    {!useUnifiedAvailabilityFlow || !unifiedHasNoBookableSlot ? (
+                      <TimeSlotPicker
+                        slots={mobileSlotItems}
+                        selectedSlotId={selectedTime}
+                        onSelect={(id) => setSelectedTime(id)}
+                      />
+                    ) : null}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
+        </StepLayout>
       </BookingFlowLayout>
 
-      <StickyBookingBar
-        selectedTime={selectedTime}
-        total={totalEstimate}
-        onContinue={handleContinue}
-        canContinue={canContinue}
+      <StickyCTA
+        title={selectedTimeDisplayLabel ?? 'Pick your preferred time'}
+        subtitle={selectedDate ? formatSelectedDateLong(selectedDate) : 'Choose a day'}
+        totalLabel={`R${totalEstimate.toLocaleString('en-ZA')}`}
+        buttonLabel="Continue to cleaner"
+        onClick={handleContinue}
+        disabled={!canContinue}
+        urgencyText={
+          slotUrgencyBanner === 'few'
+            ? 'Only a few slots left'
+            : slotUrgencyBanner === 'fast'
+              ? 'Slots are filling fast'
+              : undefined
+        }
+        helperText="Trusted by 100+ homes in Cape Town"
       />
 
       {quantityModal && (

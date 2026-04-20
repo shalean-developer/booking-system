@@ -7,8 +7,20 @@ import { getServerAuthUser } from '@/lib/supabase-server';
 import { buildEarningsInsertFields } from '@/lib/earnings-v2';
 import { fetchCompanyOnlyCostsCents } from '@/lib/earnings-company-costs';
 import type { BookingBodyForPricing } from '@/lib/booking-server-pricing';
+import {
+  computeAuthoritativeBookingPricing,
+  resolveCustomerIdForPricing,
+} from '@/lib/booking-server-pricing';
+import { runBookingCheckoutAvailability } from '@/lib/booking-checkout-pricing';
+import { fetchQuickCleanSettings } from '@/lib/quick-clean-settings';
+import { validatePricingEngineRequest } from '@/lib/pricing-engine';
+import { createServiceClient } from '@/lib/supabase-server';
+import { buildFinalPriceSnapshotPayload } from '@/lib/pricing/final-pricing';
+import { buildPriceSnapshotV4AnalyticsFromUnified } from '@/lib/pricing/v4/price-snapshot-analytics';
 import { generateUniqueBookingId } from '@/lib/booking-id';
 import { generateManageToken } from '@/lib/manage-booking-token';
+import { logFinalPriceCheck } from '@/lib/pricing/final-price-check-log';
+import { resolveBookingSelectedTeam } from '@/lib/booking-team-payload';
 
 /**
  * Fast booking processing endpoint for background processing.
@@ -32,18 +44,20 @@ export async function POST(req: Request) {
     // Parse booking data
     const body: BookingState & {
       paymentReference: string;
-      totalAmount: number;
+      /** @deprecated Ignored for persistence — authoritative total from server pricing + Paystack verify */
+      totalAmount?: number;
       serviceFee?: number;
       frequencyDiscount?: number;
-      // Optional equipment payload from frontend
       equipment_required?: boolean;
-      equipment_fee?: number; // ZAR
-      equipmentCharge?: number; // Back-compat (ZAR)
+      equipment_fee?: number;
+      equipmentCharge?: number;
     } = await req.json();
-    
-    const { paymentReference, totalAmount } = body;
+
+    Object.assign(body, { selected_team: resolveBookingSelectedTeam(body) });
+
+    const { paymentReference } = body;
     const numberOfCleaners = Math.max(1, Math.round((body as any).numberOfCleaners ?? 1));
-    
+
     if (!paymentReference) {
       return NextResponse.json(
         { ok: false, error: 'Payment reference is required' },
@@ -51,35 +65,136 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!totalAmount || totalAmount <= 0) {
+    const envValidation = validateBookingEnv();
+    if (!envValidation.valid) {
       return NextResponse.json(
-        { ok: false, error: 'Total amount is required' },
+        {
+          ok: false,
+          error: 'Server configuration error: Required services not configured',
+          details: envValidation.errors,
+        },
+        { status: 500 }
+      );
+    }
+
+    if (!body.date || !body.time || !body.service) {
+      return NextResponse.json(
+        { ok: false, error: 'Booking date, time, and service are required' },
         { status: 400 }
       );
     }
 
+    const quickCleanSettings = await fetchQuickCleanSettings(createServiceClient());
+    const engineValidation = validatePricingEngineRequest(body, quickCleanSettings);
+    if (!engineValidation.ok) {
+      return NextResponse.json({ ok: false, error: engineValidation.error }, { status: 400 });
+    }
+
+    const authForPricing = await getServerAuthUser();
+    const pricingCustomerId = await resolveCustomerIdForPricing(supabase, {
+      bodyCustomerId: (body as { customer_id?: string }).customer_id,
+      authUserId: authForPricing?.id ?? null,
+    });
+
+    let bookingServerCart: Awaited<ReturnType<typeof computeAuthoritativeBookingPricing>>;
+    try {
+      bookingServerCart = await computeAuthoritativeBookingPricing(supabase, {
+        service: body.service,
+        bedrooms: body.bedrooms,
+        bathrooms: body.bathrooms,
+        extraRooms: body.extraRooms,
+        extras: body.extras,
+        extrasQuantities: body.extrasQuantities,
+        frequency: body.frequency || 'one-time',
+        tipAmount: body.tipAmount || 0,
+        discountAmount: body.discountAmount || 0,
+        numberOfCleaners: body.numberOfCleaners,
+        provideEquipment: body.provideEquipment,
+        carpetDetails: body.carpetDetails ?? undefined,
+        rugs: (body as BookingBodyForPricing).rugs,
+        carpets: (body as BookingBodyForPricing).carpets,
+        pricingMode: body.pricingMode,
+        date: body.date,
+        time: body.time,
+        address: body.address,
+        discountCode: body.discountCode,
+        promo_code: body.promo_code,
+        customerEmail: body.email,
+        customer_id: pricingCustomerId ?? undefined,
+        use_points: body.use_points,
+      });
+    } catch (e) {
+      console.error('[bookings/process] server pricing', e);
+      return NextResponse.json(
+        { ok: false, error: 'Pricing is temporarily unavailable. Please try again.' },
+        { status: 503 }
+      );
+    }
+
+    const checkoutPricing = await runBookingCheckoutAvailability(supabase, {
+      date: body.date,
+      service: body.service,
+      selected_team: body.selected_team,
+    });
+    if (!checkoutPricing.ok) {
+      return NextResponse.json(
+        { ok: false, error: checkoutPricing.reason },
+        { status: checkoutPricing.status }
+      );
+    }
+
+    const expectedCents = bookingServerCart.total_amount_cents;
+    const serverPriceZar = bookingServerCart.price_zar;
+
     console.log('Processing booking for payment reference:', paymentReference);
 
-    // STEP 1: Verify payment with Paystack (single verification)
+    // STEP 1: Verify payment with Paystack — charged amount must match server total (never trust client `totalAmount`)
     console.log('Step 1: Verifying payment with Paystack...');
+    let paystackCentsVerified: number;
     try {
       const verifyUrl = `https://api.paystack.co/transaction/verify/${paymentReference}`;
       const verifyResponse = await fetch(verifyUrl, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
           'Content-Type': 'application/json',
         },
       });
 
       const verifyData = await verifyResponse.json();
-      
+
       if (!verifyResponse.ok || verifyData.data?.status !== 'success') {
         console.error('❌ Payment verification failed');
         return NextResponse.json(
           { ok: false, error: 'Payment verification failed' },
           { status: 400 }
         );
+      }
+
+      paystackCentsVerified = Number(verifyData.data.amount);
+      if (!Number.isFinite(paystackCentsVerified) || paystackCentsVerified !== expectedCents) {
+        console.error('Paystack amount vs server total mismatch', {
+          paystackCents: paystackCentsVerified,
+          expectedCents,
+        });
+        return NextResponse.json(
+          {
+            ok: false,
+            code: 'PRICE_MISMATCH',
+            error: 'Payment amount does not match server-calculated total.',
+          },
+          { status: 400 }
+        );
+      }
+
+      if (
+        body.totalAmount != null &&
+        Math.abs(body.totalAmount - serverPriceZar) > 0.02
+      ) {
+        console.warn('[bookings/process] client totalAmount did not match server (Paystack OK)', {
+          client: body.totalAmount,
+          server: serverPriceZar,
+        });
       }
 
       console.log('✅ Payment verified successfully');
@@ -90,6 +205,8 @@ export async function POST(req: Request) {
         { status: 500 }
       );
     }
+
+    const totalAmount = serverPriceZar;
 
     // STEP 2: Generate booking ID and handle customer
     const bookingId = paymentReference || generateUniqueBookingId();
@@ -190,8 +307,8 @@ export async function POST(req: Request) {
       cleanerHireDate = cleanerData?.hire_date ?? null;
     }
 
-    const totalAmountCents = Math.round((totalAmount || 0) * 100);
-    const serviceFeeCents = Math.round((body.serviceFee || 0) * 100);
+    const totalAmountCents = Math.round(totalAmount * 100);
+    const serviceFeeCents = 0;
     const companyCosts = await fetchCompanyOnlyCostsCents(supabase, {
       service: body.service,
       bedrooms: body.bedrooms ?? 0,
@@ -219,7 +336,26 @@ export async function POST(req: Request) {
     });
 
     const frequencyForDb = body.frequency === 'one-time' ? null : body.frequency;
+    const freqDiscZar = bookingServerCart.calc.frequencyDiscount;
+    const serviceTotalProcess = totalAmount - tipAmountZar;
+    const bodyProc = body as BookingBodyForPricing & { rugs?: number; carpets?: number };
+    const v4AnalyticsProcess = buildPriceSnapshotV4AnalyticsFromUnified(
+      {
+        service: body.service,
+        bedrooms: body.bedrooms,
+        bathrooms: body.bathrooms,
+        extraRooms: bodyProc.extraRooms,
+        pricingMode: bodyProc.pricingMode,
+        rugs: bodyProc.rugs,
+        carpets: bodyProc.carpets,
+      },
+      bookingServerCart.calc.unifiedPricing,
+      serviceTotalProcess
+    );
     const priceSnapshot = {
+      total_amount_cents: totalAmountCents,
+      price_zar: totalAmount,
+      pricing_v5_2: buildFinalPriceSnapshotPayload(bookingServerCart.finalPrice),
       service: {
         type: body.service,
         bedrooms: body.bedrooms,
@@ -228,11 +364,12 @@ export async function POST(req: Request) {
       },
       extras: body.extras || [],
       frequency: frequencyForDb,
-      service_fee: (body.serviceFee || 0) * 100,
-      frequency_discount: (body.frequencyDiscount || 0) * 100,
-      subtotal: totalAmount ? (totalAmount - (body.serviceFee || 0) + (body.frequencyDiscount || 0)) * 100 : 0,
-      total: (totalAmount || 0) * 100,
+      service_fee: 0,
+      frequency_discount: Math.round(freqDiscZar * 100),
+      subtotal: Math.round((totalAmount - tipAmountZar) * 100),
+      total: totalAmountCents,
       snapshot_date: new Date().toISOString(),
+      ...(v4AnalyticsProcess ?? {}),
     };
 
     let cleanerIdForInsert = null;
@@ -247,6 +384,13 @@ export async function POST(req: Request) {
     console.log('Step 4: Saving booking and sending emails in parallel...');
 
     const manageToken = generateManageToken();
+
+    logFinalPriceCheck({
+      route: 'POST /api/bookings/process',
+      bookingId,
+      price_zar: totalAmount ?? 0,
+      total_amount_cents: totalAmountCents,
+    });
 
     const [dbResult, emailResult] = await Promise.all([
       // Database operation
@@ -281,13 +425,13 @@ export async function POST(req: Request) {
               address_city: body.address.city,
               payment_reference: paymentReference,
               total_amount: totalAmountCents,
-              price: totalAmount ?? 0,
+              price: totalAmount,
               tip_amount: tipCents,
               ...earningsFields,
               requires_team: requiresTeam,
               frequency: frequencyForDb,
-              service_fee: (body.serviceFee || 0) * 100,
-              frequency_discount: (body.frequencyDiscount || 0) * 100,
+              service_fee: 0,
+              frequency_discount: Math.round(freqDiscZar * 100),
               price_snapshot: priceSnapshot,
               // Legacy equipment fields (kept for backwards compatibility / existing reports)
               provide_equipment: equipmentRequired,
@@ -296,6 +440,7 @@ export async function POST(req: Request) {
               equipment_required: equipmentRequired,
               equipment_fee: equipmentFeeZar,
               status: 'paid',
+              tracking_status: cleanerIdForInsert ? 'assigned' : null,
               manage_token: manageToken,
             })
             .select();
@@ -346,14 +491,14 @@ export async function POST(req: Request) {
             generateBookingConfirmationEmail({
               ...body,
               bookingId,
-              totalAmount: body.totalAmount, // Pass actual total amount paid (in rands)
+              totalAmount,
               cleanerName,
               manageToken,
             }),
             generateAdminBookingNotificationEmail({
               ...body,
               bookingId,
-              totalAmount: body.totalAmount // Pass actual total amount paid (in rands)
+              totalAmount,
             }),
           ]);
           const [customerEmailResult, adminEmailResult] = await Promise.all([

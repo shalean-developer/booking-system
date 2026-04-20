@@ -16,7 +16,6 @@ export const BOOKING_TIP_PRESETS: TipOption[] = [
   { id: 'tip-25', label: 'R25', value: 25 },
   { id: 'tip-50', label: 'R50', value: 50 },
   { id: 'tip-100', label: 'R100', value: 100 },
-  { id: 'tip-150', label: 'R150', value: 150 },
 ];
 
 const PRESET_VALUES = new Set(BOOKING_TIP_PRESETS.map((t) => t.value));

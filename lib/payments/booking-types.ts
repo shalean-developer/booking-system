@@ -2,6 +2,8 @@
 
 export type BookingPaidRow = {
   id: string;
+  customer_id?: string | null;
+  points_redeemed?: number | null;
   cleaner_id: string | null;
   booking_date: string | null;
   booking_time: string | null;

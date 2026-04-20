@@ -31,11 +31,14 @@ import { BookingStep2Schedule } from '@/components/booking-step2-schedule';
 import { BookingStep3Crew } from '@/components/booking-step3-crew';
 import { BookingStep4Confirmation } from '@/components/booking-step4-confirmation';
 import type { BookingFormData, ServiceType } from '@/components/booking-system-types';
+import type { TeamSelection } from '@/lib/constants/booking-teams';
 import { BOOKING_DEFAULT_CITY } from '@/lib/contact';
 import { getBookingDurationMinutes } from '@/shared/booking-engine/duration';
 import { logBookingFlowClient } from '@/lib/debug-booking-flow';
 import type { PricingEngineResult } from '@/lib/pricing-engine';
 import { estimateBookingDurationRange } from '@/lib/booking-work-hours';
+import { calculateBookingUnified } from '@/lib/pricing/calculateBookingUnified';
+import type { FinalPriceBreakdown } from '@/lib/pricing/final-pricing';
 import { isBasicPlannedPathExtrasValid } from '@/lib/pricing-mode';
 import { buildWizardTimeInput } from '@/lib/time-estimation';
 import {
@@ -54,7 +57,11 @@ import {
   getWizardEngineCompanyCostsCents,
 } from '@/shared/booking-engine/wizard-engine-pricing';
 import { getWizardOptimalTeamBreakdown } from '@/shared/booking-engine/optimal-team';
-import { buildWizardPendingBookingPayload, BOOKING_PROMO_CODES } from '@/shared/booking-engine';
+import {
+  buildWizardPendingBookingPayload,
+  BOOKING_PROMO_CODES,
+  isBookingTeamName,
+} from '@/shared/booking-engine';
 import { useBooking } from '@/shared/booking';
 import { BOOKING_FORM_SESSION_KEY } from '@/lib/booking-form-session';
 
@@ -191,7 +198,14 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
   const router = useRouter();
   const pathname = usePathname();
   const { data: formData, loading: formDataLoading, error: formDataError } = useBookingFormData(initialFormData);
-  const checkoutPricingRef = useRef<{ preSurgeTotal: number; finalTotal: number } | null>(null);
+  const checkoutPricingRef = useRef<{ price_zar: number; total_amount_cents: number } | null>(null);
+  const checkoutPricingIntegrityRef = useRef<{
+    pricing_hash: string;
+    pricing_snapshot: Record<string, unknown> | null;
+    pricing_version: string | null;
+    pricing_expires_at: string | null;
+    pricing_lock_token: string | null;
+  } | null>(null);
   const pathSegments = pathname.split('/').filter(Boolean);
   const pathServiceIdx = pathSegments.indexOf('service');
   const serviceSlugFromPath = pathServiceIdx !== -1 && pathServiceIdx + 1 < pathSegments.length
@@ -210,18 +224,35 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
     serviceFromPath,
   });
 
-  /** Basic + add-ons: fixed 8h bundle — keep planned hours in sync when extras toggle (layout: avoid step-1 hour chip flash). */
+  /** Quick Clean: planned hours from unified table + extras. */
   useLayoutEffect(() => {
     if (data.pricingMode !== 'basic') return;
-    const hasExtras = data.extras.length > 0;
-    if (hasExtras && data.basicPlannedHours !== 8) {
-      setData((p) => ({ ...p, basicPlannedHours: 8 }));
-      return;
+    if (data.service !== 'standard' && data.service !== 'airbnb') return;
+    const uni = calculateBookingUnified({
+      service_type: data.service === 'standard' ? 'standard' : 'airbnb',
+      pricing_mode: 'quick',
+      bedrooms: Math.max(1, data.bedrooms),
+      bathrooms: Math.max(0, data.bathrooms ?? 0),
+      extra_rooms: Math.max(0, data.extraRooms ?? 0),
+      extras: data.extras ?? [],
+      extrasQuantities: data.extrasQuantities,
+      has_extra_cleaner: false,
+    });
+    const h = uni.hours;
+    if (data.basicPlannedHours !== h) {
+      setData((p) => ({ ...p, basicPlannedHours: h }));
     }
-    if (!hasExtras && data.basicPlannedHours === 8) {
-      setData((p) => ({ ...p, basicPlannedHours: 5 }));
-    }
-  }, [data.pricingMode, data.extras.length, data.basicPlannedHours, setData]);
+  }, [
+    data.pricingMode,
+    data.service,
+    data.bedrooms,
+    data.bathrooms,
+    data.extraRooms,
+    data.extras,
+    data.extrasQuantities,
+    data.basicPlannedHours,
+    setData,
+  ]);
 
   /** Quick Clean (basic): Extra Cleaner + Supplies Kit are not offered — drop if present in session. */
   useLayoutEffect(() => {
@@ -245,8 +276,20 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
   const [promoInput, setPromoInput] = useState('');
   const [promoError, setPromoError] = useState('');
   const [confirmedCheckoutTotalZar, setConfirmedCheckoutTotalZar] = useState<number | null>(null);
+  const [step1AuthoritativeTotalZar, setStep1AuthoritativeTotalZar] = useState<number | null>(null);
   const [session, setSession] = useState<{ user: { id: string; email?: string; user_metadata?: Record<string, unknown> } } | null>(null);
-  const [customerProfile, setCustomerProfile] = useState<{ firstName?: string; lastName?: string; email?: string; phone?: string; rewardsPoints?: number } | null>(null);
+  const [customerProfile, setCustomerProfile] = useState<{
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    addressLine1?: string;
+    addressSuburb?: string;
+    addressCity?: string;
+    rewardsPoints?: number;
+  } | null>(null);
+  const [applyLoyaltyPoints, setApplyLoyaltyPoints] = useState(false);
+  const [useLoyaltyPointsInput, setUseLoyaltyPointsInput] = useState(0);
 
   // Session and customer profile for dashboard linking and form prefill
   useEffect(() => {
@@ -263,13 +306,28 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         headers: { Authorization: `Bearer ${s.access_token}` },
       })
         .then((res) => res.json())
-        .then((json: { ok?: boolean; customer?: { firstName?: string; lastName?: string; email?: string; phone?: string; rewardsPoints?: number } }) => {
+        .then((json: {
+          ok?: boolean;
+          customer?: {
+            firstName?: string;
+            lastName?: string;
+            email?: string;
+            phone?: string;
+            addressLine1?: string;
+            addressSuburb?: string;
+            addressCity?: string;
+            rewardsPoints?: number;
+          };
+        }) => {
           if (cancelled || !json.ok || !json.customer) return;
           setCustomerProfile({
             firstName: json.customer.firstName,
             lastName: json.customer.lastName,
             email: json.customer.email,
             phone: json.customer.phone ?? undefined,
+            addressLine1: json.customer.addressLine1 ?? undefined,
+            addressSuburb: json.customer.addressSuburb ?? undefined,
+            addressCity: json.customer.addressCity ?? undefined,
             rewardsPoints: json.customer.rewardsPoints ?? 0,
           });
         })
@@ -290,13 +348,26 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
   useEffect(() => {
     if (!customerProfile) return;
     const name = [customerProfile.firstName, customerProfile.lastName].filter(Boolean).join(' ');
+    const profileAddress = [customerProfile.addressLine1, customerProfile.addressSuburb]
+      .filter(Boolean)
+      .join(', ')
+      .trim();
+    const profileWorkingArea = customerProfile.addressSuburb?.trim() || customerProfile.addressCity?.trim() || '';
     setData((prev) => ({
       ...prev,
       ...(name && !prev.name && { name }),
       ...(customerProfile.email && !prev.email && { email: customerProfile.email }),
       ...(customerProfile.phone && !prev.phone && { phone: customerProfile.phone }),
+      ...(profileAddress && !prev.address && { address: profileAddress }),
+      ...(profileWorkingArea && !prev.workingArea && { workingArea: profileWorkingArea }),
     }));
   }, [customerProfile]);
+
+  useEffect(() => {
+    const sessionEmail = session?.user?.email?.trim();
+    if (!sessionEmail) return;
+    setData((prev) => (prev.email?.trim() ? prev : { ...prev, email: sessionEmail }));
+  }, [session?.user?.email, setData]);
 
   // If Pay Later (Shalean Rewards) is selected but user has no usable balance, reset to Pay Online
   const hasRewardsBalance = (customerProfile?.rewardsPoints ?? 0) > 0;
@@ -443,7 +514,10 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
 
   const estimatedDuration = useMemo(() => estimateBookingDurationRange(data), [data]);
 
-  const optimalTeam = useMemo(() => getWizardOptimalTeamBreakdown(data), [data]);
+  const optimalTeam = useMemo(
+    () => getWizardOptimalTeamBreakdown(data, formData?.quickCleanSettings),
+    [data, formData?.quickCleanSettings]
+  );
 
   useEffect(() => {
     if (data.teamSizeUserOverride) return;
@@ -472,19 +546,17 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
       dataService: data.service,
       wizard: data,
       catalogExtraNames: formData?.extras.all,
+      quickCleanSettings: formData?.quickCleanSettings,
     });
-  }, [lineCalc, data.service, data, data.pricingMode, formData?.extras.all]);
+  }, [lineCalc, data.service, data, data.pricingMode, formData?.extras.all, formData?.quickCleanSettings]);
 
   const pricing = useMemo(() => {
-    const maxBasicH = data.extras.length > 0 ? 8 : 5;
-    const basicHoursReady =
+    const canQuickCleanDisplay =
       data.pricingMode === 'basic' &&
-      data.basicPlannedHours != null &&
-      data.basicPlannedHours >= 2 &&
-      data.basicPlannedHours <= maxBasicH;
+      (data.service === 'standard' || data.service === 'airbnb');
 
-    /** Without API pricing, `lineCalc` is null — still run display pricing for Basic so totals use `calculateBasicV2`, not catalog illustrative ZAR. */
-    if (!formData?.pricing && !basicHoursReady) {
+    /** Without API pricing, `lineCalc` is null — still run display pricing for Quick Clean via tier + extras. */
+    if (!formData?.pricing && !canQuickCleanDisplay) {
       return {
         tipAmount: data.tipAmount,
         discountAmount: 0,
@@ -501,30 +573,56 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
     return computeWizardDisplayPricing({
       data: {
         service: data.service,
+        bedrooms: data.bedrooms,
+        bathrooms: data.bathrooms,
+        extraRooms: data.extraRooms,
         tipAmount: data.tipAmount,
         promoCode: data.promoCode,
         pricingMode: data.pricingMode,
         scheduleEquipmentPref: data.scheduleEquipmentPref,
-        basicPlannedHours: data.basicPlannedHours,
         extras: data.extras,
+        extrasQuantities: data.extrasQuantities,
       },
       lineCalc,
       enginePricing,
+      quickCleanSettings: formData?.quickCleanSettings,
     });
   }, [
     data.service,
+    data.bedrooms,
+    data.bathrooms,
+    data.extraRooms,
     data.tipAmount,
     data.promoCode,
     data.pricingMode,
     data.scheduleEquipmentPref,
-    data.basicPlannedHours,
     data.extras,
+    data.extrasQuantities,
     formData?.pricing,
+    formData?.quickCleanSettings,
     lineCalc,
     enginePricing,
   ]);
 
-  const effRoomCounts = useMemo(() => getEffectiveRoomCounts(data), [data]);
+  const loyaltyBalance = Math.max(0, Math.round(Number(customerProfile?.rewardsPoints) || 0));
+  const showLoyaltyInWizard =
+    (data.service === 'standard' || data.service === 'airbnb') &&
+    loyaltyBalance > 0 &&
+    Boolean(session);
+
+  const effectiveLoyaltyUsePoints = useMemo(() => {
+    if (!applyLoyaltyPoints || !showLoyaltyInWizard) return 0;
+    const raw = Math.max(0, Math.floor(useLoyaltyPointsInput || 0));
+    return Math.min(raw, loyaltyBalance);
+  }, [applyLoyaltyPoints, showLoyaltyInWizard, useLoyaltyPointsInput, loyaltyBalance]);
+
+  useEffect(() => {
+    if (applyLoyaltyPoints && loyaltyBalance > 0) {
+      setUseLoyaltyPointsInput((prev) =>
+        prev <= 0 ? loyaltyBalance : Math.min(prev, loyaltyBalance),
+      );
+    }
+  }, [applyLoyaltyPoints, loyaltyBalance]);
 
   /** Compute expected end time (HH:MM) from start time + max duration hours */
   const expectedEndTime = useMemo(() => {
@@ -579,83 +677,49 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
     return () => { cancelled = true; };
   }, [data.date, data.workingArea, data.time, data.bedrooms, data.bathrooms, data.extras, data.extrasQuantities]);
 
-  const currentExtras = useMemo(() => {
-    if (displayExtrasForService?.length) return displayExtrasForService;
-    return [];
-  }, [displayExtrasForService]);
+  const shortDateLabelForStep4 = useMemo(() => (data.date ? formatDate(data.date) : ''), [data.date]);
 
-  const crewDisplayName = useMemo(() => {
-    const teamService = data.service === 'deep' || data.service === 'move';
-    if (teamService && !data.cleanerId) {
-      return 'Cleaning team';
-    }
-    const c = apiCleaners.find((x) => x.id === data.cleanerId);
-    return c?.name ?? 'Your cleaner';
-  }, [data.service, data.cleanerId, apiCleaners]);
+  const addressLineForStep4 = useMemo(() => {
+    const a = data.address?.trim();
+    const w = data.workingArea?.trim();
+    if (a && w) return `${a} · ${w}`;
+    return a || w || 'Your area';
+  }, [data.address, data.workingArea]);
 
-  const propertySummaryForStep4 = useMemo(() => {
-    if (data.service === 'carpet') {
-      return `${effRoomCounts.bedrooms} Carpets, ${effRoomCounts.bathrooms} Rugs${effRoomCounts.extraRooms > 0 ? `, ${effRoomCounts.extraRooms} Extra Crew` : ''}`;
-    }
-    if (data.propertyType === 'studio') {
-      return `${effRoomCounts.bathrooms} Bath, ${effRoomCounts.extraRooms} extra rooms`;
-    }
-    return `${effRoomCounts.bedrooms} ${data.propertyType === 'office' ? 'Offices' : 'Bed'}, ${effRoomCounts.bathrooms} ${data.propertyType === 'office' ? 'Rooms' : 'Bath'}`;
-  }, [data.service, data.propertyType, effRoomCounts]);
-
-  const extrasSummaryForStep4 = useMemo(() => {
-    const equipmentZar =
-      (data.service === 'standard' || data.service === 'airbnb') && data.scheduleEquipmentPref === 'bring'
-        ? (formData?.equipment?.charge ?? 0)
-        : 0;
-    const zarFmt = (n: number) =>
-      new Intl.NumberFormat('en-ZA', {
-        style: 'currency',
-        currency: 'ZAR',
-        minimumFractionDigits: 0,
-      }).format(n);
-
-    if (data.extras.length === 0) {
-      if (equipmentZar <= 0) return 'None';
-      return `Supplies kit (${zarFmt(equipmentZar)})`;
-    }
-
-    const labels = data.extras.map((e) => {
-      const label = currentExtras.find((ex) => ex.id === e)?.label ?? e;
-      const q = data.extrasQuantities[e];
-      return q != null && q > 1 ? `${label} ×${q}` : label;
-    });
-    const extraLine = `${labels.join(' + ')} (adds time; priced via labour)`;
-    if (equipmentZar <= 0) return extraLine;
-    return `${extraLine} · Supplies kit (${zarFmt(equipmentZar)})`;
-  }, [
-    data.extras,
-    data.extrasQuantities,
-    data.service,
-    data.scheduleEquipmentPref,
-    currentExtras,
-    formData?.equipment?.charge,
-  ]);
-
-  const dateTimeLabelForStep4 = useMemo(
-    () => (data.date ? `${formatDate(data.date)} · ${formatTimeDisplay(data.time)}` : 'To be confirmed'),
+  const summaryDateTimeForStep4 = useMemo(
+    () => (data.date ? `${formatDate(data.date).replace(',', '')} · ${formatTimeDisplay(data.time)}` : 'TBC'),
     [data.date, data.time]
   );
 
-  const shortDateLabelForStep4 = useMemo(() => (data.date ? formatDate(data.date) : ''), [data.date]);
+  const selectedCleanerForStep4 = useMemo(() => {
+    if (!data.cleanerId) return null;
+    const cleaner = apiCleaners.find((c) => c.id === data.cleanerId);
+    if (!cleaner) return null;
+    return {
+      name: cleaner.name,
+      photoUrl: cleaner.photo_url ?? null,
+      rating: Number.isFinite(cleaner.rating) ? cleaner.rating : 0,
+      reviewCount: cleaner.reviews_count ?? 0,
+    };
+  }, [data.cleanerId, apiCleaners]);
+
+  /** Tips are handled after the job; keep checkout totals free of tip on the final step. */
+  useEffect(() => {
+    if (step !== 4) return;
+    setData((p) => (p.tipAmount === 0 ? p : { ...p, tipAmount: 0 }));
+  }, [step, setData]);
 
   const validateStep = useCallback(() => {
     const newErrors: Partial<Record<keyof BookingFormData, string>> = {};
     if (step === 1) {
       if (!data.workingArea?.trim()) newErrors.workingArea = 'Location is required';
       if (data.pricingMode === 'basic') {
-        const maxBasicH = data.extras.length > 0 ? 8 : 5;
         if (
           data.basicPlannedHours == null ||
           data.basicPlannedHours < 2 ||
-          data.basicPlannedHours > maxBasicH
+          data.basicPlannedHours > 6
         ) {
-          newErrors.basicPlannedHours = 'Choose how many hours you need';
+          newErrors.basicPlannedHours = 'Invalid duration — please refresh and try again';
         }
       }
     }
@@ -671,41 +735,40 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         const t = buildWizardTimeInput(data, formData?.extras.all);
         if (!isBasicPlannedPathExtrasValid(t, data.extras)) {
           newErrors.pricingMode =
-            'Quick Clean covers up to 5 hours with one cleaner and no heavy add-ons. Switch to Premium Clean or adjust your selections.';
-        } else if (
-          data.extras.length > 0 &&
-          data.basicPlannedHours != null &&
-          data.basicPlannedHours !== 8
-        ) {
-          newErrors.basicPlannedHours =
-            'Add-ons use the 8-hour Quick Clean bundle — hours were updated to match.';
+            'Quick Clean allows one cleaner and no heavy add-ons. Switch to Premium Clean or adjust your selections.';
         }
       }
     }
     if (step === 4) {
-      if (!data.name.trim()) newErrors.name = 'Required';
-      if (!data.email.trim()) newErrors.email = 'Valid email required';
-      else if (!validateEmailFormat(data.email)) newErrors.email = 'Valid email required';
       if (!data.phone.trim()) newErrors.phone = 'Required';
-      if (!data.address.trim()) newErrors.address = 'Required';
+      const effEmail = data.email.trim() || session?.user?.email?.trim() || '';
+      if (!effEmail) newErrors.email = 'Add your email for confirmation';
+      else if (!validateEmailFormat(effEmail)) newErrors.email = 'Valid email required';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [step, data, formData?.extras.all]);
+  }, [step, data, formData?.extras.all, session?.user?.email]);
 
   const fetchCheckoutPricingPreview = useCallback(async () => {
     const apiService = formServiceToApi(data.service);
     const requiresTeam = data.service === 'deep' || data.service === 'move';
-    const selectedTeam = requiresTeam ? 'Team booking' : undefined;
+    const selectedTeam =
+      requiresTeam && data.teamId && isBookingTeamName(data.teamId) ? data.teamId : undefined;
+    const team_selection: TeamSelection | undefined = requiresTeam
+      ? selectedTeam
+        ? { type: 'manual', team: selectedTeam }
+        : { type: 'auto' }
+      : undefined;
     const eff = getEffectiveRoomCounts(data);
     const extrasQuantities = buildExtrasQuantitiesByIdFromWizard(data.extras, data.extrasQuantities);
-    const previewRes = await fetch('/api/booking/pricing-preview', {
+    const previewRes = await fetch('/api/booking/verify-price', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         date: data.date,
+        time: data.time,
         service: apiService,
-        preSurgeTotal: pricing.total,
+        ...(team_selection ? { team_selection } : {}),
         selected_team: selectedTeam,
         bedrooms: eff.bedrooms,
         bathrooms: eff.bathrooms,
@@ -725,25 +788,63 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         pricingTeamSize: lineCalc?.breakdown.numberOfCleaners ?? 1,
         equipmentCostCents: companyCostsForEngine?.equipmentCostCents,
         extraCleanerFeeCents: companyCostsForEngine?.extraCleanerFeeCents,
-        serviceFee: pricing.serviceFee,
+        serviceFee: data.pricingMode === 'basic' ? 0 : pricing.serviceFee,
         pricingMode: data.pricingMode,
         basicPlannedHours: data.basicPlannedHours ?? undefined,
         scheduleEquipmentPref: data.scheduleEquipmentPref,
+        address: {
+          suburb: data.workingArea?.trim() || data.address.split(',')[0]?.trim() || data.address,
+          city: BOOKING_DEFAULT_CITY,
+        },
+        discountCode: data.promoCode || undefined,
+        promo_code: data.promoCode || undefined,
+        customerEmail: data.email?.trim() || session?.user?.email?.trim() || undefined,
+        use_points: effectiveLoyaltyUsePoints,
+        client_total: pricing.total,
       }),
     });
     const preview = await previewRes.json();
-    if (!previewRes.ok || !preview.ok) {
+    const previewAccepted = preview.success === true || preview.ok === true;
+    if (!previewAccepted) {
       throw new Error(preview.error || 'Could not confirm pricing for this date.');
     }
     checkoutPricingRef.current = {
-      preSurgeTotal: preview.preSurgeTotalZar,
-      finalTotal: preview.finalTotalZar,
+      price_zar: preview.price_zar,
+      total_amount_cents: preview.total_amount_cents,
     };
-    setConfirmedCheckoutTotalZar(preview.finalTotalZar);
-    return preview as { preSurgeTotalZar: number; finalTotalZar: number };
+    checkoutPricingIntegrityRef.current = {
+      pricing_hash: String(preview.pricing_hash || ''),
+      pricing_snapshot:
+        preview.pricing_snapshot && typeof preview.pricing_snapshot === 'object'
+          ? (preview.pricing_snapshot as Record<string, unknown>)
+          : null,
+      pricing_version:
+        typeof (preview as { pricing_version?: unknown }).pricing_version === 'string'
+          ? (preview as { pricing_version: string }).pricing_version
+          : null,
+      pricing_expires_at:
+        typeof (preview as { pricing_expires_at?: unknown }).pricing_expires_at === 'string'
+          ? (preview as { pricing_expires_at: string }).pricing_expires_at
+          : null,
+      pricing_lock_token:
+        typeof (preview as { pricing_lock_token?: unknown }).pricing_lock_token === 'string'
+          ? (preview as { pricing_lock_token: string }).pricing_lock_token
+          : null,
+    };
+    setConfirmedCheckoutTotalZar(preview.server_total ?? preview.price_zar);
+    return preview as {
+      server_total: number;
+      price_zar: number;
+      total_amount_cents: number;
+      breakdown: FinalPriceBreakdown;
+      pricing_hash: string;
+      pricing_snapshot: Record<string, unknown> | null;
+      pricing_version: string;
+      pricing_expires_at: string;
+      pricing_lock_token: string | null;
+    };
   }, [
     data,
-    pricing.total,
     pricing.discountAmount,
     pricing.engineFinalCents,
     pricing.serviceFee,
@@ -751,37 +852,214 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
     estimatedDuration.maxHours,
     companyCostsForEngine,
     data.pricingMode,
+    data.time,
+    data.address,
+    data.email,
+    data.promoCode,
+    effectiveLoyaltyUsePoints,
+    session?.user?.email,
   ]);
 
   useEffect(() => {
-    if (step !== 4 || !data.date || !data.time) {
+    if (step !== 1) {
+      setStep1AuthoritativeTotalZar(null);
+      return;
+    }
+    if ((data.service !== 'standard' && data.service !== 'airbnb') || !data.workingArea?.trim()) {
+      setStep1AuthoritativeTotalZar(null);
+      return;
+    }
+
+    let cancelled = false;
+    const toYmd = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+    const run = async () => {
+      try {
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        let chosen: { date: string; time: string } | null = null;
+        for (let i = 0; i < 14; i++) {
+          const d = new Date(start);
+          d.setDate(start.getDate() + i);
+          const date = toYmd(d);
+          const availRes = await fetch('/api/availability', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              date,
+              suburb: data.workingArea?.trim() || '',
+              city: BOOKING_DEFAULT_CITY,
+              service_type: data.service === 'airbnb' ? 'airbnb' : 'standard',
+              pricing_mode: data.pricingMode === 'basic' ? 'quick' : 'premium',
+              bedrooms: data.bedrooms,
+              bathrooms: data.bathrooms,
+              extra_rooms: data.extraRooms,
+              extras: data.extras,
+              extrasQuantities: data.extrasQuantities,
+              has_extra_cleaner: data.extras.includes('extra_cleaner'),
+            }),
+          });
+          const availJson = (await availRes.json().catch(() => null)) as
+            | {
+                ok?: boolean;
+                slots?: Array<{ start: string; available: boolean; recommended?: boolean }>;
+              }
+            | null;
+          if (!availRes.ok || !availJson?.ok || !Array.isArray(availJson.slots)) continue;
+          const slot =
+            availJson.slots.find((s) => s.available && s.recommended) ??
+            availJson.slots.find((s) => s.available);
+          if (slot?.start) {
+            chosen = { date, time: slot.start };
+            break;
+          }
+        }
+
+        if (!chosen) {
+          if (!cancelled) setStep1AuthoritativeTotalZar(null);
+          return;
+        }
+
+        const apiService = formServiceToApi(data.service);
+        const requiresTeam = data.service === 'deep' || data.service === 'move';
+        const selectedTeam =
+          requiresTeam && data.teamId && isBookingTeamName(data.teamId) ? data.teamId : undefined;
+        const team_selection: TeamSelection | undefined = requiresTeam
+          ? selectedTeam
+            ? { type: 'manual', team: selectedTeam }
+            : { type: 'auto' }
+          : undefined;
+        const eff = getEffectiveRoomCounts(data);
+        const extrasQuantities = buildExtrasQuantitiesByIdFromWizard(data.extras, data.extrasQuantities);
+
+        const previewRes = await fetch('/api/booking/verify-price', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            date: chosen.date,
+            time: chosen.time,
+            service: apiService,
+            ...(team_selection ? { team_selection } : {}),
+            selected_team: selectedTeam,
+            bedrooms: eff.bedrooms,
+            bathrooms: eff.bathrooms,
+            extraRooms: eff.extraRooms,
+            extras: data.extras,
+            extrasQuantities,
+            frequency: 'one-time',
+            tipAmount: data.tipAmount,
+            discountAmount: pricing.discountAmount,
+            numberOfCleaners: lineCalc?.breakdown.numberOfCleaners ?? 1,
+            provideEquipment:
+              (data.service === 'standard' || data.service === 'airbnb') &&
+              data.scheduleEquipmentPref === 'bring',
+            carpetDetails: buildCarpetDetailsForPricing(data),
+            pricingEngineFinalCents: pricing.engineFinalCents ?? undefined,
+            pricingTotalHours: estimatedDuration.maxHours,
+            pricingTeamSize: lineCalc?.breakdown.numberOfCleaners ?? 1,
+            equipmentCostCents: companyCostsForEngine?.equipmentCostCents,
+            extraCleanerFeeCents: companyCostsForEngine?.extraCleanerFeeCents,
+            serviceFee: data.pricingMode === 'basic' ? 0 : pricing.serviceFee,
+            pricingMode: data.pricingMode,
+            basicPlannedHours: data.basicPlannedHours ?? undefined,
+            scheduleEquipmentPref: data.scheduleEquipmentPref,
+            address: {
+              suburb: data.workingArea?.trim() || data.address.split(',')[0]?.trim() || data.address,
+              city: BOOKING_DEFAULT_CITY,
+            },
+            discountCode: data.promoCode || undefined,
+            promo_code: data.promoCode || undefined,
+            customerEmail: data.email?.trim() || session?.user?.email?.trim() || undefined,
+            use_points: effectiveLoyaltyUsePoints,
+            client_total: pricing.total,
+          }),
+        });
+        const preview = (await previewRes.json().catch(() => null)) as
+          | { success?: boolean; ok?: boolean; price_zar?: number }
+          | null;
+        const ok = preview?.success === true || preview?.ok === true;
+        if (!cancelled) {
+          setStep1AuthoritativeTotalZar(ok && typeof preview?.price_zar === 'number' ? preview.price_zar : null);
+        }
+      } catch {
+        if (!cancelled) setStep1AuthoritativeTotalZar(null);
+      }
+    };
+
+    const t = window.setTimeout(run, 350);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [
+    step,
+    data.service,
+    data.workingArea,
+    data.pricingMode,
+    data.bedrooms,
+    data.bathrooms,
+    data.extraRooms,
+    data.extras,
+    data.extrasQuantities,
+    data.tipAmount,
+    data.scheduleEquipmentPref,
+    data.teamId,
+    data.address,
+    data.promoCode,
+    data.email,
+    data.basicPlannedHours,
+    pricing.discountAmount,
+    pricing.total,
+    pricing.engineFinalCents,
+    pricing.serviceFee,
+    lineCalc,
+    estimatedDuration.maxHours,
+    companyCostsForEngine,
+    effectiveLoyaltyUsePoints,
+    session?.user?.email,
+  ]);
+
+  useEffect(() => {
+    if (step < 2 || !data.date || !data.time) {
       setConfirmedCheckoutTotalZar(null);
       return;
     }
 
     let cancelled = false;
-    fetchCheckoutPricingPreview()
-      .then((preview) => {
-        if (!cancelled) {
-          setConfirmedCheckoutTotalZar(preview.finalTotalZar);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setConfirmedCheckoutTotalZar(null);
-        }
-      });
+    const t = window.setTimeout(() => {
+      fetchCheckoutPricingPreview()
+        .then((preview) => {
+          if (!cancelled) {
+            setConfirmedCheckoutTotalZar(preview.price_zar);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setConfirmedCheckoutTotalZar(null);
+          }
+        });
+    }, 300);
 
     return () => {
       cancelled = true;
+      window.clearTimeout(t);
     };
-  }, [step, data.date, data.time, fetchCheckoutPricingPreview]);
+  }, [step, data.date, data.time, fetchCheckoutPricingPreview, effectiveLoyaltyUsePoints, applyLoyaltyPoints]);
 
   const buildBookingPayload = useCallback(
     (paymentReference: string | null) => {
       const totals = checkoutPricingRef.current;
-      return buildWizardPendingBookingPayload(
-        data,
+      const integrity = checkoutPricingIntegrityRef.current;
+      const profileName = [customerProfile?.firstName, customerProfile?.lastName].filter(Boolean).join(' ');
+      const merged: BookingFormData = {
+        ...data,
+        email: data.email.trim() || session?.user?.email?.trim() || data.email,
+        name: data.name.trim() || profileName || data.name,
+        address: data.address.trim() || data.workingArea.trim() || data.address,
+      };
+      const payload = buildWizardPendingBookingPayload(
+        merged,
         paymentReference,
         expectedEndTime,
         formData?.equipment?.charge,
@@ -789,26 +1067,60 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
           pricing: {
             total: pricing.total,
             discountAmount: pricing.discountAmount,
-            serviceFee: pricing.serviceFee,
+            serviceFee: data.pricingMode === 'basic' ? 0 : pricing.serviceFee,
             frequencyDiscount: pricing.frequencyDiscount,
             engineFinalCents: pricing.engineFinalCents,
           },
           lineCalc,
-          checkoutPreSurge: totals?.preSurgeTotal,
-          checkoutFinal: totals?.finalTotal,
+          checkoutTotalZar: totals?.price_zar,
           estimatedMaxHours: estimatedDuration.maxHours,
           companyCosts: companyCostsForEngine,
+          use_points: effectiveLoyaltyUsePoints,
         }
       );
+      if (integrity?.pricing_hash) {
+        (payload as unknown as Record<string, unknown>).pricing_hash = integrity.pricing_hash;
+      }
+      if (integrity?.pricing_snapshot) {
+        (payload as unknown as Record<string, unknown>).pricing_snapshot = integrity.pricing_snapshot;
+      }
+      if (integrity?.pricing_version) {
+        (payload as unknown as Record<string, unknown>).pricing_version = integrity.pricing_version;
+      }
+      if (integrity?.pricing_expires_at) {
+        (payload as unknown as Record<string, unknown>).pricing_expires_at = integrity.pricing_expires_at;
+      }
+      if (integrity?.pricing_lock_token) {
+        (payload as unknown as Record<string, unknown>).pricing_lock_token = integrity.pricing_lock_token;
+      }
+      (payload as unknown as Record<string, unknown>).idempotency_key = [
+        merged.email.trim().toLowerCase(),
+        merged.service,
+        merged.date,
+        merged.time,
+      ].join('|');
+      return payload;
     },
-    [data, pricing, expectedEndTime, formData?.equipment?.charge, companyCostsForEngine, estimatedDuration.maxHours, lineCalc]
+    [
+      data,
+      pricing,
+      expectedEndTime,
+      formData?.equipment?.charge,
+      companyCostsForEngine,
+      estimatedDuration.maxHours,
+      lineCalc,
+      effectiveLoyaltyUsePoints,
+      session?.user?.email,
+      customerProfile?.firstName,
+      customerProfile?.lastName,
+    ]
   );
 
   type PaystackCheckoutResult =
     | { ok: true; redirectUrl: string }
     | { ok: false; duplicate: true; existingBookingId: string; message: string };
 
-  const runPaystackCheckoutFlow = useCallback(async (): Promise<PaystackCheckoutResult> => {
+  const runPaystackCheckoutFlow = useCallback(async (allowRetry = true): Promise<PaystackCheckoutResult> => {
     await fetchCheckoutPricingPreview();
     const pendingBody = buildBookingPayload(null);
     const pendingRes = await fetch('/api/bookings/pending', {
@@ -821,6 +1133,8 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
       error?: string;
       existingBookingId?: string;
       bookingId?: string;
+      code?: string;
+      message?: string;
     };
     if (
       pendingRes.status === 409 &&
@@ -836,8 +1150,46 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
           'You already have an unpaid booking for this slot. Pay for it or cancel it, then try again.',
       };
     }
+    if (
+      pendingRes.status === 409 &&
+      typeof pendingJson.bookingId === 'string' &&
+      pendingJson.bookingId
+    ) {
+      return {
+        ok: false,
+        duplicate: true,
+        existingBookingId: pendingJson.bookingId,
+        message:
+          pendingJson.error ||
+          pendingJson.message ||
+          'You already have an unpaid booking for this slot. Pay for it or cancel it, then try again.',
+      };
+    }
+    if (pendingRes.status === 409 && pendingJson.code === 'PRICING_EXPIRED' && allowRetry) {
+      await fetchCheckoutPricingPreview();
+      return runPaystackCheckoutFlow(false);
+    }
+    if (
+      pendingRes.status === 400 &&
+      pendingJson.error &&
+      pendingJson.error.includes('Total does not match server pricing') &&
+      typeof (pendingJson as { server_total?: unknown }).server_total === 'number'
+    ) {
+      const serverTotal = (pendingJson as { server_total: number }).server_total;
+      checkoutPricingRef.current = {
+        price_zar: serverTotal,
+        total_amount_cents: Math.round(serverTotal * 100),
+      };
+      setConfirmedCheckoutTotalZar(serverTotal);
+      throw new Error('Price updated due to latest availability. Please review the new total and tap Pay now again.');
+    }
     if (!pendingRes.ok || !pendingJson.ok) {
-      throw new Error(pendingJson.error || 'Could not create booking for payment.');
+      throw new Error(
+        pendingJson.error ||
+          pendingJson.message ||
+          pendingJson.code ||
+          'Could not create booking for payment.'
+      );
     }
     const bookingId = pendingJson.bookingId as string;
     const initRes = await fetch('/api/paystack/initialize', {
@@ -883,7 +1235,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           bookingId: unpaidDuplicateBookingId,
-          email: data.email.trim(),
+          email: data.email.trim() || session?.user?.email?.trim() || '',
         }),
       });
       const json = (await res.json()) as { ok?: boolean; error?: string };
@@ -906,7 +1258,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
     } finally {
       setDuplicateUnpaidAction('idle');
     }
-  }, [unpaidDuplicateBookingId, data.email, runPaystackCheckoutFlow]);
+  }, [unpaidDuplicateBookingId, data.email, session?.user?.email, runPaystackCheckoutFlow]);
 
   const submitGuestBooking = useCallback(async () => {
     setPaymentError('');
@@ -946,59 +1298,61 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
     }
   }, [buildBookingPayload, router, data.date, data.time, fetchCheckoutPricingPreview]);
 
-  const handleNext = () => {
-    if (!validateStep()) return;
-    if (step === 4) {
-      if (data.paymentMethod === 'later') {
-        if (formData?.allowPayLater === false) {
-          setPaymentError('Pay later is not available. Please pay online.');
-          return;
-        }
-        setIsProcessing(true);
-        submitGuestBooking();
-        return;
-      }
-      setPaymentError('');
-      setUnpaidDuplicateBookingId(null);
-
-      const paystackKey = (process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '').trim();
-      /** Local dev: guest booking API allows unpaid confirmation when Paystack key is missing */
-      const devGuestCheckout =
-        process.env.NODE_ENV === 'development' && !paystackKey;
-
-      if (devGuestCheckout) {
-        if (typeof console !== 'undefined') {
-          console.warn(
-            '[booking] NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY is not set — completing booking without Paystack (development only). Add pk_test_… to .env.local to test card checkout.'
-          );
-        }
-        setIsProcessing(true);
-        submitGuestBooking();
-        return;
-      }
-
-      if (!paystackKey) {
-        setPaymentError(
-          'Payment system is not configured. Add NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY to your environment (see .env.example) or contact support.'
-        );
+  const startCheckout = useCallback(() => {
+    if (data.paymentMethod === 'later') {
+      if (formData?.allowPayLater === false) {
+        setPaymentError('Pay later is not available. Please pay online.');
         return;
       }
       setIsProcessing(true);
-      void (async () => {
-        try {
-          const result = await runPaystackCheckoutFlow();
-          if (!result.ok) {
-            setPaymentError(result.message);
-            setUnpaidDuplicateBookingId(result.existingBookingId);
-            setIsProcessing(false);
-            return;
-          }
-          window.location.href = result.redirectUrl;
-        } catch (e) {
-          setPaymentError(e instanceof Error ? e.message : 'Failed to open payment. Please try again.');
+      submitGuestBooking();
+      return;
+    }
+    setPaymentError('');
+    setUnpaidDuplicateBookingId(null);
+
+    const paystackKey = (process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '').trim();
+    const devGuestCheckout = process.env.NODE_ENV === 'development' && !paystackKey;
+
+    if (devGuestCheckout) {
+      if (typeof console !== 'undefined') {
+        console.warn(
+          '[booking] NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY is not set — completing booking without Paystack (development only). Add pk_test_… to .env.local to test card checkout.'
+        );
+      }
+      setIsProcessing(true);
+      submitGuestBooking();
+      return;
+    }
+
+    if (!paystackKey) {
+      setPaymentError(
+        'Payment system is not configured. Add NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY to your environment (see .env.example) or contact support.'
+      );
+      return;
+    }
+    setIsProcessing(true);
+    void (async () => {
+      try {
+        const result = await runPaystackCheckoutFlow();
+        if (!result.ok) {
+          setPaymentError(result.message);
+          setUnpaidDuplicateBookingId(result.existingBookingId);
           setIsProcessing(false);
+          return;
         }
-      })();
+        window.location.href = result.redirectUrl;
+      } catch (e) {
+        setPaymentError(e instanceof Error ? e.message : 'Failed to open payment. Please try again.');
+        setIsProcessing(false);
+      }
+    })();
+  }, [data.paymentMethod, formData?.allowPayLater, submitGuestBooking, runPaystackCheckoutFlow]);
+
+  const handleNext = () => {
+    if (!validateStep()) return;
+    if (step === 4) {
+      startCheckout();
       return;
     }
     const nextStep = step + 1;
@@ -1020,23 +1374,47 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
       behavior: 'smooth'
     });
   };
-  const handleApplyPromo = () => {
+  const handleApplyPromo = async () => {
     const code = promoInput.trim().toUpperCase();
     if (!code) {
       setPromoError('Please enter a code');
       return;
     }
     if (BOOKING_PROMO_CODES[code]) {
-      setData(prev => ({
-        ...prev,
-        promoCode: code
-      }));
+      setData((prev) => ({ ...prev, promoCode: code }));
       setPromoError('');
-    } else {
-      setPromoError('Invalid promo code. Try SHALEAN10, SAVE50, or NEWCLIENT.');
+      return;
+    }
+    setPromoError('');
+    try {
+      const apiService = formServiceToApi(data.service);
+      const subtotal = pricing.total + pricing.discountAmount;
+      const res = await fetch('/api/discount-codes/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code,
+          service_type: apiService,
+          subtotal,
+        }),
+      });
+      const j = (await res.json()) as { ok?: boolean; error?: string };
+      if (res.ok && j.ok) {
+        setData((prev) => ({ ...prev, promoCode: code }));
+        setPromoError('');
+      } else {
+        setPromoError(j.error || 'Invalid or expired promo code.');
+      }
+    } catch {
+      setPromoError('Could not validate code. Try again.');
     }
   };
-  if (formDataLoading) {
+
+  const displayTotalFromStep2 = step >= 2 && confirmedCheckoutTotalZar != null
+    ? confirmedCheckoutTotalZar
+    : pricing.total;
+
+  if (formDataLoading && !formData) {
     return (
       <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
         <div className="text-center">
@@ -1055,7 +1433,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         onBack={handleBack}
         onContinue={handleNext}
         pricingModeError={errors.pricingMode}
-        pricing={pricing}
+        pricing={{ ...pricing, total: displayTotalFromStep2 }}
         serviceTitle={displayServices.find((s) => s.id === data.service)?.title ?? 'Cleaning'}
         addonTilesFromPricing={
           data.service === 'deep' ||
@@ -1079,7 +1457,8 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         onBack={() => router.push('/')}
         onContinue={handleNext}
         summaryTone={data.pricingMode}
-        liveTotalZar={pricing.total}
+        liveTotalZar={step1AuthoritativeTotalZar ?? pricing.total}
+        earliestSlotPriceHint={step1AuthoritativeTotalZar != null}
         durationLabel={estimatedDuration.label}
         engineMeta={pricing.engineMeta}
         pricingContext={
@@ -1089,7 +1468,10 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
                   pricing.engineMeta.estimatedHours ?? pricing.engineMeta.estimatedJobHours,
                 teamSize: pricing.engineMeta.teamSize,
               }
-            : null
+            : {
+                estimatedJobHours: optimalTeam.totalWorkHours,
+                teamSize: optimalTeam.teamSize,
+              }
         }
         dbPricingRows={pricing.dbPricingRows}
         pricingV2={pricing.v2Breakdown}
@@ -1100,6 +1482,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
           formData?.extras?.prices?.['Carpet extra cleaner'] ??
           formData?.extras?.prices?.['Extra Cleaner']
         }
+        quickCleanSettings={formData?.quickCleanSettings}
       />
     );
   }
@@ -1111,7 +1494,7 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
         setData={setData}
         onBack={handleBack}
         onContinue={handleNext}
-        pricing={pricing}
+        pricing={{ ...pricing, total: displayTotalFromStep2 }}
         serviceTitle={displayServices.find((s) => s.id === data.service)?.title ?? 'Cleaning'}
         apiCleaners={apiCleaners}
         cleanersLoading={cleanersLoading}
@@ -1150,27 +1533,26 @@ export const BookingSystem = ({ initialFormData, initialService }: BookingSystem
           )
         }
         serviceTitle={serviceTitle}
-        propertySummary={propertySummaryForStep4}
-        dateTimeLabel={dateTimeLabelForStep4}
-        shortDateLabel={shortDateLabelForStep4}
-        cleanerLabel={crewDisplayName}
-        cleanerPhotoUrl={
-          data.teamId ? null : apiCleaners.find((c) => c.id === data.cleanerId)?.photo_url ?? null
+        summaryDateTime={summaryDateTimeForStep4}
+        addressLine={addressLineForStep4}
+        numberOfCleaners={lineCalc?.breakdown.numberOfCleaners ?? 1}
+        workHoursLabel={
+          data.time && expectedEndTime
+            ? `${formatTimeDisplay(data.time)} - ${formatTimeDisplay(expectedEndTime)} (${estimatedDuration.label})`
+            : estimatedDuration.label
         }
-        extrasSummary={extrasSummaryForStep4}
-        totalZar={confirmedCheckoutTotalZar ?? pricing.total}
+        selectedCleaner={selectedCleanerForStep4}
+        shortDateLabel={shortDateLabelForStep4}
+        totalZar={displayTotalFromStep2}
         discountAmount={pricing.discountAmount}
         appliedPromoCode={data.promoCode}
-        enginePriceRows={pricing.dbPricingRows}
-        pricingContext={
-          pricing.engineMeta
-            ? {
-                estimatedJobHours:
-                  pricing.engineMeta.estimatedHours ?? pricing.engineMeta.estimatedJobHours,
-                teamSize: pricing.engineMeta.teamSize,
-              }
-            : null
-        }
+        accountEmail={session?.user?.email ?? null}
+        showLoyaltyBlock={showLoyaltyInWizard}
+        loyaltyBalance={loyaltyBalance}
+        applyLoyaltyPoints={applyLoyaltyPoints}
+        onApplyLoyaltyPointsChange={setApplyLoyaltyPoints}
+        useLoyaltyPointsInput={useLoyaltyPointsInput}
+        onUseLoyaltyPointsInputChange={setUseLoyaltyPointsInput}
       />
     );
   }

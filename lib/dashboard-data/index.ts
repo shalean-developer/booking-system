@@ -22,7 +22,7 @@ export async function getCustomerDashboardData(
 ): Promise<{ customerId: string; stats: import('./customer-stats').CustomerDashboardStats } | null> {
   const { data: customer, error } = await supabase
     .from('customers')
-    .select('id, rewards_points')
+    .select('id, rewards_points, loyalty_lifetime_points')
     .eq('auth_user_id', authUserId)
     .maybeSingle();
 
@@ -32,7 +32,8 @@ export async function getCustomerDashboardData(
   const stats = await getCustomerDashboardStats(
     supabase,
     customer.id as string,
-    Math.max(0, Math.round(Number(customer.rewards_points) || 0))
+    Math.max(0, Math.round(Number(customer.rewards_points) || 0)),
+    (customer as { loyalty_lifetime_points?: number | null }).loyalty_lifetime_points
   );
 
   return { customerId: customer.id as string, stats };

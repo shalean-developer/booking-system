@@ -19,9 +19,7 @@ function normalizeWizardParsed(merged: BookingFormData): BookingFormData {
     const t = rawBasicH.trim();
     if (t !== '') coercedBasicH = Number(t);
   }
-  const hasExtras =
-    Array.isArray(merged.extras) && merged.extras.length > 0;
-  const maxBasicH = hasExtras ? 8 : 5;
+  const maxBasicH = 6;
   const basicH =
     mode === 'premium'
       ? null

@@ -18,11 +18,13 @@ export function UpsellCard({ content, onUpgrade, className }: UpsellCardProps) {
       )}
     >
       <h3 className="text-sm font-semibold text-gray-900 leading-snug">{content.title}</h3>
-      <p className="mt-1 text-sm leading-snug text-gray-600">{content.body}</p>
+      {content.body ? (
+        <p className="mt-1 text-xs text-gray-600 leading-snug">{content.body}</p>
+      ) : null}
       <button
         type="button"
         onClick={onUpgrade}
-        className="mt-3 w-full rounded-lg bg-purple-600 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+        className="mt-3 w-full rounded-lg bg-purple-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
       >
         {content.cta}
       </button>

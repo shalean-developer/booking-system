@@ -1,4 +1,5 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
+import { applyLoyaltyAndReferralRewards } from './loyalty-rewards.ts';
 import { uploadBookingInvoicePdf } from './invoice-pdf-storage.ts';
 import { createZohoBooksInvoice, fetchZohoInvoiceNumber, fetchZohoInvoicePdf } from './zoho-books.ts';
 import { toZohoInvoiceBookingInput } from './zoho-invoice-payload.ts';
@@ -13,11 +14,13 @@ function generateManageToken(): string {
 
 export type BookingRow = {
   id: string;
+  customer_id?: string | null;
   service_type: string | null;
   customer_name: string | null;
   customer_email: string | null;
   customer_phone?: string | null;
   total_amount: number | null;
+  points_redeemed?: number | null;
   status: string | null;
   payment_reference: string | null;
   paystack_ref: string | null;
@@ -210,6 +213,18 @@ export async function finalizePaidBooking(params: {
     amountZar,
   });
 
+  try {
+    await applyLoyaltyAndReferralRewards({
+      supabase,
+      bookingId: booking.id,
+      customerId: booking.customer_id ?? null,
+      amountZar,
+      pointsRedeemed: Math.max(0, Math.floor(Number(booking.points_redeemed) || 0)),
+    });
+  } catch (e) {
+    console.error('[loyalty] applyLoyaltyAndReferralRewards', e);
+  }
+
   return { ok: true, zoho_invoice_id: zohoId };
 }
 
@@ -218,7 +233,7 @@ export async function fetchBookingByPaystackReference(
   reference: string,
 ): Promise<BookingRow | null> {
   const selectCols =
-    'id, service_type, customer_name, customer_email, customer_phone, total_amount, status, payment_reference, paystack_ref, zoho_invoice_id, invoice_url, payment_status, booking_date, booking_time, address_line1, address_suburb, address_city, notes, tip_amount, service_fee, frequency_discount, frequency, surge_amount, price_snapshot, equipment_required, equipment_fee, manage_token';
+    'id, customer_id, points_redeemed, service_type, customer_name, customer_email, customer_phone, total_amount, status, payment_reference, paystack_ref, zoho_invoice_id, invoice_url, payment_status, booking_date, booking_time, address_line1, address_suburb, address_city, notes, tip_amount, service_fee, frequency_discount, frequency, surge_amount, price_snapshot, equipment_required, equipment_fee, manage_token';
 
   if (reference.startsWith('booking-')) {
     const id = reference.slice('booking-'.length);

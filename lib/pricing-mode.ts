@@ -3,17 +3,13 @@
  * Eligibility + basic math live here — `lib/pricing-engine` composes with the premium pipeline.
  */
 
-import {
-  calculateJobHours,
-  parseAddOnsFromWizardExtras,
-  type TimeInput,
-} from '@/lib/time-estimation';
+import { parseAddOnsFromWizardExtras, type TimeInput } from '@/lib/time-estimation';
 import type { WizardServiceKey } from '@/lib/pricing-service-config';
 
 export type PricingMode = 'basic' | 'premium';
 
-/** Quick Clean: estimated job hours cap (time model). */
-export const BASIC_MAX_JOB_HOURS = 5;
+/** Quick Clean: max scheduled hours aligned with unified engine clamp (9h). */
+export const BASIC_MAX_JOB_HOURS = 9;
 
 /** Extras / add-ons allowed on Basic (planned-hours) path. */
 export function isBasicPlannedPathExtrasValid(
@@ -46,16 +42,14 @@ export function wizardHasExtraCleaner(extrasIds: string[]): boolean {
 }
 
 /**
- * Quick Clean: Standard/Airbnb only, ≤5h, single cleaner, no heavy add-ons / extra cleaner.
+ * Quick Clean: Standard/Airbnb only, single cleaner, no heavy add-ons / extra cleaner.
+ * Pricing uses bedrooms-only tiers; job-hour estimate (bathrooms) does not gate eligibility.
  */
 export function isBasicEligible(
   time: TimeInput,
   extrasIds: string[] = []
 ): boolean {
-  if (!isBasicPlannedPathExtrasValid(time, extrasIds)) return false;
-  const hours = calculateJobHours(time);
-  if (hours > BASIC_MAX_JOB_HOURS) return false;
-  return true;
+  return isBasicPlannedPathExtrasValid(time, extrasIds);
 }
 
 /** Rebuild `TimeInput` from API/booking payload (server validation). */

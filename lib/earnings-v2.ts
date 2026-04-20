@@ -59,6 +59,9 @@ function distributeRemainderAcrossShares(base: number[], remainder: number): num
  * INVARIANT (earnings + pricing): `service_fee`, `tip_amount`, `equipment_cost`, and `extra_cleaner_fee`
  * must never enter pool / commission / cost-floor math except via this subtraction from `total_amount`.
  * Call sites must pass the same cents stored on the booking row.
+ *
+ * Quick Clean (all-in, `service_fee` = 0): commission applies to the full customer total minus tips
+ * and company lines — platform share is implicit in `total - pool - tips` (no separate fee carve-out).
  */
 export function commissionSubtotalCents(input: {
   totalAmountCents: number;

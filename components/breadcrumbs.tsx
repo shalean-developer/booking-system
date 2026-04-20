@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ChevronRight, Home } from 'lucide-react';
 import { stringifyStructuredData } from '@/lib/structured-data-validator';
+import { SITE_URL } from '@/lib/metadata';
 
 interface BreadcrumbItem {
   label?: string;
@@ -29,7 +30,7 @@ export function Breadcrumbs({ items }: BreadcrumbsProps) {
       "@type": "ListItem",
       "position": index + 1,
       "name": item.label,
-      "item": `https://shalean.co.za${item.href}`
+      "item": `${SITE_URL}${item.href.startsWith("/") ? item.href : `/${item.href}`}`
     }))
   };
 

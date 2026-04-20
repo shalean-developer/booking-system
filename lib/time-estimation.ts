@@ -175,10 +175,13 @@ export function validateTimeDrivenHours(
   }
 }
 
+/**
+ * Default team count for v1 pricing (`getRecommendedTeamSize`). Prefer **1 cleaner** until the
+ * job exceeds one full-day shift; above that, ~one cleaner per 8h (capped at 3).
+ */
 function teamSizeFromHoursHeuristic(hours: number): number {
-  if (hours <= 4) return 1;
-  if (hours <= 8) return 2;
-  return 3;
+  if (hours <= 8) return 1;
+  return Math.min(3, Math.ceil(hours / 8));
 }
 
 export function getRecommendedTeamSize(

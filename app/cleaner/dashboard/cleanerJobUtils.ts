@@ -40,6 +40,7 @@ export function estimatePayRands(
 function dbToUiStatus(db: string): JobStatus {
   if (db === 'completed') return 'completed';
   if (db === 'in-progress') return 'in_progress';
+  if (db === 'arrived') return 'arrived';
   if (db === 'on_my_way') return 'on_my_way';
   if (db === 'assigned') return 'assigned';
   if (db === 'accepted') return 'accepted';
@@ -140,17 +141,19 @@ export function pickActiveRawBooking(
       s === 'assigned' ||
       s === 'accepted' ||
       s === 'on_my_way' ||
+      s === 'arrived' ||
       s === 'in-progress'
     );
   });
   if (active.length === 0) return null;
   const rank: Record<string, number> = {
     'in-progress': 0,
-    on_my_way: 1,
-    assigned: 2,
-    accepted: 3,
-    pending: 4,
-    paid: 5,
+    arrived: 1,
+    on_my_way: 2,
+    assigned: 3,
+    accepted: 4,
+    pending: 5,
+    paid: 6,
   };
   active.sort((a, b) => (rank[String(a.status)] ?? 9) - (rank[String(b.status)] ?? 9));
   return active[0];

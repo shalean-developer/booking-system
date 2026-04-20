@@ -286,7 +286,9 @@ export function AnalyticsClient({ cleaner }: AnalyticsClientProps) {
                       style={{ fontSize: '10px' }}
                     />
                     <Tooltip
-                      formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
+                      formatter={(value) =>
+                        formatCurrency(typeof value === 'number' ? value : Number(value) || 0)
+                      }
                       labelFormatter={(label) => formatDate(label)}
                       contentStyle={{ fontSize: '12px', padding: '8px' }}
                     />
@@ -527,11 +529,11 @@ export function AnalyticsClient({ cleaner }: AnalyticsClientProps) {
                         />
                         <YAxis style={{ fontSize: '10px' }} />
                         <Tooltip
-                          formatter={(value: number | undefined, name?: string) => {
-                            const safe = value ?? 0;
-                            if (name === 'count') return [`${safe} reviews`, 'Count'];
-                            if (name === 'avg_rating') return [`${safe.toFixed(1)}★`, 'Avg Rating'];
-                            return safe;
+                          formatter={(value, name) => {
+                            const n = typeof value === 'number' ? value : Number(value) || 0;
+                            if (name === 'count') return [`${n} reviews`, 'Count'];
+                            if (name === 'avg_rating') return [`${n.toFixed(1)}★`, 'Avg Rating'];
+                            return [String(n), String(name ?? '')];
                           }}
                           labelFormatter={(label) => formatDate(label)}
                           contentStyle={{ fontSize: '12px', padding: '8px' }}

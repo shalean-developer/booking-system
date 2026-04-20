@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { ensureCustomerReferralCode } from '@/lib/loyalty/referral-code-server';
 
 /**
  * API endpoint to link existing customer profiles to auth users
@@ -11,7 +12,7 @@ export async function POST(req: Request) {
   
   try {
     const body = await req.json();
-    const { email, auth_user_id, profile, referred_by_customer_id } = body;
+    const { email, auth_user_id, profile, referred_by_customer_id, referral_code: referralCodeRaw } = body;
 
     console.log('Link request:', { email, auth_user_id, referred_by_customer_id });
 
@@ -58,6 +59,15 @@ export async function POST(req: Request) {
         }
       }
     }
+    if (!validReferrerId && typeof referralCodeRaw === 'string' && referralCodeRaw.trim()) {
+      const code = referralCodeRaw.trim().toUpperCase();
+      const { data: byCode } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('referral_code', code)
+        .maybeSingle();
+      if (byCode?.id) validReferrerId = byCode.id as string;
+    }
 
     // Search for existing customer with matching email (case insensitive)
     console.log('Searching for existing customer profile...');
@@ -97,6 +107,7 @@ export async function POST(req: Request) {
 
       if (Object.keys(updatePayload).length === 0) {
         console.log('ℹ️ Customer profile already linked and up to date.');
+        await ensureCustomerReferralCode(supabase, existingCustomer.id);
         return NextResponse.json({
           ok: true,
           linked: true,
@@ -126,6 +137,7 @@ export async function POST(req: Request) {
       }
 
       console.log('✅ Customer profile linked successfully!');
+      await ensureCustomerReferralCode(supabase, updatedCustomer.id);
       return NextResponse.json({
         ok: true,
         linked: true,
@@ -162,6 +174,10 @@ export async function POST(req: Request) {
       );
     }
 
+    if (createdCustomer?.id) {
+      await ensureCustomerReferralCode(supabase, createdCustomer.id);
+    }
+
     if (
       createdCustomer?.id &&
       validReferrerId &&
@@ -175,6 +191,16 @@ export async function POST(req: Request) {
         console.log('ℹ️ referred_by_customer_id column not on customers; skipping DB link');
       } else if (refErr) {
         console.warn('Could not store referral on customer:', refErr.message);
+      } else {
+        const { error: insRef } = await supabase.from('referrals').insert({
+          referrer_id: validReferrerId,
+          referred_user_id: createdCustomer.id,
+          status: 'pending',
+          reward_granted: false,
+        });
+        if (insRef && insRef.code !== '23505') {
+          console.warn('referrals insert:', insRef.message);
+        }
       }
     }
 

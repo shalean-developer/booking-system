@@ -234,6 +234,7 @@ export function useCleanerDashboardData() {
                 'assigned',
                 'accepted',
                 'on_my_way',
+                'arrived',
                 'in-progress',
               ].includes(b.status),
             )
@@ -349,6 +350,7 @@ function useJobsImpl() {
             j.status === 'accepted' ||
             j.status === 'assigned' ||
             j.status === 'on_my_way' ||
+            j.status === 'arrived' ||
             j.status === 'in_progress',
         ),
       );
@@ -423,6 +425,11 @@ function useJobsImpl() {
       if (!b) return;
       const s = String(b.status);
       if (s === 'on_my_way') {
+        await patchBookingStatus(id, 'arrived');
+        await load();
+        return;
+      }
+      if (s === 'arrived') {
         await patchBookingStatus(id, 'in-progress');
         await load();
         return;
@@ -658,6 +665,7 @@ export function useSchedule() {
             'assigned',
             'accepted',
             'on_my_way',
+            'arrived',
             'in-progress',
             'completed',
           ].includes(String(b.status)),
@@ -708,6 +716,7 @@ export function useSchedule() {
             'assigned',
             'accepted',
             'on_my_way',
+            'arrived',
             'in-progress',
             'completed',
           ].includes(String(b.status)),

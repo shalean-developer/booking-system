@@ -7,14 +7,29 @@ import { deriveCompanyOnlyCostsCents } from '@/lib/earnings-company-costs';
 import type { BookingStateV2 } from '@/lib/useBookingV2';
 import { isPayLaterAllowed } from '@/lib/booking-env';
 import { validateBookingDiscountAmount } from '@/lib/discount-booking-server';
-import { computeCheckoutPricing } from '@/lib/booking-checkout-pricing';
-import { computeServerPreSurgeTotalZar } from '@/lib/booking-server-pricing';
+import { runBookingCheckoutAvailability } from '@/lib/booking-checkout-pricing';
+import { resolveCustomerIdForPricing } from '@/lib/booking-server-pricing';
+import { validateBookingUsePointsAgainstServer } from '@/lib/loyalty/booking-points-validation';
 import { createBookingLookupToken } from '@/lib/booking-lookup-token';
 import { generateManageToken } from '@/lib/manage-booking-token';
-import { createServiceClient } from '@/lib/supabase-server';
+import { createServiceClient, getServerAuthUser } from '@/lib/supabase-server';
 import { resolveBookingCleanerAndSchedule } from '@/lib/dispatch/resolve-booking-cleaner';
+import { jsonFromDispatchFailure } from '@/lib/matching/dispatch-http';
 import { sendCleanerNotification } from '@/lib/notifications/sendCleanerNotification';
-
+import { runSupplyActivationCheck } from '@/lib/supply/run-check';
+import { runSlotSupplyInviteForArea } from '@/lib/cron/supply-check';
+import { logFinalPriceCheck } from '@/lib/pricing/final-price-check-log';
+import { buildFinalPriceSnapshotPayload } from '@/lib/pricing/final-pricing';
+import { buildPriceSnapshotV4AnalyticsFromUnified } from '@/lib/pricing/v4/price-snapshot-analytics';
+import type { BookingBodyForPricing } from '@/lib/booking-server-pricing';
+import { rejectLegacyBookingPricingFields } from '@/lib/reject-legacy-booking-fields';
+import { resolveBookingSelectedTeam } from '@/lib/booking-team-payload';
+import {
+  buildPricingExpiresAt,
+  logPricingIntegrityDiscrepancy,
+  runPricingIntegrityPipeline,
+} from '@/lib/pricing/pricing-integrity-pipeline';
+import { findBookingByIdempotencyKey, normalizeIdempotencyKey } from '@/lib/booking-idempotency';
 /**
  * Guest booking API — pay-later path (no Paystack). Disabled in production unless
  * `ALLOW_PAY_LATER_BOOKINGS=true`.
@@ -43,12 +58,45 @@ export async function POST(req: Request) {
       totalAmount: number;
       serviceFee?: number;
       frequencyDiscount?: number;
-      preSurgeTotal?: number;
       // Optional equipment payload surfaced from the booking wizard
       equipment_required?: boolean;
       equipment_fee?: number; // ZAR
     } = await req.json();
-    
+
+    const legacyGuest = rejectLegacyBookingPricingFields(body as unknown as Record<string, unknown>);
+    if (legacyGuest) return legacyGuest;
+    const pricingExpiresAtRaw = (body as unknown as Record<string, unknown>).pricing_expires_at;
+    const pricingExpiresAtClient = typeof pricingExpiresAtRaw === 'string' ? pricingExpiresAtRaw : null;
+    if (pricingExpiresAtClient && new Date(pricingExpiresAtClient).getTime() < Date.now()) {
+      return NextResponse.json(
+        {
+          ok: false,
+          code: 'PRICING_EXPIRED',
+          error: 'Pricing verification expired. Please re-verify before continuing.',
+        },
+        { status: 409 }
+      );
+    }
+    const idempotencyKey = normalizeIdempotencyKey((body as { idempotency_key?: unknown }).idempotency_key);
+
+    if (idempotencyKey) {
+      const existing = await findBookingByIdempotencyKey(supabase, idempotencyKey);
+      if (existing?.id) {
+        return NextResponse.json({
+          ok: true,
+          bookingId: existing.id,
+          message: 'Booking already created for this idempotency key.',
+          idempotent: true,
+          totalAmount:
+            typeof existing.price === 'number'
+              ? existing.price
+              : Math.round(Number(existing.total_amount || 0)) / 100,
+        });
+      }
+    }
+
+    Object.assign(body, { selected_team: resolveBookingSelectedTeam(body) });
+
     if (!body.service || !body.date || !body.time || !body.email || !body.firstName || !body.lastName) {
       return NextResponse.json(
         { ok: false, error: 'Missing required booking fields' },
@@ -64,27 +112,19 @@ export async function POST(req: Request) {
     }
 
     const tipAmt = body.tipAmount || 0;
-    const preSurgeTotal =
-      typeof body.preSurgeTotal === 'number' && Number.isFinite(body.preSurgeTotal)
-        ? body.preSurgeTotal
-        : body.totalAmount;
 
-    const discountCheck = await validateBookingDiscountAmount(supabase, {
-      discountCode: body.discountCode,
-      discountAmountClaimedZar: body.discountAmount || 0,
-      subtotalBeforeDiscountZar: preSurgeTotal - tipAmt + (body.discountAmount || 0),
-      serviceType: body.service,
+    const authGuest = await getServerAuthUser();
+    const pricingCustomerId = await resolveCustomerIdForPricing(supabase, {
+      bodyCustomerId: (body as { customer_id?: string }).customer_id,
+      authUserId: authGuest?.id ?? null,
     });
-    if (!discountCheck.ok) {
-      return NextResponse.json(
-        { ok: false, error: discountCheck.error },
-        { status: discountCheck.status }
-      );
-    }
 
-    let serverCart: Awaited<ReturnType<typeof computeServerPreSurgeTotalZar>>;
+    let serverCart: Awaited<ReturnType<typeof runPricingIntegrityPipeline>>['serverCart'];
+    let pricingSnapshot: Record<string, unknown>;
+    let pricingHash: string;
+    let pricingVersion: string;
     try {
-      serverCart = await computeServerPreSurgeTotalZar(supabase, {
+      const integrity = await runPricingIntegrityPipeline(supabase, {
         service: body.service,
         bedrooms: body.bedrooms,
         bathrooms: body.bathrooms,
@@ -97,7 +137,20 @@ export async function POST(req: Request) {
         numberOfCleaners: body.numberOfCleaners,
         provideEquipment: body.provideEquipment,
         carpetDetails: body.carpetDetails ?? undefined,
+        pricingMode: (body as { pricingMode?: 'basic' | 'premium' }).pricingMode,
+        date: body.date,
+        time: body.time,
+        address: body.address,
+        discountCode: body.discountCode ?? undefined,
+        promo_code: (body as { promo_code?: string }).promo_code,
+        email: body.email,
+        customer_id: pricingCustomerId ?? undefined,
+        use_points: (body as { use_points?: number }).use_points,
       });
+      serverCart = integrity.serverCart;
+      pricingSnapshot = integrity.pricingSnapshot;
+      pricingHash = integrity.pricingHash;
+      pricingVersion = integrity.pricingVersion;
     } catch (e) {
       console.error('[bookings/guest] server pricing', e);
       return NextResponse.json(
@@ -106,34 +159,100 @@ export async function POST(req: Request) {
       );
     }
 
-    if (Math.abs(serverCart.preSurgeTotalZar - preSurgeTotal) > 0.02) {
-      console.warn('[bookings/guest] pre-surge mismatch; using server total', {
-        clientPreSurgeTotalZar: preSurgeTotal,
-        serverPreSurgeTotalZar: serverCart.preSurgeTotalZar,
-      });
+    const discountCheck = await validateBookingDiscountAmount(supabase, {
+      discountCode: body.discountCode ?? undefined,
+      promo_code: (body as { promo_code?: string }).promo_code,
+      discountAmountClaimedZar: body.discountAmount || 0,
+      subtotalBeforeDiscountZar: body.totalAmount - tipAmt + (body.discountAmount || 0),
+      serviceType: body.service,
+      ...(serverCart.calc.unifiedPricing != null
+        ? { serverExpectedDiscountZar: serverCart.calc.unifiedPricing.discount_amount_zar }
+        : {}),
+    });
+    if (!discountCheck.ok) {
+      return NextResponse.json(
+        { ok: false, error: discountCheck.error },
+        { status: discountCheck.status }
+      );
     }
 
-    const checkoutPricing = await computeCheckoutPricing(supabase, {
+    const ptsGuest = validateBookingUsePointsAgainstServer(
+      body.service,
+      (body as { use_points?: number }).use_points,
+      serverCart.calc.unifiedPricing ?? null,
+    );
+    if (!ptsGuest.ok) {
+      return NextResponse.json({ ok: false, error: ptsGuest.message }, { status: 400 });
+    }
+
+    const checkoutPricing = await runBookingCheckoutAvailability(supabase, {
       date: body.date,
       service: body.service,
-      preSurgeTotalZar: serverCart.preSurgeTotalZar,
       selected_team: body.selected_team ?? undefined,
     });
     if (!checkoutPricing.ok) {
       return NextResponse.json(
-        { ok: false, error: checkoutPricing.error },
+        { ok: false, error: checkoutPricing.reason },
         { status: checkoutPricing.status }
       );
     }
 
-    if (Math.abs(checkoutPricing.finalTotalZar - body.totalAmount) > 0.02) {
-      console.warn('[bookings/guest] final total mismatch; using server total', {
-        clientFinalTotalZar: body.totalAmount,
-        serverFinalTotalZar: checkoutPricing.finalTotalZar,
+    const serverChargeZar = serverCart.price_zar;
+    const serverChargeCents = serverCart.total_amount_cents;
+    const clientCents = Math.round(Number(body.totalAmount) * 100);
+    const clientHash = (body as { pricing_hash?: string }).pricing_hash;
+    if (typeof clientHash === 'string' && clientHash && clientHash !== pricingHash) {
+      await logPricingIntegrityDiscrepancy(supabase, {
+        route: 'POST /api/bookings/guest',
+        booking_id: null,
+        client_total: Number(body.totalAmount),
+        server_total: serverChargeZar,
+        client_hash: clientHash,
+        server_hash: pricingHash,
+        reason: 'pricing_hash_mismatch',
       });
+      // If totals match, continue and persist the newest server hash.
+      if (clientCents !== serverChargeCents) {
+        return NextResponse.json(
+          {
+            ok: false,
+            code: 'PRICE_MISMATCH',
+            error: 'Total does not match server pricing. Please refresh and try again.',
+            client_total: Number(body.totalAmount),
+            server_total: serverChargeZar,
+            difference_reason: 'pricing_hash_mismatch',
+            server_pricing_hash: pricingHash,
+          },
+          { status: 400 }
+        );
+      }
+    }
+    if (clientCents !== serverChargeCents) {
+      await logPricingIntegrityDiscrepancy(supabase, {
+        route: 'POST /api/bookings/guest',
+        booking_id: null,
+        client_total: Number(body.totalAmount),
+        server_total: serverChargeZar,
+        client_hash: typeof clientHash === 'string' ? clientHash : null,
+        server_hash: pricingHash,
+        reason: 'authoritative_recalculation_changed_total',
+      });
+      return NextResponse.json(
+        {
+          ok: false,
+          code: 'PRICE_MISMATCH',
+          error: 'Total does not match server pricing. Please refresh and try again.',
+          client_total: Number(body.totalAmount),
+          server_total: serverChargeZar,
+          difference_reason: 'authoritative_recalculation_changed_total',
+          server_pricing_hash: pricingHash,
+        },
+        { status: 400 }
+      );
     }
 
-    const adjustedTotalAmount = checkoutPricing.finalTotalZar;
+    const adjustedTotalAmount = serverChargeZar;
+    const pricingExpiresAt = buildPricingExpiresAt();
 
     const bookingId = generateUniqueBookingId();
     let customerId = null;
@@ -194,8 +313,22 @@ export async function POST(req: Request) {
     const serviceTotal = adjustedTotalAmount - tipAmount;
 
     const dispatchSupabase = createServiceClient();
+    const pm = (body as { pricingMode?: 'basic' | 'premium' }).pricingMode ?? 'premium';
+    const addr = body.address as {
+      suburb: string;
+      city: string;
+      latitude?: number;
+      longitude?: number;
+    };
+    const bookingLocation =
+      typeof addr.latitude === 'number' &&
+      typeof addr.longitude === 'number' &&
+      Number.isFinite(addr.latitude) &&
+      Number.isFinite(addr.longitude)
+        ? { latitude: addr.latitude, longitude: addr.longitude }
+        : null;
+
     const dispatch = await resolveBookingCleanerAndSchedule(dispatchSupabase, {
-      requiresTeam,
       date: body.date,
       time: body.time,
       bedrooms: body.bedrooms,
@@ -205,18 +338,25 @@ export async function POST(req: Request) {
       addressSuburb: body.address.suburb,
       addressCity: body.address.city,
       preferredCleanerId: body.cleaner_id,
+      service: body.service ?? null,
+      pricingMode: pm,
+      extraRooms: body.extraRooms ?? 0,
+      bookingLocation,
     });
 
     if (!dispatch.ok) {
-      return NextResponse.json({ ok: false, error: dispatch.error }, { status: dispatch.status });
+      return jsonFromDispatchFailure(dispatch, {
+        area: body.address?.suburb ?? null,
+        time: body.time ?? null,
+      });
     }
 
-    const { cleanerId: resolvedCleanerId, durationMinutes, expectedEndTime } = dispatch;
+    const { durationMinutes, expectedEndTime, cleanerIds: assignedCleanerIds } = dispatch;
+    const cleanerIdForInsert: string | null = assignedCleanerIds[0] ?? null;
 
     let cleanerHireDate: string | null = null;
-    const cleanerIdForInsert: string | null = requiresTeam ? null : resolvedCleanerId;
 
-    if (!requiresTeam && cleanerIdForInsert) {
+    if (cleanerIdForInsert) {
       const { data: cleanerData } = await supabase
         .from('cleaners')
         .select('hire_date')
@@ -226,7 +366,8 @@ export async function POST(req: Request) {
     }
 
     const totalAmountCents = Math.round(adjustedTotalAmount * 100);
-    const serviceFeeCents = Math.round((body.serviceFee || 0) * 100);
+    const serviceFeeCents = 0;
+    const freqDiscZarGuest = serverCart.calc.frequencyDiscount;
     const b = serverCart.calc.breakdown;
     const companyCosts = deriveCompanyOnlyCostsCents({
       serviceType: body.service ?? null,
@@ -248,8 +389,28 @@ export async function POST(req: Request) {
     });
 
     const frequencyForDb = body.frequency === 'one-time' ? null : body.frequency;
-    
+
+    const unifiedGuest = serverCart.calc.unifiedPricing ?? null;
+
+    const bodyGuest = body as BookingBodyForPricing & { rugs?: number; carpets?: number };
+    const v4Analytics = buildPriceSnapshotV4AnalyticsFromUnified(
+      {
+        service: body.service,
+        bedrooms: body.bedrooms,
+        bathrooms: body.bathrooms,
+        extraRooms: bodyGuest.extraRooms,
+        pricingMode: bodyGuest.pricingMode,
+        rugs: bodyGuest.rugs,
+        carpets: bodyGuest.carpets,
+      },
+      unifiedGuest,
+      serviceTotal
+    );
+
     const priceSnapshot = {
+      total_amount_cents: Math.round(adjustedTotalAmount * 100),
+      price_zar: adjustedTotalAmount,
+      pricing_v5_2: buildFinalPriceSnapshotPayload(serverCart.finalPrice),
       service: {
         type: body.service,
         bedrooms: body.bedrooms,
@@ -257,12 +418,38 @@ export async function POST(req: Request) {
       },
       extras: body.extras || [],
       frequency: frequencyForDb,
-      service_fee: (body.serviceFee || 0) * 100,
-      frequency_discount: (body.frequencyDiscount || 0) * 100,
+      service_fee: 0,
+      frequency_discount: Math.round(freqDiscZarGuest * 100),
       tip_amount: tipAmountInCents,
-      subtotal: serviceTotal ? (serviceTotal - (body.serviceFee || 0) + (body.frequencyDiscount || 0)) * 100 : 0,
+      subtotal: Math.round(serviceTotal * 100),
       total: adjustedTotalAmount * 100,
       snapshot_date: new Date().toISOString(),
+      ...(v4Analytics ?? {}),
+      ...(unifiedGuest && {
+        pricing_mode: pm,
+        extra_rooms: body.extraRooms ?? 0,
+        table_price_zar: unifiedGuest.table_price_zar,
+        extra_room_price_zar: unifiedGuest.extra_room_price_zar,
+        extras_price_zar: unifiedGuest.extras_price_zar,
+        base_price_zar: unifiedGuest.base_price_zar,
+        forecast_multiplier: unifiedGuest.forecast_multiplier,
+        forecast_adjustment_zar: unifiedGuest.forecast_adjustment_zar,
+        price_after_forecast_zar: unifiedGuest.price_after_forecast_zar,
+        surge_multiplier: unifiedGuest.surge_multiplier,
+        surge_amount_zar: unifiedGuest.surge_amount_zar,
+        ...(unifiedGuest.surge_breakdown !== undefined
+          ? { surge_breakdown: unifiedGuest.surge_breakdown }
+          : {}),
+        ...(unifiedGuest.surge_pricing_note != null
+          ? { surge_pricing_note: unifiedGuest.surge_pricing_note }
+          : {}),
+        referral_discount_zar: unifiedGuest.referral_discount_zar,
+        loyalty_points_used: unifiedGuest.loyalty_points_used,
+        loyalty_discount_zar: unifiedGuest.loyalty_discount_zar,
+        unified_hours: unifiedGuest.hours,
+        duration_hours: unifiedGuest.duration,
+        team_size: unifiedGuest.team_size,
+      }),
     };
 
     const equipmentRequired =
@@ -276,12 +463,27 @@ export async function POST(req: Request) {
 
     const manageToken = generateManageToken();
 
+    const pointsRedeemedGuest = Math.max(
+      0,
+      Math.floor(Number(unifiedGuest?.loyalty_points_used) || 0),
+    );
+
+    logFinalPriceCheck({
+      route: 'POST /api/bookings/guest',
+      bookingId,
+      price_zar: adjustedTotalAmount,
+      total_amount_cents: totalAmountCents,
+    });
+
     const { data: bookingData, error: bookingError } = await supabase
       .from('bookings')
       .insert({
         id: bookingId,
         customer_id: customerId,
-        cleaner_id: requiresTeam ? null : cleanerIdForInsert,
+        points_redeemed: pointsRedeemedGuest,
+        cleaner_id: cleanerIdForInsert,
+        assigned_cleaner_id: cleanerIdForInsert,
+        assigned_cleaners: assignedCleanerIds.length > 0 ? assignedCleanerIds : null,
         booking_date: body.date,
         booking_time: body.time,
         expected_end_time: expectedEndTime,
@@ -293,17 +495,19 @@ export async function POST(req: Request) {
         address_line1: body.address.line1,
         address_suburb: body.address.suburb,
         address_city: body.address.city,
+        latitude: bookingLocation?.latitude ?? null,
+        longitude: bookingLocation?.longitude ?? null,
         payment_reference: null,
         total_amount: totalAmountCents,
         price: adjustedTotalAmount,
         tip_amount: tipAmountInCents,
         ...earningsFields,
         requires_team: requiresTeam,
-        surge_pricing_applied: checkoutPricing.surgePricingApplied,
-        surge_amount: Math.round(checkoutPricing.surgeAmountZar * 100),
+        surge_pricing_applied: (unifiedGuest?.surge_amount_zar ?? 0) > 0.001,
+        surge_amount: Math.round((unifiedGuest?.surge_amount_zar ?? 0) * 100),
         frequency: frequencyForDb,
-        service_fee: (body.serviceFee || 0) * 100,
-        frequency_discount: (body.frequencyDiscount || 0) * 100,
+        service_fee: 0,
+        frequency_discount: Math.round(freqDiscZarGuest * 100),
         price_snapshot: priceSnapshot,
         // Legacy equipment fields
         provide_equipment: equipmentRequired,
@@ -311,7 +515,12 @@ export async function POST(req: Request) {
         // Normalized equipment fields
         equipment_required: equipmentRequired,
         equipment_fee: equipmentFeeZar,
+        pricing_snapshot: pricingSnapshot,
+        pricing_hash: pricingHash,
+        pricing_version: pricingVersion,
+        ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}),
         status: 'pending',
+        tracking_status: cleanerIdForInsert ? 'assigned' : null,
         manage_token: manageToken,
       })
       .select()
@@ -322,6 +531,15 @@ export async function POST(req: Request) {
         { ok: false, error: `Failed to save booking: ${bookingError.message}` },
         { status: 500 }
       );
+    }
+
+    if (assignedCleanerIds.length > 0 && process.env.NODE_ENV === 'development') {
+      console.log('[assignment]', {
+        booking_id: bookingId,
+        assigned_cleaners: assignedCleanerIds,
+        duration: durationMinutes,
+        team_size: assignedCleanerIds.length,
+      });
     }
 
     if (cleanerIdForInsert && bookingData) {
@@ -391,6 +609,18 @@ export async function POST(req: Request) {
           supervisor_id: null,
         });
     }
+
+    await supabase.from('pending_bookings').upsert({
+      booking_id: bookingId,
+      pricing_snapshot: pricingSnapshot,
+      pricing_hash: pricingHash,
+      pricing_version: pricingVersion,
+      pricing_expires_at: pricingExpiresAt,
+      server_total: serverChargeZar,
+      total_amount_cents: serverChargeCents,
+      ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}),
+      status: 'pending',
+    });
 
     // Send confirmation emails
     let emailSent = false;
@@ -475,12 +705,37 @@ export async function POST(req: Request) {
       }
     }
 
+    void (async () => {
+      try {
+        const svc = createServiceClient();
+        await runSupplyActivationCheck(svc, {
+          suburb: body.address.suburb ?? null,
+          city: body.address.city ?? null,
+        });
+        await runSlotSupplyInviteForArea(svc, {
+          suburb: body.address.suburb ?? null,
+          city: body.address.city ?? null,
+          dateYmd: String(body.date ?? '').slice(0, 10),
+        });
+      } catch (e) {
+        console.warn('[supply] guest booking check failed', e);
+      }
+    })();
+
     return NextResponse.json({
       ok: true,
       bookingId,
       message: 'Booking created successfully',
       emailSent,
+      pricing_hash: pricingHash,
+      pricing_version: pricingVersion,
+      pricing_expires_at: pricingExpiresAt,
+      pricing_snapshot: pricingSnapshot,
       confirmationToken: createBookingLookupToken(bookingId),
+      assigned_cleaners: assignedCleanerIds,
+      start: body.time,
+      end: expectedEndTime,
+      duration: durationMinutes,
     });
   } catch (error) {
     console.error('Guest booking error:', error);

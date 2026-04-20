@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase-server';
 import { isAdmin } from '@/lib/supabase-server';
 import { calcTotalSafe } from '@/lib/pricing/calcTotalSafe';
 import { generateUniqueBookingId } from '@/lib/booking-id';
+import { calculateBookingUnified } from '@/lib/pricing/calculateBookingUnified';
 
 export const dynamic = 'force-dynamic';
 
@@ -322,12 +323,14 @@ export async function POST(request: NextRequest) {
         service_type: body.service_type,
         bedrooms: body.bedrooms,
         bathrooms: body.bathrooms,
+        extraRooms: body.extraRooms,
         extras: body.extras,
         extrasQuantities: body.extrasQuantities,
         extras_quantities: body.extras_quantities,
         numberOfCleaners: body.numberOfCleaners,
         number_of_cleaners: body.number_of_cleaners,
         team_size: body.team_size,
+        pricingMode: body.pricingMode ?? body.pricing_mode,
       },
       'one-time'
     );
@@ -409,6 +412,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const pm = body.pricingMode === 'basic' || body.pricing_mode === 'basic' ? 'basic' : 'premium';
+    let unifiedSnap: ReturnType<typeof calculateBookingUnified> | null = null;
+    if (body.service_type === 'Standard' || body.service_type === 'Airbnb') {
+      try {
+        const hasX = (body.extras || []).some(
+          (id: string) => id === 'extra_cleaner' || id.includes('extra_cleaner')
+        );
+        unifiedSnap = calculateBookingUnified({
+          service_type: body.service_type === 'Standard' ? 'standard' : 'airbnb',
+          pricing_mode: pm === 'basic' ? 'quick' : 'premium',
+          bedrooms: Math.max(1, body.bedrooms || 1),
+          bathrooms: Math.max(0, body.bathrooms || 0),
+          extra_rooms: Math.max(0, body.extraRooms ?? 0),
+          extras: body.extras || [],
+          extrasQuantities: body.extrasQuantities ?? body.extras_quantities,
+          has_extra_cleaner: pm !== 'basic' && hasX,
+        });
+      } catch {
+        unifiedSnap = null;
+      }
+    }
+
     // Build price snapshot
     const priceSnapshot = {
       service_type: body.service_type,
@@ -422,6 +447,20 @@ export async function POST(request: NextRequest) {
       frequencyDiscount: pricing.frequencyDiscount,
       total: pricing.total,
       snapshot_date: new Date().toISOString(),
+      ...(unifiedSnap && {
+        pricing_mode: pm,
+        extra_rooms: body.extraRooms ?? 0,
+        table_price_zar: unifiedSnap.table_price_zar,
+        extra_room_price_zar: unifiedSnap.extra_room_price_zar,
+        extras_price_zar: unifiedSnap.extras_price_zar,
+        discount_amount_zar: unifiedSnap.discount_amount_zar,
+        final_price_zar: unifiedSnap.final_price_zar,
+        promo_code: unifiedSnap.promo_code,
+        discount_type: unifiedSnap.discount_type,
+        unified_hours: unifiedSnap.hours,
+        duration_hours: unifiedSnap.duration,
+        team_size: unifiedSnap.team_size,
+      }),
     };
 
     // Determine if team booking

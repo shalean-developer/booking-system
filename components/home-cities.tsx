@@ -8,37 +8,37 @@ const citiesByRegion = [
   {
     region: 'Western Cape',
     cities: [
-      { name: 'Cape Town', slug: '/location/cape-town' },
-      { name: 'Stellenbosch', slug: '/location/cape-town/stellenbosch' },
-      { name: 'Paarl', slug: '/location/cape-town/paarl' },
-      { name: 'George', slug: '/location/cape-town/george' },
+      { name: 'Cape Town', slug: '/growth/local/cleaning-services/cape-town' },
+      { name: 'Stellenbosch', slug: '/growth/local/cleaning-services/stellenbosch' },
+      { name: 'Paarl', slug: '/growth/local/cleaning-services/paarl' },
+      { name: 'George', slug: '/growth/local/cleaning-services/george' },
     ],
   },
   {
     region: 'Gauteng',
     cities: [
-      { name: 'Johannesburg', slug: '/location/johannesburg' },
-      { name: 'Pretoria', slug: '/location/pretoria' },
-      { name: 'Sandton', slug: '/location/johannesburg/sandton' },
-      { name: 'Midrand', slug: '/location/johannesburg/midrand' },
+      { name: 'Johannesburg', slug: '/growth/local/cleaning-services/johannesburg' },
+      { name: 'Pretoria', slug: '/growth/local/cleaning-services/pretoria' },
+      { name: 'Sandton', slug: '/growth/local/cleaning-services/sandton' },
+      { name: 'Midrand', slug: '/growth/local/cleaning-services/midrand' },
     ],
   },
   {
     region: 'KwaZulu-Natal',
     cities: [
-      { name: 'Durban', slug: '/location/durban' },
-      { name: 'Pietermaritzburg', slug: '/location/durban/pietermaritzburg' },
-      { name: 'Umhlanga', slug: '/location/durban/umhlanga' },
-      { name: 'Ballito', slug: '/location/durban/ballito' },
+      { name: 'Durban', slug: '/growth/local/cleaning-services/durban' },
+      { name: 'Pietermaritzburg', slug: '/growth/local/cleaning-services/pietermaritzburg' },
+      { name: 'Umhlanga', slug: '/growth/local/cleaning-services/umhlanga' },
+      { name: 'Ballito', slug: '/growth/local/cleaning-services/ballito' },
     ],
   },
   {
     region: 'Eastern Cape',
     cities: [
-      { name: 'Port Elizabeth', slug: '/location/port-elizabeth' },
-      { name: 'East London', slug: '/location/east-london' },
-      { name: 'Grahamstown', slug: '/location/grahamstown' },
-      { name: 'Jeffreys Bay', slug: '/location/jeffreys-bay' },
+      { name: 'Port Elizabeth', slug: '/growth/local/cleaning-services/port-elizabeth' },
+      { name: 'East London', slug: '/growth/local/cleaning-services/east-london' },
+      { name: 'Grahamstown', slug: '/growth/local/cleaning-services/grahamstown' },
+      { name: 'Jeffreys Bay', slug: '/growth/local/cleaning-services/jeffreys-bay' },
     ],
   },
 ];

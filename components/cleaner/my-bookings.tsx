@@ -41,6 +41,7 @@ export function MyBookings() {
 
   // Track current cleaner id from fetched bookings (first non-null we see)
   const [listenerCleanerId, setListenerCleanerId] = useState<string | null>(null);
+  const [myCleanerId, setMyCleanerId] = useState<string | null>(null);
 
   // Basic retry helper - defined before hooks to ensure consistent hook order
   const requestWithRetry = async (url: string, init: RequestInit, retries = 2): Promise<Response> => {
@@ -97,6 +98,59 @@ export function MyBookings() {
     return () => document.removeEventListener('visibilitychange', onFocus);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/cleaner/cleaner-profile', { cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        if (!cancelled && data.ok && typeof data.cleaner_id === 'string') {
+          setMyCleanerId(data.cleaner_id);
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** Live location while en route (polling fallback aligns with ~15–20s). */
+  useEffect(() => {
+    if (!myCleanerId) return;
+    const active = bookings.some((b) => b.status === 'on_my_way');
+    if (!active) return;
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return;
+
+    const tick = () => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const booking = bookings.find((b) => b.status === 'on_my_way');
+          if (!booking) return;
+          fetch('/api/cleaners/location', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              cleaner_id: myCleanerId,
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude,
+              timestamp: new Date().toISOString(),
+              booking_id: booking.id,
+            }),
+          }).catch(() => {});
+        },
+        () => {},
+        { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 }
+      );
+    };
+
+    tick();
+    const id = window.setInterval(tick, 18000);
+    return () => window.clearInterval(id);
+  }, [bookings, myCleanerId]);
 
   // Update listenerCleanerId when bookings change
   useEffect(() => {
@@ -208,6 +262,27 @@ export function MyBookings() {
     }
   };
 
+  const handleArrived = async (bookingId: string) => {
+    try {
+      const response = await requestWithRetry(`/api/cleaner/bookings/${bookingId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'arrived' }),
+      }, 2);
+
+      const data = await response.json();
+
+      if (!data.ok) {
+        throw new Error(data.error || 'Failed to mark arrived');
+      }
+
+      await fetchBookings();
+    } catch (err) {
+      console.error('Error marking arrived:', err);
+      alert(err instanceof Error ? err.message : 'Failed to mark arrived');
+    }
+  };
+
   const handleComplete = async (bookingId: string) => {
     try {
       const response = await requestWithRetry(`/api/cleaner/bookings/${bookingId}/status`, {
@@ -307,7 +382,7 @@ export function MyBookings() {
   };
 
   const currentBookings = bookings.filter((b) =>
-    ['pending', 'paid', 'assigned', 'accepted', 'on_my_way', 'in-progress'].includes(b.status),
+    ['pending', 'paid', 'assigned', 'accepted', 'on_my_way', 'arrived', 'in-progress'].includes(b.status),
   );
 
   const pastBookings = bookings.filter((b) => 
@@ -414,6 +489,7 @@ export function MyBookings() {
                   variant="assigned"
                   onAccept={handleAccept}
                   onOnMyWay={handleOnMyWay}
+                  onArrived={handleArrived}
                   onStart={handleStart}
                   onComplete={handleComplete}
                   onRate={(b) => setRatingBooking(b)}

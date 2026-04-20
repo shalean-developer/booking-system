@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCleanerSession, createCleanerSupabaseClient } from '@/lib/cleaner-auth';
+import { createServiceClient } from '@/lib/supabase-server';
+import { cleanerHasOverlappingBooking } from '@/lib/cleaner/schedule-conflicts';
 
 export async function POST(
   request: NextRequest,
@@ -82,6 +84,35 @@ export async function POST(
       );
     }
 
+    if ((booking as { requires_team?: boolean }).requires_team) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'Team job — use Join to add yourself until the crew is full',
+        },
+        { status: 409 }
+      );
+    }
+
+    const svcOverlap = createServiceClient();
+    const dur = Math.max(
+      30,
+      typeof (booking as { duration_minutes?: number }).duration_minutes === 'number'
+        ? (booking as { duration_minutes: number }).duration_minutes
+        : 180
+    );
+    const overlap = await cleanerHasOverlappingBooking(svcOverlap, session.id, {
+      booking_date: String((booking as { booking_date: string }).booking_date).slice(0, 10),
+      booking_time: String((booking as { booking_time: string }).booking_time ?? '09:00').slice(0, 8),
+      duration_minutes: dur,
+    });
+    if (overlap) {
+      return NextResponse.json(
+        { ok: false, error: 'You already have a job overlapping this time' },
+        { status: 409 }
+      );
+    }
+
     // Claim the booking
     console.log('🔄 Attempting to claim booking:', bookingId, 'for cleaner:', session.name, session.id);
     console.log('📝 RPC Parameters:', {
@@ -143,6 +174,16 @@ export async function POST(
     }
 
     console.log('✅ Booking claimed:', bookingId, 'by', session.name);
+
+    try {
+      const svc = createServiceClient();
+      await svc
+        .from('bookings')
+        .update({ tracking_status: 'assigned', updated_at: new Date().toISOString() })
+        .eq('id', bookingId);
+    } catch (e) {
+      console.warn('[claim] tracking_status update skipped:', e);
+    }
 
     return NextResponse.json({
       ok: true,

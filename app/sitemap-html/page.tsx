@@ -41,34 +41,34 @@ export default function SitemapPage() {
   ];
 
   const locations = [
-    { name: "All Locations", href: "/location" },
-    { name: "Cape Town", href: "/location/cape-town" },
-    { name: "Johannesburg", href: "/location/johannesburg" },
-    { name: "Pretoria", href: "/location/pretoria" },
-    { name: "Durban", href: "/location/durban" },
-    { name: "Port Elizabeth", href: "/location/port-elizabeth" },
-    { name: "East London", href: "/location/east-london" },
-    { name: "Jeffreys Bay", href: "/location/jeffreys-bay" },
-    { name: "Grahamstown", href: "/location/grahamstown" }
+    { name: "All Locations", href: "/growth/local/cleaning-services/cape-town" },
+    { name: "Cape Town", href: "/growth/local/cleaning-services/cape-town" },
+    { name: "Johannesburg", href: "/growth/local/cleaning-services/johannesburg" },
+    { name: "Pretoria", href: "/growth/local/cleaning-services/pretoria" },
+    { name: "Durban", href: "/growth/local/cleaning-services/durban" },
+    { name: "Port Elizabeth", href: "/growth/local/cleaning-services/port-elizabeth" },
+    { name: "East London", href: "/growth/local/cleaning-services/east-london" },
+    { name: "Jeffreys Bay", href: "/growth/local/cleaning-services/jeffreys-bay" },
+    { name: "Grahamstown", href: "/growth/local/cleaning-services/grahamstown" }
   ];
 
   const capeTownAreas = [
-    { name: "Atlantic Seaboard", href: "/location/cape-town/atlantic-seaboard" },
-    { name: "City Bowl", href: "/location/cape-town/city-bowl" },
-    { name: "Northern Suburbs", href: "/location/cape-town/northern-suburbs" },
-    { name: "Southern Suburbs", href: "/location/cape-town/southern-suburbs" },
-    { name: "False Bay", href: "/location/cape-town/false-bay" },
-    { name: "West Coast", href: "/location/cape-town/west-coast" },
-    { name: "Helderberg & Winelands", href: "/location/cape-town/helderberg-winelands" }
+    { name: "Atlantic Seaboard", href: "/growth/local/cleaning-services/atlantic-seaboard" },
+    { name: "City Bowl", href: "/growth/local/cleaning-services/city-bowl" },
+    { name: "Northern Suburbs", href: "/growth/local/cleaning-services/northern-suburbs" },
+    { name: "Southern Suburbs", href: "/growth/local/cleaning-services/southern-suburbs" },
+    { name: "False Bay", href: "/growth/local/cleaning-services/false-bay" },
+    { name: "West Coast", href: "/growth/local/cleaning-services/west-coast" },
+    { name: "Helderberg & Winelands", href: "/growth/local/cleaning-services/helderberg-winelands" }
   ];
 
   const johannesburgAreas = [
-    { name: "Northern Suburbs", href: "/location/johannesburg/northern-suburbs" },
-    { name: "Midrand", href: "/location/johannesburg/midrand" },
-    { name: "Eastern Suburbs", href: "/location/johannesburg/eastern-suburbs" },
-    { name: "Southern Suburbs", href: "/location/johannesburg/southern-suburbs" },
-    { name: "Western Suburbs", href: "/location/johannesburg/western-suburbs" },
-    { name: "Inner City", href: "/location/johannesburg/inner-city" }
+    { name: "Northern Suburbs", href: "/growth/local/cleaning-services/northern-suburbs" },
+    { name: "Midrand", href: "/growth/local/cleaning-services/midrand" },
+    { name: "Eastern Suburbs", href: "/growth/local/cleaning-services/eastern-suburbs" },
+    { name: "Southern Suburbs", href: "/growth/local/cleaning-services/southern-suburbs" },
+    { name: "Western Suburbs", href: "/growth/local/cleaning-services/western-suburbs" },
+    { name: "Inner City", href: "/growth/local/cleaning-services/inner-city" }
   ];
 
   const mainPages = [
@@ -112,7 +112,7 @@ export default function SitemapPage() {
               Site <span className="text-primary">Map</span>
             </h1>
             <p className="mx-auto mb-8 max-w-3xl text-xl text-gray-600">
-              Find all our pages and services organized by category for easy navigation. Browse our <Link href="/services" className="text-primary hover:underline">cleaning services</Link> including <Link href="/services/regular-cleaning" className="text-primary hover:underline">regular cleaning</Link>, <Link href="/services/deep-cleaning" className="text-primary hover:underline">deep cleaning</Link>, <Link href="/services/one-time-cleaning" className="text-primary hover:underline">one-time cleaning</Link>, and <Link href="/services/post-construction-cleaning" className="text-primary hover:underline">post-construction cleaning</Link>. Explore <Link href="/location" className="text-primary hover:underline">service locations</Link> in <Link href="/location/cape-town" className="text-primary hover:underline">Cape Town</Link>, <Link href="/location/johannesburg" className="text-primary hover:underline">Johannesburg</Link>, <Link href="/location/pretoria" className="text-primary hover:underline">Pretoria</Link>, <Link href="/location/durban" className="text-primary hover:underline">Durban</Link>, <Link href="/location/east-london" className="text-primary hover:underline">East London</Link>, <Link href="/location/port-elizabeth" className="text-primary hover:underline">Port Elizabeth</Link>, <Link href="/location/jeffreys-bay" className="text-primary hover:underline">Jeffreys Bay</Link>, and <Link href="/location/grahamstown" className="text-primary hover:underline">Grahamstown</Link>. <Link href="/booking/service/standard/plan" className="text-primary hover:underline">Book a cleaning</Link> today or check our <Link href="/pricing" className="text-primary hover:underline">pricing</Link> and <Link href="/how-it-works" className="text-primary hover:underline">how it works</Link>.
+              Find all our pages and services organized by category for easy navigation. Browse our <Link href="/services" className="text-primary hover:underline">cleaning services</Link> including <Link href="/services/regular-cleaning" className="text-primary hover:underline">regular cleaning</Link>, <Link href="/services/deep-cleaning" className="text-primary hover:underline">deep cleaning</Link>, <Link href="/services/one-time-cleaning" className="text-primary hover:underline">one-time cleaning</Link>, and <Link href="/services/post-construction-cleaning" className="text-primary hover:underline">post-construction cleaning</Link>. Explore <Link href="/growth/local/cleaning-services/cape-town" className="text-primary hover:underline">service locations</Link> in <Link href="/growth/local/cleaning-services/cape-town" className="text-primary hover:underline">Cape Town</Link>, <Link href="/growth/local/cleaning-services/johannesburg" className="text-primary hover:underline">Johannesburg</Link>, <Link href="/growth/local/cleaning-services/pretoria" className="text-primary hover:underline">Pretoria</Link>, <Link href="/growth/local/cleaning-services/durban" className="text-primary hover:underline">Durban</Link>, <Link href="/growth/local/cleaning-services/east-london" className="text-primary hover:underline">East London</Link>, <Link href="/growth/local/cleaning-services/port-elizabeth" className="text-primary hover:underline">Port Elizabeth</Link>, <Link href="/growth/local/cleaning-services/jeffreys-bay" className="text-primary hover:underline">Jeffreys Bay</Link>, and <Link href="/growth/local/cleaning-services/grahamstown" className="text-primary hover:underline">Grahamstown</Link>. <Link href="/booking/service/standard/plan" className="text-primary hover:underline">Book a cleaning</Link> today or check our <Link href="/pricing" className="text-primary hover:underline">pricing</Link> and <Link href="/how-it-works" className="text-primary hover:underline">how it works</Link>.
             </p>
           </div>
         </div>
@@ -241,7 +241,7 @@ export default function SitemapPage() {
                     {areas.map((area) => (
                       <div key={area.slug} className="rounded-lg border border-gray-200 p-3">
                         <Link
-                          href={`/location/${citySlug}/${area.slug}`}
+                          href={`/growth/local/cleaning-services/${area.slug}`}
                           className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 mb-2"
                         >
                           <MapPin className="h-4 w-4" />
@@ -251,7 +251,7 @@ export default function SitemapPage() {
                           {area.suburbs.map((suburb) => (
                             <Link
                               key={suburb.slug}
-                              href={`/location/${citySlug}/${suburb.slug}`}
+                              href={`/growth/local/cleaning-services/${suburb.slug}`}
                               className="flex items-center gap-2 text-sm text-gray-600 hover:text-primary"
                             >
                               <ArrowRight className="h-3 w-3 text-gray-400" />

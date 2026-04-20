@@ -114,7 +114,9 @@ export async function GET(request: Request) {
     // Find customer profile by auth_user_id
     const { data: customer, error: customerError } = await supabase
       .from('customers')
-      .select('id, email, first_name, last_name, phone, address_line1, address_suburb, address_city, total_bookings, rewards_points')
+      .select(
+        'id, email, first_name, last_name, phone, address_line1, address_suburb, address_city, total_bookings, rewards_points, referral_code, user_tier, loyalty_lifetime_points'
+      )
       .eq('auth_user_id', authUser.id)
       .maybeSingle();
 
@@ -325,6 +327,9 @@ export async function GET(request: Request) {
         addressCity: customer.address_city,
         totalBookings: customer.total_bookings,
         rewardsPoints: customer.rewards_points ?? 0,
+        referralCode: customer.referral_code ?? null,
+        userTier: customer.user_tier ?? null,
+        loyaltyLifetimePoints: customer.loyalty_lifetime_points ?? 0,
       },
       pagination: {
         limit,

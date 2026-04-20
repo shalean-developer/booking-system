@@ -15,6 +15,7 @@ import {
   Star,
   Zap,
 } from 'lucide-react';
+import Link from 'next/link';
 import { cn } from '../../../lib/utils';
 import { SUPPORT_PHONE_HREF, SUPPORT_WHATSAPP_URL } from '@/lib/contact';
 import { toastCleanerActionError } from './cleanerToast';
@@ -163,6 +164,14 @@ function JobDetailModal({
             <p className="text-xs text-gray-400">Completed at {formatLifecycleTime(job.completedAt)}</p>
           ) : null}
 
+          <Link
+            href={`/cleaner/jobs/${job.id}`}
+            className="flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition-colors mb-2"
+          >
+            Open full job page
+            <ChevronRight className="w-4 h-4" />
+          </Link>
+
           <div className="grid grid-cols-3 gap-2">
             <a
               href={callHref}
@@ -264,7 +273,24 @@ function JobDetailModal({
               ) : (
                 <Navigation className="w-4 h-4" />
               )}
-              <span>{loading ? 'Starting…' : 'Start Job'}</span>
+              <span>{loading ? 'Updating…' : 'Mark Arrived'}</span>
+            </motion.button>
+          )}
+
+          {job.status === 'arrived' && (
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.97 }}
+              onClick={() => handleAction(onStart)}
+              disabled={loading}
+              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-md"
+            >
+              {loading ? (
+                <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4" />
+              )}
+              <span>{loading ? 'Starting…' : 'Start Cleaning'}</span>
             </motion.button>
           )}
 
@@ -307,7 +333,9 @@ function ActiveJobCard({ job, onAccept, onMyWay, onStart, onComplete, onViewDeta
     ? 'In Progress'
     : job.status === 'on_my_way'
       ? 'On My Way'
-      : needsAccept
+      : job.status === 'arrived'
+        ? 'Arrived'
+        : needsAccept
         ? job.status === 'assigned'
           ? 'Assigned'
           : 'Pending acceptance'
@@ -416,7 +444,22 @@ function ActiveJobCard({ job, onAccept, onMyWay, onStart, onComplete, onViewDeta
               className="flex-1 py-3 rounded-xl bg-white text-blue-700 text-sm font-bold flex items-center justify-center gap-2"
             >
               <Navigation className="w-4 h-4" />
-              <span>Start Job</span>
+              <span>Mark Arrived</span>
+            </motion.button>
+          ) : job.status === 'arrived' ? (
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.97 }}
+              onClick={() => {
+                void Promise.resolve(onStart(job.id)).catch(err => {
+                  console.error(err);
+                  toastCleanerActionError(err, 'Could not update job');
+                });
+              }}
+              className="flex-1 py-3 rounded-xl bg-white text-blue-700 text-sm font-bold flex items-center justify-center gap-2"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Start Cleaning</span>
             </motion.button>
           ) : null}
           <motion.button

@@ -3,6 +3,7 @@ import type { BookingPayload } from './types';
 import type { BookingPriceResult } from './calculate';
 import type { BookingCarpetDetails } from '@/types/booking';
 import { isBookingTeamName } from './booking-team-names';
+import type { TeamSelection } from '@/lib/constants/booking-teams';
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -27,8 +28,11 @@ export function buildDashboardPendingBookingPayload(input: {
   linePricing: BookingPriceResult | null;
   numberOfCleanersForPricing: number;
   equipmentChargeZar: number;
-  finalTotalZar: number;
-  preSurge: number;
+  /** Single authoritative total (ZAR) — sent as totalAmount. */
+  totalAmountZar: number;
+  /** Optional loyalty points — server validates against balance and labour line. */
+  use_points?: number;
+  customer_id?: string | null;
 }): BookingPayload {
   const nameParts = input.user.name.trim().split(/\s+/);
   const firstName = nameParts[0] || 'Customer';
@@ -44,6 +48,11 @@ export function buildDashboardPendingBookingPayload(input: {
     isBookingTeamName(input.state.cleaner_id)
       ? input.state.cleaner_id
       : undefined;
+  const team_selection: TeamSelection | undefined = requiresTeam
+    ? selected_team
+      ? { type: 'manual', team: selected_team }
+      : { type: 'auto' }
+    : undefined;
   const svc = input.selectedService;
 
   return {
@@ -67,10 +76,10 @@ export function buildDashboardPendingBookingPayload(input: {
     phone: input.user.phone.trim(),
     address: input.address,
     cleaner_id: cleanerUuid,
+    team_selection,
     selected_team,
     requires_team: requiresTeam,
-    totalAmount: input.finalTotalZar,
-    preSurgeTotal: input.preSurge,
+    totalAmount: input.totalAmountZar,
     serviceFee: input.linePricing?.serviceFee ?? 0,
     frequencyDiscount: input.linePricing?.frequencyDiscount ?? 0,
     tipAmount: 0,
@@ -80,5 +89,9 @@ export function buildDashboardPendingBookingPayload(input: {
       (svc === 'Standard' || svc === 'Airbnb') && input.state.provideEquipment
         ? input.equipmentChargeZar
         : 0,
+    ...(typeof input.use_points === 'number' && input.use_points > 0
+      ? { use_points: input.use_points }
+      : {}),
+    ...(input.customer_id ? { customer_id: input.customer_id } : {}),
   };
 }

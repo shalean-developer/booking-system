@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getLocalSeoLocation } from "@/lib/growth/local-seo-locations";
 
 // Base URL for the site
 export const SITE_URL = "https://shalean.co.za";
@@ -125,7 +126,32 @@ export function createMetadata(metadata: PageMetadata | Metadata): Metadata {
   }
 
   const pageMeta = metadata as PageMetadata;
-  const canonical = pageMeta.canonical || generateCanonical();
+  const canonicalInput = pageMeta.canonical || generateCanonical();
+  let canonical = canonicalInput;
+  let isLocationPathCanonical = false;
+
+  try {
+    const canonicalUrl = new URL(canonicalInput);
+    const pathParts = canonicalUrl.pathname.split('/').filter(Boolean);
+    if (pathParts[0] === 'location') {
+      isLocationPathCanonical = true;
+      const citySlug = pathParts.length >= 2 ? pathParts[1] : "";
+      const areaSlug = pathParts.length >= 3 ? pathParts[2] : citySlug;
+      const areaLocation = areaSlug ? getLocalSeoLocation(areaSlug) : undefined;
+      const cityLocation = citySlug ? getLocalSeoLocation(citySlug) : undefined;
+
+      if (areaLocation) {
+        canonical = generateCanonical(`/growth/local/cleaning-services/${areaSlug}`);
+      } else if (cityLocation) {
+        canonical = generateCanonical(`/growth/local/cleaning-services/${citySlug}`);
+      } else {
+        // Keep self-referencing canonical when no valid growth slug exists.
+        canonical = canonicalInput;
+      }
+    }
+  } catch {
+    canonical = canonicalInput;
+  }
 
   // If title + template would exceed 70 chars, use full title object to prevent template appending
   // Note: Template length is variable (handled upstream in blog post metadata generation):
@@ -173,7 +199,7 @@ export function createMetadata(metadata: PageMetadata | Metadata): Metadata {
     ...(pageMeta.keywords && pageMeta.keywords.length > 0 && {
       keywords: pageMeta.keywords,
     }),
-    robots: pageMeta.robots || "index,follow",
+    robots: isLocationPathCanonical ? "noindex,follow" : pageMeta.robots || "index,follow",
     openGraph: {
       locale: DEFAULT_SITE_METADATA.locale,
       siteName: DEFAULT_SITE_METADATA.siteName,
@@ -324,6 +350,7 @@ export function createLocationMetadata(
   const citySlug = slugify(city);
 
   const path = `/location/${citySlug}/${suburbSlug}`;
+  const growthCanonicalPath = `/growth/local/cleaning-services/${suburbSlug}`;
 
   const formatList = (items: string[]): string => {
     if (items.length === 0) return "";
@@ -400,7 +427,7 @@ export function createLocationMetadata(
   return createMetadata({
     title,
     description: finalDescription,
-    canonical: generateCanonical(path),
+    canonical: generateCanonical(growthCanonicalPath),
     ...(keywords.length > 0 && { keywords }),
     ogImage: {
       url: generateOgImageUrl(`location-${suburbSlug}`),
@@ -408,7 +435,7 @@ export function createLocationMetadata(
     },
     ogType: "website",
     twitterCard: "summary_large_image",
-    robots: "index,follow",
+    robots: "noindex,follow",
     generatedMeta: false,
   });
 }

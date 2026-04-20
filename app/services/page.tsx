@@ -19,6 +19,8 @@ import { getSeoConfig } from "@/lib/seo-config";
 import { fetchActivePricing } from "@/lib/pricing-db";
 import { formatFromBaseZar } from "@/lib/display-pricing";
 import { getPublishedLocationPagesSummary } from "@/lib/location-pages-server";
+import { stringifyStructuredData } from "@/lib/structured-data-validator";
+import { SITE_URL } from "@/lib/metadata";
 
 // Services page metadata
 export const metadata: Metadata = createMetadata(getSeoConfig("services"));
@@ -123,8 +125,24 @@ export default async function ServicesPage() {
     }
   ];
 
+  const servicesItemList = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "Cleaning services",
+    itemListElement: services.map((s, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: s.title,
+      url: `${SITE_URL}${s.link}`,
+    })),
+  };
+
   return (
     <div className="min-h-screen bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: stringifyStructuredData(servicesItemList) }}
+      />
       {/* Header */}
       <Header />
 
@@ -212,7 +230,7 @@ export default async function ServicesPage() {
             <article>
               <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow h-full">
                 <CardContent className="p-6 text-center">
-                  <Link href="/location/cape-town" className="block">
+                  <Link href="/growth/local/cleaning-services/cape-town" className="block">
                     <h3 className="text-xl font-bold text-gray-900 mb-2 hover:text-primary transition-colors">
                       Cape Town
                     </h3>
@@ -227,7 +245,7 @@ export default async function ServicesPage() {
             <article>
               <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow h-full">
                 <CardContent className="p-6 text-center">
-                  <Link href="/location/johannesburg" className="block">
+                  <Link href="/growth/local/cleaning-services/johannesburg" className="block">
                     <h3 className="text-xl font-bold text-gray-900 mb-2 hover:text-primary transition-colors">
                       Johannesburg
                     </h3>
@@ -242,7 +260,7 @@ export default async function ServicesPage() {
             <article>
               <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow h-full">
                 <CardContent className="p-6 text-center">
-                  <Link href="/location/pretoria" className="block">
+                  <Link href="/growth/local/cleaning-services/pretoria" className="block">
                     <h3 className="text-xl font-bold text-gray-900 mb-2 hover:text-primary transition-colors">
                       Pretoria
                     </h3>
@@ -257,7 +275,7 @@ export default async function ServicesPage() {
             <article>
               <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow h-full">
                 <CardContent className="p-6 text-center">
-                  <Link href="/location/durban" className="block">
+                  <Link href="/growth/local/cleaning-services/durban" className="block">
                     <h3 className="text-xl font-bold text-gray-900 mb-2 hover:text-primary transition-colors">
                       Durban
                     </h3>
@@ -271,7 +289,7 @@ export default async function ServicesPage() {
             </article>
           </div>
           <div className="text-center mt-8">
-            <Link href="/location">
+            <Link href="/growth/local/cleaning-services/cape-town">
               <Button variant="outline" className="border-primary text-primary hover:bg-primary/10">
                 View All Service Areas
                 <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />

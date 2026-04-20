@@ -23,6 +23,7 @@ import { generateTimeSlots, type BookingPriceResult } from '@/lib/pricing';
 import { calcTotalSafe } from '@/lib/pricing/calcTotalSafe';
 import type { ServiceType } from '@/types/booking';
 import type { BookingFormDataServer } from '@/lib/booking-form-data-server';
+import { DEFAULT_QUICK_CLEAN_SETTINGS } from '@/lib/quick-clean-settings';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -159,6 +160,7 @@ export const BookingModal = ({
             pricing: data.pricing ?? null,
             extras: data.extras,
             equipment: data.equipment ?? { items: [], charge: 0 },
+            quickCleanSettings: data.quickCleanSettings ?? DEFAULT_QUICK_CLEAN_SETTINGS,
           });
         }
       })

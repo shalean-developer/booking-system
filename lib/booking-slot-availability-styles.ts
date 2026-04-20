@@ -6,10 +6,10 @@ export function getAvailabilityUrgencyLabel(
   variant: BookingAbVariant = 'A'
 ): string {
   if (remaining === 0) return 'Fully booked';
-  if (remaining === 1) return 'Last cleaner • Book now';
-  if (remaining <= 3) return `${remaining} cleaners • Filling fast`;
-  if (variant === 'B') return `${remaining} cleaners • Filling fast`;
-  return `${remaining} cleaners available`;
+  if (remaining === 1) return 'Last chance • Book now';
+  if (remaining <= 3) return 'Filling fast';
+  if (variant === 'B') return 'Filling fast';
+  return 'Available';
 }
 
 /** Tailwind classes for time-slot availability subline (urgency-driven). */

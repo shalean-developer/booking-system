@@ -1,8 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/swr-config';
 import { motion } from 'framer-motion';
 import {
   CalendarDays,
@@ -42,6 +44,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/utils/formatting';
 import { useAdminDashboardHomeData } from '@/hooks/use-admin-dashboard-home';
@@ -170,6 +173,47 @@ export function DashboardHome({
     loading,
     loadError,
   } = useAdminDashboardHomeData();
+
+  const { data: forecastHome, mutate: mutateForecastHome } = useSWR<{
+    ok: true;
+    pricing?: { enableForecastSurge: boolean };
+    demandAlerts?: Array<{ demand_high: boolean }>;
+  }>('/api/admin/forecast?days=60', fetcher, { revalidateOnFocus: false, dedupingInterval: 120_000 });
+
+  const [forecastTogglePending, setForecastTogglePending] = useState(false);
+  const forecastPricingOn = forecastHome?.pricing?.enableForecastSurge ?? false;
+  const expectedDemandIncrease =
+    (forecastHome?.demandAlerts ?? []).some((a) => a.demand_high) ?? false;
+
+  const { data: supplyAlerts } = useSWR<{
+    ok: true;
+    snapshot: {
+      shortage: 'none' | 'medium' | 'high';
+      demandRatio: number;
+      effectiveBookings: number;
+      availableCleaners: number;
+    };
+    alerts7d: { notificationsSent: number; responded: number; responseRate: number };
+  }>('/api/admin/supply-alerts', fetcher, { revalidateOnFocus: false, dedupingInterval: 120_000 });
+
+  const onForecastPricingToggle = useCallback(
+    async (next: boolean) => {
+      setForecastTogglePending(true);
+      try {
+        const r = await fetch('/api/admin/quick-clean-settings', {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enableForecastSurge: next }),
+        });
+        const j = (await r.json()) as { ok?: boolean };
+        if (j?.ok) await mutateForecastHome();
+      } finally {
+        setForecastTogglePending(false);
+      }
+    },
+    [mutateForecastHome],
+  );
 
   const { user } = useUser();
   const displayName =
@@ -343,7 +387,7 @@ export function DashboardHome({
         transition={{ duration: 0.4 }}
         className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
       >
-        <div className="min-w-0 space-y-1">
+        <div className="min-w-0 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-xl font-extrabold tracking-tight text-gray-900">
               {adminGreeting()}, {displayName} <span aria-hidden="true">👋</span>
@@ -379,6 +423,71 @@ export function DashboardHome({
           )}
         </motion.button>
       </motion.div>
+
+      {supplyAlerts?.ok && (
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 px-4 py-3 text-sm shadow-sm">
+          <p className="font-semibold text-gray-900">Supply &amp; cleaner alerts</p>
+          <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-gray-700">
+            <span>
+              Shortage:{' '}
+              <strong className="text-gray-900">{supplyAlerts.snapshot.shortage}</strong>
+              {' · '}
+              demand ratio{' '}
+              <strong className="tabular-nums">{supplyAlerts.snapshot.demandRatio.toFixed(2)}</strong>
+            </span>
+            <span>
+              Cleaners notified (7d):{' '}
+              <strong>{supplyAlerts.alerts7d.notificationsSent}</strong>
+            </span>
+            <span>
+              Response rate:{' '}
+              <strong>{(supplyAlerts.alerts7d.responseRate * 100).toFixed(0)}%</strong>
+              <span className="text-gray-500 text-xs ml-1">(opened/responded tracking)</span>
+            </span>
+          </div>
+        </div>
+      )}
+
+      {forecastHome && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/50 px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 space-y-1 text-sm">
+            <p className="font-semibold text-gray-900">Pricing &amp; demand</p>
+            {forecastPricingOn ? (
+              <p className="text-indigo-950">
+                <span className="font-medium">Forecast pricing active</span>
+                <span className="text-gray-600">
+                  {' '}
+                  — predictive multiplier runs on labour before real-time surge.
+                </span>
+              </p>
+            ) : (
+              <p className="text-gray-600">
+                Forecast pricing is off. Standard/Airbnb checkout uses real-time surge only.
+              </p>
+            )}
+            {expectedDemandIncrease && (
+              <p className="text-amber-900 font-medium">
+                Expected demand increase — high demand flagged in the 7-day forecast.
+              </p>
+            )}
+            <Link
+              href="/admin/dashboard"
+              className="inline-block text-xs font-semibold text-indigo-600 hover:underline"
+            >
+              View Analytics → Forecast
+            </Link>
+          </div>
+          <div className="flex flex-shrink-0 items-center gap-2 sm:justify-end">
+            <span className="text-xs font-medium text-gray-600">Forecast pricing</span>
+            <Switch
+              checked={forecastPricingOn}
+              disabled={forecastTogglePending}
+              onCheckedChange={onForecastPricingToggle}
+              aria-label="Toggle forecast-based pricing"
+            />
+          </div>
+        </div>
+      )}
 
       {attentionTotal > 0 && stats && (
         <motion.div

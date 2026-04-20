@@ -4,11 +4,11 @@
 
 import type { BookingCarpetDetails, ServiceType } from '../../../types/booking';
 import {
-  calculateBookingPrice,
   type BookingPriceFrequency,
   type PricingData,
   PRICING,
 } from '../../../lib/pricing';
+import { calculateFinalBookingPrice } from '../../../lib/pricing/final-pricing';
 
 export type ZohoLineItem = {
   name: string;
@@ -304,7 +304,8 @@ export function buildZohoInvoicePayloadParts(params: {
     numberOfCleaners,
   };
 
-  const calc = calculateBookingPrice(pricing, calcInput, freq);
+  const final = calculateFinalBookingPrice(pricing, calcInput, freq);
+  const calc = final.breakdown.cart;
   const bd = calc.breakdown;
 
   const items: ZohoLineItem[] = [];

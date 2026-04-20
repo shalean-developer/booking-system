@@ -24,6 +24,8 @@ import {
   Server,
   Ticket,
   PieChart,
+  TrendingUp,
+  Activity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -45,6 +47,8 @@ const navigationSections: NavSection[] = [
     title: 'Overview',
     items: [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+      { name: 'Analytics', href: '/admin/dashboard', icon: PieChart },
+      { name: 'Growth', href: '/admin/growth', icon: TrendingUp },
     ],
   },
   {
@@ -54,6 +58,7 @@ const navigationSections: NavSection[] = [
       { name: 'Schedule', href: '/admin/schedule', icon: Clock },
       { name: 'Scheduling', href: '/admin/scheduling', icon: CalendarCheck },
       { name: 'Recurring Schedules', href: '/admin/recurring-schedules', icon: Repeat },
+      { name: 'Supply status', href: '/admin/supply', icon: Activity },
     ],
   },
   {
@@ -71,6 +76,7 @@ const navigationSections: NavSection[] = [
   { name: 'Payments', href: '/admin/payments', icon: DollarSign },
       { name: 'Invoices', href: '/admin/invoices', icon: FileText },
       { name: 'Pricing', href: '/admin/pricing', icon: Tag },
+      { name: 'Pricing insights', href: '/admin/analytics', icon: TrendingUp },
       { name: 'Discount Codes', href: '/admin/discount-codes', icon: Ticket },
     ],
   },

@@ -24,6 +24,7 @@ import {
   getSevenDaysStartingOffset,
 } from '@/shared/booking-engine/booking-dates';
 import { BOOKING_TEAM_NAMES, isBookingTeamName } from '@/shared/booking-engine';
+import type { TeamSelection } from '@/lib/constants/booking-teams';
 import { aggregateExtraIdsToQuantities } from '@/shared/booking-engine/dashboard-pricing-bridge';
 import {
   getOptimalTeamSize,
@@ -32,6 +33,7 @@ import {
   buildDashboardPendingBookingPayload,
 } from '@/shared/booking-engine';
 import { validatePhoneNumber } from '@/lib/phone-validation';
+import { getPublicSurgePricingNote } from '@/lib/pricing/surgeEngine';
 import { supportWhatsAppHref } from '@/components/dashboard/customer-portal/booking-contact';
 
 const STEPS: BookingStep[] = [
@@ -91,7 +93,7 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
     setState,
     setService,
     linePricing,
-    total: preSurgeTotalZar,
+    total: lineTotalZar,
     carpetDetails,
   } = useDashboardBooking({ formData });
   const { user, customerAddressParts } = useProfile();
@@ -205,6 +207,9 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
   const [bookedTeams, setBookedTeams] = useState<string[]>([]);
   const [teamsLoading, setTeamsLoading] = useState(false);
   const [checkoutFinalZar, setCheckoutFinalZar] = useState<number | null>(null);
+  const [checkoutSurgeNote, setCheckoutSurgeNote] = useState<string | null>(null);
+  const [applyLoyaltyPoints, setApplyLoyaltyPoints] = useState(false);
+  const [useLoyaltyPointsInput, setUseLoyaltyPointsInput] = useState(0);
 
   const selectedService = state.service?.id ?? '';
 
@@ -230,6 +235,24 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
     state.selectedExtraIds,
     extrasQuantitiesById,
   ]);
+
+  const loyaltyBalanceDash = Math.max(0, Math.round(Number(user.rewardPoints) || 0));
+  const showLoyaltyDash =
+    (selectedService === 'Standard' || selectedService === 'Airbnb') && loyaltyBalanceDash > 0;
+
+  const effectiveLoyaltyUsePointsDash = useMemo(() => {
+    if (!applyLoyaltyPoints || !showLoyaltyDash) return 0;
+    const raw = Math.max(0, Math.floor(useLoyaltyPointsInput || 0));
+    return Math.min(raw, loyaltyBalanceDash);
+  }, [applyLoyaltyPoints, showLoyaltyDash, useLoyaltyPointsInput, loyaltyBalanceDash]);
+
+  useEffect(() => {
+    if (applyLoyaltyPoints && loyaltyBalanceDash > 0) {
+      setUseLoyaltyPointsInput((prev) =>
+        prev <= 0 ? loyaltyBalanceDash : Math.min(prev, loyaltyBalanceDash),
+      );
+    }
+  }, [applyLoyaltyPoints, loyaltyBalanceDash]);
 
   useEffect(() => {
     if (!state.date) return;
@@ -279,7 +302,7 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
   const currentService = services.find((s) => s.id === selectedService);
 
   const fetchCheckoutPricingPreview = useCallback(async () => {
-    if (!formData?.pricing || !selectedService || !state.date) {
+    if (!formData?.pricing || !selectedService || !state.date || !state.time) {
       throw new Error('Missing booking details for pricing.');
     }
     const extrasQuantities = aggregateExtraQuantitiesByName(
@@ -291,13 +314,19 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
       isTeamService && state.cleaner_id && isBookingTeamName(state.cleaner_id)
         ? state.cleaner_id
         : undefined;
+    const team_selection: TeamSelection | undefined = isTeamService
+      ? teamName
+        ? { type: 'manual', team: teamName }
+        : { type: 'auto' }
+      : undefined;
     const previewRes = await fetch('/api/booking/pricing-preview', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         date: state.date,
+        time: state.time,
         service: selectedService,
-        preSurgeTotal: preSurgeTotalZar,
+        team_selection,
         selected_team: teamName,
         bedrooms: state.bedrooms,
         bathrooms: state.bathrooms,
@@ -311,17 +340,46 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
         provideEquipment:
           (selectedService === 'Standard' || selectedService === 'Airbnb') && state.provideEquipment,
         carpetDetails: carpetDetails ?? undefined,
+        pricingMode: 'premium',
+        ...(customerAddressParts && {
+          address: {
+            suburb: customerAddressParts.suburb?.trim() || '',
+            city: customerAddressParts.city?.trim() || BOOKING_DEFAULT_CITY,
+          },
+        }),
+        customer_id: user.customerId ?? undefined,
+        use_points: effectiveLoyaltyUsePointsDash,
       }),
     });
     const preview = await previewRes.json();
-    if (!previewRes.ok || !preview.ok) {
+    const previewAccepted = preview.success === true || preview.ok === true;
+    if (!previewAccepted) {
       throw new Error(preview.error || 'Could not confirm pricing for this date.');
     }
-    return preview as { preSurgeTotalZar: number; finalTotalZar: number };
+    const uni = preview.breakdown?.cart?.unifiedPricing as
+      | { surge_multiplier?: number; surge_pricing_note?: string | null }
+      | undefined;
+    const mult =
+      typeof uni?.surge_multiplier === 'number' ? uni.surge_multiplier : 1;
+    const noteFromApi =
+      typeof uni?.surge_pricing_note === 'string' && uni.surge_pricing_note.trim()
+        ? uni.surge_pricing_note
+        : getPublicSurgePricingNote(mult);
+    if (noteFromApi) {
+      let t = noteFromApi;
+      if (mult > 1.3 && mult <= 1.5) {
+        t += ' Choose a later time to save money.';
+      }
+      setCheckoutSurgeNote(t);
+    } else {
+      setCheckoutSurgeNote(null);
+    }
+    return preview as { price_zar: number; total_amount_cents: number; breakdown: unknown };
   }, [
     formData,
     selectedService,
     state.date,
+    state.time,
     state.selectedExtraIds,
     extrasQuantitiesById,
     state.bedrooms,
@@ -329,29 +387,45 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
     state.extraRooms,
     state.provideEquipment,
     state.cleaner_id,
-    preSurgeTotalZar,
     isTeamService,
     carpetDetails,
     numberOfCleanersForPricing,
+    customerAddressParts,
+    user.customerId,
+    effectiveLoyaltyUsePointsDash,
   ]);
 
   useEffect(() => {
-    if (step !== 5 || preSurgeTotalZar <= 0 || !state.date || !state.time) {
+    if (step !== 5 || !state.date || !state.time) {
       setCheckoutFinalZar(null);
+      setCheckoutSurgeNote(null);
       return;
     }
     let cancelled = false;
-    fetchCheckoutPricingPreview()
-      .then((p) => {
-        if (!cancelled) setCheckoutFinalZar(p.finalTotalZar);
-      })
-      .catch(() => {
-        if (!cancelled) setCheckoutFinalZar(null);
-      });
+    const t = window.setTimeout(() => {
+      fetchCheckoutPricingPreview()
+        .then((p) => {
+          if (!cancelled) setCheckoutFinalZar(p.price_zar);
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setCheckoutFinalZar(null);
+            setCheckoutSurgeNote(null);
+          }
+        });
+    }, 300);
     return () => {
       cancelled = true;
+      window.clearTimeout(t);
     };
-  }, [step, preSurgeTotalZar, state.date, state.time, fetchCheckoutPricingPreview]);
+  }, [
+    step,
+    state.date,
+    state.time,
+    fetchCheckoutPricingPreview,
+    effectiveLoyaltyUsePointsDash,
+    applyLoyaltyPoints,
+  ]);
 
   useEffect(() => {
     if (!state.date || !state.time || !customerAddressParts || isTeamService) {
@@ -427,7 +501,7 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
 
   const currentCleaner = flowCleaners.find((c) => c.id === state.cleaner_id);
 
-  const displayTotalZar = checkoutFinalZar ?? preSurgeTotalZar;
+  const displayTotalZar = checkoutFinalZar ?? lineTotalZar;
 
   const profilePhoneOk = validatePhoneNumber((user.phone || '').trim());
 
@@ -441,7 +515,7 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
   };
 
   const buildPendingPayload = useCallback(
-    (finalTotalZar: number, preSurge: number) => {
+    (totalAmountZar: number) => {
       const addr = customerAddressParts;
       if (!addr) {
         throw new Error('Add your street address in Profile before paying.');
@@ -466,8 +540,9 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
         linePricing,
         numberOfCleanersForPricing,
         equipmentChargeZar: formData?.equipment?.charge ?? 0,
-        finalTotalZar: finalTotalZar,
-        preSurge: preSurge,
+        totalAmountZar,
+        use_points: effectiveLoyaltyUsePointsDash,
+        customer_id: user.customerId ?? null,
       });
     },
     [
@@ -481,6 +556,7 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
       formData,
       extrasQuantitiesById,
       numberOfCleanersForPricing,
+      effectiveLoyaltyUsePointsDash,
     ]
   );
 
@@ -502,7 +578,7 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
     setPaying(true);
     try {
       const preview = await fetchCheckoutPricingPreview();
-      const pendingBody = buildPendingPayload(preview.finalTotalZar, preview.preSurgeTotalZar);
+      const pendingBody = buildPendingPayload(preview.price_zar);
       const pendingRes = await fetch('/api/bookings/pending', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -664,10 +740,17 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
           : null
       }
       checkoutFinalZar={checkoutFinalZar}
+      surgePricingNote={checkoutSurgeNote}
       currentService={currentService}
       currentCleaner={currentCleaner}
       rewardPoints={user.rewardPoints}
       supportWhatsAppHref={supportWhatsAppHref()}
+      showLoyaltyCheckout={showLoyaltyDash}
+      loyaltyBalance={loyaltyBalanceDash}
+      applyLoyaltyPoints={applyLoyaltyPoints}
+      onApplyLoyaltyPointsChange={setApplyLoyaltyPoints}
+      useLoyaltyPointsInput={useLoyaltyPointsInput}
+      onUseLoyaltyPointsInputChange={setUseLoyaltyPointsInput}
     />
   );
 }

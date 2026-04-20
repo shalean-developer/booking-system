@@ -10,6 +10,8 @@ export interface Database {
           customer_id: string | null;
           cleaner_id: string | null; // UUID
           assigned_cleaner_id: string | null;
+          /** All cleaners assigned to this booking (same slot). */
+          assigned_cleaners: string[] | null;
           service_type: string | null;
           booking_date: string;
           booking_time: string;
@@ -26,6 +28,8 @@ export interface Database {
           address_line1: string | null;
           address_suburb: string | null;
           address_city: string | null;
+          latitude: number | null;
+          longitude: number | null;
           total_amount: number | null;
           cleaner_earnings: number | null;
           earnings_status: string | null;
@@ -72,6 +76,12 @@ export interface Database {
           paid_amount_minor: number | null;
           paid_currency: string | null;
           paystack_verified_at: string | null;
+          tracking_status: string | null;
+          cleaner_locations: Record<string, unknown> | null;
+          /** PostGIS geography(Point,4326). */
+          location: unknown | null;
+          /** Suburb/area label for coverage matching. */
+          area: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -80,6 +90,7 @@ export interface Database {
           customer_id?: string | null;
           cleaner_id?: string | null; // UUID
           assigned_cleaner_id?: string | null;
+          assigned_cleaners?: string[] | null;
           service_type?: string | null;
           booking_date: string;
           booking_time: string;
@@ -96,6 +107,8 @@ export interface Database {
           address_line1?: string | null;
           address_suburb?: string | null;
           address_city?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
           total_amount?: number | null;
           cleaner_earnings?: number | null;
           earnings_status?: string | null;
@@ -142,6 +155,10 @@ export interface Database {
           paid_amount_minor?: number | null;
           paid_currency?: string | null;
           paystack_verified_at?: string | null;
+          tracking_status?: string | null;
+          cleaner_locations?: Record<string, unknown> | null;
+          location?: unknown;
+          area?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -150,6 +167,7 @@ export interface Database {
           customer_id?: string | null;
           cleaner_id?: string | null; // UUID
           assigned_cleaner_id?: string | null;
+          assigned_cleaners?: string[] | null;
           service_type?: string | null;
           booking_date?: string;
           booking_time?: string;
@@ -166,6 +184,8 @@ export interface Database {
           address_line1?: string | null;
           address_suburb?: string | null;
           address_city?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
           total_amount?: number | null;
           cleaner_earnings?: number | null;
           earnings_status?: string | null;
@@ -212,6 +232,10 @@ export interface Database {
           paid_amount_minor?: number | null;
           paid_currency?: string | null;
           paystack_verified_at?: string | null;
+          tracking_status?: string | null;
+          cleaner_locations?: Record<string, unknown> | null;
+          location?: unknown;
+          area?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -224,6 +248,12 @@ export interface Database {
           phone: string;
           photo_url: string | null;
           areas: string[];
+          /** Named suburbs; empty means fall back to `areas`. */
+          working_areas: string[];
+          coverage_radius_km: number;
+          base_location?: unknown;
+          base_latitude?: number | null;
+          base_longitude?: number | null;
           bio: string | null;
           years_experience: number | null;
           specialties: string[] | null;
@@ -255,6 +285,11 @@ export interface Database {
           phone: string;
           photo_url?: string | null;
           areas: string[];
+          working_areas?: string[];
+          coverage_radius_km?: number;
+          base_location?: unknown;
+          base_latitude?: number | null;
+          base_longitude?: number | null;
           bio?: string | null;
           years_experience?: number | null;
           specialties?: string[] | null;
@@ -286,6 +321,11 @@ export interface Database {
           phone?: string;
           photo_url?: string | null;
           areas?: string[];
+          working_areas?: string[];
+          coverage_radius_km?: number;
+          base_location?: unknown;
+          base_latitude?: number | null;
+          base_longitude?: number | null;
           bio?: string | null;
           years_experience?: number | null;
           specialties?: string[] | null;
@@ -499,6 +539,27 @@ export interface Database {
           failure_count?: number;
           last_failure_type?: string | null;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      growth_events: {
+        Row: {
+          id: string;
+          event_type: string;
+          properties: Record<string, unknown>;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          event_type: string;
+          properties?: Record<string, unknown>;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          event_type?: string;
+          properties?: Record<string, unknown>;
+          created_at?: string;
         };
         Relationships: [];
       };

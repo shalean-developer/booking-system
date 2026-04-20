@@ -36,4 +36,4 @@ export const FAQS: { q: string; a: string }[] = [
   { q: "Do you bring your own supplies?", a: "By default, our cleaners bring standard supplies. Heavy equipment like vacuum cleaners can be requested for a small fee." },
 ];
 
-export const LOCATION_BASE = "/location/cape-town" as const;
+export const LOCATION_BASE = "/growth/local/cleaning-services/cape-town" as const;

@@ -1,15 +1,15 @@
 /**
  * Canonical catalog pricing — DB `pricing_config` via `@/lib/pricing`.
- * UI layers must not call `calculateBookingPrice` from `@/lib/pricing` directly; use `calculateBooking` here.
+ * UI layers must use `calculateBooking` here — authoritative totals come from `calculateFinalBookingPrice`.
  */
 
-import {
-  calculateBookingPrice,
-  type BookingPriceFrequency,
-  type BookingPriceResult,
-  type CalculateBookingPriceInput,
-  type PricingData,
+import type {
+  BookingPriceFrequency,
+  BookingPriceResult,
+  CalculateBookingPriceInput,
+  PricingData,
 } from '@/lib/pricing';
+import { calculateFinalBookingPrice } from '@/lib/pricing/final-pricing';
 import type { ServiceType } from '@/types/booking';
 import { aggregateExtraQuantitiesByName } from '@/lib/booking-pricing-input';
 import type { BookingFormData as ApiFormData } from '@/lib/useBookingFormData';
@@ -21,7 +21,12 @@ import {
   mapWizardServiceToTimeServiceType,
 } from '@/lib/time-estimation';
 import { MAX_TEAM_SIZE, MIN_TEAM_SIZE } from '@/lib/team-optimizer';
-import { isBasicEligible, isBasicPlannedPathExtrasValid } from '@/lib/pricing-mode';
+import {
+  isBasicEligible,
+  type PricingMode,
+} from '@/lib/pricing-mode';
+import { calculateBookingV4 } from '@/lib/pricing/v4/calculateBookingV4';
+import { bookingFormDataToV4Input } from '@/lib/pricing/v4/booking-form-to-v4';
 
 export type BookingCalculateInput = {
   pricing: PricingData;
@@ -37,6 +42,8 @@ export type BookingCalculateInput = {
   provideEquipment?: boolean;
   equipmentChargeOverride?: number;
   numberOfCleaners?: number;
+  /** Standard / Airbnb unified pricing — defaults to premium */
+  pricingMode?: PricingMode;
 };
 
 function defaultQuantities(ids: string[]): Record<string, number> {
@@ -47,7 +54,7 @@ function defaultQuantities(ids: string[]): Record<string, number> {
   return q;
 }
 
-/** Line total (ZAR) from configured pricing — same path as server `computeServerPreSurgeTotalZar`. */
+/** Line total (ZAR) from configured pricing — same path as server `computeAuthoritativeBookingPricing`. */
 export function calculateBooking(input: BookingCalculateInput): BookingPriceResult {
   const byId = input.extrasQuantitiesById ?? defaultQuantities(input.selectedExtraIds);
   const extrasQuantities = aggregateExtraQuantitiesByName(
@@ -55,7 +62,7 @@ export function calculateBooking(input: BookingCalculateInput): BookingPriceResu
     byId,
     input.catalogAllNames
   );
-  return calculateBookingPrice(
+  return calculateFinalBookingPrice(
     input.pricing,
     {
       service: input.service,
@@ -68,23 +75,27 @@ export function calculateBooking(input: BookingCalculateInput): BookingPriceResu
       provideEquipment: input.provideEquipment,
       equipmentChargeOverride: input.equipmentChargeOverride,
       numberOfCleaners: input.numberOfCleaners ?? 1,
+      pricingMode: input.pricingMode ?? 'premium',
     },
     input.frequency ?? 'one-time'
-  );
+  ).breakdown.cart;
 }
 
 /**
  * Team size used by the wizard and by `computeLinePricingFromWizard` (single source of truth).
  */
 export function resolveWizardNumberOfCleaners(wizard: WizardBookingState): number {
-  const time = buildWizardTimeInput(wizard);
   if (
-    wizard.pricingMode === 'basic' &&
-    wizard.basicPlannedHours != null &&
-    isBasicPlannedPathExtrasValid(time, wizard.extras)
+    wizard.service === 'standard' ||
+    wizard.service === 'airbnb' ||
+    wizard.service === 'deep' ||
+    wizard.service === 'move' ||
+    wizard.service === 'carpet'
   ) {
-    return 1;
+    const v4 = calculateBookingV4(bookingFormDataToV4Input(wizard));
+    return Math.min(MAX_TEAM_SIZE, Math.max(MIN_TEAM_SIZE, v4.team_size));
   }
+  const time = buildWizardTimeInput(wizard);
   if (wizard.pricingMode === 'basic' && isBasicEligible(time, wizard.extras)) {
     return 1;
   }
@@ -106,7 +117,12 @@ export function computeLinePricingFromWizard(
 ): BookingPriceResult | null {
   if (!formData?.pricing) return null;
   const numberOfCleaners = resolveWizardNumberOfCleaners(wizard);
-  const serviceFee = formData.pricing.serviceFee ?? 49;
+  const serviceFee =
+    wizard.service === 'standard' || wizard.service === 'airbnb'
+      ? 0
+      : wizard.pricingMode === 'basic'
+        ? 0
+        : formData.pricing.serviceFee ?? 49;
   return {
     subtotal: 0,
     serviceFee,

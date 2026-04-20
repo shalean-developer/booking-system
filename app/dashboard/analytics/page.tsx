@@ -44,7 +44,10 @@ const SpendingChart = dynamic(
               tickFormatter={(value) => `R${(value / 100).toFixed(0)}`}
             />
             <Tooltip 
-              formatter={(value: number | undefined) => [`R${((value ?? 0) / 100).toFixed(2)}`, 'Spending']}
+              formatter={(value) => {
+                const n = typeof value === 'number' ? value : Number(value) || 0;
+                return [`R${(n / 100).toFixed(2)}`, 'Spending'];
+              }}
               labelStyle={{ color: '#000' }}
             />
             <Legend />
@@ -92,7 +95,10 @@ const ServiceFrequencyChart = dynamic(
               tick={{ fontSize: 12 }}
             />
             <Tooltip 
-              formatter={(value: number | undefined) => [value ?? 0, 'Bookings']}
+              formatter={(value) => {
+                const n = typeof value === 'number' ? value : Number(value) || 0;
+                return [n, 'Bookings'];
+              }}
               labelStyle={{ color: '#000' }}
             />
             <Legend />

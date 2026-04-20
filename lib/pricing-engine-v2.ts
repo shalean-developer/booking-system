@@ -1,4 +1,7 @@
 /**
+ * ⚠️ LEGACY MODULE — DO NOT USE FOR AUTHORITATIVE LABOUR (use `calculateBookingV4` + `calculateFinalBookingPrice`).
+ * Remaining helpers for Basic Quick Clean display shape only.
+ *
  * Pricing Engine V2 — Basic: tier rates, R250 min for ≤3h, R10 labour round, cover + fixed fee,
  * then monotonic total (2h→5h never decreases, ≥ +R20 vs previous hour).
  * Premium: wraps existing labour engine + V2 fee layer.
@@ -39,6 +42,12 @@ export const SERVICE_FEE_CENTS = 3_900;
 export const COVER_PERCENT = 0.06;
 export const BASIC_SAVINGS_REFERENCE_RATE_CENTS = 6_500;
 
+/**
+ * Scales Quick Clean tier hourly rates (default 1). Set below 1 to reduce typical estimates;
+ * service minimums in `pricing-service-config` still apply after totals are computed.
+ */
+export const BASIC_TIER_RATE_MULTIPLIER = 0.9;
+
 /** Basic labour: nearest R10 (avoids R50 bands collapsing different bases). */
 export const BASIC_LABOUR_ROUND_STEP_CENTS = 1_000;
 
@@ -60,10 +69,12 @@ export function roundToPsychologicalPrice(cents: number): number {
 
 /** Tiered ZAR-cent hourly rates — smoother drops so 4h+ does not undercut shorter bookings before monotonic pass. */
 export function getBasicHourlyRate(hours: number): number {
-  if (hours <= 3) return 6_500;
-  if (hours === 4) return 6_200;
-  if (hours === 5) return 6_000;
-  return 5_800;
+  let r: number;
+  if (hours <= 3) r = 6_500;
+  else if (hours === 4) r = 6_200;
+  else if (hours === 5) r = 6_000;
+  else r = 5_800;
+  return Math.round(r * BASIC_TIER_RATE_MULTIPLIER);
 }
 
 export function computeBasicTierSavingsZar(hours: number, rateUsedCents: number): number {
@@ -226,8 +237,9 @@ export function calculatePriceV2(
   input: { hours: number; hasExtras?: boolean } | { premiumBase: PremiumEngineBaseForV2 }
 ): PricingResult {
   if (mode === 'basic') {
-    const b = input as { hours: number; hasExtras?: boolean };
-    return calculateBasicV2(b.hours, { hasExtras: b.hasExtras });
+    throw new Error(
+      'Quick Clean uses calculatePrice(mode, ...) in lib/pricing-engine — not calculatePriceV2 basic.'
+    );
   }
   return applyV2FeesToPremiumEngineBase((input as { premiumBase: PremiumEngineBaseForV2 }).premiumBase);
 }

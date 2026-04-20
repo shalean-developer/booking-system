@@ -10,6 +10,8 @@ import { motion } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
 import { logBookingFlowClient } from '@/lib/debug-booking-flow';
 import { BookingFlowStepIndicator } from '@/components/booking-flow-step-indicator';
+import { GROWTH_EVENTS, trackConversion } from '@/lib/growth/growthEngine';
+import { persistGrowthEvent } from '@/lib/growth/persist-event';
 
 interface BookingDetails {
   id: string;
@@ -83,6 +85,28 @@ function ConfirmationContent() {
       cancelled = true;
     };
   }, [paystackReference, id, verifiedSkip]);
+
+  useEffect(() => {
+    if (verifyStatus !== 'success' || !booking?.id) return;
+    const zar = Number(booking.total_amount) || 0;
+    const key = `growth_purchase_${booking.id}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, '1');
+    } catch {
+      return;
+    }
+    trackConversion({
+      value_zar: zar,
+      transaction_id: booking.id,
+      currency: 'ZAR',
+    });
+    void persistGrowthEvent({
+      event: GROWTH_EVENTS.BOOKING_COMPLETED,
+      transaction_id: booking.id,
+      value_zar: zar,
+    });
+  }, [verifyStatus, booking]);
 
   useEffect(() => {
     const fetchBooking = async () => {
@@ -314,6 +338,16 @@ function ConfirmationContent() {
           <p className="text-sm text-gray-500">
             A confirmation email has been sent to {booking.customer_email}.
           </p>
+
+          <div className="mt-10 rounded-2xl border border-violet-100 bg-white p-6 text-left shadow-sm">
+            <p className="text-sm font-bold text-gray-900">Invite friends &amp; earn cleaning credits</p>
+            <p className="mt-1 text-sm text-gray-600">
+              Share your referral link from the dashboard — rewards for you and a discount on their first booking.
+            </p>
+            <Button asChild className="mt-4 rounded-full" variant="outline">
+              <Link href="/dashboard">Open dashboard</Link>
+            </Button>
+          </div>
         </motion.div>
       </div>
     </div>

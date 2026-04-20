@@ -12,6 +12,7 @@ import Link from 'next/link';
 
 interface Booking {
   id: string;
+  price_snapshot?: Record<string, unknown> | null;
   customer_name: string;
   customer_email: string;
   customer_phone: string;
@@ -84,6 +85,23 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
       day: 'numeric',
     });
   };
+
+  const surgeSnap = booking?.price_snapshot;
+  const surgeMult =
+    surgeSnap && typeof surgeSnap.surge_multiplier === 'number'
+      ? surgeSnap.surge_multiplier
+      : null;
+  const surgeBreakdown =
+    surgeSnap &&
+    surgeSnap.surge_breakdown &&
+    typeof surgeSnap.surge_breakdown === 'object'
+      ? (surgeSnap.surge_breakdown as {
+          demand?: number;
+          supply?: number;
+          time?: number;
+          forecast?: number;
+        })
+      : null;
 
   if (isLoading) {
     return (
@@ -217,6 +235,26 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                       );
                     })}
                   </div>
+                </div>
+              )}
+
+              {surgeMult != null && Math.abs(surgeMult - 1) > 0.002 && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-4 space-y-2">
+                  <p className="text-sm font-semibold text-amber-900">Surge pricing (real-time)</p>
+                  <p className="text-sm text-amber-950">
+                    Multiplier: <span className="font-mono tabular-nums">{surgeMult.toFixed(3)}×</span>
+                  </p>
+                  {surgeBreakdown && (
+                    <ul className="text-xs text-amber-900/90 space-y-1 font-mono">
+                      <li>Demand: {(surgeBreakdown.demand ?? 0).toFixed(3)}</li>
+                      <li>Supply: {(surgeBreakdown.supply ?? 0).toFixed(3)}</li>
+                      <li>Time: {(surgeBreakdown.time ?? 0).toFixed(3)}</li>
+                      <li>Forecast: {(surgeBreakdown.forecast ?? 0).toFixed(3)}</li>
+                    </ul>
+                  )}
+                  <p className="text-xs text-amber-800/90">
+                    Fractional contributions to (multiplier − 1); sum matches applied surge after clamp.
+                  </p>
                 </div>
               )}
 

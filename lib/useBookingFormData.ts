@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import type { QuickCleanSettings } from '@/lib/quick-clean-settings';
 
 export interface BookingFormService {
   type: 'Standard' | 'Deep' | 'Move In/Out' | 'Airbnb' | 'Carpet';
@@ -40,10 +41,12 @@ export interface BookingFormData {
   };
   /** Server-driven: pay-later is off in production unless ALLOW_PAY_LATER_BOOKINGS=true */
   allowPayLater?: boolean;
+  /** Quick Clean V4 — hourly rate, caps, rounding (from `quick_clean_settings`). */
+  quickCleanSettings?: QuickCleanSettings;
 }
 
-/** In-memory dedupe only (no TTL) — extras/pricing must reflect admin toggles immediately after refetch. */
-const CACHE_DURATION = 0;
+/** Short-lived cache to avoid full-screen reload flash on route/dev refreshes. */
+const CACHE_DURATION = 60_000;
 let cachedData: BookingFormData | null = null;
 let cacheTimestamp = 0;
 let fetchingPromise: Promise<BookingFormData> | null = null;
@@ -112,6 +115,7 @@ export function useBookingFormData(initialData?: BookingFormData | null, forceRe
             charge: 500,
           },
           allowPayLater: result.allowPayLater !== false,
+          quickCleanSettings: result.quickCleanSettings,
         };
 
         // Update cache
@@ -155,6 +159,7 @@ export function useBookingFormData(initialData?: BookingFormData | null, forceRe
               extras: result.extras || { all: [], standardAndAirbnb: [], deepAndMove: [], quantityExtras: [], meta: {}, prices: {} },
               equipment: result.equipment || { items: [], charge: 500 },
               allowPayLater: result.allowPayLater !== false,
+              quickCleanSettings: result.quickCleanSettings,
             };
             cachedData = formData;
             cacheTimestamp = Date.now();

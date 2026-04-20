@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { BookingCard } from './booking-card';
 import { BookingDetailsModal } from './booking-details-modal';
 import { BookingCardSkeleton } from './booking-card-skeleton';
@@ -17,6 +17,10 @@ interface Booking extends CleanerBooking {
   cleaner_completed_at?: string | null;
   customer_rating_id?: string | null;
   distance?: number | null;
+  /** API: claim single-cleaner job vs join multi-cleaner team */
+  accept_mode?: 'claim' | 'join';
+  open_team_slots?: number;
+  team_target_size?: number;
 }
 
 export function AvailableBookings() {
@@ -77,6 +81,11 @@ export function AvailableBookings() {
     }
   };
 
+  const fetchRef = useRef(fetchAvailableBookings);
+  useEffect(() => {
+    fetchRef.current = fetchAvailableBookings;
+  });
+
   const fetchLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -101,22 +110,38 @@ export function AvailableBookings() {
     fetchAvailableBookings();
   }, [dateFilter, location]);
 
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      void fetchRef.current(false);
+    }, 45_000);
+    return () => window.clearInterval(id);
+  }, []);
+
   const handleClaim = async (bookingId: string) => {
     try {
-      const response = await fetch(`/api/cleaner/bookings/${bookingId}/claim`, {
+      const booking = bookings.find((b) => b.id === bookingId);
+      const path =
+        booking?.accept_mode === 'join'
+          ? `/api/cleaner/bookings/${bookingId}/join`
+          : `/api/cleaner/bookings/${bookingId}/claim`;
+
+      const response = await fetch(path, {
         method: 'POST',
+        credentials: 'include',
       });
 
       const data = await response.json();
 
       if (!data.ok) {
-        throw new Error(data.error || 'Failed to claim booking');
+        throw new Error(data.error || 'Failed to accept job');
       }
 
-      // Show success message
-      alert('✅ Booking claimed successfully! Check "My Bookings" tab.');
+      alert(
+        booking?.accept_mode === 'join'
+          ? '✅ You joined the crew! Check My Jobs.'
+          : '✅ Booking claimed successfully! Check "My Jobs".'
+      );
 
-      // Refresh available bookings
       await fetchAvailableBookings(false);
     } catch (err) {
       console.error('Error claiming booking:', err);

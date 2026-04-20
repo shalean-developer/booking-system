@@ -19,6 +19,15 @@ const quickLinks = [
   { label: "Contact", href: "/contact" },
 ];
 
+/** Programmatic local SEO (also reachable via `/cleaning-services-{area}` rewrites). */
+const localSeoLinks = [
+  { label: "Cleaning Cape Town", href: "/cleaning-services-cape-town" },
+  { label: "Deep cleaning Claremont", href: "/deep-cleaning-claremont" },
+  { label: "Same-day cleaning Sea Point", href: "/same-day-cleaning-sea-point" },
+  { label: "Affordable cleaning Johannesburg", href: "/affordable-cleaning-johannesburg" },
+  { label: "Weekly cleaning Durban", href: "/weekly-cleaning-durban" },
+];
+
 const serviceLinks = [
   "Standard Cleaning",
   "Deep Cleaning",
@@ -114,6 +123,16 @@ export function ShaleanFooter() {
                     className="hover:text-white transition-colors"
                   >
                     {name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <h4 className="font-bold text-lg mb-4 mt-8">Popular areas</h4>
+            <ul className="space-y-3 text-slate-400 text-sm">
+              {localSeoLinks.map((link) => (
+                <li key={link.href}>
+                  <Link href={link.href} className="hover:text-white transition-colors">
+                    {link.label}
                   </Link>
                 </li>
               ))}

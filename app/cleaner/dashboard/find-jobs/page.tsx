@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getCleanerSession } from '@/lib/cleaner-auth';
 import { FindJobsClient } from './find-jobs-client';
@@ -12,6 +13,10 @@ export default async function FindJobsPage() {
     redirect('/cleaner/login');
   }
 
-  return <FindJobsClient />;
+  return (
+    <Suspense fallback={<div className="min-h-dvh bg-white p-6 text-sm text-slate-500">Loading…</div>}>
+      <FindJobsClient />
+    </Suspense>
+  );
 }
 

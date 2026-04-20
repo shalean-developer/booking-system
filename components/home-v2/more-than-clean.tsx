@@ -21,7 +21,7 @@ const columns = [
     desc: "Trusted across major metros and growing suburbs — local teams who know your neighbourhood.",
     img: "/image/more-than-clean-regions.jpg",
     alt: "Cleaning team serving many regions",
-    href: "/location/cape-town",
+    href: "/growth/local/cleaning-services/cape-town",
   },
   {
     title: "10,000+ happy homes",

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getBookingFormData } from '@/lib/booking-form-data-server';
 import { isPayLaterAllowed } from '@/lib/booking-env';
+import { DEFAULT_QUICK_CLEAN_SETTINGS } from '@/lib/quick-clean-settings';
 
 /**
  * API endpoint to fetch all booking form data (services, extras, pricing)
@@ -18,6 +19,7 @@ export async function GET() {
       extras: data.extras,
       equipment: data.equipment,
       allowPayLater: isPayLaterAllowed(),
+      quickCleanSettings: data.quickCleanSettings,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal server error';
@@ -40,6 +42,7 @@ export async function GET() {
           items: [],
           charge: 500,
         },
+        quickCleanSettings: DEFAULT_QUICK_CLEAN_SETTINGS,
       },
       { status: 500 }
     );

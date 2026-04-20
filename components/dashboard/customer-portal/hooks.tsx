@@ -26,6 +26,25 @@ import {
 import { getBookingRevenueCents } from '@/shared/finance-engine';
 import { normalizeBookingTimeToSlotId } from '@/lib/booking-time-slots';
 import { BOOKING_DEFAULT_CITY } from '@/lib/contact';
+import type { CustomerDashboardStats } from '@/lib/dashboard-data/customer-stats';
+
+/** Defaults when `dashboardStats` is still loading — matches `CustomerDashboardStats`. */
+const EMPTY_DASHBOARD_STATS: CustomerDashboardStats = {
+  upcomingCount: 0,
+  completedCount: 0,
+  cancelledCount: 0,
+  activePlans: 0,
+  rewardPoints: 0,
+  lastCleaningCompleted: null,
+  balanceDue: 0,
+  totalBookings: 0,
+  totalSpentCents: 0,
+  hoursCleaned: 0,
+  userTier: 'bronze',
+  loyaltyLifetimePoints: 0,
+  nextTierName: null,
+  nextTierBookingThreshold: null,
+};
 import type {
   Booking,
   FaqItem,
@@ -65,6 +84,10 @@ export interface PortalUser {
   nextTierName: string | null;
   /** When true, show tier ladder / progress UI (requires backend tier data). */
   rewardsProgressEnabled: boolean;
+  /** Completed (paid) bookings used for tier ladder — from dashboard stats. */
+  tierBookingsCompleted: number;
+  /** Lifetime points earned (audit / display). */
+  loyaltyLifetimePoints: number;
 }
 
 /** Structured address from `customers` — used for checkout payloads (matches public booking engine). */
@@ -432,21 +455,12 @@ type ApiCustomer = {
   rewardsPoints?: number | null;
   /** When present on the customer row, enables referral copy UI. */
   referralCode?: string | null;
+  userTier?: string | null;
+  loyaltyLifetimePoints?: number | null;
 };
 
 /** Mirrors `GET /api/dashboard/stats` → `stats` (server is source of truth). */
-export type DashboardStatsPayload = {
-  upcomingCount: number;
-  completedCount: number;
-  cancelledCount: number;
-  activePlans: number;
-  rewardPoints: number;
-  lastCleaningCompleted: string | null;
-  balanceDue: number;
-  totalBookings: number;
-  totalSpentCents: number;
-  hoursCleaned: number;
-};
+export type DashboardStatsPayload = CustomerDashboardStats;
 
 const BOOKINGS_PAGE_SIZE = 20;
 const SWR_STATS_KEY = 'dashboard-stats';
@@ -504,19 +518,31 @@ function invalidateDashboardCache() {
   );
 }
 
-function rewardMeta(customer: ApiCustomer | null) {
+function rewardMeta(customer: ApiCustomer | null, stats?: DashboardStatsPayload | null) {
   const pts = Math.max(0, Math.round(Number(customer?.rewardsPoints) || 0));
   const code = customer?.referralCode?.trim();
   const referralEnabled = Boolean(code);
+  const tierRaw = (stats?.userTier ?? customer?.userTier ?? 'bronze').toLowerCase();
+  const completed = stats?.completedCount ?? 0;
+  const nextName = stats?.nextTierName ?? null;
+  /** Completed-booking count required for the next tier (e.g. 5 → Silver). */
+  const threshold = stats?.nextTierBookingThreshold ?? null;
+  const progressPct =
+    threshold != null && threshold > 0 ? Math.min(100, (completed / threshold) * 100) : null;
+  const lifetimeRaw = stats?.loyaltyLifetimePoints ?? customer?.loyaltyLifetimePoints ?? 0;
+  const loyaltyLifetimePoints = Math.max(0, Math.round(Number(lifetimeRaw) || 0));
+
   return {
     referralCode: referralEnabled ? code! : null,
     referralEnabled,
-    rewardTier: null as string | null,
+    rewardTier: tierRaw,
     rewardPoints: pts,
-    rewardTarget: null as number | null,
-    rewardProgress: null as number | null,
-    nextTierName: null as string | null,
-    rewardsProgressEnabled: false,
+    rewardTarget: threshold,
+    rewardProgress: progressPct,
+    nextTierName: nextName,
+    rewardsProgressEnabled: Boolean(nextName && threshold != null),
+    tierBookingsCompleted: completed,
+    loyaltyLifetimePoints,
   };
 }
 
@@ -561,6 +587,8 @@ export function CustomerPortalProvider({
     | 'rewardProgress'
     | 'nextTierName'
     | 'rewardsProgressEnabled'
+    | 'tierBookingsCompleted'
+    | 'loyaltyLifetimePoints'
   > => {
     const em = email?.trim() || '';
     const fn = firstName?.trim();
@@ -707,6 +735,8 @@ export function CustomerPortalProvider({
       c.addressLine1 ?? '',
       c.addressSuburb ?? '',
       c.addressCity ?? '',
+      c.referralCode ?? '',
+      c.userTier ?? '',
     ].join('|');
   })();
 
@@ -731,7 +761,7 @@ export function CustomerPortalProvider({
       return;
     }
     setPortalCustomerId(apiCustomer.id);
-    setRewardExtras(rewardMeta(apiCustomer));
+    setRewardExtras(rewardMeta(apiCustomer, dashboardStats ?? null));
     const fn = apiCustomer.firstName?.trim();
     const ln = apiCustomer.lastName?.trim();
     setUserBase((prev) => {
@@ -776,14 +806,19 @@ export function CustomerPortalProvider({
     } else {
       setAddresses([]);
     }
-  }, [authToken, customerSyncKey]);
+  }, [authToken, customerSyncKey, dashboardStats]);
 
   useEffect(() => {
     if (dashboardStats) {
-      setRewardExtras((prev) => ({ ...prev, rewardPoints: dashboardStats.rewardPoints }));
       setPointsHistory(buildPointsHistory(dashboardStats.rewardPoints));
+      const c = bookingsPages?.[0]?.customer;
+      if (c) {
+        setRewardExtras(rewardMeta(c, dashboardStats));
+      } else {
+        setRewardExtras((prev) => ({ ...prev, rewardPoints: dashboardStats.rewardPoints }));
+      }
     }
-  }, [dashboardStats?.rewardPoints]);
+  }, [dashboardStats, bookingsPages?.[0]?.customer?.id]);
 
   useEffect(() => {
     if (!authToken) {
@@ -1298,17 +1333,6 @@ export function useFaqs() {
   return { faqs: ctx.faqs };
 }
 
-export type CustomerDashboardStats = {
-  upcomingCount: number;
-  completedCount: number;
-  cancelledCount: number;
-  activePlans: number;
-  rewardPoints: number;
-  totalBookings: number;
-  totalSpentCents: number;
-  hoursCleaned: number;
-};
-
 /** Lists from paginated bookings; KPIs from `GET /api/dashboard/stats` only (no client-derived counts). */
 export function useCustomerDashboardData() {
   const ctx = useContext(PortalContext);
@@ -1328,16 +1352,9 @@ export function useCustomerDashboardData() {
     () => sorted.filter((b) => isCancelledBooking(b.dbStatus)),
     [sorted]
   );
-  const s = ctx.dashboardStats;
   const stats: CustomerDashboardStats = {
-    upcomingCount: s?.upcomingCount ?? 0,
-    completedCount: s?.completedCount ?? 0,
-    cancelledCount: s?.cancelledCount ?? 0,
-    activePlans: s?.activePlans ?? 0,
-    rewardPoints: s?.rewardPoints ?? 0,
-    totalBookings: s?.totalBookings ?? 0,
-    totalSpentCents: s?.totalSpentCents ?? 0,
-    hoursCleaned: s?.hoursCleaned ?? 0,
+    ...EMPTY_DASHBOARD_STATS,
+    ...(ctx.dashboardStats ?? {}),
   };
 
   return {

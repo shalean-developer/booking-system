@@ -1,6 +1,6 @@
 /**
  * Single source of truth for booking math, payloads, and scheduling helpers.
- * Do not call `calculateBookingPrice` from `@/lib/pricing` in UI — use `calculateBooking` from here.
+ * Use `calculateBooking` from here — it delegates to `calculateFinalBookingPrice`.
  */
 
 export {
@@ -25,7 +25,11 @@ export {
 export {
   BOOKING_TEAM_NAMES,
   isBookingTeamName,
+  sanitizeSelectedTeamInput,
+  selectedTeamFromTeamSelection,
+  type BookingTeam,
   type BookingTeamName,
+  type TeamSelection,
 } from './booking-team-names';
 
 export {

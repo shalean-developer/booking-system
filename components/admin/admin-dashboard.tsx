@@ -26,6 +26,7 @@ import {
   BookOpen,
   Receipt,
   CircleDollarSign,
+  TrendingUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase/client';
@@ -52,7 +53,7 @@ import type { NavId } from '@/components/admin/types';
 
 interface NavItem {
   /** Full-page routes under `/admin/...`, not an SPA panel */
-  id: NavId | 'schedule' | 'invoices' | 'blog';
+  id: NavId | 'schedule' | 'invoices' | 'blog' | 'growth';
   label: string;
   icon: React.ReactNode;
   badge?: number;
@@ -413,6 +414,12 @@ export function AdminDashboard() {
         href: '/admin/blog',
       },
       { id: 'reports', label: 'Reports', icon: <BarChart3 className="h-4.5 w-4.5" /> },
+      {
+        id: 'growth',
+        label: 'Growth',
+        icon: <TrendingUp className="h-4.5 w-4.5" />,
+        href: '/admin/growth',
+      },
       { id: 'settings', label: 'Settings', icon: <Settings className="h-4.5 w-4.5" /> },
     ];
   }, [pendingRes]);

@@ -22,7 +22,7 @@ export function getUpsellTrigger(ctx: UpsellContext): UpsellTrigger | null {
 
 export interface UpsellContent {
   title: string;
-  body: string;
+  body?: string;
   cta: string;
 }
 
@@ -30,21 +30,21 @@ export function getUpsellContent(trigger: UpsellTrigger): UpsellContent {
   switch (trigger) {
     case 'high_hours':
       return {
-        title: '⚡ This clean may need more than 1 cleaner',
-        body: 'Upgrade to Premium for faster, more thorough results',
-        cta: 'Upgrade to Premium',
+        title: 'Long job?',
+        body: 'Premium can send a team.',
+        cta: 'Upgrade to Premium →',
       };
     case 'minimum_edge':
       return {
-        title: "You're at the minimum booking",
-        body: 'Upgrade for a deeper, full-home clean with a team',
-        cta: 'Upgrade for better results',
+        title: 'At minimum time',
+        body: 'Premium adds depth + team options.',
+        cta: 'Upgrade →',
       };
     case 'hesitation':
       return {
-        title: 'Want better results?',
-        body: 'Premium includes equipment and a more complete clean',
-        cta: 'Upgrade to Premium',
+        title: 'Need more time?',
+        body: 'See Premium options.',
+        cta: 'Upgrade to Premium →',
       };
     default: {
       const _exhaustive: never = trigger;

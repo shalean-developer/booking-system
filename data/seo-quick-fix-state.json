@@ -1,0 +1,14 @@
+{
+  "autoImprovePages": true,
+  "pages": {
+    "https://shalean.co.za/growth/local/cleaning-services/cape-town": {
+      "appliedFixes": [
+        "expand-intro-local-context"
+      ],
+      "lastUpdatedAt": "2026-04-20T09:58:23.742Z",
+      "contentPatch": {
+        "intro": "Cape Town homeowners juggle wind, dust, and busy schedules — professional cleaning keeps apartments and houses guest-ready without the weekend scramble. Shalean matches you with vetted cleaners across the metro, with upfront pricing before you pay. Whether you are in the City Bowl or the Northern Suburbs, you can book online in a few minutes. Customers comparing Cape Town with nearby areas like Sea Point, Claremont, Milnerton can use this page to benchmark scope, time, and value before booking. This page is tailored for cape town, with practical guidance on choosing the right cleaning services, expected timelines, and how to get better value from each booking. You can compare service levels, adjust extras, and align cleaning scope to your property needs. Local context for cape town matters because booking patterns, traffic windows, and cleaner availability can change by neighborhood. Use this page to compare options, understand what is included, and decide based on your home's actual requirements."
+      }
+    }
+  }
+}

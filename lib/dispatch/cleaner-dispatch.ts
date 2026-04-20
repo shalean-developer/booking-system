@@ -97,23 +97,29 @@ export async function fetchEligibleCleanersForAreas(
   const cleanerById = new Map<string, CleanerRow>();
 
   for (const area of areaList) {
-    let q = supabase
-      .from('cleaners')
-      .select('*')
-      .contains('areas', [area])
-      .eq('is_active', true)
-      .eq('is_available', true);
-    if (!options?.skipDayFilter) {
-      q = q.eq(dayColumn, true);
-    }
-    const { data: batch, error } = await q;
+    for (const column of ['areas', 'working_areas'] as const) {
+      let q = supabase
+        .from('cleaners')
+        .select('*')
+        .contains(column, [area])
+        .eq('is_active', true)
+        .eq('is_available', true);
+      if (!options?.skipDayFilter) {
+        q = q.eq(dayColumn, true);
+      }
+      const { data: batch, error } = await q;
 
-    if (error) {
-      console.error('[dispatch] cleaners query', error);
-      continue;
-    }
-    for (const c of batch || []) {
-      cleanerById.set(c.id, c);
+      if (error) {
+        if (column === 'working_areas') {
+          console.warn('[dispatch] working_areas query (column may be missing pre-migration):', error.message);
+        } else {
+          console.error('[dispatch] cleaners query', error);
+        }
+        continue;
+      }
+      for (const c of batch || []) {
+        cleanerById.set(c.id, c);
+      }
     }
   }
 

@@ -5,30 +5,39 @@ import {
   calculateJobHours,
   getRecommendedTeamSize,
 } from '@/lib/time-estimation';
+import { calculateBookingV4 } from '@/lib/pricing/v4/calculateBookingV4';
+import { bookingFormDataToV4Input } from '@/lib/pricing/v4/booking-form-to-v4';
 import { MAX_TEAM_SIZE, MIN_TEAM_SIZE } from '@/lib/team-optimizer';
-import { isBasicEligible, isBasicPlannedPathExtrasValid } from '@/lib/pricing-mode';
+import { isBasicEligible } from '@/lib/pricing-mode';
+import type { QuickCleanSettings } from '@/lib/quick-clean-settings';
 import { resolveWizardNumberOfCleaners } from './calculate';
 import { buildDashboardWizardShim } from './dashboard-wizard-shim';
 
-/** Full team heuristic for crew step — aligned with `getRecommendedTeamSize` + pricing engine. */
-export function getWizardOptimalTeamBreakdown(wizard: BookingFormData) {
+/** Full team heuristic for crew step — `calculateBookingV4` only. */
+export function getWizardOptimalTeamBreakdown(
+  wizard: BookingFormData,
+  _quickCleanSettings?: QuickCleanSettings
+) {
+  void _quickCleanSettings;
   if (!wizard.service) {
     return { teamSize: 1, hoursPerCleaner: 3, totalWorkHours: 3 as number };
   }
-  const timeIn = buildWizardTimeInput(wizard);
-  const totalWorkHours = calculateJobHours(timeIn);
   if (
-    wizard.pricingMode === 'basic' &&
-    wizard.basicPlannedHours != null &&
-    isBasicPlannedPathExtrasValid(timeIn, wizard.extras)
+    wizard.service === 'standard' ||
+    wizard.service === 'airbnb' ||
+    wizard.service === 'deep' ||
+    wizard.service === 'move' ||
+    wizard.service === 'carpet'
   ) {
-    const h = wizard.basicPlannedHours;
+    const v4 = calculateBookingV4(bookingFormDataToV4Input(wizard));
     return {
-      teamSize: 1,
-      hoursPerCleaner: h,
-      totalWorkHours: h,
+      teamSize: v4.team_size,
+      hoursPerCleaner: v4.duration,
+      totalWorkHours: v4.hours,
     };
   }
+  const timeIn = buildWizardTimeInput(wizard);
+  const totalWorkHours = calculateJobHours(timeIn);
   if (wizard.pricingMode === 'basic' && isBasicEligible(timeIn, wizard.extras)) {
     return {
       teamSize: 1,
@@ -53,12 +62,7 @@ export function getDashboardOptimalTeamSize(input: {
   extrasQuantitiesById: Record<string, number>;
 }): number {
   const wizard = buildDashboardWizardShim(input);
-  const timeIn = buildWizardTimeInput(wizard);
-  const hours = calculateJobHours(timeIn);
-  return Math.min(
-    MAX_TEAM_SIZE,
-    Math.max(MIN_TEAM_SIZE, getRecommendedTeamSize(hours, timeIn.serviceType))
-  );
+  return resolveWizardNumberOfCleaners(wizard);
 }
 
 export type OptimalTeamInput =

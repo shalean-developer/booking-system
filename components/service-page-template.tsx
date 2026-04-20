@@ -275,16 +275,16 @@ export function ServicePageTemplate({
             </h2>
             <div className="prose prose-lg max-w-none">
               <p className="text-lg text-gray-700 mb-4">
-                Our {title.toLowerCase()} service is designed to meet the highest standards of cleanliness and professionalism. We understand that every space is unique, and our trained team adapts their approach to ensure optimal results for your specific needs. Whether you're in a modern apartment in <Link href="/location/cape-town/sea-point" className="text-primary hover:underline font-medium">Sea Point</Link>, a family home in <Link href="/location/cape-town/claremont" className="text-primary hover:underline font-medium">Claremont</Link>, or a luxury estate in <Link href="/location/cape-town/constantia" className="text-primary hover:underline font-medium">Constantia</Link>, we tailor our cleaning approach to match your property type and lifestyle.
+                Our {title.toLowerCase()} service is designed to meet the highest standards of cleanliness and professionalism. We understand that every space is unique, and our trained team adapts their approach to ensure optimal results for your specific needs. Whether you're in a modern apartment in <Link href="/growth/local/cleaning-services/sea-point" className="text-primary hover:underline font-medium">Sea Point</Link>, a family home in <Link href="/growth/local/cleaning-services/claremont" className="text-primary hover:underline font-medium">Claremont</Link>, or a luxury estate in <Link href="/growth/local/cleaning-services/constantia" className="text-primary hover:underline font-medium">Constantia</Link>, we tailor our cleaning approach to match your property type and lifestyle.
               </p>
               <p className="text-lg text-gray-700 mb-4">
                 {description} Our commitment to excellence means we use only premium <Link href="/blog/the-benefits-of-eco-friendly-cleaning-products" className="text-primary hover:underline font-medium">eco-friendly cleaning products</Link> that are both effective and safe for your family, pets, and the environment. Each cleaning session is thoroughly planned and executed with attention to detail. Our professional cleaners are fully trained, background-checked, and insured, giving you complete peace of mind when they're in your home or office.
               </p>
               <p className="text-lg text-gray-700 mb-4">
-                When you book our {title.toLowerCase()} service, you can expect punctual arrival, respectful and professional service, and a thorough cleaning that exceeds expectations. We stand behind our work with a 100% satisfaction guarantee—if you're not completely happy, we'll return to make it right at no additional cost. Our team understands the importance of maintaining a clean, healthy environment, especially in high-traffic areas like <Link href="/location/cape-town/camps-bay" className="text-primary hover:underline font-medium">Camps Bay</Link> vacation rentals or busy <Link href="/location/cape-town/green-point" className="text-primary hover:underline font-medium">Green Point</Link> offices.
+                When you book our {title.toLowerCase()} service, you can expect punctual arrival, respectful and professional service, and a thorough cleaning that exceeds expectations. We stand behind our work with a 100% satisfaction guarantee—if you're not completely happy, we'll return to make it right at no additional cost. Our team understands the importance of maintaining a clean, healthy environment, especially in high-traffic areas like <Link href="/growth/local/cleaning-services/camps-bay" className="text-primary hover:underline font-medium">Camps Bay</Link> vacation rentals or busy <Link href="/growth/local/cleaning-services/green-point" className="text-primary hover:underline font-medium">Green Point</Link> offices.
               </p>
               <p className="text-lg text-gray-700 mb-4">
-                Our {title.toLowerCase()} service is available throughout <Link href="/location/cape-town" className="text-primary hover:underline font-medium">Cape Town</Link>, including popular areas like <Link href="/location/cape-town/sea-point" className="text-primary hover:underline font-medium">Sea Point</Link>, <Link href="/location/cape-town/claremont" className="text-primary hover:underline font-medium">Claremont</Link>, <Link href="/location/cape-town/constantia" className="text-primary hover:underline font-medium">Constantia</Link>, and <Link href="/location/cape-town/camps-bay" className="text-primary hover:underline font-medium">Camps Bay</Link>. We also serve <Link href="/location/johannesburg" className="text-primary hover:underline font-medium">Johannesburg</Link>, <Link href="/location/pretoria" className="text-primary hover:underline font-medium">Pretoria</Link>, <Link href="/location/durban" className="text-primary hover:underline font-medium">Durban</Link>, <Link href="/location/east-london" className="text-primary hover:underline font-medium">East London</Link>, <Link href="/location/port-elizabeth" className="text-primary hover:underline font-medium">Port Elizabeth</Link>, <Link href="/location/jeffreys-bay" className="text-primary hover:underline font-medium">Jeffreys Bay</Link>, and <Link href="/location/grahamstown" className="text-primary hover:underline font-medium">Grahamstown</Link> with the same high-quality standards. Our flexible scheduling means we can accommodate same-day requests, recurring appointments, or one-time deep cleans to fit your busy schedule.
+                Our {title.toLowerCase()} service is available throughout <Link href="/growth/local/cleaning-services/cape-town" className="text-primary hover:underline font-medium">Cape Town</Link>, including popular areas like <Link href="/growth/local/cleaning-services/sea-point" className="text-primary hover:underline font-medium">Sea Point</Link>, <Link href="/growth/local/cleaning-services/claremont" className="text-primary hover:underline font-medium">Claremont</Link>, <Link href="/growth/local/cleaning-services/constantia" className="text-primary hover:underline font-medium">Constantia</Link>, and <Link href="/growth/local/cleaning-services/camps-bay" className="text-primary hover:underline font-medium">Camps Bay</Link>. We also serve <Link href="/growth/local/cleaning-services/johannesburg" className="text-primary hover:underline font-medium">Johannesburg</Link>, <Link href="/growth/local/cleaning-services/pretoria" className="text-primary hover:underline font-medium">Pretoria</Link>, <Link href="/growth/local/cleaning-services/durban" className="text-primary hover:underline font-medium">Durban</Link>, <Link href="/growth/local/cleaning-services/east-london" className="text-primary hover:underline font-medium">East London</Link>, <Link href="/growth/local/cleaning-services/port-elizabeth" className="text-primary hover:underline font-medium">Port Elizabeth</Link>, <Link href="/growth/local/cleaning-services/jeffreys-bay" className="text-primary hover:underline font-medium">Jeffreys Bay</Link>, and <Link href="/growth/local/cleaning-services/grahamstown" className="text-primary hover:underline font-medium">Grahamstown</Link> with the same high-quality standards. Our flexible scheduling means we can accommodate same-day requests, recurring appointments, or one-time deep cleans to fit your busy schedule.
               </p>
               <p className="text-lg text-gray-700 mb-4">
                 What sets our {title.toLowerCase()} service apart is our attention to detail and commitment to customer satisfaction. We take the time to understand your specific needs, whether that's focusing on high-traffic areas, using particular cleaning products, or accommodating pets and children. Our cleaners arrive fully equipped with professional-grade supplies and equipment, so you don't need to provide anything. We're also happy to work around your schedule, offering early morning, evening, or weekend appointments when needed.
@@ -309,41 +309,41 @@ export function ServicePageTemplate({
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Link href="/location/cape-town" className="text-center p-6 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all">
+            <Link href="/growth/local/cleaning-services/cape-town" className="text-center p-6 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all">
               <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-primary transition-colors">Cape Town</h3>
               <p className="text-sm text-gray-600">Sea Point, Camps Bay, Claremont & more</p>
             </Link>
-            <Link href="/location/johannesburg" className="text-center p-6 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all">
+            <Link href="/growth/local/cleaning-services/johannesburg" className="text-center p-6 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all">
               <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-primary transition-colors">Johannesburg</h3>
               <p className="text-sm text-gray-600">Sandton, Rosebank, Fourways & more</p>
             </Link>
-            <Link href="/location/pretoria" className="text-center p-6 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all">
+            <Link href="/growth/local/cleaning-services/pretoria" className="text-center p-6 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all">
               <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-primary transition-colors">Pretoria</h3>
               <p className="text-sm text-gray-600">Centurion, Menlyn, Lynnwood & more</p>
             </Link>
-            <Link href="/location/durban" className="text-center p-6 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all">
+            <Link href="/growth/local/cleaning-services/durban" className="text-center p-6 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all">
               <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-primary transition-colors">Durban</h3>
               <p className="text-sm text-gray-600">Umhlanga, Ballito, Morningside & more</p>
             </Link>
-            <Link href="/location/east-london" className="text-center p-6 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all">
+            <Link href="/growth/local/cleaning-services/east-london" className="text-center p-6 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all">
               <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-primary transition-colors">East London</h3>
               <p className="text-sm text-gray-600">Professional cleaning services</p>
             </Link>
-            <Link href="/location/port-elizabeth" className="text-center p-6 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all">
+            <Link href="/growth/local/cleaning-services/port-elizabeth" className="text-center p-6 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all">
               <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-primary transition-colors">Port Elizabeth</h3>
               <p className="text-sm text-gray-600">Expert cleaners available</p>
             </Link>
-            <Link href="/location/jeffreys-bay" className="text-center p-6 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all">
+            <Link href="/growth/local/cleaning-services/jeffreys-bay" className="text-center p-6 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all">
               <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-primary transition-colors">Jeffreys Bay</h3>
               <p className="text-sm text-gray-600">Trusted cleaning services</p>
             </Link>
-            <Link href="/location/grahamstown" className="text-center p-6 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all">
+            <Link href="/growth/local/cleaning-services/grahamstown" className="text-center p-6 rounded-lg border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all">
               <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-primary transition-colors">Grahamstown</h3>
               <p className="text-sm text-gray-600">Professional cleaning services</p>
             </Link>
           </div>
           <div className="text-center mt-8">
-            <Link href="/location">
+            <Link href="/growth/local/cleaning-services/cape-town">
               <Button variant="outline" className="border-primary text-primary hover:bg-primary/10">
                 View All Service Locations
                 <ArrowRight className="ml-2 h-4 w-4" />

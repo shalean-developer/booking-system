@@ -1,80 +1,89 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { computeCheckoutPricing } from '@/lib/booking-checkout-pricing';
-import { computeServerPreSurgeTotalZar } from '@/lib/booking-server-pricing';
-import { validatePricingEngineRequest } from '@/lib/pricing-engine';
+import { createServiceClient, getServerAuthUser } from '@/lib/supabase-server';
+import { resolveCustomerIdForPricing } from '@/lib/booking-server-pricing';
+import { fetchQuickCleanSettings } from '@/lib/quick-clean-settings';
+import { buildPricingPreviewResponse } from '@/lib/pricing/final-pricing';
+import {
+  safeCalculatePricing,
+  validatePricingPreviewInput,
+} from '@/lib/pricing/pricing-preview-safe';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Returns final ZAR total (with surge) before opening Paystack, so the client charges the correct amount.
+ * Read-only server pricing preview — same authoritative path as checkout (`computeAuthoritativeBookingPricing`).
+ * Always returns HTTP 200 with `{ success, data?, error?, ok?, ... }` so clients never rely on status codes
+ * for validation or transient failures. Does not perform team/availability checks.
  */
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { date, service, preSurgeTotal, selected_team } = body;
-
-    if (!date || !service || typeof preSurgeTotal !== 'number') {
+    let raw: unknown = null;
+    try {
+      raw = await req.json();
+    } catch {
       return NextResponse.json(
-        { ok: false, error: 'date, service, and preSurgeTotal are required' },
-        { status: 400 }
+        { success: false, ok: false, error: 'Invalid JSON body' },
+        { status: 200 }
       );
     }
 
-    let preSurgeTotalZar = preSurgeTotal;
-    if (
-      typeof body.bedrooms === 'number' &&
-      typeof body.bathrooms === 'number' &&
-      Array.isArray(body.extras)
-    ) {
-      const useClientCartWhenEngine =
-        body.pricingEngineFinalCents != null &&
-        Number.isFinite(body.pricingEngineFinalCents);
-      if (useClientCartWhenEngine) {
-        const engineCheck = validatePricingEngineRequest(body);
-        if (!engineCheck.ok) {
-          return NextResponse.json({ ok: false, error: engineCheck.error }, { status: 400 });
-        }
-      }
-      const serverCart = await computeServerPreSurgeTotalZar(supabase, {
-        service,
-        bedrooms: body.bedrooms,
-        bathrooms: body.bathrooms,
-        extraRooms: typeof body.extraRooms === 'number' ? body.extraRooms : 0,
-        extras: body.extras,
-        extrasQuantities: body.extrasQuantities,
-        frequency: body.frequency || 'one-time',
-        tipAmount: typeof body.tipAmount === 'number' ? body.tipAmount : 0,
-        discountAmount: typeof body.discountAmount === 'number' ? body.discountAmount : 0,
-        numberOfCleaners: typeof body.numberOfCleaners === 'number' ? body.numberOfCleaners : 1,
-        provideEquipment: Boolean(body.provideEquipment),
-        carpetDetails: body.carpetDetails ?? undefined,
+    const body =
+      raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+
+    const normalized = validatePricingPreviewInput(body);
+    const quickCleanSettings = await fetchQuickCleanSettings(createServiceClient());
+
+    const authPv = await getServerAuthUser();
+    const pricingCustomerId = await resolveCustomerIdForPricing(supabase, {
+      bodyCustomerId: typeof body.customer_id === 'string' ? body.customer_id : null,
+      authUserId: authPv?.id ?? null,
+    });
+
+    if (pricingCustomerId) {
+      normalized.customer_id = pricingCustomerId;
+    }
+
+    const result = await safeCalculatePricing(supabase, normalized, quickCleanSettings);
+
+    if (result.success) {
+      const legacy = buildPricingPreviewResponse(result.serverCart.finalPrice);
+      console.info('[pricing-preview]', {
+        outcome: 'ok',
+        service: normalized.service,
+        price_zar: result.data.total,
       });
-      if (!useClientCartWhenEngine) {
-        preSurgeTotalZar = serverCart.preSurgeTotalZar;
-      }
+      return NextResponse.json(
+        {
+          success: true,
+          ok: true,
+          data: result.data,
+          ...legacy,
+        },
+        { status: 200 }
+      );
     }
 
-    const pricing = await computeCheckoutPricing(supabase, {
-      date,
-      service,
-      preSurgeTotalZar,
-      selected_team,
+    console.warn('[pricing-preview]', {
+      outcome: 'fail',
+      service: normalized.service,
+      error: result.error,
     });
 
-    if (!pricing.ok) {
-      return NextResponse.json({ ok: false, error: pricing.error }, { status: pricing.status });
-    }
-
-    return NextResponse.json({
-      ok: true,
-      preSurgeTotalZar: pricing.preSurgeTotalZar,
-      finalTotalZar: pricing.finalTotalZar,
-      surgeApplied: pricing.surgePricingApplied,
-      surgeAmountZar: pricing.surgeAmountZar,
-    });
+    return NextResponse.json(
+      {
+        success: false,
+        ok: false,
+        error: result.error,
+      },
+      { status: 200 }
+    );
   } catch (e) {
-    console.error('pricing-preview:', e);
-    return NextResponse.json({ ok: false, error: 'Failed to compute pricing' }, { status: 500 });
+    const msg = e instanceof Error ? e.message : 'Pricing unavailable';
+    console.error('[pricing-preview] unexpected', e);
+    return NextResponse.json(
+      { success: false, ok: false, error: msg },
+      { status: 200 }
+    );
   }
 }

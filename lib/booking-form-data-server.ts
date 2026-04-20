@@ -2,6 +2,10 @@ import { unstable_cache } from 'next/cache';
 import { createServiceClient } from '@/lib/supabase-server';
 import { fetchActivePricing } from '@/lib/pricing-db';
 import { fetchServicesMetadata } from '@/lib/pricing-db';
+import {
+  fetchQuickCleanSettings,
+  type QuickCleanSettings,
+} from '@/lib/quick-clean-settings';
 
 export interface BookingFormDataServer {
   services: Array<{
@@ -35,6 +39,7 @@ export interface BookingFormDataServer {
     items: string[];
     charge: number;
   };
+  quickCleanSettings: QuickCleanSettings;
 }
 
 async function getBookingFormDataUncached(): Promise<BookingFormDataServer> {
@@ -47,6 +52,7 @@ async function getBookingFormDataUncached(): Promise<BookingFormDataServer> {
     extrasResult,
     equipmentResult,
     equipmentChargeResult,
+    quickCleanSettings,
   ] = await Promise.all([
     fetchServicesMetadata(),
     fetchActivePricing(),
@@ -73,6 +79,7 @@ async function getBookingFormDataUncached(): Promise<BookingFormDataServer> {
       .order('effective_date', { ascending: false })
       .limit(1)
       .single(),
+    fetchQuickCleanSettings(supabase),
   ]);
 
   const { data: extrasData } = extrasResult;
@@ -186,6 +193,7 @@ async function getBookingFormDataUncached(): Promise<BookingFormDataServer> {
       items: (equipmentItems || []).map((item: { name: string }) => item.name),
       charge: equipmentCharge,
     },
+    quickCleanSettings,
   };
 }
 

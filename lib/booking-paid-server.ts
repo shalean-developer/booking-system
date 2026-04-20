@@ -21,7 +21,7 @@ export {
  * Do not select `bedrooms` / `bathrooms` / `extras` — many deployments only store those inside `price_snapshot` (pending insert does not denormalize them).
  */
 const SELECT_COLS =
-  'id, cleaner_id, booking_date, booking_time, expected_end_time, service_type, customer_name, customer_email, customer_phone, address_line1, address_suburb, address_city, total_amount, price, tip_amount, service_fee, frequency_discount, frequency, surge_pricing_applied, surge_amount, requires_team, notes, price_snapshot, status, payment_reference, paystack_ref, zoho_invoice_id, invoice_url, payment_status, equipment_required, equipment_fee';
+  'id, customer_id, points_redeemed, cleaner_id, booking_date, booking_time, expected_end_time, service_type, customer_name, customer_email, customer_phone, address_line1, address_suburb, address_city, total_amount, price, tip_amount, service_fee, frequency_discount, frequency, surge_pricing_applied, surge_amount, requires_team, notes, price_snapshot, status, payment_reference, paystack_ref, zoho_invoice_id, invoice_url, payment_status, equipment_required, equipment_fee';
 
 export async function paystackVerifyTransaction(
   secretKey: string,

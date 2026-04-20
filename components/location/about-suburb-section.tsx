@@ -122,7 +122,7 @@ export function AboutSuburbSection({
                 We also provide cleaning services in nearby suburbs including {renderLinkedSuburbs(inlineRelatedLinks)}.
               </p>
               <Button variant="outline" className="w-full" asChild>
-                <Link href={`/location/${citySlug}`}>
+                <Link href={`/growth/local/cleaning-services/${citySlug}`}>
                   View All {city} Service Areas
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
