@@ -1,6 +1,6 @@
 /**
  * Bridge: Supabase Edge → deployed Next.js `/api/cron/*` handlers (same logic as manual HTTP).
- * Set secrets: CRON_INVOKE_URL (e.g. https://shalean.co.za), CRON_SECRET (must match Vercel).
+ * Set secrets: CRON_INVOKE_URL (e.g. https://shalean.co.za), CRON_SECRET (same as Next.js `CRON_SECRET`).
  */
 export async function invokeSiteCron(path: string): Promise<Response> {
   const base = Deno.env.get('CRON_INVOKE_URL')?.replace(/\/$/, '') ?? '';

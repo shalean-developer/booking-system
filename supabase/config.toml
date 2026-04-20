@@ -13,7 +13,8 @@ verify_jwt = false
 [functions.paystack-webhook]
 verify_jwt = false
 
-# Cron bridges: invoke deployed Next.js /api/cron/* (secrets: CRON_INVOKE_URL, CRON_SECRET, optional CRON_EDGE_KEY)
+# Cron bridges: pg_cron (or Dashboard schedules) → these Edge Functions → deployed Next.js /api/cron/*
+# Secrets: CRON_INVOKE_URL, CRON_SECRET (same as app env), optional CRON_EDGE_KEY — see schedule-edge-cron-jobs.sql
 [functions.booking-sla]
 verify_jwt = false
 
@@ -21,4 +22,19 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.daily-content]
+verify_jwt = false
+
+[functions.supply-activation]
+verify_jwt = false
+
+[functions.supply-check]
+verify_jwt = false
+
+[functions.cleaner-start-reminders]
+verify_jwt = false
+
+[functions.payouts]
+verify_jwt = false
+
+[functions.profit-summary]
 verify_jwt = false

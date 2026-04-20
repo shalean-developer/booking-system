@@ -1,70 +1,147 @@
 -- =============================================================================
--- Schedule Supabase Edge Functions (cron bridges to Vercel /api/cron/*)
+-- Production scheduling: Supabase pg_cron → Edge Functions → Next.js /api/cron/*
 -- =============================================================================
+-- Do not duplicate schedules on Vercel Cron (vercel.json should keep `crons: []`).
+--
 -- Prerequisites:
---   1. Deploy Edge Functions: booking-sla, generate-recurring-bookings, daily-content
---   2. Set function secrets in Dashboard → Project Settings → Edge Functions:
+--   1. Deploy Edge Functions (see supabase/functions/* and config.toml):
+--        booking-sla, generate-recurring-bookings, daily-content,
+--        supply-activation, supply-check, cleaner-start-reminders, payouts, profit-summary
+--   2. Dashboard → Project Settings → Edge Functions secrets:
 --        CRON_INVOKE_URL = https://your-production-domain (no trailing slash)
---        CRON_SECRET     = same value as Vercel CRON_SECRET
---        CRON_EDGE_KEY   = random string (optional; if set, callers must send header x-cron-key)
+--        CRON_SECRET     = same value as Next.js CRON_SECRET
+--        CRON_EDGE_KEY   = random string (optional; if set, pg_cron must send header x-cron-key)
 --   3. Enable extensions (hosted Supabase): pg_cron, pg_net — Database → Extensions
 --
--- Replace ALL_CAPS placeholders before running in SQL Editor.
+-- Replace PROJECT_REF, YOUR_CRON_EDGE_KEY, and tune schedules as needed.
+-- List jobs: select * from cron.job;
+-- Unschedule: select cron.unschedule('job-name');
 -- =============================================================================
 
--- Example: invoke Edge Function every 10 minutes (booking-sla)
--- select
---   cron.schedule(
---     'edge-fn-booking-sla',
---     '*/10 * * * *',
---     $$
---     select
---       net.http_post(
---         url := 'https://PROJECT_REF.supabase.co/functions/v1/booking-sla',
---         headers := jsonb_build_object(
---           'Content-Type', 'application/json',
---           'x-cron-key', 'YOUR_CRON_EDGE_KEY'
---         ),
---         body := '{}'::jsonb
---       ) as request_id;
---     $$
---   );
+-- booking-sla — every 15 minutes
+-- select cron.schedule(
+--   'edge-fn-booking-sla',
+--   '*/15 * * * *',
+--   $$
+--   select net.http_post(
+--     url := 'https://PROJECT_REF.supabase.co/functions/v1/booking-sla',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'x-cron-key', 'YOUR_CRON_EDGE_KEY'
+--     ),
+--     body := '{}'::jsonb
+--   ) as request_id;
+--   $$
+-- );
 
--- Example: generate-recurring-bookings — 10:16 UTC daily (matches former Vercel schedule)
--- select
---   cron.schedule(
---     'edge-fn-generate-recurring-bookings',
---     '16 10 * * *',
---     $$
---     select
---       net.http_post(
---         url := 'https://PROJECT_REF.supabase.co/functions/v1/generate-recurring-bookings',
---         headers := jsonb_build_object(
---           'Content-Type', 'application/json',
---           'x-cron-key', 'YOUR_CRON_EDGE_KEY'
---         ),
---         body := '{}'::jsonb
---       ) as request_id;
---     $$
---   );
+-- supply-activation — every 30 minutes
+-- select cron.schedule(
+--   'edge-fn-supply-activation',
+--   '*/30 * * * *',
+--   $$
+--   select net.http_post(
+--     url := 'https://PROJECT_REF.supabase.co/functions/v1/supply-activation',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'x-cron-key', 'YOUR_CRON_EDGE_KEY'
+--     ),
+--     body := '{}'::jsonb
+--   ) as request_id;
+--   $$
+-- );
 
--- Example: daily-content — 09:00 UTC daily
--- select
---   cron.schedule(
---     'edge-fn-daily-content',
---     '0 9 * * *',
---     $$
---     select
---       net.http_post(
---         url := 'https://PROJECT_REF.supabase.co/functions/v1/daily-content',
---         headers := jsonb_build_object(
---           'Content-Type', 'application/json',
---           'x-cron-key', 'YOUR_CRON_EDGE_KEY'
---         ),
---         body := '{}'::jsonb
---       ) as request_id;
---     $$
---   );
+-- supply-check — every 15 minutes
+-- select cron.schedule(
+--   'edge-fn-supply-check',
+--   '*/15 * * * *',
+--   $$
+--   select net.http_post(
+--     url := 'https://PROJECT_REF.supabase.co/functions/v1/supply-check',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'x-cron-key', 'YOUR_CRON_EDGE_KEY'
+--     ),
+--     body := '{}'::jsonb
+--   ) as request_id;
+--   $$
+-- );
 
--- List scheduled jobs: select * from cron.job;
--- Unschedule: select cron.unschedule('edge-fn-booking-sla');
+-- cleaner-start-reminders — every 10 minutes
+-- select cron.schedule(
+--   'edge-fn-cleaner-start-reminders',
+--   '*/10 * * * *',
+--   $$
+--   select net.http_post(
+--     url := 'https://PROJECT_REF.supabase.co/functions/v1/cleaner-start-reminders',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'x-cron-key', 'YOUR_CRON_EDGE_KEY'
+--     ),
+--     body := '{}'::jsonb
+--   ) as request_id;
+--   $$
+-- );
+
+-- payouts — hourly
+-- select cron.schedule(
+--   'edge-fn-payouts',
+--   '0 * * * *',
+--   $$
+--   select net.http_post(
+--     url := 'https://PROJECT_REF.supabase.co/functions/v1/payouts',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'x-cron-key', 'YOUR_CRON_EDGE_KEY'
+--     ),
+--     body := '{}'::jsonb
+--   ) as request_id;
+--   $$
+-- );
+
+-- profit-summary — daily 07:00 UTC
+-- select cron.schedule(
+--   'edge-fn-profit-summary',
+--   '0 7 * * *',
+--   $$
+--   select net.http_post(
+--     url := 'https://PROJECT_REF.supabase.co/functions/v1/profit-summary',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'x-cron-key', 'YOUR_CRON_EDGE_KEY'
+--     ),
+--     body := '{}'::jsonb
+--   ) as request_id;
+--   $$
+-- );
+
+-- generate-recurring-bookings — daily 10:16 UTC
+-- select cron.schedule(
+--   'edge-fn-generate-recurring-bookings',
+--   '16 10 * * *',
+--   $$
+--   select net.http_post(
+--     url := 'https://PROJECT_REF.supabase.co/functions/v1/generate-recurring-bookings',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'x-cron-key', 'YOUR_CRON_EDGE_KEY'
+--     ),
+--     body := '{}'::jsonb
+--   ) as request_id;
+--   $$
+-- );
+
+-- daily-content — daily 09:00 UTC
+-- select cron.schedule(
+--   'edge-fn-daily-content',
+--   '0 9 * * *',
+--   $$
+--   select net.http_post(
+--     url := 'https://PROJECT_REF.supabase.co/functions/v1/daily-content',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'x-cron-key', 'YOUR_CRON_EDGE_KEY'
+--     ),
+--     body := '{}'::jsonb
+--   ) as request_id;
+--   $$
+-- );
