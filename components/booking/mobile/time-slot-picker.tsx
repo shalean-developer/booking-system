@@ -8,6 +8,8 @@ export interface TimeSlotPickerItem {
   caption?: string;
   disabled?: boolean;
   recommended?: boolean;
+  /** Whole percent above base when surge applies (shown on card). */
+  surgePercent?: number;
 }
 
 interface TimeSlotPickerProps {
@@ -41,7 +43,7 @@ export function TimeSlotPicker({ slots, selectedSlotId, onSelect }: TimeSlotPick
   const groupOrder: Array<'Morning' | 'Afternoon' | 'Evening'> = ['Morning', 'Afternoon', 'Evening'];
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-5">
       {groupOrder.map((group) => {
         if (grouped[group].length === 0) return null;
         const items: MobileCardSelectorItem[] = grouped[group].map((slot) => ({
@@ -50,10 +52,13 @@ export function TimeSlotPicker({ slots, selectedSlotId, onSelect }: TimeSlotPick
           caption: slot.caption,
           disabled: slot.disabled,
           badge: slot.recommended ? 'Recommended' : undefined,
+          surgePercent: slot.surgePercent,
         }));
         return (
-          <div key={group} className="space-y-2">
-            <p className="text-xs font-semibold text-gray-500">{group}</p>
+          <div key={group} className="space-y-2.5">
+            <h3 className="sticky top-0 z-[1] border-b border-border/60 bg-card/95 py-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground backdrop-blur-sm supports-[backdrop-filter]:bg-card/80">
+              {group}
+            </h3>
             <MobileCardSelector items={items} selectedId={selectedSlotId} onSelect={onSelect} />
           </div>
         );

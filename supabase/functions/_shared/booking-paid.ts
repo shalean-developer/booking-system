@@ -12,6 +12,36 @@ function generateManageToken(): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+async function sleep(ms: number): Promise<void> {
+  await new Promise((r) => setTimeout(r, ms));
+}
+
+/** Winner may persist `paid` before `zoho_invoice_id`; losers poll to avoid duplicate Zoho creates. */
+async function pollZohoInvoiceId(
+  supabase: SupabaseClient,
+  bookingId: string,
+  maxAttempts = 15,
+  delayMs = 150,
+): Promise<string | null> {
+  for (let i = 0; i < maxAttempts; i++) {
+    const { data } = await supabase
+      .from('bookings')
+      .select('zoho_invoice_id')
+      .eq('id', bookingId)
+      .maybeSingle();
+    const z =
+      typeof data?.zoho_invoice_id === 'string' && data.zoho_invoice_id.trim()
+        ? data.zoho_invoice_id.trim()
+        : null;
+    if (z) return z;
+    if (i < maxAttempts - 1) await sleep(delayMs);
+  }
+  return null;
+}
+
+const BOOKING_SELECT_FULL =
+  'id, customer_id, points_redeemed, service_type, customer_name, customer_email, customer_phone, total_amount, status, payment_reference, paystack_ref, zoho_invoice_id, invoice_url, payment_status, booking_date, booking_time, address_line1, address_suburb, address_city, notes, tip_amount, service_fee, frequency_discount, frequency, surge_amount, price_snapshot, equipment_required, equipment_fee, manage_token';
+
 export type BookingRow = {
   id: string;
   customer_id?: string | null;
@@ -50,6 +80,9 @@ export type BookingRow = {
 /**
  * Pay-later flow only: booking starts as pending with no Paystack reference.
  * Idempotent when already paid with the same reference.
+ *
+ * Uses the same atomic `pending` claim as Next.js `fulfillPaidBooking` so webhook + Edge verify
+ * cannot each create a Zoho invoice for one payment.
  */
 export async function finalizePaidBooking(params: {
   supabase: SupabaseClient;
@@ -68,9 +101,12 @@ export async function finalizePaidBooking(params: {
     };
   }
 
-  // Webhook may finalize before this runs; refs should match but amount+Paystack verify is authoritative.
-  if (booking.status === 'paid') {
-    return { ok: true, duplicate: true, zoho_invoice_id: booking.zoho_invoice_id };
+  const amountZar = expectedKobo / 100;
+
+  if ((booking.status || '').toLowerCase() === 'paid') {
+    let zid = booking.zoho_invoice_id;
+    if (!zid) zid = await pollZohoInvoiceId(supabase, booking.id);
+    return { ok: true, duplicate: true, zoho_invoice_id: zid };
   }
 
   const st = (booking.status || '').toLowerCase();
@@ -93,20 +129,95 @@ export async function finalizePaidBooking(params: {
     };
   }
 
-  let zohoId: string | null = booking.zoho_invoice_id;
+  const existingTok =
+    typeof booking.manage_token === 'string' && booking.manage_token.trim().length >= 64
+      ? booking.manage_token.trim()
+      : '';
+  const manageTokenPersist = existingTok || generateManageToken();
+
+  const baseClaim = {
+    status: 'paid' as const,
+    payment_status: 'success' as const,
+    paystack_ref: reference,
+    payment_reference: reference,
+    price: amountZar,
+    updated_at: new Date().toISOString(),
+    manage_token: manageTokenPersist,
+  };
+
+  let claimedRow: Record<string, unknown> | null = null;
+  let claimErr: { message?: string } | null = null;
+
+  const tryClaim = async (includeManageToken: boolean) => {
+    const payload = includeManageToken
+      ? baseClaim
+      : (() => {
+          const { manage_token: _m, ...rest } = baseClaim;
+          return rest;
+        })();
+    return supabase
+      .from('bookings')
+      .update(payload)
+      .eq('id', booking.id)
+      .eq('status', 'pending')
+      .select()
+      .maybeSingle();
+  };
+
+  {
+    const { data, error } = await tryClaim(true);
+    if (error && /manage_token/.test(error.message || '') && /does not exist/i.test(error.message || '')) {
+      const second = await tryClaim(false);
+      claimedRow = (second.data as Record<string, unknown> | null) ?? null;
+      claimErr = second.error;
+    } else {
+      claimedRow = (data as Record<string, unknown> | null) ?? null;
+      claimErr = error;
+    }
+  }
+
+  if (claimErr && !claimedRow) {
+    console.error('[finalizePaidBooking] atomic claim failed', claimErr);
+    return {
+      ok: false,
+      error: claimErr.message?.trim() || 'Could not confirm payment. Please contact support.',
+    };
+  }
+
+  if (!claimedRow) {
+    const { data: fresh } = await supabase
+      .from('bookings')
+      .select(BOOKING_SELECT_FULL)
+      .eq('id', booking.id)
+      .maybeSingle();
+    const freshRow = fresh as BookingRow | null;
+    const fst = (freshRow?.status || '').toLowerCase();
+    if (fst === 'paid') {
+      let zid = freshRow?.zoho_invoice_id ?? null;
+      if (!zid) zid = await pollZohoInvoiceId(supabase, booking.id);
+      return { ok: true, duplicate: true, zoho_invoice_id: zid };
+    }
+    return {
+      ok: false,
+      error: `Booking is not awaiting payment (status: ${freshRow?.status || booking.status || 'unknown'})`,
+    };
+  }
+
+  let working = { ...booking, ...claimedRow } as BookingRow;
+
+  let zohoId: string | null = working.zoho_invoice_id;
   if (!zohoId) {
     try {
       zohoId = await createZohoBooksInvoice({
-        booking: toZohoInvoiceBookingInput(booking),
+        booking: toZohoInvoiceBookingInput(working),
       });
     } catch (e) {
-      // Payment is already verified; do not block confirmation emails or DB update on accounting API failure.
       console.error('[finalizePaidBooking] Zoho error (continuing without invoice)', e);
       zohoId = null;
     }
   }
 
-  let invoiceUrl: string | null = booking.invoice_url ?? null;
+  let invoiceUrl: string | null = working.invoice_url ?? null;
   let invoicePdf: Uint8Array | null = null;
   let zohoInvoiceNumber: string | null = null;
   if (zohoId) {
@@ -119,74 +230,41 @@ export async function finalizePaidBooking(params: {
     }
   }
 
-  const amountZar = expectedKobo / 100;
-
-  const existingTok =
-    typeof booking.manage_token === 'string' && booking.manage_token.trim().length >= 64
-      ? booking.manage_token.trim()
-      : '';
-  const manageTokenPersist = existingTok || generateManageToken();
-
-  const paidUpdate = {
-    status: 'paid',
-    payment_status: 'success',
-    paystack_ref: reference,
-    payment_reference: reference,
+  const zohoPatch = {
     zoho_invoice_id: zohoId ?? null,
     invoice_url: invoiceUrl ?? null,
-    price: amountZar,
     updated_at: new Date().toISOString(),
-    manage_token: manageTokenPersist,
-  } as const;
-
-  let { error: upErr } = await supabase.from('bookings').update(paidUpdate).eq('id', booking.id);
+  };
+  let { error: upErr } = await supabase.from('bookings').update(zohoPatch).eq('id', booking.id);
 
   let emailManageToken: string | undefined = manageTokenPersist;
-  if (upErr && /manage_token/.test(upErr.message) && /does not exist/i.test(upErr.message)) {
+  if (upErr && /manage_token/.test(upErr.message || '') && /does not exist/i.test(upErr.message || '')) {
     emailManageToken = undefined;
-    const retry = await supabase
-      .from('bookings')
-      .update({
-        status: 'paid',
-        payment_status: 'success',
-        paystack_ref: reference,
-        payment_reference: reference,
-        zoho_invoice_id: zohoId ?? null,
-        invoice_url: invoiceUrl ?? null,
-        price: amountZar,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', booking.id);
-    upErr = retry.error;
-    console.warn('[finalizePaidBooking] Retried without manage_token — apply bookings.manage_token migration');
   }
-
   if (upErr) {
-    console.error('[finalizePaidBooking] DB update failed', upErr);
-    return {
-      ok: false,
-      error: upErr.message?.trim() || 'Could not save payment confirmation. Please contact support.',
-    };
+    console.error('[finalizePaidBooking] Zoho/invoice_url patch failed', upErr);
+  } else {
+    working = { ...working, ...zohoPatch } as BookingRow;
   }
 
-  if (booking.customer_email) {
+  if (working.customer_email) {
     const emailResult = await sendBookingPaidEmail({
-      to: booking.customer_email,
-      customerName: booking.customer_name || 'Customer',
-      serviceName: booking.service_type || 'Cleaning',
+      to: working.customer_email,
+      customerName: working.customer_name || 'Customer',
+      serviceName: working.service_type || 'Cleaning',
       amountZar,
-      bookingId: booking.id,
+      bookingId: working.id,
       zohoInvoiceId: zohoId,
       paymentReference: reference,
-      bookingDate: booking.booking_date,
-      bookingTime: booking.booking_time,
-      addressLine1: booking.address_line1,
-      addressSuburb: booking.address_suburb,
-      addressCity: booking.address_city,
-      equipment_required: booking.equipment_required === true,
+      bookingDate: working.booking_date,
+      bookingTime: working.booking_time,
+      addressLine1: working.address_line1,
+      addressSuburb: working.address_suburb,
+      addressCity: working.address_city,
+      equipment_required: working.equipment_required === true,
       equipment_fee:
-        typeof booking.equipment_fee === 'number' && Number.isFinite(booking.equipment_fee)
-          ? booking.equipment_fee
+        typeof working.equipment_fee === 'number' && Number.isFinite(working.equipment_fee)
+          ? working.equipment_fee
           : undefined,
       manageToken: emailManageToken,
       invoiceUrl,
@@ -195,9 +273,9 @@ export async function finalizePaidBooking(params: {
     });
 
     await supabase.from('email_send_logs').insert({
-      booking_id: booking.id,
+      booking_id: working.id,
       template: 'booking_paid',
-      recipient: booking.customer_email,
+      recipient: working.customer_email,
       status: emailResult.ok ? 'sent' : 'failed',
       provider_id: emailResult.providerId ?? null,
       error_message: emailResult.ok ? null : (emailResult.error ?? 'unknown'),
@@ -207,19 +285,19 @@ export async function finalizePaidBooking(params: {
   }
 
   await sendAdminNewBookingEmail({
-    bookingId: booking.id,
-    customerName: booking.customer_name || 'Customer',
-    serviceName: booking.service_type || 'Cleaning',
+    bookingId: working.id,
+    customerName: working.customer_name || 'Customer',
+    serviceName: working.service_type || 'Cleaning',
     amountZar,
   });
 
   try {
     await applyLoyaltyAndReferralRewards({
       supabase,
-      bookingId: booking.id,
-      customerId: booking.customer_id ?? null,
+      bookingId: working.id,
+      customerId: working.customer_id ?? null,
       amountZar,
-      pointsRedeemed: Math.max(0, Math.floor(Number(booking.points_redeemed) || 0)),
+      pointsRedeemed: Math.max(0, Math.floor(Number(working.points_redeemed) || 0)),
     });
   } catch (e) {
     console.error('[loyalty] applyLoyaltyAndReferralRewards', e);

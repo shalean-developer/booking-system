@@ -17,6 +17,7 @@ import {
   AppWindow,
   Zap,
   X,
+  MapPin,
 } from 'lucide-react';
 import type { BookingFormData } from '@/components/booking-system-types';
 import { BookingFlowStepIndicator } from '@/components/booking-flow-step-indicator';
@@ -68,6 +69,8 @@ type TimeSlotWithAvailability = {
   available: boolean;
   remaining: number;
   recommended?: boolean;
+  /** Standard / Airbnb unified flow: surge vs base price (whole %). */
+  surgePercent?: number | null;
 };
 
 function labelForBookingSlotId(id: string): string {
@@ -335,6 +338,7 @@ export function BookingStep2Schedule({
         available: s.available,
         remaining: s.available ? Math.max(0, s.assignable_cleaners - need) : 0,
         recommended: s.recommended,
+        surgePercent: s.surge_percent ?? null,
       }));
     }
     return BOOKING_TIME_SLOT_DEFS.map((def) => {
@@ -437,6 +441,8 @@ export function BookingStep2Schedule({
           caption,
           disabled: !slot.available,
           recommended: Boolean(slot.recommended),
+          surgePercent:
+            typeof slot.surgePercent === 'number' && slot.surgePercent > 0 ? slot.surgePercent : undefined,
         };
       }),
     [
@@ -687,28 +693,59 @@ export function BookingStep2Schedule({
     onContinue();
   };
 
+  const mobileStickyPriceSummary = useMemo(() => {
+    return (
+      <div className="space-y-3 text-sm">
+        <div className="rounded-xl border border-gray-100 bg-gray-50/90 p-3 space-y-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Booking</p>
+          <div className="flex justify-between items-start gap-3">
+            <span className="text-gray-600">Service</span>
+            <span className="font-semibold text-gray-900 text-right">{serviceTitle}</span>
+          </div>
+          {selectedDate ? (
+            <div className="flex justify-between items-start gap-3">
+              <span className="text-gray-600">Date</span>
+              <span className="font-semibold text-gray-900 text-right">{formatSelectedDateLong(selectedDate)}</span>
+            </div>
+          ) : null}
+          {selectedTime ? (
+            <div className="flex justify-between items-start gap-3">
+              <span className="text-gray-600">Time</span>
+              <span className="font-semibold text-gray-900 text-right">
+                {selectedTimeDisplayLabel ?? labelForBookingSlotId(selectedTime)}
+              </span>
+            </div>
+          ) : null}
+        </div>
+        <div className="flex justify-between items-center gap-3 text-base font-bold text-gray-900 pt-1 border-t border-gray-200">
+          <span>Total</span>
+          <span className="tabular-nums">R {Math.round(totalEstimate).toLocaleString('en-ZA')}</span>
+        </div>
+      </div>
+    );
+  }, [serviceTitle, selectedDate, selectedTime, selectedTimeDisplayLabel, totalEstimate]);
+
   return (
     <div className="min-h-screen bg-[#f0f2f5] font-sans">
-      <div className="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 flex flex-nowrap sm:flex-wrap items-center justify-between gap-3 sm:gap-4 min-w-0">
+        <div className="flex items-center gap-3 min-w-0 flex-1 sm:flex-initial">
           <button
             type="button"
             onClick={onBack}
-            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors flex-shrink-0"
+            className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"
             aria-label="Go back"
           >
             <ArrowLeft size={18} className="text-gray-500" />
           </button>
-          <div className="min-w-0">
-            <p className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
-              Shalean Cleaning Services
-            </p>
-            <h1 className="text-lg font-bold text-foreground leading-tight">Choose a date &amp; time</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">Takes ~1 min</p>
+          <div className="min-w-0 hidden sm:block">
+            <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Shalean Cleaning Services</p>
+            <h1 className="text-lg font-bold text-gray-900 leading-tight">Choose a date &amp; time</h1>
+            <p className="text-xs text-gray-500 mt-0.5">Step 2 of 4 · Takes ~1 min</p>
           </div>
         </div>
-
-        <BookingFlowStepIndicator activeStep={2} stepHint="Takes ~1 min" />
+        <div className="shrink-0">
+          <BookingFlowStepIndicator activeStep={2} stepHint="Takes ~1 min" />
+        </div>
       </div>
 
       <BookingFlowLayout
@@ -760,6 +797,43 @@ export function BookingStep2Schedule({
           title="Choose date and time"
           subtitle="Select the best slot, then continue"
         >
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-4 mb-4 lg:hidden">
+            <div
+              className={cn(
+                'flex gap-2',
+                'max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:overscroll-x-contain max-sm:touch-pan-x',
+                'max-sm:[-ms-overflow-style:none] max-sm:[scrollbar-width:none] max-sm:[&::-webkit-scrollbar]:hidden',
+                'sm:flex-wrap'
+              )}
+            >
+              <div className="flex shrink-0 items-center gap-1.5 bg-gray-50/80 border border-gray-200 rounded-full px-3 py-1.5 max-w-[11rem]">
+                <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" aria-hidden />
+                <span className="text-xs font-semibold text-gray-600 truncate">
+                  {selectedDate ? formatSelectedDateLong(selectedDate) : 'Pick date'}
+                </span>
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5 bg-gray-50/80 border border-gray-200 rounded-full px-3 py-1.5">
+                <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" aria-hidden />
+                <span className="text-xs font-semibold text-gray-600 whitespace-nowrap">
+                  {selectedTime
+                    ? selectedTimeDisplayLabel ?? labelForBookingSlotId(selectedTime)
+                    : 'Pick time'}
+                </span>
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5 bg-gray-50/80 border border-gray-200 rounded-full px-3 py-1.5 max-w-[10rem] sm:max-w-none">
+                <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" aria-hidden />
+                <span className="text-xs font-semibold text-gray-600 truncate">
+                  {data.workingArea?.trim() || 'Area'}
+                </span>
+              </div>
+              <span className="inline-flex shrink-0 items-center whitespace-nowrap text-xs font-medium text-violet-600 bg-violet-50 px-2.5 py-1.5 rounded-full border border-violet-200">
+                {totalEstimate > 0
+                  ? `R ${Math.round(totalEstimate).toLocaleString('en-ZA')}`
+                  : '—'}
+              </span>
+            </div>
+          </div>
+
           {pricingModeError && (
             <div
               className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
@@ -771,19 +845,14 @@ export function BookingStep2Schedule({
 
           {showEnhanceSection && (
             <div className="relative z-10 bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-4">
-              <div className="flex items-start gap-3 mb-5">
+              <div className="flex items-center gap-3 mb-4">
                 <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center flex-shrink-0">
                   <Zap size={18} className="text-white" />
                 </div>
-                <div>
-                  <h2 className="text-base font-bold text-gray-900">Enhance Your Service</h2>
-                  <p className="text-sm text-gray-500">
-                    Additional services — optional; prices follow your live estimate (database rates)
-                  </p>
-                </div>
+                <h2 className="text-base font-bold text-gray-900">Extra services</h2>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 pointer-events-auto">
+              <div className="grid grid-cols-4 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3 pointer-events-auto">
                 {addonTiles.map((extra) => {
                   const isSelected = selectedAddonUiIds.includes(extra.id);
                   const storageKey = EXTRA_UI_ID_TO_BOOKING[extra.id] ?? extra.id;
@@ -797,11 +866,11 @@ export function BookingStep2Schedule({
                     isQtyTile && isSelected ? (data.extrasQuantities[storageKey] ?? 1) : 1;
                   const lineTotalZar = isQtyTile ? extra.price * unitQty : extra.price;
                   return (
-                    <div key={extra.id} className="relative">
+                    <div key={extra.id} className="relative min-w-0">
                       {isSelected && isQtyTile && (
                         <button
                           type="button"
-                          className="absolute -top-1 -right-1 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+                          className="absolute -top-1 -right-1 z-10 flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-200"
                           aria-label={`Remove ${extra.label} from booking`}
                           onClick={(e) => {
                             e.preventDefault();
@@ -818,7 +887,7 @@ export function BookingStep2Schedule({
                       onPointerDown={(e) => e.stopPropagation()}
                       whileTap={{ scale: 0.94 }}
                       className={[
-                        'w-full flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-2 cursor-pointer transition-all duration-200',
+                        'w-full min-w-0 flex flex-col items-center gap-1 sm:gap-2 py-2 px-1 sm:py-4 sm:px-2 rounded-lg sm:rounded-xl border-2 cursor-pointer transition-all duration-200',
                         isSelected
                           ? 'border-violet-500 bg-violet-50 shadow-sm shadow-violet-100'
                           : 'border-gray-200 bg-white hover:border-violet-300 hover:bg-violet-50/40',
@@ -826,27 +895,31 @@ export function BookingStep2Schedule({
                     >
                       <div
                         className={[
-                          'w-14 h-14 rounded-full flex items-center justify-center border-2 transition-colors',
+                          'w-9 h-9 sm:w-14 sm:h-14 rounded-full flex items-center justify-center border-2 transition-colors shrink-0 [&_svg]:w-4 [&_svg]:h-4 sm:[&_svg]:w-6 sm:[&_svg]:h-6',
                           isSelected ? 'border-violet-500 text-violet-600' : 'border-gray-300 text-gray-500',
                         ].join(' ')}
                       >
                         {extra.icon}
                       </div>
-                      <div className="text-center leading-tight">
+                      <div className="text-center leading-tight w-full min-w-0">
                         <p
-                          className={['text-xs font-semibold', isSelected ? 'text-violet-700' : 'text-gray-700'].join(
-                            ' '
-                          )}
+                          className={[
+                            'font-semibold line-clamp-2 text-[9px] sm:text-xs',
+                            isSelected ? 'text-violet-700' : 'text-gray-700',
+                          ].join(' ')}
                         >
                           {extra.label}
                         </p>
-                        <p className="text-[10px] text-gray-400">{extra.sublabel}</p>
+                        <p className="text-[8px] sm:text-[10px] text-gray-400 hidden sm:block">{extra.sublabel}</p>
                       </div>
                       {isSelected && isQtyTile && (
-                        <span className="text-xs text-violet-600 font-semibold">{unitQty} selected</span>
+                        <span className="text-[9px] sm:text-xs text-violet-600 font-semibold tabular-nums">
+                          <span className="sm:hidden">×{unitQty}</span>
+                          <span className="hidden sm:inline">{unitQty} selected</span>
+                        </span>
                       )}
                       {isSelected && (
-                        <span className="text-[10px] font-bold text-violet-600 bg-violet-100 px-2 py-0.5 rounded-full">
+                        <span className="text-[8px] sm:text-[10px] font-bold text-violet-600 bg-violet-100 px-1 sm:px-2 py-0.5 rounded-full max-w-full truncate">
                           +R{lineTotalZar.toLocaleString('en-ZA')}
                         </span>
                       )}
@@ -872,8 +945,8 @@ export function BookingStep2Schedule({
               </div>
             </div>
 
-            <div className="rounded-xl border border-border/80 overflow-hidden bg-muted/15">
-              <div className="flex items-center justify-between gap-2 px-2 sm:px-3 py-2.5 border-b border-border/60 bg-muted/25">
+            <div className="rounded-xl border border-border/80 bg-muted/15 overflow-hidden">
+              <div className="flex items-center justify-between gap-2 px-2 sm:px-3 py-2.5 border-b border-border/60 bg-muted/25 rounded-t-xl">
                 <button
                   type="button"
                   onClick={goDatePrev}
@@ -897,8 +970,18 @@ export function BookingStep2Schedule({
                 </button>
               </div>
 
-              <div className="p-2 sm:p-3">
-                <div className="flex sm:grid sm:grid-cols-7 gap-2 overflow-x-auto sm:overflow-visible snap-x snap-mandatory pb-1 scrollbar-thin">
+              <div className="px-2 pt-2 pb-3 sm:p-3 sm:pb-3">
+                <div
+                  className={cn(
+                    'flex sm:grid sm:grid-cols-7 gap-2 snap-x snap-mandatory',
+                    // Mobile: horizontal scroll; hide bar so it doesn’t cover card bottoms
+                    'max-sm:overflow-x-auto max-sm:overscroll-x-contain max-sm:touch-pan-x',
+                    'max-sm:[-ms-overflow-style:none] max-sm:[scrollbar-width:none] max-sm:[&::-webkit-scrollbar]:hidden',
+                    'sm:overflow-visible sm:overscroll-auto sm:pb-0',
+                    // Room for demand badges (-top-1) on mobile
+                    'max-sm:pt-1.5 max-sm:pb-1.5'
+                  )}
+                >
                   {selectableDates.map((cellDate) => {
                     const demandBadge = getDateDemandBadge(cellDate);
                     const isSelected = selectedDate ? isSameDay(cellDate, selectedDate) : false;
@@ -910,7 +993,7 @@ export function BookingStep2Schedule({
                         onClick={() => handleDateSelect(cellDate)}
                         whileTap={{ scale: 0.96 }}
                         className={cn(
-                          'relative flex min-w-[4.75rem] sm:min-w-0 flex-col items-center justify-center rounded-xl py-2.5 px-1.5 snap-center transition-all duration-150',
+                          'relative flex shrink-0 min-w-[4.75rem] sm:min-w-0 flex-col items-center justify-center rounded-xl py-2.5 px-1.5 snap-center transition-all duration-150',
                           isSelected
                             ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
                             : todayCell
@@ -966,9 +1049,7 @@ export function BookingStep2Schedule({
               </div>
 
               {useUnifiedAvailabilityFlow && (
-                <p className="text-[11px] text-muted-foreground">
-                  Price may vary slightly by time (demand-based).
-                </p>
+                <p className="text-[11px] text-muted-foreground">Prices vary by slot.</p>
               )}
 
               <AnimatePresence mode="wait">
@@ -1007,7 +1088,7 @@ export function BookingStep2Schedule({
                       unifiedAvail.status === 'success' &&
                       unifiedAvail.durationMinutes != null && (
                         <p className="text-xs font-medium text-foreground">
-                          Est. duration {formatDurationMinutesLabel(unifiedAvail.durationMinutes)}
+                          ~{formatDurationMinutesLabel(unifiedAvail.durationMinutes)}
                         </p>
                       )}
                     {useUnifiedAvailabilityFlow &&
@@ -1015,17 +1096,17 @@ export function BookingStep2Schedule({
                       unifiedAvail.latestStart &&
                       !unifiedHasNoBookableSlot && (
                         <p className="text-xs font-semibold text-violet-800 bg-violet-50 border border-violet-200 rounded-lg px-3 py-2">
-                          To fit this job today, start by {unifiedAvail.latestStart}.
+                          Latest start: {unifiedAvail.latestStart}
                         </p>
                       )}
 
                     {slotUrgencyBanner === 'few' ? (
                       <p className="text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                        Only a few times left
+                        Few slots left
                       </p>
                     ) : slotUrgencyBanner === 'fast' ? (
                       <p className="text-xs font-semibold text-orange-800 bg-orange-50 border border-orange-100 rounded-lg px-3 py-2">
-                        Slots are filling fast today
+                        Filling fast today
                       </p>
                     ) : null}
 
@@ -1088,20 +1169,13 @@ export function BookingStep2Schedule({
       </BookingFlowLayout>
 
       <StickyCTA
-        title={selectedTimeDisplayLabel ?? 'Pick your preferred time'}
-        subtitle={selectedDate ? formatSelectedDateLong(selectedDate) : 'Choose a day'}
-        totalLabel={`R${totalEstimate.toLocaleString('en-ZA')}`}
+        totalLabel={totalEstimate > 0 ? `R ${Math.round(totalEstimate).toLocaleString('en-ZA')}` : undefined}
         buttonLabel="Continue to cleaner"
         onClick={handleContinue}
         disabled={!canContinue}
-        urgencyText={
-          slotUrgencyBanner === 'few'
-            ? 'Only a few slots left'
-            : slotUrgencyBanner === 'fast'
-              ? 'Slots are filling fast'
-              : undefined
-        }
         helperText="Trusted by 100+ homes in Cape Town"
+        priceSummary={totalEstimate > 0 ? mobileStickyPriceSummary : undefined}
+        priceSummaryTitle="Price summary"
       />
 
       {quantityModal && (

@@ -8,6 +8,8 @@ export type UnifiedAvailabilityApiSlot = {
   available: boolean;
   assignable_cleaners: number;
   recommended: boolean;
+  /** Whole percent above base when surge pricing applies (e.g. 8 => +8%). Null when no surge. */
+  surge_percent?: number | null;
 };
 
 export type UnifiedAvailabilityStatus = 'idle' | 'loading' | 'success' | 'error';

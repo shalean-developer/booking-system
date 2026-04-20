@@ -478,6 +478,8 @@ const Stepper = ({
   max,
   accentClass,
   variant = 'inline',
+  /** `variant="card"` only: one row (icon+label | stepper) at every breakpoint — matches Basic Clean / reference row. */
+  cardSingleRow = false,
 }: {
   label: string;
   sublabel?: string;
@@ -488,17 +490,26 @@ const Stepper = ({
   max: number;
   accentClass?: string;
   variant?: 'inline' | 'card';
+  cardSingleRow?: boolean;
 }) => {
+  const btnSize =
+    variant === 'card' ? 'h-10 w-10 min-h-10 min-w-10' : 'min-h-10 min-w-10 h-10 w-10';
+  const iconSize = 'w-4 h-4';
+  const compactCard = variant === 'card' && cardSingleRow;
+
   const decrease = (
     <motion.button
       type="button"
       whileTap={{ scale: 0.88 }}
       onClick={() => onChange(Math.max(min, value - 1))}
       disabled={value <= min}
-      className="min-h-10 min-w-10 h-10 w-10 shrink-0 rounded-full border-2 border-gray-300 flex items-center justify-center text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed active:bg-gray-100 transition-colors touch-manipulation"
+      className={cn(
+        btnSize,
+        'shrink-0 rounded-full border-2 border-gray-300 flex items-center justify-center text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed active:bg-gray-100 transition-colors touch-manipulation'
+      )}
       aria-label={`Decrease ${label}`}
     >
-      <Minus className="w-4 h-4" aria-hidden />
+      <Minus className={iconSize} aria-hidden />
     </motion.button>
   );
 
@@ -508,13 +519,14 @@ const Stepper = ({
       whileTap={{ scale: 0.88 }}
       onClick={() => onChange(Math.min(max, value + 1))}
       disabled={value >= max}
-      className={[
-        'min-h-10 min-w-10 h-10 w-10 shrink-0 rounded-full border-2 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-colors touch-manipulation',
-        accentClass || 'border-violet-500 bg-violet-50 text-violet-600 active:bg-violet-100',
-      ].join(' ')}
+      className={cn(
+        btnSize,
+        'shrink-0 rounded-full border-2 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-colors touch-manipulation',
+        accentClass || 'border-violet-500 bg-violet-50 text-violet-600 active:bg-violet-100'
+      )}
       aria-label={`Increase ${label}`}
     >
-      <Plus className="w-4 h-4" aria-hidden />
+      <Plus className={iconSize} aria-hidden />
     </motion.button>
   );
 
@@ -523,10 +535,14 @@ const Stepper = ({
       key={value}
       initial={{ scale: 1.25, opacity: 0.6 }}
       animate={{ scale: 1, opacity: 1 }}
-      className={[
-        'text-center text-base font-bold text-gray-900 tabular-nums',
-        variant === 'card' ? 'min-w-[2.5rem] flex-1' : 'w-7',
-      ].join(' ')}
+      className={cn(
+        'text-center font-bold text-gray-900 tabular-nums',
+        variant === 'card'
+          ? compactCard
+            ? 'min-w-[2.75rem] px-0.5 text-base'
+            : 'min-w-[2.75rem] text-base max-lg:px-0.5 lg:min-w-[2.5rem] lg:flex-1'
+          : 'w-7 text-base'
+      )}
       aria-live="polite"
       aria-atomic="true"
     >
@@ -539,20 +555,61 @@ const Stepper = ({
       <div
         role="group"
         aria-label={label}
-        className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm flex flex-col gap-3"
+        className={cn(
+          'w-full min-w-0 rounded-xl border border-gray-100 bg-white shadow-sm',
+          compactCard
+            ? 'flex flex-row items-center justify-between gap-3 px-3 py-3'
+            : [
+                'max-lg:flex max-lg:flex-row max-lg:items-center max-lg:justify-between max-lg:gap-3 max-lg:px-3 max-lg:py-3',
+                'lg:flex lg:flex-col lg:gap-3 lg:p-4',
+              ]
+        )}
       >
-        <div className="flex items-start gap-2 min-w-0">
+        <div
+          className={cn(
+            'flex min-w-0 items-center gap-2',
+            compactCard ? 'min-w-0 flex-1' : 'max-lg:min-w-0 max-lg:flex-1 lg:items-start'
+          )}
+        >
           {icon && (
-            <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 shrink-0">
+            <div
+              className={cn(
+                'shrink-0 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500',
+                compactCard
+                  ? 'h-8 w-8 [&>svg]:h-4 [&>svg]:w-4'
+                  : 'h-7 w-7 max-lg:[&>svg]:h-3.5 max-lg:[&>svg]:w-3.5 lg:h-8 lg:w-8 lg:[&>svg]:h-5 lg:[&>svg]:w-5'
+              )}
+            >
               {icon}
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-gray-800">{label}</p>
-            {sublabel && <p className="text-sm text-gray-500 mt-0.5 leading-snug">{sublabel}</p>}
+            <p
+              className={cn(
+                'text-sm leading-tight text-gray-800',
+                compactCard ? 'font-semibold' : 'font-medium'
+              )}
+            >
+              {label}
+            </p>
+            {sublabel && (
+              <p
+                className={cn(
+                  'mt-0.5 text-xs leading-snug text-gray-500',
+                  compactCard ? '' : 'max-lg:line-clamp-2 lg:text-sm'
+                )}
+              >
+                {sublabel}
+              </p>
+            )}
           </div>
         </div>
-        <div className="flex items-center gap-2 sm:gap-3 w-full">
+        <div
+          className={cn(
+            'flex shrink-0 items-center',
+            compactCard ? 'gap-3' : 'justify-end max-lg:gap-3 lg:w-full lg:justify-between lg:gap-3'
+          )}
+        >
           {decrease}
           {valueDisplay}
           {increase}
@@ -1303,7 +1360,7 @@ export function BookingStep1Cleaning({
   const residentialSteppers: StepperRowConfig[] = [
     {
       id: 'bedrooms',
-      label: 'Bedrooms',
+      label: 'Rooms',
       sublabel: '',
       icon: <BedDouble className="w-4 h-4" />,
       value: bedrooms,
@@ -1414,26 +1471,115 @@ export function BookingStep1Cleaning({
       ? 'Basic Clean'
       : selectedServiceData?.label ?? 'Cleaning';
 
+  const mobileStickyPriceSummary = useMemo(() => {
+    if (displayTotal <= 0) return null;
+    if (data.pricingMode === 'basic' && quickCleanPreview != null) {
+      return (
+        <div className="space-y-3 text-sm">
+          <div className="rounded-xl border border-gray-100 bg-gray-50/90 p-3 space-y-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Quick Clean</p>
+            <div className="flex justify-between items-start gap-3">
+              <span className="text-gray-600">Planned hours</span>
+              <span className="font-semibold text-gray-900 tabular-nums text-right">
+                {Math.min(6, qcHoursVal).toFixed(1)} h
+              </span>
+            </div>
+            <div className="flex justify-between items-start gap-3">
+              <span className="text-gray-600">Estimated service</span>
+              <span className="font-semibold text-gray-900 tabular-nums text-right">
+                {formatPrice(qcPriceVal)}
+              </span>
+            </div>
+            {location?.trim() ? (
+              <div className="flex justify-between items-start gap-3 text-xs">
+                <span className="text-gray-500">Area</span>
+                <span className="font-medium text-gray-700 text-right">{location.trim()}</span>
+              </div>
+            ) : null}
+          </div>
+          <div className="flex justify-between items-center gap-3 text-base font-bold text-gray-900 pt-1 border-t border-gray-200">
+            <span>Total</span>
+            <span className="tabular-nums">{formatPrice(displayTotal)}</span>
+          </div>
+        </div>
+      );
+    }
+    if (summaryTone === 'basic') {
+      return (
+        <div className="text-sm text-gray-600 py-2">
+          <p>Complete your Quick Clean selections to see a full breakdown.</p>
+        </div>
+      );
+    }
+    if (!useDbBreakdown || !effectiveDbPricingRows?.length) {
+      return <p className="text-sm text-gray-500 text-center py-6">Loading price…</p>;
+    }
+    return (
+      <div className="space-y-3 text-sm">
+        <div className="rounded-xl border border-gray-100 bg-gray-50/90 p-3 space-y-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Breakdown</p>
+          <div className="space-y-2">
+            {effectiveDbPricingRows
+              .filter((r) => r.value !== 0)
+              .map((row) => (
+                <div key={row.id} className="flex justify-between items-start gap-3">
+                  <span className="text-gray-600">{row.label}</span>
+                  <span className="font-semibold text-gray-900 tabular-nums text-right shrink-0">
+                    {row.id === 'v2_service' ? `+ ${formatPrice(row.value)}` : formatPrice(row.value)}
+                  </span>
+                </div>
+              ))}
+            <div className="flex justify-between items-start gap-3 text-base font-bold text-gray-900 pt-2 border-t border-gray-200">
+              <span>Total</span>
+              <span className="tabular-nums">{formatPrice(displayTotal)}</span>
+            </div>
+          </div>
+          {effectiveEngineMeta && effectiveEngineMeta.marginRateBoostApplied > 0 ? (
+            <p className="text-[11px] text-amber-900 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1.5">
+              Includes a pricing safeguard for cleaners.
+            </p>
+          ) : null}
+        </div>
+      </div>
+    );
+  }, [
+    data.pricingMode,
+    displayTotal,
+    effectiveDbPricingRows,
+    effectiveEngineMeta,
+    location,
+    qcHoursVal,
+    qcPriceVal,
+    quickCleanPreview,
+    summaryTone,
+    useDbBreakdown,
+  ]);
+
   return (
     <div className="min-h-screen bg-[#f0f2f5] font-sans">
-      <div className="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 flex flex-nowrap sm:flex-wrap items-center justify-between gap-3 sm:gap-4 min-w-0">
+        <div className="flex items-center gap-3 min-w-0 flex-1 sm:flex-initial">
           {onBack ? (
             <button
               type="button"
               onClick={onBack}
-              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors flex-shrink-0"
+              className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"
+              aria-label="Back"
             >
               <ArrowLeft size={18} className="text-gray-500" />
             </button>
-          ) : null}
-          <div className="min-w-0">
+          ) : (
+            <span className="w-8 shrink-0 sm:hidden" aria-hidden />
+          )}
+          <div className="min-w-0 hidden sm:block">
             <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Shalean Cleaning Services</p>
             <h1 className="text-lg font-bold text-gray-900 leading-tight">Choose your service</h1>
             <p className="text-xs text-gray-500 mt-0.5">Step 1 of 4 · Takes ~1 min</p>
           </div>
         </div>
-        <BookingFlowStepIndicator activeStep={1} stepHint="Takes ~1 min" />
+        <div className="shrink-0">
+          <BookingFlowStepIndicator activeStep={1} stepHint="Takes ~1 min" />
+        </div>
       </div>
 
       <BookingFlowLayout
@@ -1605,30 +1751,33 @@ export function BookingStep1Cleaning({
                 Recommended for your home size
               </p>
             ) : null}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-2 sm:gap-4">
               <motion.button
                 type="button"
                 onClick={() => selectExperience('basic')}
                 whileHover={{ y: -2 }}
                 whileTap={{ scale: 0.995 }}
                 className={cn(
-                  'relative text-left rounded-2xl border-2 p-5 md:p-6 transition-all duration-200',
+                  'relative text-left rounded-xl sm:rounded-2xl border-2 p-3 sm:p-5 md:p-6 transition-all duration-200 min-h-[140px] sm:min-h-0',
                   data.pricingMode === 'basic'
                     ? 'border-violet-500 bg-white shadow-xl shadow-violet-200/40 ring-2 ring-violet-400/20'
                     : 'border-gray-200 bg-white hover:border-violet-300 hover:shadow-md'
                 )}
               >
-                <span className="absolute top-3 right-3 text-[10px] font-semibold uppercase tracking-wide text-violet-700 bg-violet-100/90 px-2 py-0.5 rounded-full">
+                <span className="absolute top-2 right-2 sm:top-3 sm:right-3 text-[9px] sm:text-[10px] font-semibold uppercase tracking-wide text-violet-700 bg-violet-100/90 px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-full max-w-[4.5rem] sm:max-w-none leading-tight text-center">
                   Most booked
                 </span>
-                <div className="flex items-start justify-between gap-2 pr-16">
-                  <span className="text-xl font-bold text-gray-900">Basic Clean</span>
+                <div className="flex items-start justify-between gap-1 pr-11 sm:pr-16">
+                  <span className="text-sm sm:text-xl font-bold text-gray-900 leading-tight">Basic Clean</span>
                 </div>
-                <p className="text-3xl font-extrabold text-violet-700 mt-3 tabular-nums tracking-tight">
-                  Starts at {formatPrice(basicStartZar)}+
+                <p className="text-lg sm:text-3xl font-extrabold text-violet-700 mt-2 sm:mt-3 tabular-nums tracking-tight leading-none">
+                  <span className="hidden sm:inline">Starts at </span>
+                  <span className="sm:hidden">From </span>
+                  {formatPrice(basicStartZar)}+
                 </p>
-                <p className="text-xs text-gray-500 mt-1">Based on your home size</p>
-                <ul className="mt-4 space-y-2 text-sm font-medium text-gray-700">
+                <p className="text-xs text-gray-500 mt-1 hidden sm:block">Based on your home size</p>
+                <p className="text-[10px] sm:hidden text-gray-600 mt-2 leading-snug">1 cleaner · max 6h</p>
+                <ul className="mt-3 sm:mt-4 space-y-2 text-sm font-medium text-gray-700 hidden md:block">
                   <li className="flex gap-2 items-center">
                     <CheckCircle2 className="w-4 h-4 text-violet-500 shrink-0" aria-hidden />
                     1 cleaner
@@ -1638,9 +1787,6 @@ export function BookingStep1Cleaning({
                     Max 6 hrs
                   </li>
                 </ul>
-                <p className="text-sm font-medium text-gray-800 mt-3">
-                  ≈ {Math.min(6, quickCleanPreview?.totalHours ?? Math.max(estimatedHoursBasic, 2)).toFixed(1)}h to finish
-                </p>
               </motion.button>
 
               <motion.button
@@ -1655,7 +1801,7 @@ export function BookingStep1Cleaning({
                 whileHover={{ y: -2 }}
                 whileTap={{ scale: 0.995 }}
                 className={cn(
-                  'relative text-left rounded-2xl border-2 p-5 md:p-6 transition-all duration-200',
+                  'relative text-left rounded-xl sm:rounded-2xl border-2 p-3 sm:p-5 md:p-6 transition-all duration-200 min-h-[140px] sm:min-h-0',
                   data.pricingMode === 'premium'
                     ? 'border-violet-500 bg-white shadow-xl shadow-violet-200/50 scale-[1.01]'
                     : 'border-gray-200 bg-white hover:border-violet-300 hover:shadow-md',
@@ -1667,15 +1813,18 @@ export function BookingStep1Cleaning({
                     : ''
                 )}
               >
-                <span className="absolute top-3 right-3 text-[10px] font-semibold uppercase tracking-wide text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded-full">
+                <span className="absolute top-2 right-2 sm:top-3 sm:right-3 text-[9px] sm:text-[10px] font-semibold uppercase tracking-wide text-amber-800 bg-amber-100/90 px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-full max-w-[4.5rem] sm:max-w-none leading-tight text-center">
                   Best results
                 </span>
-                <div className="flex items-start justify-between gap-2 pr-16">
-                  <span className="text-xl font-bold text-gray-900">Premium Clean</span>
-                  <Sparkles className="w-5 h-5 text-violet-500 shrink-0" aria-hidden />
+                <div className="flex items-start justify-between gap-1 pr-11 sm:pr-16">
+                  <span className="text-sm sm:text-xl font-bold text-gray-900 leading-tight">Premium Clean</span>
+                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-violet-500 shrink-0 hidden sm:block" aria-hidden />
                 </div>
-                <p className="text-3xl font-extrabold text-violet-700 mt-3 tabular-nums tracking-tight">From R250+</p>
-                <ul className="mt-4 space-y-2 text-sm font-medium text-gray-700">
+                <p className="text-lg sm:text-3xl font-extrabold text-violet-700 mt-2 sm:mt-3 tabular-nums tracking-tight leading-none">
+                  From R250+
+                </p>
+                <p className="text-[10px] sm:hidden text-gray-600 mt-2 leading-snug">Team clean · deep detail</p>
+                <ul className="mt-3 sm:mt-4 space-y-2 text-sm font-medium text-gray-700 hidden md:block">
                   <li className="flex gap-2 items-center">
                     <CheckCircle2 className="w-4 h-4 text-violet-500 shrink-0" aria-hidden />
                     Team service
@@ -1689,9 +1838,9 @@ export function BookingStep1Cleaning({
                     Custom options
                   </li>
                 </ul>
-                <p className="text-sm font-semibold text-gray-900 mt-3">≈ 2–3h ⚡</p>
-                <p className="text-xs text-violet-800 font-medium mt-1">Same hourly rate · finishes faster</p>
-                <p className="text-[11px] text-gray-500 mt-2">Faster than Basic on larger homes</p>
+                <p className="text-sm font-semibold text-gray-900 mt-3 hidden md:block">≈ 2–3h ⚡</p>
+                <p className="text-xs text-violet-800 font-medium mt-1 hidden md:block">Same hourly rate · finishes faster</p>
+                <p className="text-[11px] text-gray-500 mt-2 hidden md:block">Faster than Basic on larger homes</p>
               </motion.button>
             </div>
           </section>
@@ -1721,10 +1870,11 @@ export function BookingStep1Cleaning({
                     error={locationError}
                   />
                 </div>
-                <h3 className="mt-4 text-base font-bold text-gray-900">Home size</h3>
                 <div className="mt-4">
                   <Stepper
-                    label="Bedrooms"
+                    variant="card"
+                    cardSingleRow
+                    label="Rooms"
                     icon={<BedDouble className="w-4 h-4" />}
                     value={data.bedrooms}
                     onChange={(v) => patch({ bedrooms: v })}
@@ -1797,13 +1947,10 @@ export function BookingStep1Cleaning({
                 </div>
                 <div
                   className={cn(
-                    'gap-3',
-                    'flex overflow-x-auto pb-2 snap-x snap-mandatory [-webkit-overflow-scrolling:touch] scroll-smooth',
-                    'sm:grid sm:overflow-visible sm:pb-0 sm:snap-none sm:gap-3',
-                    servicesResolved.length <= 4 ? 'sm:grid-cols-4' : 'sm:grid-cols-2 lg:grid-cols-5',
-                    // Subtle scrollbar on small screens (avoid heavy default bar)
-                    '[scrollbar-width:thin] [scrollbar-color:rgba(167_139_250_0.45)_transparent]',
-                    '[&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-violet-200/90 [&::-webkit-scrollbar-track]:bg-transparent'
+                    'grid gap-2 sm:gap-3',
+                    // Mobile: 4 columns → items wrap into rows (e.g. 8 services = 4×2)
+                    'grid-cols-4',
+                    servicesResolved.length <= 4 ? 'sm:grid-cols-4' : 'sm:grid-cols-2 lg:grid-cols-5'
                   )}
                 >
                   {servicesResolved.map((service) => (
@@ -1815,8 +1962,7 @@ export function BookingStep1Cleaning({
                         type="button"
                         onClick={() => handleServiceSelect(service.id)}
                         className={cn(
-                          'snap-start shrink-0 w-[158px] rounded-xl border-2 p-4 text-left transition-all',
-                          'sm:w-auto sm:min-w-0 sm:shrink',
+                          'flex flex-col items-center text-center min-w-0 w-full rounded-lg sm:rounded-xl border-2 p-2 sm:p-4 transition-all',
                           selectedService === service.id
                             ? 'border-violet-600 bg-violet-50/90 shadow-md shadow-violet-500/10 ring-1 ring-violet-500/15'
                             : 'border-gray-100 bg-white hover:border-violet-200 hover:bg-slate-50/80'
@@ -1824,7 +1970,7 @@ export function BookingStep1Cleaning({
                       >
                         <div
                           className={cn(
-                            'w-11 h-11 rounded-xl flex items-center justify-center mb-3 transition-colors',
+                            'w-8 h-8 sm:w-11 sm:h-11 shrink-0 rounded-lg sm:rounded-xl flex items-center justify-center mb-1.5 sm:mb-3 transition-colors [&_svg]:w-4 [&_svg]:h-4 sm:[&_svg]:w-5 sm:[&_svg]:h-5',
                             selectedService === service.id
                               ? 'bg-white text-violet-700 shadow-sm shadow-violet-900/5'
                               : 'bg-slate-100 text-slate-600'
@@ -1832,7 +1978,9 @@ export function BookingStep1Cleaning({
                         >
                           {service.icon}
                         </div>
-                        <p className="text-sm font-bold text-gray-900 leading-snug pr-0.5">{service.label}</p>
+                        <p className="text-[10px] sm:text-sm font-bold text-gray-900 leading-tight w-full hyphens-auto">
+                          {service.label}
+                        </p>
                       </button>
                     </Tooltip>
                   ))}
@@ -2065,8 +2213,8 @@ export function BookingStep1Cleaning({
                     </h2>
                   </div>
                 </div>
-                <div className="px-5 py-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="px-4 py-3 lg:px-5 lg:py-4">
+                  <div className="grid grid-cols-1 gap-2 lg:grid-cols-3 lg:gap-4">
                     {residentialSteppers.map((row) => (
                       <Stepper
                         key={row.id}
@@ -2091,35 +2239,13 @@ export function BookingStep1Cleaning({
       </BookingFlowLayout>
 
       <StickyCTA
-        title={
-          data.pricingMode === 'basic' && quickCleanPreview != null
-            ? `${quickCleanPreview.totalHours.toFixed(1)}h · 1 cleaner`
-            : selectedService
-              ? [
-                  serviceTitle,
-                  effectivePricingContext?.estimatedJobHours != null
-                    ? `Est. ${effectivePricingContext.estimatedJobHours.toFixed(1)}h · ${effectivePricingContext.teamSize ?? 1} cleaners`
-                    : displayTotal > 0 && duration !== '—'
-                      ? duration
-                      : null,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')
-              : 'Select your service'
-        }
-        subtitle={
-          data.pricingMode === 'basic'
-            ? location || 'Area required'
-            : propertyType
-              ? `${propertyType} · ${location || 'Add area'}`
-              : 'Property and area'
-        }
         totalLabel={displayTotal > 0 ? `R ${Math.round(animatedDisplayTotal).toLocaleString('en-ZA')}` : undefined}
         buttonLabel={isValid ? 'See available times' : data.pricingMode === 'basic' ? 'Choose area' : 'Complete fields'}
         onClick={handleContinue}
         disabled={!isValid}
-        urgencyText={isValid ? 'Limited slots available today' : undefined}
         helperText={attempted && !isValid ? validationMessage : 'Trusted by 100+ homes in Cape Town'}
+        priceSummary={mobileStickyPriceSummary ?? undefined}
+        priceSummaryTitle="Price summary"
       />
     </div>
   );

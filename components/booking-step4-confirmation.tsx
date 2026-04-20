@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
@@ -9,6 +9,7 @@ import {
   Loader2,
   AlertTriangle,
   ChevronRight,
+  ChevronDown,
   Ban,
   Phone,
   User,
@@ -212,24 +213,241 @@ function MainColumnPriceAndCta({
   isProcessing,
   shaking,
   onPay,
+  selectedCleaner,
+  tipAmount,
+  onTipChange,
+  showLoyaltyBlock,
+  loyaltyBalance,
+  applyLoyaltyPoints,
+  onApplyLoyaltyPointsChange,
+  useLoyaltyPointsInput,
+  onUseLoyaltyPointsInputChange,
+  data,
+  appliedPromo,
+  promoInput,
+  setPromoInput,
+  promoError,
+  promoSuccess,
+  discountAmount,
+  handleApplyPromoClick,
+  handleRemovePromo,
+  setPromoError,
 }: {
   totalZar: number;
   isProcessing: boolean;
   shaking: boolean;
   onPay: () => void;
+  selectedCleaner?: SelectedCleanerSummary | null;
+  tipAmount: number;
+  onTipChange: (value: number) => void;
+  showLoyaltyBlock: boolean;
+  loyaltyBalance: number;
+  applyLoyaltyPoints: boolean;
+  onApplyLoyaltyPointsChange?: (v: boolean) => void;
+  useLoyaltyPointsInput: number;
+  onUseLoyaltyPointsInputChange?: (v: number) => void;
+  data: BookingFormData;
+  appliedPromo: PromoResult | null;
+  promoInput: string;
+  setPromoInput: (v: string) => void;
+  promoError: string;
+  promoSuccess: string;
+  discountAmount: number;
+  handleApplyPromoClick: () => void;
+  handleRemovePromo: () => void;
+  setPromoError: (v: string) => void;
 }) {
+  const [mobilePanel, setMobilePanel] = useState<null | 'tip' | 'promo'>(null);
+  const cleanerName = selectedCleaner?.name?.trim() || 'Best available cleaner';
+
+  const togglePanel = (p: 'tip' | 'promo') => {
+    setMobilePanel((cur) => (cur === p ? null : p));
+  };
+
   return (
     <div className="space-y-3">
       <motion.div
         animate={shaking ? { x: [0, -6, 6, -4, 4, 0] } : { x: 0 }}
         transition={shaking ? { duration: 0.45 } : {}}
-        className="rounded-2xl border border-gray-100 bg-white p-5 sm:p-6 shadow-sm"
+        className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-6 shadow-sm"
       >
         <p className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight tabular-nums">
           {formatZarHero(totalZar)}
         </p>
-        <p className="text-sm font-semibold text-gray-800 mt-1">Final price</p>
-        <p className="text-xs text-gray-500 mt-2">Final price — no hidden fees</p>
+
+        <div className="hidden lg:block mt-1">
+          <p className="text-sm font-semibold text-gray-800">Final price</p>
+          <p className="text-xs text-gray-500 mt-2">Final price — no hidden fees</p>
+        </div>
+
+        <div className="lg:hidden mt-3 space-y-2 border-t border-gray-100 pt-3">
+          <button
+            type="button"
+            onClick={() => togglePanel('tip')}
+            className="flex w-full items-center justify-between gap-2 rounded-xl border border-gray-200 bg-gray-50/80 px-3 py-2.5 text-left text-sm font-semibold text-gray-900"
+            aria-expanded={mobilePanel === 'tip'}
+          >
+            Tip Cleaner
+            <ChevronDown
+              className={cn(
+                'h-4 w-4 shrink-0 text-gray-500 transition-transform',
+                mobilePanel === 'tip' && 'rotate-180'
+              )}
+              aria-hidden
+            />
+          </button>
+          <AnimatePresence initial={false}>
+            {mobilePanel === 'tip' ? (
+              <motion.div
+                key="tip-panel"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <p className="text-xs text-gray-600 mb-2 leading-relaxed">
+                  100% of your tip goes to your cleaner — optional. Pick a preset or enter a custom amount.
+                </p>
+                <TipCard
+                  cleanerName={cleanerName}
+                  cleanerPhotoUrl={selectedCleaner?.photoUrl ?? null}
+                  headerTone="blue"
+                  tipAmount={tipAmount}
+                  onTipChange={onTipChange}
+                  disabled={isProcessing}
+                  className="shadow-none border border-gray-100"
+                />
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+
+          <button
+            type="button"
+            onClick={() => togglePanel('promo')}
+            className="flex w-full items-center justify-between gap-2 rounded-xl border border-gray-200 bg-gray-50/80 px-3 py-2.5 text-left text-sm font-semibold text-gray-900"
+            aria-expanded={mobilePanel === 'promo'}
+          >
+            Apply Reward Promo Code
+            <ChevronDown
+              className={cn(
+                'h-4 w-4 shrink-0 text-gray-500 transition-transform',
+                mobilePanel === 'promo' && 'rotate-180'
+              )}
+              aria-hidden
+            />
+          </button>
+          <AnimatePresence initial={false}>
+            {mobilePanel === 'promo' ? (
+              <motion.div
+                key="promo-panel"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden rounded-xl border border-gray-200/90 bg-white p-3 space-y-3"
+              >
+                {showLoyaltyBlock && onApplyLoyaltyPointsChange && onUseLoyaltyPointsInputChange && (
+                  <>
+                    <label className="flex items-start gap-3 cursor-pointer min-h-[44px] py-0.5">
+                      <input
+                        type="checkbox"
+                        className="mt-1 h-5 w-5 shrink-0 rounded border-gray-300 text-primary focus:ring-primary focus:ring-offset-0"
+                        checked={applyLoyaltyPoints}
+                        onChange={(e) => onApplyLoyaltyPointsChange(e.target.checked)}
+                      />
+                      <span className="min-w-0">
+                        <span className="text-sm text-gray-800 leading-snug block">
+                          Use credits (R{loyaltyBalance} balance)
+                        </span>
+                        <span className="text-xs text-gray-500 mt-0.5 block">Apply rewards to lower this total</span>
+                      </span>
+                    </label>
+                    {applyLoyaltyPoints && (
+                      <div className="pl-8">
+                        <label htmlFor="loyalty-mobile-main" className="block text-[11px] font-medium text-gray-500 mb-1">
+                          Points to use (max {loyaltyBalance})
+                        </label>
+                        <input
+                          id="loyalty-mobile-main"
+                          type="number"
+                          min={0}
+                          max={loyaltyBalance}
+                          value={useLoyaltyPointsInput || ''}
+                          onChange={(e) => {
+                            const n = Math.max(0, Math.floor(Number(e.target.value) || 0));
+                            onUseLoyaltyPointsInputChange(Math.min(n, loyaltyBalance));
+                          }}
+                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
+                        />
+                      </div>
+                    )}
+                    <div className="h-px bg-gray-100" aria-hidden />
+                  </>
+                )}
+
+                <div className="space-y-2">
+                  <label htmlFor="mobile-main-promo-input" className="text-xs font-medium text-gray-700">
+                    Promo code
+                  </label>
+                  {data.promoCode ? (
+                    <div className="flex items-start justify-between gap-2 rounded-lg border border-emerald-200/90 bg-emerald-50/80 px-3 py-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-emerald-900 font-mono tracking-wide">{data.promoCode}</p>
+                        {appliedPromo ? <p className="text-xs text-emerald-800">{appliedPromo.label}</p> : null}
+                        {discountAmount > 0 && (
+                          <p className="text-xs font-semibold text-emerald-700 mt-0.5">−{formatZarSimple(discountAmount)}</p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRemovePromo}
+                        className="text-xs font-semibold text-gray-500 hover:text-red-600 shrink-0"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2 w-full min-w-0">
+                      <input
+                        id="mobile-main-promo-input"
+                        type="text"
+                        autoComplete="off"
+                        placeholder="Enter code"
+                        value={promoInput}
+                        onChange={(e) => {
+                          setPromoInput(e.target.value.toUpperCase());
+                          setPromoError('');
+                        }}
+                        onKeyDown={(e) => e.key === 'Enter' && handleApplyPromoClick()}
+                        className={cn(
+                          'w-full rounded-lg border px-3 py-2.5 text-sm font-mono uppercase tracking-wide outline-none',
+                          'focus:border-primary focus:ring-1 focus:ring-primary/25',
+                          promoError ? 'border-red-400 bg-red-50' : 'border-gray-300 bg-white'
+                        )}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleApplyPromoClick}
+                        className="w-full rounded-lg py-2.5 text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+                      >
+                        Apply code
+                      </button>
+                    </div>
+                  )}
+                  {promoError ? (
+                    <p className="text-xs text-red-600 flex items-center gap-1">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                      {promoError}
+                    </p>
+                  ) : null}
+                  {promoSuccess ? <p className="text-xs text-emerald-700 font-medium">{promoSuccess}</p> : null}
+                </div>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+        </div>
+
         <motion.button
           type="button"
           whileTap={{ scale: 0.98 }}
@@ -316,7 +534,10 @@ function Step4Sidebar(props: Step4SidebarProps) {
   } = props;
 
   return (
-    <aside aria-label="Checkout summary and discounts" className="w-full max-w-[360px] lg:ml-auto flex flex-col gap-3">
+    <aside
+      aria-label="Checkout summary and discounts"
+      className="hidden lg:flex w-full max-w-[360px] lg:ml-auto flex-col gap-3"
+    >
       <SidebarCheckoutCard
         totalZar={totalZar}
         shaking={shaking}
@@ -544,28 +765,65 @@ export function BookingStep4Confirmation({
   const contactErrorKeys = ['phone', 'email'] as const;
   const hasContactErrors = attempted && contactErrorKeys.some((k) => errors[k]);
 
+  const mobileStickyPriceSummary = useMemo(
+    () => (
+      <div className="space-y-3 text-sm">
+        <div className="rounded-xl border border-gray-100 bg-gray-50/90 p-3 space-y-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Checkout</p>
+          <div className="flex justify-between items-start gap-3">
+            <span className="text-gray-600">Service</span>
+            <span className="font-semibold text-gray-900 text-right">{serviceTitle}</span>
+          </div>
+          <div className="flex justify-between items-start gap-3">
+            <span className="text-gray-600">When</span>
+            <span className="font-semibold text-gray-900 text-right">{summaryDateTime}</span>
+          </div>
+          {addressLine.trim() ? (
+            <div className="flex justify-between items-start gap-3 text-xs">
+              <span className="text-gray-500">Where</span>
+              <span className="font-medium text-gray-700 text-right">{addressLine.trim()}</span>
+            </div>
+          ) : null}
+          {data.promoCode.trim() ? (
+            <div className="flex justify-between items-start gap-3 text-xs">
+              <span className="text-gray-500">Promo</span>
+              <span className="font-medium text-emerald-800 text-right">
+                {(appliedPromo?.label ?? data.promoCode) + ' applied'}
+              </span>
+            </div>
+          ) : null}
+        </div>
+        <div className="flex justify-between items-center gap-3 text-base font-bold text-gray-900 pt-1 border-t border-gray-200">
+          <span>Total</span>
+          <span className="tabular-nums">{formatZarSimple(totalZar)}</span>
+        </div>
+      </div>
+    ),
+    [serviceTitle, summaryDateTime, addressLine, data.promoCode, appliedPromo, totalZar]
+  );
+
   return (
     <div className="min-h-screen bg-[#f0f2f5] font-sans">
-      <header className="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 flex flex-nowrap sm:flex-wrap items-center justify-between gap-3 sm:gap-4 min-w-0">
+        <div className="flex items-center gap-3 min-w-0 flex-1 sm:flex-initial">
           <button
             type="button"
             onClick={onBack}
-            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors flex-shrink-0"
+            className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"
             aria-label="Go back"
           >
             <ArrowLeft size={18} className="text-gray-500" />
           </button>
-          <div className="min-w-0">
-            <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">
-              Shalean Cleaning Services
-            </p>
+          <div className="min-w-0 hidden sm:block">
+            <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Shalean Cleaning Services</p>
             <h1 className="text-lg font-bold text-gray-900 leading-tight">You&apos;re almost done</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Secure your clean in seconds</p>
+            <p className="text-xs text-gray-500 mt-0.5">Step 4 of 4 · Secure checkout</p>
           </div>
         </div>
-        <BookingFlowStepIndicator activeStep={4} />
-      </header>
+        <div className="shrink-0">
+          <BookingFlowStepIndicator activeStep={4} stepHint="Takes ~1 min" />
+        </div>
+      </div>
 
       {paymentError && (
         <div className="max-w-6xl mx-auto px-4 pt-4">
@@ -830,6 +1088,25 @@ export function BookingStep4Confirmation({
           isProcessing={isProcessing}
           shaking={shaking}
           onPay={handleSubmit}
+          selectedCleaner={selectedCleaner}
+          tipAmount={data.tipAmount}
+          onTipChange={(value) => setData((prev) => ({ ...prev, tipAmount: value }))}
+          showLoyaltyBlock={Boolean(showLoyaltyBlock && onApplyLoyaltyPointsChange && onUseLoyaltyPointsInputChange)}
+          loyaltyBalance={loyaltyBalance}
+          applyLoyaltyPoints={applyLoyaltyPoints}
+          onApplyLoyaltyPointsChange={onApplyLoyaltyPointsChange}
+          useLoyaltyPointsInput={useLoyaltyPointsInput}
+          onUseLoyaltyPointsInputChange={onUseLoyaltyPointsInputChange}
+          data={data}
+          appliedPromo={appliedPromo ?? null}
+          promoInput={promoInput}
+          setPromoInput={setPromoInput}
+          promoError={promoError}
+          promoSuccess={promoSuccess}
+          discountAmount={discountAmount}
+          handleApplyPromoClick={handleApplyPromoClick}
+          handleRemovePromo={handleRemovePromo}
+          setPromoError={setPromoError}
         />
 
         {/* Bottom trust strip — desktop; mobile uses fixed bar */}
@@ -843,60 +1120,18 @@ export function BookingStep4Confirmation({
         </div>
       </BookingFlowLayout>
 
-      <div className="lg:hidden bg-white border-t border-gray-200 shadow-[0_-4px_32px_rgba(0,0,0,0.08)]">
-        <AnimatePresence>
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            className="overflow-hidden"
-          >
-            <div className="px-4 pt-2.5 pb-1 flex items-center justify-between gap-3">
-              <div className="min-w-0 flex-1 space-y-0.5">
-                <p className="text-[11px] text-gray-500 font-medium truncate">
-                  {serviceTitle} · {shortDateLabel}
-                </p>
-                {data.promoCode && (
-                  <p className="text-[11px] font-semibold text-primary truncate">
-                    {(appliedPromo?.label ?? data.promoCode) + ' applied'}
-                  </p>
-                )}
-              </div>
-              <motion.p
-                key={totalZar}
-                initial={{ y: -4, opacity: 0.6 }}
-                animate={{ y: 0, opacity: 1 }}
-                className="text-base font-bold text-gray-900 tabular-nums flex-shrink-0"
-              >
-                {formatZarSimple(totalZar)}
-              </motion.p>
-            </div>
-          </motion.div>
-        </AnimatePresence>
-
-        <div className="px-4 pt-1 pb-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-b border-gray-50">
-          {['SSL Encrypted', 'Free Cancellation', 'Satisfaction Guaranteed'].map((item) => (
-            <div key={item} className="flex items-center gap-1">
-              <Check className="w-2.5 h-2.5 text-gray-400" />
-              <span className="text-[10px] text-gray-500">{item}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="px-4 py-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          <p className="text-center text-[10px] text-gray-400">Secure checkout via Paystack</p>
-        </div>
-      </div>
-
       <StickyCTA
-        title="Ready to confirm your booking?"
-        subtitle={hasContactErrors && !isProcessing ? 'Check your phone and email fields' : 'Limited slots available today'}
         totalLabel={formatZarSimple(totalZar)}
         buttonLabel={isProcessing ? 'Processing…' : 'Pay securely'}
         onClick={handleSubmit}
         disabled={isProcessing}
-        urgencyText={!isProcessing ? 'Your selected slot is being held briefly' : undefined}
-        helperText="Trusted by 100+ homes in Cape Town"
-        className="lg:hidden"
+        helperText={
+          hasContactErrors && !isProcessing
+            ? 'Check your phone and email fields'
+            : 'Trusted by 100+ homes in Cape Town · Secure checkout via Paystack'
+        }
+        priceSummary={mobileStickyPriceSummary}
+        priceSummaryTitle="Price summary"
       />
     </div>
   );

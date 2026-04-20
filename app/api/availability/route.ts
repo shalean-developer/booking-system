@@ -14,6 +14,10 @@ import {
 } from '@/lib/scheduling/availability';
 import type { UnifiedBookingInput, UnifiedServiceType } from '@/lib/pricing/types';
 import { UnifiedPricingValidationError } from '@/lib/pricing/calculateBookingUnified';
+import { fetchSurgeDemandCounts } from '@/lib/pricing/surge-demand-server';
+import { calculateSurgeMultiplier } from '@/lib/pricing/surgeEngine';
+import { fetchQuickCleanSettings } from '@/lib/quick-clean-settings';
+import { fetchForecastBookingsScalarForSurge } from '@/lib/pricing/forecast-demand-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -245,6 +249,24 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const [surgeCounts, qc] = await Promise.all([
+      fetchSurgeDemandCounts(supabase, { date }),
+      fetchQuickCleanSettings(supabase),
+    ]);
+    let forecastBookings: number | null = null;
+    if (qc.enableForecastSurge) {
+      forecastBookings = await fetchForecastBookingsScalarForSurge(supabase);
+    }
+    const availForForecast = Math.max(1, surgeCounts.available_cleaners);
+    const forecastHighDemand =
+      qc.enableForecastSurge &&
+      forecastBookings != null &&
+      Number.isFinite(forecastBookings) &&
+      forecastBookings > availForForecast * 1.2;
+
+    const serviceTypeStr = serviceType === 'airbnb' ? 'airbnb' : 'standard';
+    const areaLabel = suburb || city || undefined;
+
     return NextResponse.json({
       ok: true,
       duration_hours: unified.duration,
@@ -256,13 +278,33 @@ export async function POST(request: NextRequest) {
       window_end: minutesToTimeString(windowEndMinutes),
       suggestion,
       next_available_day: nextAvailableDay,
-      slots: slots.map((s) => ({
-        start: s.start,
-        end: s.end,
-        available: s.available,
-        assignable_cleaners: s.assignable_cleaners,
-        recommended: s.recommended,
-      })),
+      slots: slots.map((s) => {
+        const sm = calculateSurgeMultiplier({
+          service_type: serviceTypeStr,
+          date,
+          time: s.start,
+          area: areaLabel,
+          active_bookings_count: surgeCounts.active_bookings,
+          available_cleaners_count: surgeCounts.available_cleaners,
+          required_cleaners: teamSize,
+          forecast_high_demand: forecastHighDemand,
+          now: new Date(),
+        });
+        const mult = sm.multiplier;
+        let surge_percent: number | null = null;
+        if (mult >= 1.003) {
+          const rounded = Math.round((mult - 1) * 100);
+          surge_percent = rounded < 1 ? 1 : rounded;
+        }
+        return {
+          start: s.start,
+          end: s.end,
+          available: s.available,
+          assignable_cleaners: s.assignable_cleaners,
+          recommended: s.recommended,
+          surge_percent,
+        };
+      }),
     });
   } catch (e) {
     if (e instanceof UnifiedPricingValidationError) {

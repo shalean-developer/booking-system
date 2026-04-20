@@ -63,6 +63,33 @@ function mergeBookingRow(base: BookingPaidRow, updated: Record<string, unknown>)
   return { ...base, ...(updated as BookingPaidRow) };
 }
 
+/**
+ * When webhook + verify race, the winner sets `paid` before `zoho_invoice_id` is persisted.
+ * Losers must wait for that column before calling Zoho again — otherwise we create duplicate invoices.
+ */
+async function pollZohoInvoiceIdOnBooking(
+  supabase: SupabaseClient,
+  bookingId: string,
+  maxAttempts = 15,
+  delayMs = 150,
+): Promise<string | null> {
+  for (let i = 0; i < maxAttempts; i++) {
+    const { data } = await supabase
+      .from('bookings')
+      .select('zoho_invoice_id')
+      .eq('id', bookingId)
+      .maybeSingle();
+    const z = typeof data?.zoho_invoice_id === 'string' && data.zoho_invoice_id.trim()
+      ? data.zoho_invoice_id.trim()
+      : null;
+    if (z) return z;
+    if (i < maxAttempts - 1) {
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+  return null;
+}
+
 /** Customer-facing line when paid confirmation has no PDF attachment (test env vs production parity). */
 function buildInvoicePdfMissingNote(params: {
   zohoId: string | null;
@@ -277,7 +304,13 @@ export async function fulfillPaidBooking(params: {
         bookingId: booking.id,
       });
       const merged = freshRow ? mergeBookingRow(booking, fresh as Record<string, unknown>) : booking;
-      const zohoAfter = await backfillZohoIfMissing(supabase, merged, reference);
+      let zohoAfter = merged.zoho_invoice_id ?? null;
+      if (!zohoAfter) {
+        zohoAfter = await pollZohoInvoiceIdOnBooking(supabase, booking.id);
+      }
+      if (!zohoAfter) {
+        zohoAfter = await backfillZohoIfMissing(supabase, merged, reference);
+      }
       return {
         ok: true,
         duplicate: true,

@@ -440,7 +440,7 @@ export function BookingFlowView({
                     {[
                       {
                         key: 'bed',
-                        label: isCarpet ? 'Fitted carpet rooms' : 'Bedrooms',
+                        label: isCarpet ? 'Fitted carpet rooms' : 'Rooms',
                         value: bedrooms,
                         set: setBedrooms,
                         min: isCarpet ? 0 : 1,
@@ -1162,7 +1162,7 @@ export function BookingFlowView({
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[12px] text-gray-500">
-                    {isCarpet ? 'Fitted carpet rooms' : 'Bedrooms'}
+                    {isCarpet ? 'Fitted carpet rooms' : 'Rooms'}
                   </span>
                   <span className="text-[12px] font-bold text-gray-900">{bedrooms}</span>
                 </div>

@@ -15,8 +15,10 @@ import {
   MapPin,
   Loader2,
   ChevronRight,
+  Info,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { BookingFormData, ServiceType } from '@/components/booking-system-types';
 import type { OptimalTeamResult } from '@/lib/team-optimizer';
 import { MAX_TEAM_SIZE, MIN_TEAM_SIZE } from '@/lib/team-optimizer';
@@ -104,8 +106,14 @@ function cleanerTag(c: MappedCleaner): string | null {
 }
 
 /** Compact row for swipe cards — fast scan */
-const StarRowCompact = ({ rating }: { rating: number }) => (
-  <div className="flex items-center justify-center gap-0.5">
+const StarRowCompact = ({
+  rating,
+  className,
+}: {
+  rating: number;
+  className?: string;
+}) => (
+  <div className={cn('flex items-center justify-center gap-0.5', className)}>
     {[1, 2, 3, 4, 5].map((s) => (
       <Star
         key={s}
@@ -242,26 +250,70 @@ export function BookingStep3Crew({
 
   const isAutoPrimary = selectedId === AUTO_ASSIGN_ID && !manualMode;
 
+  const mobileStickyPriceSummary = useMemo(() => {
+    return (
+      <div className="space-y-3 text-sm">
+        <div className="rounded-xl border border-gray-100 bg-gray-50/90 p-3 space-y-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Your booking</p>
+          <div className="flex justify-between items-start gap-3">
+            <span className="text-gray-600">Service</span>
+            <span className="font-semibold text-gray-900 text-right">{serviceTitle}</span>
+          </div>
+          <div className="flex justify-between items-start gap-3">
+            <span className="text-gray-600">Cleaner</span>
+            <span className="font-semibold text-gray-900 text-right">{selectedName}</span>
+          </div>
+          <div className="flex justify-between items-start gap-3 text-xs">
+            <span className="text-gray-500">When</span>
+            <span className="font-medium text-gray-700 text-right">
+              {dateLabel} · {timeLabel}
+            </span>
+          </div>
+        </div>
+        {pricing.dbPricingRows.filter((r) => r.value !== 0).length > 0 ? (
+          <div className="rounded-xl border border-gray-100 bg-gray-50/90 p-3 space-y-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Breakdown</p>
+            {pricing.dbPricingRows
+              .filter((r) => r.value !== 0)
+              .map((row) => (
+                <div key={row.id} className="flex justify-between items-start gap-3">
+                  <span className="text-gray-600">{row.label}</span>
+                  <span className="font-semibold text-gray-900 tabular-nums text-right shrink-0">
+                    {formatZarSimple(row.value)}
+                  </span>
+                </div>
+              ))}
+          </div>
+        ) : null}
+        <div className="flex justify-between items-center gap-3 text-base font-bold text-gray-900 pt-1 border-t border-gray-200">
+          <span>Total</span>
+          <span className="tabular-nums">{formatZarSimple(pricingTotalZar)}</span>
+        </div>
+      </div>
+    );
+  }, [serviceTitle, selectedName, dateLabel, timeLabel, pricing.dbPricingRows, pricingTotalZar]);
+
   return (
     <div className="min-h-screen bg-[#f0f2f5] font-sans">
-      <div className="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 flex flex-nowrap sm:flex-wrap items-center justify-between gap-3 sm:gap-4 min-w-0">
+        <div className="flex items-center gap-3 min-w-0 flex-1 sm:flex-initial">
           <button
             type="button"
             onClick={onBack}
-            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors flex-shrink-0"
+            className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"
             aria-label="Go back"
           >
             <ArrowLeft size={18} className="text-gray-500" />
           </button>
-          <div className="min-w-0">
-            <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">
-              Shalean Cleaning Services
-            </p>
+          <div className="min-w-0 hidden sm:block">
+            <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Shalean Cleaning Services</p>
             <h1 className="text-lg font-bold text-gray-900 leading-tight">Your cleaner</h1>
+            <p className="text-xs text-gray-500 mt-0.5">Step 3 of 4 · Takes ~1 min</p>
           </div>
         </div>
-        <BookingFlowStepIndicator activeStep={3} />
+        <div className="shrink-0">
+          <BookingFlowStepIndicator activeStep={3} stepHint="Takes ~1 min" />
+        </div>
       </div>
 
       <BookingFlowLayout
@@ -349,21 +401,29 @@ export function BookingStep3Crew({
       >
         <p className="text-xs font-bold tracking-widest text-violet-600 uppercase">Step 3 of 4</p>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-4">
-          <div className="flex flex-wrap gap-2">
-            <div className="flex items-center gap-1.5 bg-gray-50/80 border border-gray-200 rounded-full px-3 py-1.5">
-              <CalendarDays className="w-3.5 h-3.5 text-gray-400" />
-              <span className="text-xs font-semibold text-gray-600">{dateLabel}</span>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-4 space-y-4">
+          <div
+            className={cn(
+              'flex gap-2',
+              // Mobile: single horizontal row, swipe if needed (no 2×2 wrap)
+              'max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:overscroll-x-contain max-sm:touch-pan-x',
+              'max-sm:[-ms-overflow-style:none] max-sm:[scrollbar-width:none] max-sm:[&::-webkit-scrollbar]:hidden',
+              'sm:flex-wrap'
+            )}
+          >
+            <div className="flex shrink-0 items-center gap-1.5 bg-gray-50/80 border border-gray-200 rounded-full px-3 py-1.5 max-w-[11rem]">
+              <CalendarDays className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+              <span className="text-xs font-semibold text-gray-600 truncate">{dateLabel}</span>
             </div>
-            <div className="flex items-center gap-1.5 bg-gray-50/80 border border-gray-200 rounded-full px-3 py-1.5">
-              <Clock className="w-3.5 h-3.5 text-gray-400" />
-              <span className="text-xs font-semibold text-gray-600">{timeLabel}</span>
+            <div className="flex shrink-0 items-center gap-1.5 bg-gray-50/80 border border-gray-200 rounded-full px-3 py-1.5">
+              <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+              <span className="text-xs font-semibold text-gray-600 whitespace-nowrap">{timeLabel}</span>
             </div>
-            <div className="flex items-center gap-1.5 bg-gray-50/80 border border-gray-200 rounded-full px-3 py-1.5">
-              <MapPin className="w-3.5 h-3.5 text-gray-400" />
-              <span className="text-xs font-semibold text-gray-600">{locationLabel}</span>
+            <div className="flex shrink-0 items-center gap-1.5 bg-gray-50/80 border border-gray-200 rounded-full px-3 py-1.5 max-w-[10rem] sm:max-w-none">
+              <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+              <span className="text-xs font-semibold text-gray-600 truncate">{locationLabel}</span>
             </div>
-            <span className="inline-flex items-center text-xs font-medium text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-200">
+            <span className="inline-flex shrink-0 items-center whitespace-nowrap text-xs font-medium text-violet-600 bg-violet-50 px-2.5 py-1.5 rounded-full border border-violet-200">
               {formatZarSimple(pricingTotalZar)}
             </span>
           </div>
@@ -371,64 +431,113 @@ export function BookingStep3Crew({
 
         <section className="space-y-4">
           {/* 1 — Recommended (default) */}
-          <motion.button
-            type="button"
+          <motion.div
+            role="button"
+            tabIndex={0}
             layout
             onClick={handleSelectAuto}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleSelectAuto();
+              }
+            }}
             whileHover={{ scale: isAutoPrimary ? 1.02 : 1.01 }}
             whileTap={{ scale: 0.99 }}
             className={cn(
-              'w-full text-left rounded-2xl border-2 p-6 sm:p-7 transition-shadow duration-200',
+              'w-full text-left rounded-2xl border-2 p-4 sm:p-6 transition-shadow duration-200 cursor-pointer select-none',
               isAutoPrimary
-                ? 'border-violet-500 bg-gradient-to-br from-violet-100/90 via-white to-violet-50/50 shadow-lg shadow-violet-200/60 ring-2 ring-violet-200/50'
+                ? 'border-violet-500 bg-gradient-to-br from-violet-100/90 via-white to-violet-50/50 shadow-lg shadow-violet-200/60 ring-2 ring-violet-200/50 max-sm:ring-1 max-sm:shadow-md'
                 : 'border-gray-200 bg-white hover:border-violet-300 hover:shadow-md',
             )}
             aria-pressed={isAutoPrimary}
           >
-            <div className="flex items-start gap-4">
+            <div className="flex items-start gap-3 sm:gap-4">
               <div
                 className={cn(
-                  'flex-shrink-0 w-16 h-16 rounded-2xl flex items-center justify-center transition-colors shadow-inner',
-                  isAutoPrimary ? 'bg-violet-600 scale-105' : 'bg-violet-100',
+                  'flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl flex items-center justify-center transition-colors shadow-inner',
+                  isAutoPrimary ? 'bg-violet-600 sm:scale-105' : 'bg-violet-100',
                 )}
               >
-                <Sparkles className={cn('w-7 h-7', isAutoPrimary ? 'text-white' : 'text-violet-600')} />
+                <Sparkles
+                  className={cn(
+                    'w-5 h-5 sm:w-7 sm:h-7',
+                    isAutoPrimary ? 'text-white' : 'text-violet-600',
+                  )}
+                />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-violet-600">
-                  Recommended for you
-                </p>
-                <p className="text-sm text-gray-600 mt-1">Best match for your time &amp; location</p>
-                <h2 className="text-xl font-bold text-gray-900 mt-2 leading-snug">
-                  {useTeams
-                    ? "We'll assign the best crew for your job"
-                    : 'Best available cleaner for your booking'}
-                </h2>
-                <ul className="mt-3 space-y-1.5 text-sm text-gray-800">
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                    Top-rated
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                    Fully insured
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                    Available for your slot
-                  </li>
-                </ul>
-                <p className="text-xs text-gray-600 mt-3 leading-relaxed border-t border-violet-100/80 pt-3">
-                  Arrives on time · Finishes within your booked time
-                </p>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wide sm:tracking-wider text-violet-600">
+                      <span className="sm:hidden">Recommended</span>
+                      <span className="hidden sm:inline">Recommended for you</span>
+                    </p>
+                    <p className="hidden sm:block text-sm text-gray-600 mt-1">
+                      Best match for your time &amp; location
+                    </p>
+                    <h2 className="text-base sm:text-xl font-bold text-gray-900 mt-1 sm:mt-2 leading-snug pr-1">
+                      <span className="sm:hidden">
+                        {useTeams ? 'Best crew for your job' : 'Best available cleaner'}
+                      </span>
+                      <span className="hidden sm:inline">
+                        {useTeams
+                          ? "We'll assign the best crew for your job"
+                          : 'Best available cleaner for your booking'}
+                      </span>
+                    </h2>
+                  </div>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="shrink-0 rounded-full p-1.5 text-violet-600 hover:bg-violet-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
+                        aria-label="What’s included with this option"
+                        onClick={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      >
+                        <Info className="h-4 w-4 sm:h-[18px] sm:w-[18px]" aria-hidden />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      className="w-[min(calc(100vw-2rem),20rem)] p-3 sm:p-4 text-sm"
+                      align="end"
+                      side="bottom"
+                      sideOffset={6}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <p className="text-xs font-semibold text-foreground mb-2">What you get</p>
+                      <ul className="space-y-2 text-xs text-foreground">
+                        <li className="flex items-start gap-2">
+                          <Check className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" aria-hidden />
+                          Top-rated
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <Check className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" aria-hidden />
+                          Fully insured
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <Check className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" aria-hidden />
+                          Available for your slot
+                        </li>
+                      </ul>
+                      <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border leading-relaxed">
+                        Arrives on time · Finishes within your booked time
+                      </p>
+                    </PopoverContent>
+                  </Popover>
+                </div>
                 <div
                   className={cn(
-                    'mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold pointer-events-none',
+                    'mt-3 sm:mt-4 inline-flex items-center gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl px-3 py-2 sm:px-4 sm:py-2.5 text-xs sm:text-sm font-bold pointer-events-none',
                     isAutoPrimary ? 'bg-violet-600 text-white shadow-md' : 'bg-violet-100 text-violet-800',
                   )}
                 >
-                  Confirm this cleaner
-                  <ChevronRight className="w-4 h-4" />
+                  <span className="sm:hidden">Confirm</span>
+                  <span className="hidden sm:inline">Confirm this cleaner</span>
+                  <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
               </div>
               <AnimatePresence>
@@ -439,102 +548,103 @@ export function BookingStep3Crew({
                     exit={{ scale: 0, opacity: 0 }}
                     className="flex-shrink-0 text-violet-600"
                   >
-                    <CheckCircle2 className="w-7 h-7" />
+                    <CheckCircle2 className="w-6 h-6 sm:w-7 sm:h-7" />
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
-          </motion.button>
+          </motion.div>
 
-          {/* Trust */}
-          <div className="rounded-xl border border-gray-100 bg-white/90 px-4 py-3 space-y-1.5 text-sm text-gray-800">
-            <p className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-              Vetted professionals
-            </p>
-            <p className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-              Reliable &amp; on time
-            </p>
-            <p className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-              Backup available if needed
-            </p>
-          </div>
-
-          {/* Team size */}
-          <section
-            aria-labelledby="team-size-heading"
-            className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-3"
-          >
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center flex-shrink-0">
-                <Users className="w-4 h-4 text-white" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h2 id="team-size-heading" className="text-base font-bold text-gray-900 leading-tight">
-                  {useTeams ? 'Crew size' : 'Duration & team'}
-                </h2>
-                  <p className="text-sm font-semibold text-gray-800 mt-1">
-                    {selectedTeamSize} {selectedTeamSize === 1 ? 'cleaner' : 'cleaners'} · ~
-                    {hoursEachSelected.toFixed(1)}h
-                  </p>
-                  {!teamOptionsOpen && (
-                    <button
-                      type="button"
-                      onClick={() => setTeamOptionsOpen(true)}
-                      className="text-xs font-semibold text-violet-600 hover:text-violet-800 mt-2 underline underline-offset-2"
-                    >
-                      Need it faster?
-                    </button>
-                  )}
-                </div>
+          <section className="flex flex-col gap-3" aria-label="Trust and scheduling">
+            <div className="flex flex-row gap-2 sm:gap-3 items-stretch min-w-0">
+              {/* Trust */}
+              <div className="rounded-xl border border-gray-100 bg-white/90 px-2.5 py-2.5 sm:px-4 sm:py-3 space-y-1 sm:space-y-1.5 text-[11px] sm:text-sm text-gray-800 flex-1 min-w-0">
+                <p className="flex items-center gap-1.5 sm:gap-2">
+                  <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 flex-shrink-0" />
+                  <span className="leading-tight">Vetted professionals</span>
+                </p>
+                <p className="flex items-center gap-1.5 sm:gap-2">
+                  <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 flex-shrink-0" />
+                  <span className="leading-tight">Reliable &amp; on time</span>
+                </p>
+                <p className="flex items-center gap-1.5 sm:gap-2">
+                  <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 flex-shrink-0" />
+                  <span className="leading-tight sm:hidden">Backup if needed</span>
+                  <span className="leading-tight hidden sm:inline">Backup available if needed</span>
+                </p>
               </div>
 
-              <AnimatePresence>
-                {teamOptionsOpen ? (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="space-y-3 overflow-hidden"
-                  >
-                    <p className="text-xs text-gray-500">
-                      More cleaners shorten on-site time. Recommended: {optimalTeam.teamSize}.
+              {/* Team size — summary */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-2.5 sm:p-4 flex-1 min-w-0">
+                <div className="flex items-start gap-2 sm:gap-3">
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-800 flex items-center justify-center flex-shrink-0">
+                    <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h2 id="team-size-heading" className="text-sm sm:text-base font-bold text-gray-900 leading-tight">
+                      {useTeams ? 'Crew size' : 'Duration & team'}
+                    </h2>
+                    <p className="text-xs sm:text-sm font-semibold text-gray-800 mt-0.5 sm:mt-1 tabular-nums">
+                      {selectedTeamSize} {selectedTeamSize === 1 ? 'cleaner' : 'cleaners'} · ~{hoursEachSelected.toFixed(1)}h
                     </p>
-                    <div className="flex flex-wrap gap-2" role="group" aria-label="Number of cleaners">
-                      {Array.from(
-                        { length: MAX_TEAM_SIZE - MIN_TEAM_SIZE + 1 },
-                        (_, i) => MIN_TEAM_SIZE + i,
-                      ).map((n) => (
-                        <button
-                          key={n}
-                          type="button"
-                          onClick={() => setTeamSize(n)}
-                          className={cn(
-                            'min-w-[2.5rem] px-3 py-2 rounded-xl text-sm font-bold border-2 transition-colors',
-                            selectedTeamSize === n
-                              ? 'border-violet-600 bg-violet-50 text-violet-800'
-                              : 'border-gray-200 bg-white text-gray-700 hover:border-violet-300',
-                          )}
-                          aria-pressed={selectedTeamSize === n}
-                        >
-                          {n}
-                        </button>
-                      ))}
-                    </div>
-                    {data.teamSizeUserOverride && selectedTeamSize !== optimalTeam.teamSize && (
+                    {!teamOptionsOpen && (
                       <button
                         type="button"
-                        onClick={useRecommendedTeamSize}
-                        className="text-xs font-semibold text-violet-600 hover:text-violet-800 underline underline-offset-2"
+                        onClick={() => setTeamOptionsOpen(true)}
+                        className="text-[11px] sm:text-xs font-semibold text-violet-600 hover:text-violet-800 mt-1 sm:mt-2 underline underline-offset-2"
                       >
-                        Use recommended ({optimalTeam.teamSize} cleaners)
+                        Need it faster?
                       </button>
                     )}
-                  </motion.div>
-                ) : null}
-              </AnimatePresence>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <AnimatePresence>
+              {teamOptionsOpen ? (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="space-y-3 overflow-hidden rounded-xl border border-gray-100 bg-white p-4 shadow-sm"
+                >
+                  <p className="text-xs text-gray-500">
+                    More cleaners shorten on-site time. Recommended: {optimalTeam.teamSize}.
+                  </p>
+                  <div className="flex flex-wrap gap-2" role="group" aria-label="Number of cleaners">
+                    {Array.from(
+                      { length: MAX_TEAM_SIZE - MIN_TEAM_SIZE + 1 },
+                      (_, i) => MIN_TEAM_SIZE + i,
+                    ).map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setTeamSize(n)}
+                        className={cn(
+                          'min-w-[2.5rem] px-3 py-2 rounded-xl text-sm font-bold border-2 transition-colors',
+                          selectedTeamSize === n
+                            ? 'border-violet-600 bg-violet-50 text-violet-800'
+                            : 'border-gray-200 bg-white text-gray-700 hover:border-violet-300',
+                        )}
+                        aria-pressed={selectedTeamSize === n}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                  {data.teamSizeUserOverride && selectedTeamSize !== optimalTeam.teamSize && (
+                    <button
+                      type="button"
+                      onClick={useRecommendedTeamSize}
+                      className="text-xs font-semibold text-violet-600 hover:text-violet-800 underline underline-offset-2"
+                    >
+                      Use recommended ({optimalTeam.teamSize} cleaners)
+                    </button>
+                  )}
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
 
             {showLargerTeamWarning && (
               <div
@@ -593,12 +703,19 @@ export function BookingStep3Crew({
                     ) : (
                       <div className="-mx-4 sm:mx-0">
                         <p className="text-[11px] font-medium text-gray-500 px-4 sm:px-0 mb-2">
-                          Pick a cleaner — or stay with recommended above
+                          <span className="sm:hidden">Choose a cleaner below — or keep recommended above</span>
+                          <span className="hidden sm:inline">
+                            Pick a cleaner — or stay with recommended above
+                          </span>
                         </p>
                         <div
                           className={cn(
-                            'flex gap-3 overflow-x-auto scroll-smooth touch-pan-x pb-2 pt-0.5 pl-4 pr-10 sm:pl-0 sm:pr-8',
-                            'snap-x snap-mandatory [scrollbar-width:thin]',
+                            'flex gap-3',
+                            // Mobile: vertical list — natural thumb scroll, full-width rows
+                            'max-sm:flex-col max-sm:overflow-x-visible max-sm:touch-auto max-sm:pb-0 max-sm:pl-4 max-sm:pr-4',
+                            // Tablet+: horizontal carousel
+                            'sm:flex-row sm:overflow-x-auto sm:scroll-smooth sm:touch-pan-x sm:pb-2 sm:pt-0.5 sm:pl-0 sm:pr-8',
+                            'sm:snap-x sm:snap-mandatory sm:[scrollbar-width:thin]',
                           )}
                           style={{ WebkitOverflowScrolling: 'touch' }}
                         >
@@ -613,21 +730,88 @@ export function BookingStep3Crew({
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.97 }}
                                 className={cn(
-                                  'relative flex-shrink-0 w-[min(210px,calc(100vw-5.5rem))] snap-center',
-                                  'rounded-xl border-2 bg-white px-3 py-3 text-left shadow-sm transition-colors duration-200',
-                                  'flex flex-col items-stretch min-h-0',
+                                  'relative rounded-xl border-2 bg-white text-left shadow-sm transition-colors duration-200',
+                                  // Mobile: block wrapper; inner row handles layout
+                                  'max-sm:block max-sm:w-full max-sm:px-3.5 max-sm:py-3.5 max-sm:min-h-[4.5rem] max-sm:snap-none',
+                                  // Desktop: narrow carousel card
+                                  'sm:flex sm:w-[min(210px,calc(100vw-5.5rem))] sm:flex-shrink-0 sm:snap-center sm:flex-col sm:items-stretch sm:px-3 sm:py-3 sm:min-h-0',
                                   isSelected
-                                    ? 'border-violet-600 bg-violet-50/90 shadow-md ring-1 ring-violet-300/80 scale-[1.02] z-[1]'
+                                    ? 'border-violet-600 bg-violet-50/90 shadow-md ring-1 ring-violet-300/80 sm:scale-[1.02] sm:z-[1]'
                                     : 'border-gray-200/90 hover:border-violet-300',
                                 )}
                                 aria-pressed={isSelected}
                               >
                                 {isSelected ? (
-                                  <span className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-violet-600 text-white shadow-sm">
+                                  <span className="absolute top-2 right-2 hidden sm:flex h-5 w-5 items-center justify-center rounded-full bg-violet-600 text-white shadow-sm">
                                     <Check className="h-3 w-3 stroke-[3]" aria-hidden />
                                   </span>
                                 ) : null}
-                                <div className="flex flex-col items-center text-center gap-1">
+                                {/* Mobile: horizontal row */}
+                                <div className="flex min-w-0 flex-1 flex-row items-center gap-3 sm:hidden">
+                                  {cleaner.photo ? (
+                                    <img
+                                      src={cleaner.photo}
+                                      alt=""
+                                      className={cn(
+                                        'h-12 w-12 shrink-0 rounded-full object-cover border border-white shadow-sm',
+                                        isSelected ? 'ring-2 ring-violet-500' : '',
+                                      )}
+                                    />
+                                  ) : (
+                                    <div
+                                      className={cn(
+                                        'flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-extrabold text-white shadow-sm border border-white/80',
+                                        cleaner.avatarBg,
+                                        isSelected ? 'ring-2 ring-violet-500' : '',
+                                      )}
+                                    >
+                                      {cleaner.initials}
+                                    </div>
+                                  )}
+                                  <div className="min-w-0 flex-1 space-y-0.5">
+                                    <p
+                                      className="truncate text-sm font-semibold leading-tight text-gray-900"
+                                      title={cleaner.name}
+                                    >
+                                      {cleaner.name}
+                                    </p>
+                                    {cleaner.rating > 0 ? (
+                                      <StarRowCompact
+                                        rating={cleaner.rating}
+                                        className="justify-start"
+                                      />
+                                    ) : (
+                                      <span className="text-[11px] font-medium text-gray-400">New</span>
+                                    )}
+                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                      {tag ? (
+                                        <span className="inline-flex max-w-full truncate rounded-full bg-violet-100/90 px-2 py-0.5 text-[10px] font-semibold leading-none text-violet-700">
+                                          {tag}
+                                        </span>
+                                      ) : null}
+                                      <span className="text-[10px] text-gray-500">Available for your slot</span>
+                                    </div>
+                                  </div>
+                                  <span
+                                    className={cn(
+                                      'inline-flex shrink-0 items-center justify-center rounded-full px-3.5 py-2 text-xs font-bold transition-colors',
+                                      isSelected
+                                        ? 'bg-violet-600 text-white shadow-sm'
+                                        : 'border-2 border-violet-200 bg-white text-violet-800',
+                                    )}
+                                  >
+                                    {isSelected ? (
+                                      <>
+                                        <Check className="mr-1 h-3.5 w-3.5 stroke-[3]" aria-hidden />
+                                        Selected
+                                      </>
+                                    ) : (
+                                      'Select'
+                                    )}
+                                  </span>
+                                </div>
+                                {/* Desktop: original vertical card */}
+                                <div className="hidden flex-col items-center gap-1 text-center sm:flex">
                                   {cleaner.photo ? (
                                     <img
                                       src={cleaner.photo}
@@ -649,22 +833,22 @@ export function BookingStep3Crew({
                                     </div>
                                   )}
                                   <p
-                                    className="w-full text-sm font-semibold text-gray-900 leading-tight truncate px-0.5"
+                                    className="w-full truncate px-0.5 text-sm font-semibold leading-tight text-gray-900"
                                     title={cleaner.name}
                                   >
                                     {cleaner.name}
                                   </p>
                                   {cleaner.rating > 0 ? (
-                                    <StarRowCompact rating={cleaner.rating} />
+                                    <StarRowCompact rating={cleaner.rating} className="justify-center" />
                                   ) : (
                                     <span className="text-[10px] text-gray-400">New</span>
                                   )}
                                   {tag ? (
-                                    <span className="text-[10px] font-semibold text-violet-700 bg-violet-100/90 px-2 py-0.5 rounded-full leading-none">
+                                    <span className="rounded-full bg-violet-100/90 px-2 py-0.5 text-[10px] font-semibold leading-none text-violet-700">
                                       {tag}
                                     </span>
                                   ) : null}
-                                  <p className="text-[10px] text-gray-500 leading-tight">
+                                  <p className="text-[10px] leading-tight text-gray-500">
                                     Available at your time
                                   </p>
                                   <span
@@ -691,14 +875,13 @@ export function BookingStep3Crew({
       </BookingFlowLayout>
 
       <StickyCTA
-        title={selectedName}
-        subtitle={`${dateLabel} · ${timeLabel}`}
-        totalLabel={formatZarSimple(pricingTotalZar)}
+        totalLabel={pricingTotalZar > 0 ? formatZarSimple(pricingTotalZar) : undefined}
         buttonLabel="Review and pay"
         onClick={handleContinue}
         disabled={!isValid}
-        urgencyText={isValid ? 'Cleaner availability changes quickly' : undefined}
         helperText={attempted && !isValid ? 'Please select a cleaner to continue' : 'Trusted by 100+ homes in Cape Town'}
+        priceSummary={pricingTotalZar > 0 ? mobileStickyPriceSummary : undefined}
+        priceSummaryTitle="Price summary"
       />
     </div>
   );
