@@ -1,8 +1,14 @@
 'use client';
 
 import { Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import { Loader2 } from 'lucide-react';
-import { ShaleanAuth } from '@/components/shalean-auth';
+
+/** Client-only: avoids hydration mismatches when extensions inject attributes (e.g. fdprocessedid) on forms. */
+const ShaleanAuth = dynamic(
+  () => import('@/components/shalean-auth').then((mod) => mod.ShaleanAuth),
+  { ssr: false },
+);
 
 export default function SignupPage() {
   return (

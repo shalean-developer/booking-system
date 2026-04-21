@@ -1,6 +1,7 @@
 /**
  * Single source of truth for Paystack success → DB + Zoho + Resend (Next.js / process.env only).
- * Used by /api/payment/verify and /api/payment/webhook.
+ * Primary entry: `POST /api/payment/webhook` on Paystack `charge.success` (signed webhook).
+ * Client polling reads DB only — see `handlePaystackVerifyPoll` / `GET /api/paystack/verify`.
  *
  * Concurrency: only one request can "win" the transition pending → paid (atomic UPDATE + WHERE status).
  */
@@ -22,6 +23,7 @@ import type { BookingPaidRow } from '@/lib/payments/booking-types';
 import { logPaymentIntegrity, redactPaymentReference } from '@/lib/payment-integrity-log';
 import { recordPaymentValidationFailure } from '@/lib/payment-validation-tracker';
 import { applyLoyaltyAndReferralRewardsOnPayment } from '@/lib/loyalty/apply-payment-rewards';
+import { computeLockedProfitFieldsForBooking } from '@/lib/booking-profit-at-payment';
 
 async function fetchManageTokenForEmail(
   supabase: SupabaseClient,
@@ -242,6 +244,8 @@ export async function fulfillPaidBooking(params: {
   const currencyNorm = String(paidCurrency ?? 'ZAR').trim().toUpperCase() || 'ZAR';
   const paystackVerifiedAt = new Date().toISOString();
 
+  const lockedProfit = await computeLockedProfitFieldsForBooking(supabase, booking);
+
   const baseClaim = {
     status: 'paid' as const,
     payment_status: 'success' as const,
@@ -253,6 +257,14 @@ export async function fulfillPaidBooking(params: {
     paid_amount_minor: paystackAmountKobo,
     paid_currency: currencyNorm,
     paystack_verified_at: paystackVerifiedAt,
+    ...(lockedProfit
+      ? {
+          revenue_zar: lockedProfit.revenue_zar,
+          cleaner_cost_zar: lockedProfit.cleaner_cost_zar,
+          profit_zar: lockedProfit.profit_zar,
+          margin_percent: lockedProfit.margin_percent,
+        }
+      : {}),
   };
 
   let claimedRow: Record<string, unknown> | null = null;

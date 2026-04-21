@@ -3,7 +3,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import type { BookingFormData } from "@/lib/useBookingFormData";
 
-// ✅ IMPORTANT CHANGE (this is what you asked about)
 type Booking = Partial<BookingFormData>;
 
 type BookingContextType = {
@@ -13,29 +12,34 @@ type BookingContextType = {
   resetBooking: () => void;
 };
 
+const STORAGE_KEY = "booking";
+
+function readStoredBooking(): Booking {
+  if (typeof window === "undefined") return {};
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return {};
+    return JSON.parse(saved) as Booking;
+  } catch {
+    localStorage.removeItem(STORAGE_KEY);
+    return {};
+  }
+}
+
 const BookingContext = createContext<BookingContextType | undefined>(undefined);
 
 export function BookingProvider({ children }: { children: React.ReactNode }) {
-  const [booking, setBooking] = useState<Booking>({});
+  const [booking, setBooking] = useState<Booking>(readStoredBooking);
 
-  // ✅ Load from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem("booking");
-    if (saved) {
-      try {
-        setBooking(JSON.parse(saved));
-      } catch {
-        localStorage.removeItem("booking");
-      }
+    if (Object.keys(booking).length === 0) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(booking));
+    } catch {
+      // ignore quota / private mode
     }
-  }, []);
-
-  // ✅ Save to localStorage
-  useEffect(() => {
-    localStorage.setItem("booking", JSON.stringify(booking));
   }, [booking]);
 
-  // ✅ Safe updater (merge data)
   function updateBooking(data: Partial<Booking>) {
     setBooking((prev) => ({
       ...prev,
@@ -43,10 +47,13 @@ export function BookingProvider({ children }: { children: React.ReactNode }) {
     }));
   }
 
-  // ✅ Reset booking
   function resetBooking() {
     setBooking({});
-    localStorage.removeItem("booking");
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // ignore
+    }
   }
 
   return (
@@ -58,7 +65,6 @@ export function BookingProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ✅ Hook
 export function useBooking() {
   const context = useContext(BookingContext);
   if (!context) {

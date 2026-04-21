@@ -37,6 +37,19 @@ const DAYS: { v: string; l: string }[] = [
   { v: '6', l: 'Saturday' },
 ];
 
+function describeRuleTargeting(r: PricingRuleRow) {
+  const serviceTypes = r.service_type?.trim() ? [r.service_type.trim()] : ['All services'];
+  const days =
+    r.day_of_week == null
+      ? ['Any day']
+      : [DAYS.find((d) => d.v === String(r.day_of_week))?.l ?? String(r.day_of_week)];
+  const timeRange =
+    r.time_start != null && r.time_end != null
+      ? `${r.time_start}:00 – ${r.time_end}:00`
+      : 'Any time';
+  return { serviceTypes, days, timeRange };
+}
+
 const emptyDraft = () => ({
   rule_type: 'override',
   service_type: '' as string,
@@ -208,53 +221,69 @@ export function DynamicPricingRulesSection({ onToast }: { onToast: (t: ToastStat
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {rules.map((r) => (
-                  <tr key={r.id} className={cn(!r.is_active && 'opacity-50')}>
-                    <td className="px-3 py-2 font-mono text-xs">{r.priority}</td>
-                    <td className="px-3 py-2 text-xs font-medium capitalize">{r.rule_type ?? 'multiplier'}</td>
-                    <td className="px-3 py-2">{r.service_type ?? '—'}</td>
-                    <td className="px-3 py-2">{r.area ?? '—'}</td>
-                    <td className="px-3 py-2">
-                      {r.day_of_week == null ? 'Any' : DAYS.find((d) => d.v === String(r.day_of_week))?.l}
-                    </td>
-                    <td className="px-3 py-2 font-mono text-xs">
-                      {r.time_start ?? '—'}–{r.time_end ?? '—'}
-                    </td>
-                    <td className="px-3 py-2">
-                      <button
-                        type="button"
-                        disabled={saving}
-                        onClick={() => void patchRule(r.id, { dynamic_enabled: !r.dynamic_enabled })}
-                        className={cn(
-                          'rounded px-2 py-0.5 text-xs font-semibold',
-                          r.dynamic_enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-600'
-                        )}
-                      >
-                        {r.dynamic_enabled ? 'On' : 'Off'}
-                      </button>
-                    </td>
-                    <td className="px-3 py-2 font-mono">{r.multiplier_override ?? '—'}</td>
-                    <td className="px-3 py-2 font-mono text-xs">
-                      {r.min_price_zar ?? '—'} / {r.max_price_zar ?? '—'}
-                    </td>
-                    <td className="px-3 py-2 text-[10px] text-gray-500 max-w-[140px] truncate" title={r.notes ?? ''}>
-                      {r.starts_at || r.ends_at
-                        ? `${r.starts_at ? new Date(r.starts_at).toLocaleDateString() : '…'}→${r.ends_at ? new Date(r.ends_at).toLocaleDateString() : '…'}`
-                        : '—'}
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      <button
-                        type="button"
-                        disabled={saving}
-                        onClick={() => void deleteRule(r.id)}
-                        className="rounded p-1 text-red-600 hover:bg-red-50"
-                        aria-label="Delete rule"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {rules.map((r) => {
+                  const t = describeRuleTargeting(r);
+                  return (
+                    <React.Fragment key={r.id}>
+                      <tr className={cn(!r.is_active && 'opacity-50')}>
+                        <td className="px-3 py-2 font-mono text-xs">{r.priority}</td>
+                        <td className="px-3 py-2 text-xs font-medium capitalize">{r.rule_type ?? 'multiplier'}</td>
+                        <td className="px-3 py-2">{r.service_type ?? '—'}</td>
+                        <td className="px-3 py-2">{r.area ?? '—'}</td>
+                        <td className="px-3 py-2">
+                          {r.day_of_week == null ? 'Any' : DAYS.find((d) => d.v === String(r.day_of_week))?.l}
+                        </td>
+                        <td className="px-3 py-2 font-mono text-xs">
+                          {r.time_start ?? '—'}–{r.time_end ?? '—'}
+                        </td>
+                        <td className="px-3 py-2">
+                          <button
+                            type="button"
+                            disabled={saving}
+                            onClick={() => void patchRule(r.id, { dynamic_enabled: !r.dynamic_enabled })}
+                            className={cn(
+                              'rounded px-2 py-0.5 text-xs font-semibold',
+                              r.dynamic_enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-600'
+                            )}
+                          >
+                            {r.dynamic_enabled ? 'On' : 'Off'}
+                          </button>
+                        </td>
+                        <td className="px-3 py-2 font-mono">{r.multiplier_override ?? '—'}</td>
+                        <td className="px-3 py-2 font-mono text-xs">
+                          {r.min_price_zar ?? '—'} / {r.max_price_zar ?? '—'}
+                        </td>
+                        <td className="px-3 py-2 text-[10px] text-gray-500 max-w-[140px] truncate" title={r.notes ?? ''}>
+                          {r.starts_at || r.ends_at
+                            ? `${r.starts_at ? new Date(r.starts_at).toLocaleDateString() : '…'}→${r.ends_at ? new Date(r.ends_at).toLocaleDateString() : '…'}`
+                            : '—'}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <button
+                            type="button"
+                            disabled={saving}
+                            onClick={() => void deleteRule(r.id)}
+                            className="rounded p-1 text-red-600 hover:bg-red-50"
+                            aria-label="Delete rule"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </td>
+                      </tr>
+                      <tr className="border-b border-gray-100 bg-gray-50/60">
+                        <td colSpan={11} className="px-3 py-2 text-[11px] leading-relaxed text-gray-500">
+                          <span className="font-medium text-gray-600">Applies to:</span>{' '}
+                          <span title="Service scope">• {t.serviceTypes.join(', ')}</span>{' '}
+                          <span title="Weekdays">• {t.days.join(', ')}</span>{' '}
+                          <span title="Time window">• {t.timeRange}</span>
+                          {r.area?.trim() ? (
+                            <span title="Area (suburb)"> • Area: {r.area}</span>
+                          ) : null}
+                        </td>
+                      </tr>
+                    </React.Fragment>
+                  );
+                })}
                 {rules.length === 0 && (
                   <tr>
                     <td colSpan={11} className="px-3 py-6 text-center text-gray-500">

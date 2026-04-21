@@ -33,6 +33,12 @@ export function buildDashboardPendingBookingPayload(input: {
   /** Optional loyalty points — server validates against balance and labour line. */
   use_points?: number;
   customer_id?: string | null;
+  /** Locked pricing from `POST /api/pricing/create-snapshot` — enables honor-path on pending. */
+  pricing_lock_token?: string | null;
+  pricing_hash?: string;
+  pricing_expires_at?: string;
+  pricing_version?: string;
+  pricing_snapshot_id?: string;
 }): BookingPayload {
   const nameParts = input.user.name.trim().split(/\s+/);
   const firstName = nameParts[0] || 'Customer';
@@ -93,5 +99,10 @@ export function buildDashboardPendingBookingPayload(input: {
       ? { use_points: input.use_points }
       : {}),
     ...(input.customer_id ? { customer_id: input.customer_id } : {}),
+    ...(input.pricing_hash ? { pricing_hash: input.pricing_hash } : {}),
+    ...(input.pricing_expires_at ? { pricing_expires_at: input.pricing_expires_at } : {}),
+    ...(input.pricing_version ? { pricing_version: input.pricing_version } : {}),
+    ...(input.pricing_lock_token ? { pricing_lock_token: input.pricing_lock_token } : {}),
+    ...(input.pricing_snapshot_id ? { pricing_snapshot_id: input.pricing_snapshot_id } : {}),
   };
 }

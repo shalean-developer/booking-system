@@ -47,5 +47,6 @@ export function buildDashboardWizardShim(input: {
     numberOfCleaners: 1,
     pricingMode: 'premium',
     basicPlannedHours: null,
+    pricing: null,
   };
 }

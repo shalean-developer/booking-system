@@ -5,14 +5,16 @@ import { MessageSquare } from "lucide-react";
 import { ShaleanButtonLink } from "@/components/shalean-ui";
 import { SUPPORT_WHATSAPP_URL } from '@/lib/contact';
 
-const HIDE_PATHS = ["/booking", "/admin", "/dashboard"];
+const HIDE_PATHS = ["/booking", "/booking-v2", "/admin", "/dashboard"];
 const HIDE_PREFIX = "/cleaner";
 
 export function ShaleanMobileCta() {
   const pathname = usePathname();
   const shouldHide =
     !pathname ||
-    (pathname === "/booking" || pathname.startsWith("/booking/service/")) ||
+    (pathname === "/booking" ||
+      pathname.startsWith("/booking/service/") ||
+      pathname.startsWith("/booking-v2")) ||
     HIDE_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
     pathname.startsWith(HIDE_PREFIX);
 

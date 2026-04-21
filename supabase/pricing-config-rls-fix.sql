@@ -1,10 +1,15 @@
 -- Fix RLS Policies for Pricing Config
 -- This fixes the "new row violates row-level security policy" error
 
--- Drop existing policies
+-- Drop existing policies (all names this script creates or replaces — safe to re-run)
 DROP POLICY IF EXISTS "Public can view active pricing" ON pricing_config;
 DROP POLICY IF EXISTS "Admins can manage pricing" ON pricing_config;
+DROP POLICY IF EXISTS "Admins can view all pricing" ON pricing_config;
+DROP POLICY IF EXISTS "Admins can insert pricing" ON pricing_config;
+DROP POLICY IF EXISTS "Admins can update pricing" ON pricing_config;
+DROP POLICY IF EXISTS "Admins can delete pricing" ON pricing_config;
 DROP POLICY IF EXISTS "Admins can view pricing history" ON pricing_history;
+DROP POLICY IF EXISTS "Allow trigger inserts to pricing history" ON pricing_history;
 
 -- Public read access to active pricing (SELECT only)
 CREATE POLICY "Public can view active pricing" ON pricing_config

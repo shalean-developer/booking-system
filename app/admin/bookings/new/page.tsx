@@ -41,23 +41,6 @@ interface Customer {
   address_city?: string;
 }
 
-const PRICING = {
-  extras: {
-    'Inside Fridge': 30,
-    'Inside Oven': 30,
-    'Inside Cabinets': 30,
-    'Interior Windows': 40,
-    'Interior Walls': 35,
-    'Laundry & Ironing': 75,
-    'Carpet Cleaning': 120,
-    'Ceiling Cleaning': 85,
-    'Garage Cleaning': 110,
-    'Balcony Cleaning': 90,
-    'Couch Cleaning': 130,
-    'Outside Window Cleaning': 125,
-  },
-};
-
 const SERVICE_EXTRAS: Record<ServiceType, string[]> = {
   'Standard': ['Inside Fridge', 'Inside Oven', 'Inside Cabinets', 'Interior Windows', 'Interior Walls', 'Laundry & Ironing'],
   'Deep': ['Inside Fridge', 'Inside Oven', 'Inside Cabinets', 'Interior Windows', 'Interior Walls', 'Laundry & Ironing', 'Carpet Cleaning', 'Ceiling Cleaning', 'Garage Cleaning', 'Balcony Cleaning', 'Couch Cleaning', 'Outside Window Cleaning'],

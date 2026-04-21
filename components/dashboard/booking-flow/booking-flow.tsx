@@ -35,6 +35,7 @@ import {
 import { validatePhoneNumber } from '@/lib/phone-validation';
 import { getPublicSurgePricingNote } from '@/lib/pricing/surgeEngine';
 import { supportWhatsAppHref } from '@/components/dashboard/customer-portal/booking-contact';
+import type { PricingSnapshot } from '@/lib/pricing/snapshot';
 
 const STEPS: BookingStep[] = [
   { id: 1, label: 'Service' },
@@ -206,8 +207,14 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
   const [cleanersLoading, setCleanersLoading] = useState(false);
   const [bookedTeams, setBookedTeams] = useState<string[]>([]);
   const [teamsLoading, setTeamsLoading] = useState(false);
-  const [checkoutFinalZar, setCheckoutFinalZar] = useState<number | null>(null);
-  const [checkoutSurgeNote, setCheckoutSurgeNote] = useState<string | null>(null);
+  const [pricingSnapshot, setPricingSnapshot] = useState<PricingSnapshot | null>(null);
+  const [lockMeta, setLockMeta] = useState<{
+    pricing_hash: string;
+    pricing_lock_token: string | null;
+    pricing_expires_at: string;
+    pricing_version: string;
+    pricing_snapshot_id?: string;
+  } | null>(null);
   const [applyLoyaltyPoints, setApplyLoyaltyPoints] = useState(false);
   const [useLoyaltyPointsInput, setUseLoyaltyPointsInput] = useState(0);
 
@@ -301,9 +308,11 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
 
   const currentService = services.find((s) => s.id === selectedService);
 
-  const fetchCheckoutPricingPreview = useCallback(async () => {
+  const refreshPricingSnapshot = useCallback(async () => {
     if (!formData?.pricing || !selectedService || !state.date || !state.time) {
-      throw new Error('Missing booking details for pricing.');
+      setPricingSnapshot(null);
+      setLockMeta(null);
+      return;
     }
     const extrasQuantities = aggregateExtraQuantitiesByName(
       state.selectedExtraIds,
@@ -319,7 +328,7 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
         ? { type: 'manual', team: teamName }
         : { type: 'auto' }
       : undefined;
-    const previewRes = await fetch('/api/booking/pricing-preview', {
+    const snapRes = await fetch('/api/pricing/create-snapshot', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -351,30 +360,38 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
         use_points: effectiveLoyaltyUsePointsDash,
       }),
     });
-    const preview = await previewRes.json();
-    const previewAccepted = preview.success === true || preview.ok === true;
-    if (!previewAccepted) {
-      throw new Error(preview.error || 'Could not confirm pricing for this date.');
+    const snap = (await snapRes.json()) as {
+      ok?: boolean;
+      error?: string;
+      snapshot?: unknown;
+      engine_snapshot?: PricingSnapshot;
+      pricing_snapshot_id?: string;
+      pricing_hash?: string;
+      pricing_lock_token?: string | null;
+      pricing_expires_at?: string;
+      pricing_version?: string;
+    };
+    const engine =
+      snap.engine_snapshot ??
+      (snap.snapshot &&
+      typeof snap.snapshot === 'object' &&
+      snap.snapshot !== null &&
+      'snapshot_json' in (snap.snapshot as object)
+        ? (snap.snapshot as { snapshot_json?: { engine?: PricingSnapshot } }).snapshot_json?.engine
+        : undefined);
+    if (!snapRes.ok || !snap.ok || !engine) {
+      setPricingSnapshot(null);
+      setLockMeta(null);
+      throw new Error(snap.error || 'Could not lock pricing for this selection.');
     }
-    const uni = preview.breakdown?.cart?.unifiedPricing as
-      | { surge_multiplier?: number; surge_pricing_note?: string | null }
-      | undefined;
-    const mult =
-      typeof uni?.surge_multiplier === 'number' ? uni.surge_multiplier : 1;
-    const noteFromApi =
-      typeof uni?.surge_pricing_note === 'string' && uni.surge_pricing_note.trim()
-        ? uni.surge_pricing_note
-        : getPublicSurgePricingNote(mult);
-    if (noteFromApi) {
-      let t = noteFromApi;
-      if (mult > 1.3 && mult <= 1.5) {
-        t += ' Choose a later time to save money.';
-      }
-      setCheckoutSurgeNote(t);
-    } else {
-      setCheckoutSurgeNote(null);
-    }
-    return preview as { price_zar: number; total_amount_cents: number; breakdown: unknown };
+    setPricingSnapshot(engine);
+    setLockMeta({
+      pricing_hash: snap.pricing_hash ?? '',
+      pricing_lock_token: snap.pricing_lock_token ?? null,
+      pricing_expires_at: snap.pricing_expires_at ?? '',
+      pricing_version: snap.pricing_version ?? '',
+      pricing_snapshot_id: snap.pricing_snapshot_id,
+    });
   }, [
     formData,
     selectedService,
@@ -396,36 +413,25 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
   ]);
 
   useEffect(() => {
-    if (step !== 5 || !state.date || !state.time) {
-      setCheckoutFinalZar(null);
-      setCheckoutSurgeNote(null);
+    if (!formData?.pricing || !selectedService || !state.date || !state.time) {
+      setPricingSnapshot(null);
+      setLockMeta(null);
       return;
     }
     let cancelled = false;
     const t = window.setTimeout(() => {
-      fetchCheckoutPricingPreview()
-        .then((p) => {
-          if (!cancelled) setCheckoutFinalZar(p.price_zar);
-        })
-        .catch(() => {
-          if (!cancelled) {
-            setCheckoutFinalZar(null);
-            setCheckoutSurgeNote(null);
-          }
-        });
-    }, 300);
+      refreshPricingSnapshot().catch(() => {
+        if (!cancelled) {
+          setPricingSnapshot(null);
+          setLockMeta(null);
+        }
+      });
+    }, 350);
     return () => {
       cancelled = true;
       window.clearTimeout(t);
     };
-  }, [
-    step,
-    state.date,
-    state.time,
-    fetchCheckoutPricingPreview,
-    effectiveLoyaltyUsePointsDash,
-    applyLoyaltyPoints,
-  ]);
+  }, [refreshPricingSnapshot, formData?.pricing, selectedService, state.date, state.time]);
 
   useEffect(() => {
     if (!state.date || !state.time || !customerAddressParts || isTeamService) {
@@ -501,7 +507,20 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
 
   const currentCleaner = flowCleaners.find((c) => c.id === state.cleaner_id);
 
-  const displayTotalZar = checkoutFinalZar ?? lineTotalZar;
+  const checkoutSurgeNote = useMemo(() => {
+    if (!pricingSnapshot) return null;
+    const mult = pricingSnapshot.result.surgeMultiplier;
+    const note = getPublicSurgePricingNote(mult);
+    if (!note) return null;
+    if (mult > 1.3 && mult <= 1.5) {
+      return `${note} Choose a later time to save money.`;
+    }
+    return note;
+  }, [pricingSnapshot]);
+
+  const checkoutFinalZar = pricingSnapshot?.result.finalPrice ?? null;
+
+  const displayTotalZar = pricingSnapshot?.result.finalPrice ?? lineTotalZar;
 
   const profilePhoneOk = validatePhoneNumber((user.phone || '').trim());
 
@@ -543,6 +562,15 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
         totalAmountZar,
         use_points: effectiveLoyaltyUsePointsDash,
         customer_id: user.customerId ?? null,
+        ...(lockMeta
+          ? {
+              pricing_hash: lockMeta.pricing_hash,
+              pricing_expires_at: lockMeta.pricing_expires_at,
+              pricing_version: lockMeta.pricing_version,
+              pricing_lock_token: lockMeta.pricing_lock_token,
+              pricing_snapshot_id: lockMeta.pricing_snapshot_id,
+            }
+          : {}),
       });
     },
     [
@@ -557,6 +585,7 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
       extrasQuantitiesById,
       numberOfCleanersForPricing,
       effectiveLoyaltyUsePointsDash,
+      lockMeta,
     ]
   );
 
@@ -575,10 +604,17 @@ export function BookingFlow({ onBack, addressLine }: BookingFlowProps) {
       toast.error('Pricing is not loaded. Refresh and try again.');
       return;
     }
+    if (!pricingSnapshot || !lockMeta?.pricing_hash) {
+      toast.error('Confirm date, time, and service — we could not lock pricing yet.');
+      return;
+    }
+    if (lockMeta.pricing_expires_at && new Date(lockMeta.pricing_expires_at).getTime() < Date.now()) {
+      toast.error('Price lock expired. Return to date & time to refresh pricing.');
+      return;
+    }
     setPaying(true);
     try {
-      const preview = await fetchCheckoutPricingPreview();
-      const pendingBody = buildPendingPayload(preview.price_zar);
+      const pendingBody = buildPendingPayload(pricingSnapshot.result.finalPrice);
       const pendingRes = await fetch('/api/bookings/pending', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

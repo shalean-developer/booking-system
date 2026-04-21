@@ -14,12 +14,17 @@ import crypto from 'crypto';
 import {
   fetchBookingForPaymentVerification,
   finalizeBookingPayment,
+  isBookingPaidInDatabase,
+  parseBookingIdFromBookingPrefixedReference,
   paystackVerifyDetailed,
   referenceMatchesBooking,
 } from '@/lib/booking-paid-server';
 import { logPaymentIntegrity, redactPaymentReference } from '@/lib/payment-integrity-log';
 import { recordPaymentValidationFailure } from '@/lib/payment-validation-tracker';
+import { verifyPricingLock } from '@/lib/pricing/verify-lock';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database';
+import { sendWhatsAppPaymentConfirmedIfEligible } from '@/lib/whatsapp/whatsapp-payment-notify';
 
 const WEBHOOK_SOURCE = 'nextjs' as const;
 
@@ -50,9 +55,11 @@ async function findBookingByPaystackReference(
   reference: string,
 ): Promise<BookingRefRow | null> {
   if (reference.startsWith('booking-')) {
-    const id = reference.slice('booking-'.length);
-    const { data } = await supabase.from('bookings').select(BOOKING_REF_SELECT).eq('id', id).maybeSingle();
-    if (data) return data as BookingRefRow;
+    const id = parseBookingIdFromBookingPrefixedReference(reference);
+    if (id) {
+      const { data } = await supabase.from('bookings').select(BOOKING_REF_SELECT).eq('id', id).maybeSingle();
+      if (data) return data as BookingRefRow;
+    }
   }
   const { data: byId } = await supabase.from('bookings').select(BOOKING_REF_SELECT).eq('id', reference).maybeSingle();
   if (byId) return byId as BookingRefRow;
@@ -226,6 +233,11 @@ interface PaystackWebhookEvent {
         variable_name: string;
         value: string;
       }>;
+      /** Paystack initialize — locked pricing audit. */
+      snapshot_id?: string;
+      pricing_hash?: string;
+      pricing_version?: string;
+      [key: string]: unknown;
     };
   };
 }
@@ -406,6 +418,20 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      const bookingAlreadyPaid = await fetchBookingForPaymentVerification(supabase, paymentReference);
+      if (bookingAlreadyPaid && isBookingPaidInDatabase(bookingAlreadyPaid)) {
+        logPaymentWebhook({
+          event_type: 'charge_success_booking_already_paid',
+          booking_id: bookingAlreadyPaid.id,
+        });
+        return NextResponse.json({
+          ok: true,
+          duplicate: true,
+          message: 'Booking already finalized',
+          booking_id: bookingAlreadyPaid.id,
+        });
+      }
+
       const verified = await paystackVerifyDetailed(paystackSecretKey, paymentReference);
       if (verified.outcome === 'pending') {
         await releaseChargeWebhookIdempotency(supabase, successKey);
@@ -453,7 +479,82 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true, message: 'Invalid currency' });
       }
 
-      const expectedMinor = Math.round(Number(booking.total_amount ?? 0));
+      let expectedMinor = Math.round(Number(booking.total_amount ?? 0));
+
+      if (booking.pricing_snapshot_id) {
+        const snapshotId = booking.pricing_snapshot_id;
+        try {
+          const { data: snapshot, error: snapErr } = await supabase
+            .from('booking_pricing_snapshots')
+            .select('*')
+            .eq('id', snapshotId)
+            .maybeSingle();
+
+          if (snapErr || !snapshot) {
+            throw new Error('Snapshot not found');
+          }
+
+          if (!snapshot.pricing_lock_token || !snapshot.pricing_hash) {
+            throw new Error('Missing pricing lock data');
+          }
+
+          const isValidLock = verifyPricingLock({
+            hash: snapshot.pricing_hash,
+            token: snapshot.pricing_lock_token,
+          });
+
+          if (!isValidLock) {
+            throw new Error('Invalid pricing lock signature');
+          }
+
+          const now = new Date();
+          const expiresAt = new Date(String(snapshot.expires_at));
+          if (expiresAt < now) {
+            throw new Error('Pricing snapshot expired');
+          }
+
+          const meta = event.data?.metadata;
+          const metaSnapshotId =
+            meta?.snapshot_id != null ? String(meta.snapshot_id).trim() : '';
+          if (metaSnapshotId !== String(snapshot.id)) {
+            throw new Error('Snapshot ID mismatch');
+          }
+          const metaHash =
+            meta?.pricing_hash != null ? String(meta.pricing_hash).trim() : '';
+          if (metaHash !== String(snapshot.pricing_hash)) {
+            throw new Error('Pricing hash mismatch');
+          }
+
+          expectedMinor = Math.round(Number(snapshot.final_price) * 100);
+        } catch (err) {
+          await releaseChargeWebhookIdempotency(supabase, successKey);
+          const message = err instanceof Error ? err.message : 'Pricing validation failed';
+          console.error('❌ Pricing validation failed', {
+            snapshot_id: snapshotId,
+            booking_id: booking.id,
+            error: message,
+          });
+          logPaymentIntegrity({
+            event_type: 'pricing_webhook_validation_failed',
+            booking_id: booking.id,
+            reference_redacted: redactPaymentReference(paymentReference),
+            reason: message,
+          });
+          if (message.includes('PRICING_INTEGRITY_SIGNING_KEY')) {
+            return NextResponse.json(
+              { ok: false, error: 'Server configuration error' },
+              { status: 500 },
+            );
+          }
+          await recordPaymentValidationFailure(
+            supabase,
+            paymentReference,
+            'pricing_snapshot_validation_failed',
+          );
+          return new Response('Invalid payment', { status: 400 });
+        }
+      }
+
       const verifyMinor = verified.amountKobo;
       const rawPayloadAmount = event.data?.amount;
       const payloadMinor =
@@ -517,6 +618,14 @@ export async function POST(request: NextRequest) {
       }
 
       const bookingStatus = String(booking.status || '').toLowerCase();
+      if (bookingStatus === 'paid') {
+        logPaymentWebhook({
+          event_type: 'charge_skipped_booking_status_paid',
+          booking_id: booking.id,
+        });
+        return new Response('Already processed', { status: 200 });
+      }
+
       if (bookingStatus !== 'pending') {
         logPaymentIntegrity({
           event_type: 'finalize_skipped_invalid_state',
@@ -554,6 +663,24 @@ export async function POST(request: NextRequest) {
         duplicate: result.duplicate === true,
         target: 'booking',
       });
+
+      if (result.ok && result.duplicate !== true) {
+        const meta = event.data?.metadata as Record<string, unknown> | undefined;
+        const channel = meta?.channel != null ? String(meta.channel).toLowerCase().trim() : '';
+        if (channel === 'whatsapp') {
+          const phone =
+            (meta?.phone_e164 != null ? String(meta.phone_e164).trim() : '') ||
+            String(booking.customer_phone || '').trim();
+          if (phone) {
+            void sendWhatsAppPaymentConfirmedIfEligible({
+              supabase: supabase as SupabaseClient<Database>,
+              bookingId: booking.id,
+              phoneE164: phone,
+              paymentReference: paymentReference,
+            }).catch((e) => console.error('[whatsapp] payment notify', e));
+          }
+        }
+      }
 
       return NextResponse.json({
         ok: true,

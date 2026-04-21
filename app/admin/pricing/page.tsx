@@ -1,5 +1,5 @@
-import { PricingPage } from '@/components/admin/PricingPage';
+import { PricingEngineDashboard } from '@/components/admin/pricing-engine-dashboard';
 
 export default function AdminPricingPage() {
-  return <PricingPage />;
+  return <PricingEngineDashboard />;
 }

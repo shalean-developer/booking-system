@@ -38,6 +38,8 @@ export type BookingPaidRow = {
   equipment_required?: boolean | null;
   equipment_fee?: number | null;
   manage_token?: string | null;
+  /** Locked row in `booking_pricing_snapshots` — used for Paystack amount verification. */
+  pricing_snapshot_id?: string | null;
   /** Populated after successful Paystack finalize (audit). */
   paid_amount_minor?: number | null;
   paid_currency?: string | null;

@@ -17,7 +17,7 @@ export const metadata: Metadata = createMetadata({
     'deep cleaning cape town',
     'move out cleaning cape town',
   ],
-  canonical: generateCanonical('/booking/service/standard/plan'),
+  canonical: generateCanonical('/booking'),
 });
 
 export default function BookingLayout({

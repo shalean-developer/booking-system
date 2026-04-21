@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useCallback, useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { parseBookingIdFromBookingPrefixedReference } from '@/lib/payment-reference';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,6 +13,9 @@ import { logBookingFlowClient } from '@/lib/debug-booking-flow';
 import { BookingFlowStepIndicator } from '@/components/booking-flow-step-indicator';
 import { GROWTH_EVENTS, trackConversion } from '@/lib/growth/growthEngine';
 import { persistGrowthEvent } from '@/lib/growth/persist-event';
+
+const VERIFY_POLL_MS = 2000;
+const VERIFY_MAX_ATTEMPTS = 28;
 
 interface BookingDetails {
   id: string;
@@ -32,20 +36,46 @@ interface BookingDetails {
 function ConfirmationContent() {
   const searchParams = useSearchParams();
   const verifiedSkip = searchParams.get('verified') === '1';
-  const paystackReference =
+  const urlPaystackRef =
     searchParams.get('reference')?.trim() || searchParams.get('trxref')?.trim() || null;
-  const id =
+  const urlId =
     searchParams.get('ref')?.trim() ||
     searchParams.get('id')?.trim() ||
-    (paystackReference?.startsWith('booking-') ? paystackReference.slice('booking-'.length) : null);
+    (urlPaystackRef ? parseBookingIdFromBookingPrefixedReference(urlPaystackRef) : null);
   const ct = searchParams.get('ct');
+
+  const [lsPaystackRef, setLsPaystackRef] = useState<string | null>(null);
+  const [lsBookingId, setLsBookingId] = useState<string | null>(null);
+  const [verifyPollKey, setVerifyPollKey] = useState(0);
+
+  useEffect(() => {
+    try {
+      if (!urlPaystackRef) {
+        const r = localStorage.getItem('paystack_last_reference');
+        if (r?.trim()) setLsPaystackRef(r.trim());
+      }
+      if (!urlId) {
+        const b = localStorage.getItem('paystack_last_booking_id');
+        if (b?.trim()) setLsBookingId(b.trim());
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [urlPaystackRef, urlId]);
+
+  const paystackReference = urlPaystackRef || lsPaystackRef;
+  const id =
+    urlId ||
+    lsBookingId ||
+    (paystackReference ? parseBookingIdFromBookingPrefixedReference(paystackReference) : null);
 
   const [booking, setBooking] = useState<BookingDetails | null>(null);
   const [isProcessing, setIsProcessing] = useState(true);
   const [processingError, setProcessingError] = useState<string | null>(null);
   const [verifyStatus, setVerifyStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(() => {
     if (verifiedSkip) return 'success';
-    return paystackReference ? 'loading' : 'idle';
+    if (urlPaystackRef) return 'loading';
+    return 'idle';
   });
   const [bookingRefresh, setBookingRefresh] = useState(0);
 
@@ -58,33 +88,91 @@ function ConfirmationContent() {
       setVerifyStatus('idle');
       return;
     }
+
     let cancelled = false;
-    (async () => {
+    let attempt = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const runAttempt = async () => {
+      if (cancelled) return;
+      attempt += 1;
       setVerifyStatus('loading');
       try {
         const params = new URLSearchParams();
         params.set('reference', paystackReference);
-        if (id) params.set('booking_id', id);
-        const verifyUrl = `/api/payment/verify?${params.toString()}`;
-        console.log('📡 CALLING VERIFY API...', verifyUrl);
-        const res = await fetch(verifyUrl);
-        const data = await res.json();
+        if (id) {
+          params.set('booking_id', id);
+          params.set('ref', id);
+        }
+        const res = await fetch(`/api/paystack/verify?${params.toString()}`, { cache: 'no-store' });
+        const data = (await res.json()) as {
+          success?: boolean;
+          ok?: boolean;
+          status?: string;
+        };
         if (cancelled) return;
-        console.log('VERIFY RESPONSE:', data);
-        if (res.ok && (data.ok === true || data.success === true)) {
+
+        if (data.success === true || data.status === 'success' || data.ok === true) {
+          try {
+            localStorage.removeItem('paystack_last_reference');
+            localStorage.removeItem('paystack_last_booking_id');
+          } catch {
+            /* ignore */
+          }
           setVerifyStatus('success');
           setBookingRefresh((r) => r + 1);
-        } else {
-          setVerifyStatus('error');
+          return;
         }
+
+        if (data.status === 'pending') {
+          if (attempt >= VERIFY_MAX_ATTEMPTS) {
+            setVerifyStatus('error');
+            return;
+          }
+          timer = setTimeout(runAttempt, VERIFY_POLL_MS);
+          return;
+        }
+
+        if (data.status === 'failed') {
+          setVerifyStatus('error');
+          return;
+        }
+
+        if (attempt >= VERIFY_MAX_ATTEMPTS) {
+          setVerifyStatus('error');
+          return;
+        }
+        timer = setTimeout(runAttempt, VERIFY_POLL_MS);
       } catch {
-        if (!cancelled) setVerifyStatus('error');
+        if (cancelled) return;
+        if (attempt >= VERIFY_MAX_ATTEMPTS) {
+          setVerifyStatus('error');
+          return;
+        }
+        timer = setTimeout(runAttempt, VERIFY_POLL_MS);
       }
-    })();
+    };
+
+    void runAttempt();
+
     return () => {
       cancelled = true;
+      if (timer) clearTimeout(timer);
     };
-  }, [paystackReference, id, verifiedSkip]);
+  }, [paystackReference, id, verifiedSkip, verifyPollKey]);
+
+  const retryPaystackFromLocalStorage = useCallback(() => {
+    try {
+      const r = localStorage.getItem('paystack_last_reference');
+      const b = localStorage.getItem('paystack_last_booking_id');
+      setLsPaystackRef(r?.trim() ?? null);
+      setLsBookingId(b?.trim() ?? null);
+    } catch {
+      /* ignore */
+    }
+    setVerifyPollKey((k) => k + 1);
+    setBookingRefresh((br) => br + 1);
+  }, []);
 
   useEffect(() => {
     if (verifyStatus !== 'success' || !booking?.id) return;
@@ -185,13 +273,26 @@ function ConfirmationContent() {
             <CardContent className="p-8 text-center">
               <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
               <h2 className="text-xl font-bold text-gray-900 mb-2">Payment verification failed</h2>
-              <p className="text-gray-600 mb-6 text-sm">We could not confirm your payment. Please contact support if you were charged.</p>
-              <Button
-                asChild
-                className="rounded-full bg-violet-600 hover:bg-violet-700 text-white shadow-md shadow-violet-200"
-              >
-                <Link href="/">Return to home</Link>
-              </Button>
+              <p className="text-gray-600 mb-6 text-sm">
+                We could not confirm your payment yet. If you completed checkout, try again in a moment or use the
+                button below. Contact support if you were charged but this still fails.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full border-violet-200 hover:bg-violet-50"
+                  onClick={retryPaystackFromLocalStorage}
+                >
+                  Check payment again
+                </Button>
+                <Button
+                  asChild
+                  className="rounded-full bg-violet-600 hover:bg-violet-700 text-white shadow-md shadow-violet-200"
+                >
+                  <Link href="/">Return to home</Link>
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -234,12 +335,22 @@ function ConfirmationContent() {
               <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
               <h2 className="text-xl font-bold text-gray-900 mb-2">Booking not found</h2>
               <p className="text-gray-600 mb-6 text-sm">{processingError || 'Unable to load booking details'}</p>
-              <Button
-                asChild
-                className="rounded-full bg-violet-600 hover:bg-violet-700 text-white shadow-md shadow-violet-200"
-              >
-                <Link href="/">Return to home</Link>
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full border-violet-200 hover:bg-violet-50"
+                  onClick={retryPaystackFromLocalStorage}
+                >
+                  Check payment again
+                </Button>
+                <Button
+                  asChild
+                  className="rounded-full bg-violet-600 hover:bg-violet-700 text-white shadow-md shadow-violet-200"
+                >
+                  <Link href="/">Return to home</Link>
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -309,7 +420,7 @@ function ConfirmationContent() {
               asChild
               className="rounded-full bg-violet-600 hover:bg-violet-700 text-white shadow-md shadow-violet-200"
             >
-              <Link href="/booking/service/standard/plan">Book new session</Link>
+              <Link href="/booking-v2">Book new session</Link>
             </Button>
             <Button
               asChild

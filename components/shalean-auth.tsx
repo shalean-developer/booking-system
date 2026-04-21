@@ -650,18 +650,38 @@ function SignUpForm({
   };
 
   const getFriendlySignupError = (error: { message: string; status?: number }) => {
-    const message = error.message?.toLowerCase() || '';
-    if (error.status === 429 || message.includes('rate limit')) {
+    const message = (error.message || '').toLowerCase();
+    if (error.status === 429 || message.includes('rate limit') || message.includes('too many')) {
       return 'We just sent you an email. Please wait a moment before trying again.';
     }
-    if (message.includes('user already registered') || message.includes('already exists')) {
+    if (
+      message.includes('already registered') ||
+      message.includes('already been registered') ||
+      message.includes('user already exists') ||
+      (message.includes('email') && message.includes('already')) ||
+      message.includes('duplicate')
+    ) {
       return 'Looks like you already have an account with this email. Try signing in instead.';
     }
-    if (message.includes('invalid email')) {
+    if (message.includes('invalid email') || message.includes('unable to validate email')) {
       return 'That email address looks invalid. Please double-check and try again.';
     }
-    if (message.includes('password')) {
+    if (message.includes('password') || message.includes('weak')) {
       return 'Please choose a stronger password (at least 6 characters).';
+    }
+    if (message.includes('signup') && message.includes('not allowed')) {
+      return 'New sign-ups are temporarily unavailable. Please try again later or contact support.';
+    }
+    if (message.includes('database') && message.includes('saving')) {
+      return 'Account creation hit a server issue. Please try again in a minute or contact support.';
+    }
+    /** GoTrue: mail failed (custom SMTP misconfigured, rate limit, provider outage, etc.). */
+    if (
+      message.includes('confirmation email') ||
+      message.includes('sending confirmation') ||
+      message.includes('error sending confirmation')
+    ) {
+      return 'We couldn’t send the verification email. Try again in a few minutes. If it keeps failing, contact support — the team may need to check outgoing email settings.';
     }
     return 'We couldn’t create your account right now. Please try again or contact support.';
   };
@@ -693,10 +713,12 @@ function SignUpForm({
         emailRedirectTo: `${window.location.origin}/dashboard`,
       };
 
+      // Only name fields on the auth user — referral is applied in POST /api/auth/link-customer
+      // (UUID or SHALEAN code). Custom metadata keys like referred_by_customer_id can trigger
+      // Supabase hook / validation issues on some projects.
       const userMeta: Record<string, string> = {};
       if (firstName) userMeta.first_name = firstName;
       if (lastName) userMeta.last_name = lastName;
-      if (validReferrer) userMeta.referred_by_customer_id = validReferrer;
       if (Object.keys(userMeta).length > 0) {
         signupOptions.data = userMeta;
       }
@@ -708,6 +730,9 @@ function SignUpForm({
       });
 
       if (authError) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[signUp]', authError.message, authError);
+        }
         onError(getFriendlySignupError(authError));
         setLoading(false);
         return;
@@ -750,7 +775,7 @@ function SignUpForm({
 
   return (
     <form onSubmit={handleSubmit} noValidate className="relative z-20 pointer-events-auto space-y-4">
-      {validReferrer && (
+      {(validReferrer || initialReferralCode) && (
         <div className="rounded-xl border border-blue-100 bg-blue-50/90 px-4 py-3 text-left text-sm text-blue-950">
           <p className="font-semibold">You’re signing up with a referral link</p>
           <p className="mt-1 text-blue-900/90">

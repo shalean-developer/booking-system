@@ -5,7 +5,9 @@ import { usePathname } from 'next/navigation';
 import { GROWTH_EVENTS, trackEvent } from '@/lib/growth/growthEngine';
 import { persistGrowthEvent } from '@/lib/growth/persist-event';
 
-const BOOKING_PREFIX = '/booking';
+function isBookingFunnelPath(path: string): boolean {
+  return path.startsWith('/booking') || path.startsWith('/booking-v2');
+}
 
 /**
  * SPA page views + booking funnel start for ads / GA4 / Meta.
@@ -47,7 +49,7 @@ export function GrowthTrackingProvider({ children }: { children: React.ReactNode
       page_path: pathname,
     });
 
-    if (pathname.startsWith(BOOKING_PREFIX)) {
+    if (isBookingFunnelPath(pathname)) {
       const key = 'growth_booking_started_once';
       try {
         if (!sessionStorage.getItem(key)) {

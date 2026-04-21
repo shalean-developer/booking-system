@@ -17,6 +17,8 @@ import { createMetadata, generateCanonical } from "@/lib/metadata";
 import { notFound } from "next/navigation";
 import { fetchActivePricing, type PricingData } from "@/lib/pricing-db";
 import { formatFromBaseZar, formatCarpetPerRoomFrom } from "@/lib/display-pricing";
+import { HREF_TO_CORE_SERVICE } from "@/lib/category-service-href-map";
+import { CategoryServicePriceBlock } from "@/components/category-service-price-block";
 
 const categoryData: Record<string, {
   title: string;
@@ -45,31 +47,31 @@ const categoryData: Record<string, {
         title: 'Regular Cleaning',
         href: '/services/regular-cleaning',
         description: 'Weekly or bi-weekly maintenance cleaning to keep your home fresh.',
-        pricing: 'From R250'
+        pricing: 'Get a quote'
       },
       {
         title: 'Deep Cleaning',
         href: '/services/deep-cleaning',
         description: 'Comprehensive deep cleaning for thorough home reset.',
-        pricing: 'From R450'
+        pricing: 'Get a quote'
       },
       {
         title: 'Move In/Out Cleaning',
         href: '/services/move-turnover',
         description: 'Complete cleaning for property transitions.',
-        pricing: 'From R980'
+        pricing: 'Get a quote'
       },
       {
         title: 'Apartment Cleaning',
         href: '/services/apartment-cleaning',
         description: 'Specialized cleaning for apartments and condos.',
-        pricing: 'From R200'
+        pricing: 'Get a quote'
       },
       {
         title: 'Home Maintenance',
         href: '/services/home-maintenance',
         description: 'Ongoing maintenance cleaning to keep your home spotless.',
-        pricing: 'From R300'
+        pricing: 'Get a quote'
       },
     ],
     highlights: [
@@ -92,13 +94,13 @@ const categoryData: Record<string, {
         title: 'Office Cleaning',
         href: '/services/office-cleaning',
         description: 'Professional cleaning for offices and workplaces.',
-        pricing: 'From R180'
+        pricing: 'Get a quote'
       },
       {
         title: 'Airbnb Cleaning',
         href: '/services/airbnb-cleaning',
         description: 'Fast turnover cleaning for short-term rentals.',
-        pricing: 'From R230'
+        pricing: 'Get a quote'
       },
     ],
     highlights: [
@@ -127,7 +129,7 @@ const categoryData: Record<string, {
         title: 'Deep Cleaning',
         href: '/services/deep-cleaning',
         description: 'Comprehensive deep cleaning for large spaces.',
-        pricing: 'From R450'
+        pricing: 'Get a quote'
       },
     ],
     highlights: [
@@ -156,7 +158,7 @@ const categoryData: Record<string, {
         title: 'Window Cleaning',
         href: '/services/window-cleaning',
         description: 'Streak-free window cleaning for crystal clear results.',
-        pricing: 'From R150'
+        pricing: 'Get a quote'
       },
       {
         title: 'One-Time Cleaning',
@@ -185,7 +187,7 @@ const categoryData: Record<string, {
         title: 'Window Cleaning',
         href: '/services/window-cleaning',
         description: 'Interior and exterior window cleaning for crystal clear views.',
-        pricing: 'From R150'
+        pricing: 'Get a quote'
       },
     ],
     highlights: [
@@ -196,19 +198,6 @@ const categoryData: Record<string, {
       'Regular maintenance programs'
     ]
   },
-};
-
-const HREF_TO_CORE_SERVICE: Record<string, "Standard" | "Deep" | "Move In/Out" | "Airbnb" | "Carpet"> = {
-  "/services/regular-cleaning": "Standard",
-  "/services/deep-cleaning": "Deep",
-  "/services/move-turnover": "Move In/Out",
-  "/services/apartment-cleaning": "Standard",
-  "/services/home-maintenance": "Standard",
-  "/services/office-cleaning": "Standard",
-  "/services/airbnb-cleaning": "Airbnb",
-  "/services/post-construction-cleaning": "Deep",
-  "/services/window-cleaning": "Standard",
-  "/services/one-time-cleaning": "Standard",
 };
 
 function withDynamicPricing(
@@ -317,12 +306,9 @@ export default async function CategoryPage({ params }: PageProps) {
               {category.services.map((service, index) => (
                 <Card key={index} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
                   <CardContent className="p-8">
-                    <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-start justify-between mb-4 gap-4">
                       <h3 className="text-2xl font-bold text-gray-900">{service.title}</h3>
-                      <div className="text-right">
-                        <div className="text-sm text-gray-500">Starting at</div>
-                        <div className="text-2xl font-bold text-primary">{service.pricing}</div>
-                      </div>
+                      <CategoryServicePriceBlock href={service.href} fallbackPricing={service.pricing} />
                     </div>
                     <p className="text-gray-600 mb-6">{service.description}</p>
                     <Button asChild className="bg-primary hover:bg-primary/90">

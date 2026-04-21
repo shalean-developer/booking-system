@@ -27,7 +27,7 @@ export function useBooking(options: {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
-      window.sessionStorage.setItem(storageKey, JSON.stringify(data));
+      window.localStorage.setItem(storageKey, JSON.stringify(data));
     } catch {
       // ignore storage write errors
     }

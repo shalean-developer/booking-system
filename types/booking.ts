@@ -86,6 +86,13 @@ export interface BookingState {
   /** Quick Clean: scheduled hours (tier + extras, max 6) — must match engine when `pricingMode === 'basic'` */
   basicPlannedHours?: number | null;
   scheduleEquipmentPref?: 'bring' | 'own';
+  /** Integrity lock from `/api/pricing/create-snapshot` or verify-price — optional on pending payloads */
+  pricing_lock_token?: string;
+  pricing_hash?: string;
+  pricing_expires_at?: string;
+  pricing_version?: string;
+  /** Persisted row from `booking_pricing_snapshots` — required for checkout. */
+  pricing_snapshot_id?: string;
 }
 
 // Cleaner data types

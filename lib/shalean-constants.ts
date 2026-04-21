@@ -6,16 +6,15 @@ export interface Service {
   id: ServiceType;
   title: string;
   description: string;
-  price: number;
   iconName: ServiceIconName;
 }
 
 export const SERVICES: Service[] = [
-  { id: "standard", title: "Standard Cleaning", description: "Regular upkeep for your living space.", price: 450, iconName: "Sparkles" },
-  { id: "deep", title: "Deep Cleaning", description: "Thorough intensive cleaning for every corner.", price: 850, iconName: "Layers" },
-  { id: "move", title: "Move In / Out", description: "Specialized cleaning for transitions.", price: 1200, iconName: "Home" },
-  { id: "airbnb", title: "Airbnb Cleaning", description: "Fast turnaround for guest satisfaction.", price: 650, iconName: "Calendar" },
-  { id: "carpet", title: "Carpet Cleaning", description: "Professional stain and dirt removal.", price: 350, iconName: "Wind" },
+  { id: "standard", title: "Standard Cleaning", description: "Regular upkeep for your living space.", iconName: "Sparkles" },
+  { id: "deep", title: "Deep Cleaning", description: "Thorough intensive cleaning for every corner.", iconName: "Layers" },
+  { id: "move", title: "Move In / Out", description: "Specialized cleaning for transitions.", iconName: "Home" },
+  { id: "airbnb", title: "Airbnb Cleaning", description: "Fast turnaround for guest satisfaction.", iconName: "Calendar" },
+  { id: "carpet", title: "Carpet Cleaning", description: "Professional stain and dirt removal.", iconName: "Wind" },
 ];
 
 export const LOCATIONS = [

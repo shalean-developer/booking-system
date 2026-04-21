@@ -531,6 +531,15 @@ export function BookingCard({
               </Button>
             )}
 
+          {variant === 'assigned' &&
+            isCompletedBooking(booking.status) &&
+            Boolean(booking.customer_rating_id) && (
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs text-gray-600">
+                <Star className="h-3.5 w-3.5 text-amber-500" aria-hidden />
+                You rated this customer
+              </span>
+            )}
+
           {/* Call & Maps buttons - always available for assigned bookings */}
           {variant === 'assigned' && (
             <>

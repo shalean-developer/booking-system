@@ -27,12 +27,8 @@ import { buildPriceSnapshotV4AnalyticsFromUnified } from '@/lib/pricing/v4/price
 import type { BookingBodyForPricing } from '@/lib/booking-server-pricing';
 import { rejectLegacyBookingPricingFields } from '@/lib/reject-legacy-booking-fields';
 import { resolveBookingSelectedTeam } from '@/lib/booking-team-payload';
-import {
-  buildPricingExpiresAt,
-  logPricingIntegrityDiscrepancy,
-  verifyPricingLockToken,
-  runPricingIntegrityPipeline,
-} from '@/lib/pricing/pricing-integrity-pipeline';
+import { runPricingIntegrityPipeline } from '@/lib/pricing/pricing-integrity-pipeline';
+import { verifyPricingLock } from '@/lib/pricing/verify-lock';
 import { findBookingByIdempotencyKey, normalizeIdempotencyKey } from '@/lib/booking-idempotency';
 
 /**
@@ -70,6 +66,11 @@ export async function POST(req: Request) {
     if (idempotencyKey) {
       const existing = await findBookingByIdempotencyKey(supabase, idempotencyKey);
       if (existing?.id) {
+        const st = String(existing.status || '').toLowerCase();
+        const hasPayRef = Boolean(String(existing.payment_reference || '').trim());
+        const alreadyPaid = st === 'paid' || hasPayRef;
+        const hasActivePaystackLink =
+          !alreadyPaid && Boolean(String(existing.paystack_ref || '').trim());
         return NextResponse.json({
           ok: true,
           bookingId: existing.id,
@@ -79,6 +80,8 @@ export async function POST(req: Request) {
               : Math.round(Number(existing.total_amount || 0)) / 100,
           message: 'Booking already created for this idempotency key.',
           idempotent: true,
+          alreadyPaid,
+          hasActivePaystackLink,
         });
       }
     }
@@ -119,10 +122,69 @@ export async function POST(req: Request) {
     const tipAmountEarly = body.tipAmount || 0;
     const discountAmountClaimed = body.discountAmount || 0;
 
+    const pricingSnapshotIdRaw = (body as { pricing_snapshot_id?: unknown }).pricing_snapshot_id;
+    const pricingSnapshotId =
+      typeof pricingSnapshotIdRaw === 'string' && pricingSnapshotIdRaw.trim()
+        ? pricingSnapshotIdRaw.trim()
+        : null;
+    if (!pricingSnapshotId) {
+      return NextResponse.json({ ok: false, error: 'Missing pricing snapshot' }, { status: 400 });
+    }
+
+    const { data: persistedSnap, error: persistedErr } = await supabaseService
+      .from('booking_pricing_snapshots')
+      .select('*')
+      .eq('id', pricingSnapshotId)
+      .maybeSingle();
+
+    if (persistedErr || !persistedSnap) {
+      return NextResponse.json({ ok: false, error: 'Missing pricing snapshot' }, { status: 400 });
+    }
+
+    if (new Date(String(persistedSnap.expires_at)).getTime() < Date.now()) {
+      return NextResponse.json(
+        {
+          ok: false,
+          code: 'PRICING_EXPIRED',
+          error: 'Pricing verification expired. Please re-verify before continuing.',
+        },
+        { status: 409 },
+      );
+    }
+
+    const bodyPricingHash =
+      typeof (body as { pricing_hash?: string }).pricing_hash === 'string'
+        ? (body as { pricing_hash: string }).pricing_hash.trim()
+        : '';
+    if (!bodyPricingHash || bodyPricingHash !== persistedSnap.pricing_hash) {
+      return NextResponse.json({ ok: false, error: 'Pricing mismatch' }, { status: 400 });
+    }
+
+    if (!verifyPricingLock({ hash: persistedSnap.pricing_hash, token: persistedSnap.pricing_lock_token })) {
+      return NextResponse.json({ ok: false, error: 'Invalid pricing signature' }, { status: 400 });
+    }
+
+    const snapFinalZarWhole = Number(persistedSnap.final_price);
+    const snapCents = Math.round(snapFinalZarWhole * 100);
+    const clientCentsCheck = Math.round(Number(body.totalAmount) * 100);
+    if (clientCentsCheck !== snapCents) {
+      return NextResponse.json(
+        {
+          ok: false,
+          code: 'PRICE_MISMATCH',
+          error: 'Total does not match locked pricing.',
+          client_total: Number(body.totalAmount),
+          server_total: snapFinalZarWhole,
+          server_pricing_hash: persistedSnap.pricing_hash,
+        },
+        { status: 400 },
+      );
+    }
+
     let serverCart: Awaited<ReturnType<typeof runPricingIntegrityPipeline>>['serverCart'];
     let pricingSnapshot: Record<string, unknown>;
-    let pricingHash: string;
-    let pricingVersion: string;
+    const pricingHash = persistedSnap.pricing_hash;
+    const pricingVersion = persistedSnap.pricing_version;
     try {
       const integrity = await runPricingIntegrityPipeline(supabase, {
         service: body.service,
@@ -149,8 +211,15 @@ export async function POST(req: Request) {
       });
       serverCart = integrity.serverCart;
       pricingSnapshot = integrity.pricingSnapshot;
-      pricingHash = integrity.pricingHash;
-      pricingVersion = integrity.pricingVersion;
+      if (Math.abs(serverCart.price_zar - snapFinalZarWhole) > 0.02) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: 'Pricing snapshot does not match current catalogue. Please refresh and create a new quote.',
+          },
+          { status: 409 },
+        );
+      }
     } catch (e) {
       console.error('[bookings/pending] server pricing', e);
       return NextResponse.json(
@@ -162,19 +231,17 @@ export async function POST(req: Request) {
     const engineCents = recomputeEngineFinalCentsFromBookingBody(body, quickCleanSettings);
     const engineZar = engineCents != null ? engineCents / 100 : null;
     const subtotalBeforeDiscount =
-      engineZar != null
-        ? engineZar
-        : (body.totalAmount ?? 0) - tipAmountEarly + discountAmountClaimed;
+      engineZar != null ? engineZar : snapFinalZarWhole - tipAmountEarly + discountAmountClaimed;
 
+    // Snapshot + total + hash are authoritative. Do not pass `serverExpectedDiscountZar`:
+    // live `unified.discount_amount_zar` bundles auto discounts (first booking, off-peak) while
+    // `body.discountAmount` is the wizard promo line only — comparing them falsely rejects checkout.
     const discountCheck = await validateBookingDiscountAmount(supabase, {
       discountCode: body.discountCode,
       promo_code: body.promo_code,
       discountAmountClaimedZar: discountAmountClaimed,
       subtotalBeforeDiscountZar: subtotalBeforeDiscount,
       serviceType: body.service,
-      ...(serverCart.calc.unifiedPricing != null
-        ? { serverExpectedDiscountZar: serverCart.calc.unifiedPricing.discount_amount_zar }
-        : {}),
     });
     if (!discountCheck.ok) {
       return NextResponse.json({ ok: false, error: discountCheck.error }, { status: discountCheck.status });
@@ -201,83 +268,8 @@ export async function POST(req: Request) {
       );
     }
 
-    let serverChargeZar = serverCart.price_zar;
-    let serverChargeCents = serverCart.total_amount_cents;
-    const clientCents = Math.round(Number(body.totalAmount) * 100);
-    const bodyExtras = body as unknown as Record<string, unknown>;
-    const clientHash =
-      typeof bodyExtras.pricing_hash === 'string' ? bodyExtras.pricing_hash : undefined;
-    const pricingLockTokenRaw = bodyExtras.pricing_lock_token;
-    const pricingLockToken =
-      typeof pricingLockTokenRaw === 'string' ? pricingLockTokenRaw : null;
-    const lockClaims =
-      pricingLockToken && body.service && body.date && body.time
-        ? verifyPricingLockToken(pricingLockToken, {
-            service: String(body.service),
-            date: String(body.date),
-            time: String(body.time),
-          })
-        : null;
-    const canHonorLockedPrice =
-      lockClaims != null &&
-      typeof clientHash === 'string' &&
-      clientHash === lockClaims.pricing_hash &&
-      clientCents === lockClaims.total_amount_cents;
-    if (typeof clientHash === 'string' && clientHash && clientHash !== pricingHash) {
-      await logPricingIntegrityDiscrepancy(supabase, {
-        route: 'POST /api/bookings/pending',
-        booking_id: null,
-        client_total: Number(body.totalAmount),
-        server_total: serverChargeZar,
-        client_hash: clientHash,
-        server_hash: pricingHash,
-        reason: 'pricing_hash_mismatch',
-      });
-      // If totals still match, accept and auto-correct to latest server hash.
-      if (clientCents !== serverChargeCents && !canHonorLockedPrice) {
-        return NextResponse.json(
-          {
-            ok: false,
-            code: 'PRICE_MISMATCH',
-            error: 'Total does not match server pricing. Please refresh and try again.',
-            client_total: Number(body.totalAmount),
-            server_total: serverChargeZar,
-            difference_reason: 'pricing_hash_mismatch',
-            server_pricing_hash: pricingHash,
-          },
-          { status: 400 }
-        );
-      }
-    }
-    if (clientCents !== serverChargeCents && !canHonorLockedPrice) {
-      await logPricingIntegrityDiscrepancy(supabase, {
-        route: 'POST /api/bookings/pending',
-        booking_id: null,
-        client_total: Number(body.totalAmount),
-        server_total: serverChargeZar,
-        client_hash: typeof clientHash === 'string' ? clientHash : null,
-        server_hash: pricingHash,
-        reason: 'authoritative_recalculation_changed_total',
-      });
-      return NextResponse.json(
-        {
-          ok: false,
-          code: 'PRICE_MISMATCH',
-          error: 'Total does not match server pricing. Please refresh and try again.',
-          client_total: Number(body.totalAmount),
-          server_total: serverChargeZar,
-          difference_reason: 'authoritative_recalculation_changed_total',
-          server_pricing_hash: pricingHash,
-        },
-        { status: 400 }
-      );
-    }
-    if (canHonorLockedPrice && lockClaims) {
-      serverChargeCents = lockClaims.total_amount_cents;
-      serverChargeZar = lockClaims.total_amount_cents / 100;
-      pricingHash = lockClaims.pricing_hash;
-      pricingVersion = lockClaims.pricing_version;
-    }
+    const serverChargeZar = snapFinalZarWhole;
+    const serverChargeCents = snapCents;
 
     const authUser = authEarly;
 
@@ -289,7 +281,7 @@ export async function POST(req: Request) {
     const since = new Date(Date.now() - 15 * 60 * 1000).toISOString();
     const { data: duplicate } = await supabase
       .from('bookings')
-      .select('id')
+      .select('id, status, paystack_ref, payment_reference')
       .eq('customer_email', body.email.trim().toLowerCase())
       .eq('booking_date', body.date)
       .eq('booking_time', body.time)
@@ -298,11 +290,24 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     if (duplicate?.id) {
+      const dup = duplicate as {
+        id: string;
+        status?: string | null;
+        paystack_ref?: string | null;
+        payment_reference?: string | null;
+      };
+      const dst = String(dup.status || '').toLowerCase();
+      const dupHasPayRef = Boolean(String(dup.payment_reference || '').trim());
+      const alreadyPaid = dst === 'paid' || dupHasPayRef;
+      const hasActivePaystackLink =
+        !alreadyPaid && Boolean(String(dup.paystack_ref || '').trim());
       return NextResponse.json(
         {
           ok: false,
           code: 'DUPLICATE_UNPAID_SLOT',
-          existingBookingId: duplicate.id,
+          existingBookingId: dup.id,
+          hasActivePaystackLink,
+          alreadyPaid,
           error: 'You already have an unpaid booking for this slot. Pay for it or cancel it, then try again.',
         },
         { status: 409 },
@@ -310,7 +315,7 @@ export async function POST(req: Request) {
     }
 
     const bookingId = generateUniqueBookingId();
-    const pricingExpiresAt = buildPricingExpiresAt();
+    const pricingExpiresAt = String(persistedSnap.expires_at);
     const adjustedTotalAmount = serverChargeZar;
     const unifiedSnapPending = serverCart.calc.unifiedPricing;
     const surgePricingApplied = (unifiedSnapPending?.surge_amount_zar ?? 0) > 0.001;
@@ -631,6 +636,7 @@ export async function POST(req: Request) {
         pricing_snapshot: pricingSnapshot,
         pricing_hash: pricingHash,
         pricing_version: pricingVersion,
+        pricing_snapshot_id: pricingSnapshotId,
         ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}),
         status: 'pending',
         tracking_status: cleanerIdForInsert ? 'assigned' : null,
@@ -643,6 +649,11 @@ export async function POST(req: Request) {
         { status: 500 },
       );
     }
+
+    await supabaseService
+      .from('booking_pricing_snapshots')
+      .update({ booking_id: bookingId })
+      .eq('id', pricingSnapshotId);
 
     if (assignedCleanerIds.length > 0 && process.env.NODE_ENV === 'development') {
       console.log('[assignment]', {

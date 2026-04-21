@@ -65,6 +65,39 @@ export interface BlogPostWithDetails extends BlogPost {
   tags?: string[];
 }
 
+async function mergeTagsIntoPosts(
+  supabase: NonNullable<typeof staticSupabase>,
+  posts: BlogPostWithDetails[],
+): Promise<void> {
+  const missing = posts.filter((p) => !p.tags?.length);
+  if (missing.length === 0) return;
+
+  const ids = missing.map((p) => p.id);
+  const { data, error } = await supabase
+    .from('blog_post_tags')
+    .select('post_id, blog_tags(name)')
+    .in('post_id', ids);
+
+  if (error) {
+    console.error('mergeTagsIntoPosts:', error);
+    return;
+  }
+
+  type Row = { post_id: string; blog_tags: { name: string } | null };
+  const map = new Map<string, string[]>();
+  for (const row of (data ?? []) as Row[]) {
+    const name = row.blog_tags?.name;
+    if (!name) continue;
+    const list = map.get(row.post_id) ?? [];
+    list.push(name);
+    map.set(row.post_id, list);
+  }
+
+  for (const p of missing) {
+    p.tags = map.get(p.id) ?? [];
+  }
+}
+
 // Server-side functions (for use in Server Components and API routes)
 export async function getPublishedPosts(): Promise<BlogPostWithDetails[]> {
   try {
@@ -111,6 +144,8 @@ export async function getPublishedPosts(): Promise<BlogPostWithDetails[]> {
         category_name: blog_categories?.name ?? undefined,
         category_slug: blog_categories?.slug ?? undefined,
       })) || [];
+
+    await mergeTagsIntoPosts(supabase, transformedData);
 
     return transformedData;
   } catch (error) {

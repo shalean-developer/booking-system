@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { Phone, Calendar } from "lucide-react";
 import { SUPPORT_WHATSAPP_URL } from '@/lib/contact';
 
-const HIDE_PATHS = ["/booking", "/admin", "/dashboard"];
+const HIDE_PATHS = ["/booking", "/booking-v2", "/admin", "/dashboard"];
 const HIDE_PREFIX = "/cleaner";
 
 export function ShaleanFab() {

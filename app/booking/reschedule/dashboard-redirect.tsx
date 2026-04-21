@@ -4,8 +4,6 @@ import { useEffect, useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import { safeGetSession } from '@/lib/logout-utils';
-import { serviceTypeToSlug } from '@/lib/booking-utils';
-import type { ServiceType } from '@/types/booking';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -99,16 +97,12 @@ function RescheduleRedirectInner({ bookingId }: { bookingId: string }) {
           return;
         }
 
-        const serviceType = data.booking.service_type;
-
-        if (!serviceType) {
+        if (!data.booking.service_type) {
           setError('Unable to determine service type');
           setIsLoading(false);
           return;
         }
-
-        const slug = serviceTypeToSlug(serviceType as ServiceType);
-        router.replace(`/booking/service/${slug}/plan?rescheduleId=${encodeURIComponent(bookingId)}`);
+        router.replace(`/booking?rescheduleId=${encodeURIComponent(bookingId)}`);
       } catch {
         setError('Failed to load booking details');
         setIsLoading(false);

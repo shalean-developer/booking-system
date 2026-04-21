@@ -48,7 +48,7 @@ function buildV2LineItems(
   const equipmentCents = Math.round(Math.max(0, options.equipmentZar) * 100);
 
   const rows: { id: string; label: string; value: number }[] = [
-    { id: 'v2_estimated', label: 'Estimated Price', value: cleaningCents / 100 },
+    { id: 'v2_estimated', label: 'Cleaning', value: cleaningCents / 100 },
   ];
 
   if (options.pricingMode === 'basic' && equipmentCents > 0) {

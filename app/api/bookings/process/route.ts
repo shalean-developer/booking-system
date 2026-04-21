@@ -3,7 +3,12 @@ import { sendEmail, generateBookingConfirmationEmail, generateAdminBookingNotifi
 import { BookingState } from '@/types/booking';
 import { supabase } from '@/lib/supabase';
 import { validateBookingEnv } from '@/lib/env-validation';
-import { getServerAuthUser } from '@/lib/supabase-server';
+import {
+  createServiceClient,
+  createServiceClientForSchema,
+  getServerAuthUser,
+} from '@/lib/supabase-server';
+import { onBookingCreated, resolveAuthUserIdForMarketing } from '@/lib/email/marketing-events';
 import { buildEarningsInsertFields } from '@/lib/earnings-v2';
 import { fetchCompanyOnlyCostsCents } from '@/lib/earnings-company-costs';
 import type { BookingBodyForPricing } from '@/lib/booking-server-pricing';
@@ -14,7 +19,6 @@ import {
 import { runBookingCheckoutAvailability } from '@/lib/booking-checkout-pricing';
 import { fetchQuickCleanSettings } from '@/lib/quick-clean-settings';
 import { validatePricingEngineRequest } from '@/lib/pricing-engine';
-import { createServiceClient } from '@/lib/supabase-server';
 import { buildFinalPriceSnapshotPayload } from '@/lib/pricing/final-pricing';
 import { buildPriceSnapshotV4AnalyticsFromUnified } from '@/lib/pricing/v4/price-snapshot-analytics';
 import { generateUniqueBookingId } from '@/lib/booking-id';
@@ -523,7 +527,23 @@ export async function POST(req: Request) {
     }
 
     console.log('✅ Booking processed successfully');
-    
+
+    try {
+      const svc = createServiceClientForSchema();
+      const uid = await resolveAuthUserIdForMarketing(svc, {
+        authUserId: authUser?.id ?? null,
+        customerId,
+      });
+      if (uid) {
+        await onBookingCreated(svc, uid, {
+          bookingDate: body.date,
+          bookingTime: body.time,
+        });
+      }
+    } catch (mErr) {
+      console.warn('[marketing] booking_created event', mErr);
+    }
+
     // Fetch full booking data for response
     const { data: bookingData } = await supabase
       .from('bookings')

@@ -1,12 +1,22 @@
+import { Resend } from 'resend';
 import {
   bookingConfirmationSubject,
   renderBookingEmail,
 } from '@/shared/email/renderer';
 import type { BookingEmailData } from '@/shared/email/types';
 
+export type SendEmailResult =
+  | { success: true; messageId?: string }
+  | { success: false; error: string };
+
+function getSenderFromAddress(): string {
+  const senderEmail = process.env.SENDER_EMAIL || 'noreply@shalean.co.za';
+  const senderName = 'Shalean Cleaning';
+  return `${senderName} <${senderEmail}>`;
+}
+
 /**
- * Send via Resend HTTP API (POST only). Do not use resend.emails.get() or GET /emails/:id
- * with non-UUID ids — that caused 422 "id must be a valid UUID" (e.g. /emails/0).
+ * Low-level send via Resend SDK (used for HTML + optional attachments).
  */
 export async function postResendEmail(params: {
   from: string;
@@ -19,29 +29,26 @@ export async function postResendEmail(params: {
   if (!key) {
     throw new Error('RESEND_API_KEY is not configured');
   }
-  const body: Record<string, unknown> = {
+  const resend = new Resend(key);
+  const { data, error } = await resend.emails.send({
     from: params.from,
     to: params.to,
     subject: params.subject,
     html: params.html,
-  };
-  if (params.attachments?.length) {
-    body.attachments = params.attachments;
-  }
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
+    ...(params.attachments?.length
+      ? {
+          attachments: params.attachments.map((a) => ({
+            filename: a.filename,
+            content: a.content,
+          })),
+        }
+      : {}),
   });
-  const json = (await res.json()) as { id?: string; message?: string; name?: string };
-  if (!res.ok) {
-    console.error('❌ Resend API error:', res.status, json);
-    throw new Error(json.message || `Resend request failed (${res.status})`);
+  if (error) {
+    console.error('❌ Resend API error:', error);
+    throw new Error(error.message || 'Resend send failed');
   }
-  return { id: json.id };
+  return { id: data?.id };
 }
 
 /** Call before sending; logs clearly when misconfigured (local + prod). */
@@ -61,20 +68,40 @@ export interface EmailData {
   html: string;
 }
 
+/**
+ * Resend-backed send with structured success/failure (no throw).
+ */
+export async function sendEmailSafe({ to, subject, html }: EmailData): Promise<SendEmailResult> {
+  const cfg = validateResendConfig();
+  if (!cfg.ok) {
+    return { success: false, error: cfg.error };
+  }
+  try {
+    const fromAddress = getSenderFromAddress();
+    const { id: emailId } = await postResendEmail({
+      from: fromAddress,
+      to: [to],
+      subject,
+      html,
+    });
+    console.log('[email] sent', { messageId: emailId });
+    return { success: true, messageId: emailId };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[email] send failed', msg);
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * Same as {@link sendEmailSafe} but throws on failure — matches legacy transactional callers.
+ */
 export async function sendEmail({ to, subject, html }: EmailData) {
-  const senderEmail = process.env.SENDER_EMAIL || 'noreply@shalean.co.za';
-  const senderName = 'Shalean Cleaning';
-  const fromAddress = `${senderName} <${senderEmail}>`;
-
-  const { id: emailId } = await postResendEmail({
-    from: fromAddress,
-    to: [to],
-    subject,
-    html,
-  });
-
-  console.log('Email sent successfully:', { emailId });
-  return { success: true, messageId: emailId };
+  const r = await sendEmailSafe({ to, subject, html });
+  if (!r.success) {
+    throw new Error(r.error);
+  }
+  return { success: true as const, messageId: r.messageId };
 }
 
 export async function sendBookingEmailWithData(
@@ -88,9 +115,7 @@ export async function sendBookingEmailWithData(
     opts?.invoicePdf && opts.invoicePdf.byteLength > 0 && opts.invoiceAttachmentFilename
       ? [{ filename: opts.invoiceAttachmentFilename, content: opts.invoicePdf.toString('base64') }]
       : undefined;
-  const senderEmail = process.env.SENDER_EMAIL || 'noreply@shalean.co.za';
-  const senderName = 'Shalean Cleaning';
-  const fromAddress = `${senderName} <${senderEmail}>`;
+  const fromAddress = getSenderFromAddress();
   const { id: emailId } = await postResendEmail({
     from: fromAddress,
     to: [to],

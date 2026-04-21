@@ -4,7 +4,12 @@ import { resolveAdminNotificationEmail } from '@/lib/admin-email';
 import { BookingState } from '@/types/booking';
 import { supabase } from '@/lib/supabase';
 import { validateBookingEnv } from '@/lib/env-validation';
-import { getServerAuthUser, createServiceClient } from '@/lib/supabase-server';
+import {
+  getServerAuthUser,
+  createServiceClient,
+  createServiceClientForSchema,
+} from '@/lib/supabase-server';
+import { onBookingCreated, resolveAuthUserIdForMarketing } from '@/lib/email/marketing-events';
 import { resolveBookingCleanerAndSchedule } from '@/lib/dispatch/resolve-booking-cleaner';
 import { jsonFromDispatchFailure } from '@/lib/matching/dispatch-http';
 import { buildEarningsInsertFields } from '@/lib/earnings-v2';
@@ -906,6 +911,22 @@ export async function POST(req: Request) {
       console.log('Customer ID:', customerId);
       console.log('Cleaner ID:', body.cleaner_id);
       console.log('Status: pending'); // All bookings start as pending
+
+      try {
+        const svc = createServiceClientForSchema();
+        const uid = await resolveAuthUserIdForMarketing(svc, {
+          authUserId: authEarly?.id ?? null,
+          customerId,
+        });
+        if (uid) {
+          await onBookingCreated(svc, uid, {
+            bookingDate: body.date ?? undefined,
+            bookingTime: body.time ?? undefined,
+          });
+        }
+      } catch (mErr) {
+        console.warn('[marketing] booking_created event', mErr);
+      }
 
       // Record discount code usage if a discount code was applied
       if (body.discountCode && discountAmount > 0) {

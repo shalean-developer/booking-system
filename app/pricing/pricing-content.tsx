@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, Calculator, Info } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { PRICING, getCurrentPricing } from '@/lib/pricing';
+import { getCurrentPricing } from '@/lib/pricing';
 import type { PricingData } from '@/lib/pricing';
 
 export function PricingContent() {
@@ -13,22 +13,55 @@ export function PricingContent() {
   const exampleBathrooms = 2;
   
   const [pricingData, setPricingData] = useState<PricingData | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPricing = async () => {
       try {
         const data = await getCurrentPricing();
         setPricingData(data);
+        setLoadError(null);
       } catch (error) {
         console.error('Failed to fetch pricing from database:', error);
-        setPricingData(PRICING);
+        setPricingData(null);
+        setLoadError('Pricing could not be loaded. Please try again shortly or use the instant quote tool.');
       }
     };
 
     fetchPricing();
   }, []);
 
-  const activePricing: PricingData = pricingData ?? PRICING;
+  const activePricing = pricingData;
+
+  if (loadError && !pricingData) {
+    return (
+      <main className="py-12 md:py-16">
+        <div className="container mx-auto px-4 max-w-2xl text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-3">Pricing temporarily unavailable</h1>
+          <p className="text-gray-600 mb-6">{loadError}</p>
+          <Button asChild className="bg-primary hover:bg-primary/90 text-white">
+            <Link href="/booking/service/standard/plan">Get instant quote</Link>
+          </Button>
+        </div>
+      </main>
+    );
+  }
+
+  if (!activePricing) {
+    return (
+      <main className="py-12 md:py-16">
+        <div className="container mx-auto px-4 max-w-7xl">
+          <div className="animate-pulse space-y-8">
+            <div className="h-10 bg-gray-200 rounded w-2/3 mx-auto" />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="h-96 bg-gray-100 rounded-2xl" />
+              <div className="h-96 bg-gray-100 rounded-2xl" />
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   const services = useMemo(() => {
     const p = activePricing;

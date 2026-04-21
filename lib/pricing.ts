@@ -25,7 +25,10 @@ export {
   normalizeAppliedAdminRules,
 } from '@/lib/pricing/admin-rule-utils';
 
-/** Fallback / marketing defaults when DB pricing is unavailable (ZAR). */
+/**
+ * Fallback catalog for edge functions, Zoho invoice lines, and tests — not used for public marketing UI.
+ * Prefer `fetchActivePricing()` everywhere user-facing amounts are shown.
+ */
 export const PRICING: PricingData = {
   services: {
     Standard: { base: 250, bedroom: 50, bathroom: 75, extraRoom: 50 },

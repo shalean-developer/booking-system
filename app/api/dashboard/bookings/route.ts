@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { CUSTOMER_BOOKINGS_ORDER } from '@/lib/dashboard/customer-booking-list';
+import { ensureCustomerReferralCode } from '@/lib/loyalty/referral-code-server';
 
 async function attachCleanerProfiles(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -152,6 +153,16 @@ export async function GET(request: Request) {
           hasMore: false,
         },
       });
+    }
+
+    let referralCodeOut = customer.referral_code?.trim() || null;
+    try {
+      const ensured = await ensureCustomerReferralCode(supabase, customer.id);
+      if (ensured) referralCodeOut = ensured;
+    } catch (e) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('ensureCustomerReferralCode (dashboard bookings)', e);
+      }
     }
 
     const { count: totalCountRaw, error: countError } = await supabase
@@ -327,7 +338,7 @@ export async function GET(request: Request) {
         addressCity: customer.address_city,
         totalBookings: customer.total_bookings,
         rewardsPoints: customer.rewards_points ?? 0,
-        referralCode: customer.referral_code ?? null,
+        referralCode: referralCodeOut,
         userTier: customer.user_tier ?? null,
         loyaltyLifetimePoints: customer.loyalty_lifetime_points ?? 0,
       },

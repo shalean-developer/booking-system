@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     const supabase = createServiceClient();
     const { data: booking, error } = await supabase
       .from('bookings')
-      .select('id, customer_email, total_amount, status, payment_reference, paystack_ref')
+      .select('id, customer_email, total_amount, status, payment_reference, paystack_ref, pricing_snapshot_id')
       .eq('id', booking_id)
       .maybeSingle();
 
@@ -30,7 +30,30 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: 'Booking not found' }, { status: 404 });
     }
 
-    if (booking.status !== 'pending' || booking.payment_reference || booking.paystack_ref) {
+    const statusNorm = String(booking.status || '').toLowerCase();
+    const hasPaymentRef = Boolean(String(booking.payment_reference || '').trim());
+
+    if (statusNorm === 'paid' || hasPaymentRef) {
+      return NextResponse.json(
+        { ok: false, code: 'ALREADY_PAID', error: 'This booking is already paid' },
+        { status: 409 },
+      );
+    }
+
+    const existingRef = String(booking.paystack_ref || '').trim();
+    if (existingRef && !hasPaymentRef) {
+      return NextResponse.json(
+        {
+          ok: false,
+          code: 'PAYMENT_LINK_ACTIVE',
+          error:
+            'A payment was already started for this booking. Complete checkout in your browser or open your payment status page. Contact support if you need a new payment link.',
+        },
+        { status: 409 },
+      );
+    }
+
+    if (statusNorm !== 'pending') {
       return NextResponse.json({ ok: false, error: 'Booking is not available for payment' }, { status: 409 });
     }
 
@@ -44,7 +67,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: 'Invalid booking amount' }, { status: 400 });
     }
 
-    const reference = `booking-${booking.id}`;
+    let snapshotMeta: { snapshot_id: string; pricing_hash: string; pricing_version: string } | null = null;
+    if (booking.pricing_snapshot_id) {
+      const { data: snap, error: snapErr } = await supabase
+        .from('booking_pricing_snapshots')
+        .select('id, pricing_hash, pricing_version, final_price')
+        .eq('id', booking.pricing_snapshot_id)
+        .maybeSingle();
+      if (snapErr || !snap) {
+        return NextResponse.json({ ok: false, error: 'Pricing snapshot not found' }, { status: 400 });
+      }
+      const expectedMinor = Math.round(Number(snap.final_price) * 100);
+      if (!Number.isFinite(expectedMinor) || Math.abs(expectedMinor - kobo) > 1) {
+        return NextResponse.json({ ok: false, error: 'Booking amount does not match locked pricing' }, { status: 409 });
+      }
+      snapshotMeta = {
+        snapshot_id: snap.id,
+        pricing_hash: snap.pricing_hash,
+        pricing_version: snap.pricing_version,
+      };
+    }
+
+    const reference = `booking-${booking.id}-${Date.now()}`;
     const base = resolvePublicBaseUrl(req);
     if (!base) {
       return NextResponse.json(
@@ -76,6 +120,13 @@ export async function POST(req: Request) {
         callback_url: callbackUrl,
         metadata: {
           booking_id: booking.id,
+          ...(snapshotMeta
+            ? {
+                snapshot_id: snapshotMeta.snapshot_id,
+                pricing_hash: snapshotMeta.pricing_hash,
+                pricing_version: snapshotMeta.pricing_version,
+              }
+            : {}),
         },
       }),
     });
@@ -89,10 +140,43 @@ export async function POST(req: Request) {
       );
     }
 
+    const paystackAuthorizationUrl =
+      typeof data?.data?.authorization_url === 'string' ? data.data.authorization_url.trim() : '';
+    const paystackReference =
+      typeof data?.data?.reference === 'string' && data.data.reference.trim()
+        ? data.data.reference.trim()
+        : reference;
+    if (!paystackAuthorizationUrl || !paystackReference) {
+      return NextResponse.json(
+        { ok: false, error: 'Paystack init returned invalid response' },
+        { status: 502 },
+      );
+    }
+
+    const { data: persistedBooking, error: persistErr } = await supabase
+      .from('bookings')
+      .update({ paystack_ref: paystackReference })
+      .eq('id', booking_id)
+      .eq('status', 'pending')
+      .select('id')
+      .maybeSingle();
+    if (persistErr || !persistedBooking) {
+      console.error('[api/paystack/initialize] paystack_ref persist failed', {
+        booking_id,
+        reference: paystackReference,
+        error: persistErr?.message ?? 'No pending booking row updated',
+      });
+      return NextResponse.json(
+        { ok: false, error: 'Failed to save payment reference. Please try again.' },
+        { status: 500 },
+      );
+    }
+
     return NextResponse.json({
       ok: true,
-      authorization_url: data.data.authorization_url,
-      reference: data.data.reference,
+      authorization_url: paystackAuthorizationUrl,
+      reference: paystackReference,
+      booking_id: booking_id,
     });
   } catch (e) {
     console.error('[api/paystack/initialize]', e);

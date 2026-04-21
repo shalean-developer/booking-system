@@ -1,8 +1,20 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Tag, LayoutGrid, Gift, Loader2 } from 'lucide-react';
+import {
+  Sparkles,
+  Tag,
+  LayoutGrid,
+  Gift,
+  Loader2,
+  SlidersHorizontal,
+  Boxes,
+  Users,
+  Percent,
+  Zap,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { pricingStore, type PromoCode } from './pricingStore';
 import { stagger, fadeUp, InlineToast, type ToastState } from './pricing-shared';
 import {
@@ -13,9 +25,53 @@ import {
   PromoCodesSection,
   BathroomsSection,
   ExtraRoomsSection,
-  PriceCalculator,
 } from './pricing-sections';
 import { DynamicPricingRulesSection } from './dynamic-pricing-rules-section';
+import { PricingEnginePanel } from './PricingEnginePanel';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+
+function pickPricingSlices(d: ReturnType<typeof pricingStore.getData>) {
+  return {
+    services: JSON.stringify(d.services),
+    rules: JSON.stringify(d.rules),
+    bathroomRules: JSON.stringify(d.bathroomRules),
+    extraRooms: JSON.stringify(d.extraRooms),
+    extras: JSON.stringify(d.extras),
+    cleanerPricing: JSON.stringify(d.cleanerPricing),
+    promoCodes: JSON.stringify(d.promoCodes),
+  };
+}
+
+function EngineSection({
+  title,
+  tooltip,
+  dirty,
+  children,
+}: {
+  title: string;
+  tooltip?: string;
+  dirty?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        'space-y-4 rounded-2xl bg-white p-6 shadow-sm transition-shadow',
+        dirty && 'ring-2 ring-blue-500/80 ring-offset-2'
+      )}
+    >
+      <h2 className="text-xl font-semibold text-gray-900" title={tooltip}>
+        {title}
+      </h2>
+      <div className="space-y-4">{children}</div>
+    </div>
+  );
+}
 
 type ServicePricing = {
   service_type: string;
@@ -132,6 +188,98 @@ export function PricingPage() {
     setToast(t);
   }, []);
   const clearToast = useCallback(() => setToast(null), []);
+
+  const baselineRef = useRef<ReturnType<typeof pickPricingSlices> | null>(null);
+  const [sectionDirty, setSectionDirty] = useState({
+    base: false,
+    adjustments: false,
+    extras: false,
+    labor: false,
+    promos: false,
+  });
+  const [engineVersion, setEngineVersion] = useState<number | null>(null);
+  const [engineUpdatedAt, setEngineUpdatedAt] = useState<string | null>(null);
+  const [publishBusy, setPublishBusy] = useState(false);
+
+  const refreshEngineMeta = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/pricing/config', {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      const json = (await res.json()) as {
+        ok?: boolean;
+        config?: { version: number; updatedAt: string };
+      };
+      if (res.ok && json.ok && json.config) {
+        setEngineVersion(json.config.version);
+        setEngineUpdatedAt(json.config.updatedAt);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshEngineMeta();
+  }, [refreshEngineMeta]);
+
+  useEffect(() => {
+    const sync = () => {
+      const b = baselineRef.current;
+      if (!b) return;
+      const cur = pickPricingSlices(pricingStore.getData());
+      setSectionDirty({
+        base: cur.services !== b.services || cur.rules !== b.rules,
+        adjustments: cur.bathroomRules !== b.bathroomRules || cur.extraRooms !== b.extraRooms,
+        extras: cur.extras !== b.extras,
+        labor: cur.cleanerPricing !== b.cleanerPricing,
+        promos: cur.promoCodes !== b.promoCodes,
+      });
+    };
+    sync();
+    return pricingStore.subscribe(sync);
+  }, []);
+
+  const handlePublish = useCallback(async () => {
+    setPublishBusy(true);
+    try {
+      const res = await fetch('/api/admin/pricing/config', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const json = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+        config?: { version: number; updatedAt: string };
+      };
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error || 'Failed to publish');
+      }
+      if (json.config) {
+        setEngineVersion(json.config.version);
+        setEngineUpdatedAt(json.config.updatedAt);
+      } else {
+        await refreshEngineMeta();
+      }
+      baselineRef.current = pickPricingSlices(pricingStore.getData());
+      setSectionDirty({
+        base: false,
+        adjustments: false,
+        extras: false,
+        labor: false,
+        promos: false,
+      });
+      handleToast({ type: 'success', message: 'Live pricing cache refreshed — workers pick up changes.' });
+    } catch (e) {
+      handleToast({
+        type: 'error',
+        message: e instanceof Error ? e.message : 'Publish failed',
+      });
+    } finally {
+      setPublishBusy(false);
+    }
+  }, [handleToast, refreshEngineMeta]);
 
   useEffect(() => pricingStore.subscribe(() => setData(pricingStore.getData())), []);
 
@@ -294,6 +442,30 @@ export function PricingPage() {
           extraRooms: extraRooms.length ? extraRooms : current.extraRooms,
           promoCodes: promoCodes.length ? promoCodes : current.promoCodes,
         });
+        baselineRef.current = pickPricingSlices(pricingStore.getData());
+        setSectionDirty({
+          base: false,
+          adjustments: false,
+          extras: false,
+          labor: false,
+          promos: false,
+        });
+        try {
+          const cfgRes = await fetch('/api/admin/pricing/config', {
+            credentials: 'include',
+            cache: 'no-store',
+          });
+          const cfgJson = (await cfgRes.json()) as {
+            ok?: boolean;
+            config?: { version: number; updatedAt: string };
+          };
+          if (cfgRes.ok && cfgJson.ok && cfgJson.config) {
+            setEngineVersion(cfgJson.config.version);
+            setEngineUpdatedAt(cfgJson.config.updatedAt);
+          }
+        } catch {
+          /* ignore */
+        }
       } catch (error) {
         console.error('Failed to hydrate pricing page from database:', error);
         if (!cancelled) {
@@ -313,25 +485,45 @@ export function PricingPage() {
   }, []);
 
   return (
-    <div>
+    <div className="max-w-[1400px] mx-auto px-6 py-6">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35 }}
-        className="mb-6 flex items-start justify-between gap-4"
+        className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
       >
         <div>
-          <h1 className="text-xl font-extrabold tracking-tight text-gray-900">Pricing Management</h1>
-          <p className="mt-0.5 text-sm text-gray-400">
-            <span>Control all service prices, extras, cleaner rates and promo codes dynamically</span>
+          <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">Pricing Engine</h1>
+          <p className="mt-1 text-base text-gray-500">
+            Control centre for catalogue pricing, labour, surges, and promos — same engine as checkout.
           </p>
         </div>
-        <div className="flex flex-shrink-0 items-center gap-2">
-          <div className="hidden items-center gap-1.5 rounded-xl border border-green-200 bg-green-50 px-3 py-1.5 sm:flex">
-            <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
-            <span className="text-xs font-bold text-green-700">Live DB pricing</span>
+        <div className="flex flex-shrink-0 flex-col items-stretch gap-2 sm:items-end">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <span className="text-base text-gray-500">
+              Live version:{' '}
+              <span className="font-mono tabular-nums text-gray-800">
+                {engineVersion ?? '—'}
+              </span>
+            </span>
+            <button
+              type="button"
+              disabled={publishBusy || loadingLivePrices}
+              onClick={() => void handlePublish()}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-base font-bold text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:pointer-events-none disabled:opacity-50"
+              title="Clears server pricing cache so all workers use the latest DB config"
+            >
+              {publishBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+              Publish changes
+            </button>
           </div>
-          {loadingLivePrices && <Loader2 className="h-4 w-4 animate-spin text-indigo-500" />}
+          <div className="flex items-center justify-end gap-2">
+            <div className="hidden items-center gap-1.5 rounded-xl border border-green-200 bg-green-50 px-3 py-1.5 sm:flex">
+              <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
+              <span className="text-sm font-bold text-green-700">Live DB pricing</span>
+            </div>
+            {loadingLivePrices && <Loader2 className="h-4 w-4 animate-spin text-indigo-500" aria-hidden />}
+          </div>
         </div>
       </motion.div>
 
@@ -402,27 +594,125 @@ export function PricingPage() {
               {kpi.icon}
             </div>
             <div>
-              <p className="text-xl font-extrabold text-gray-900">{kpi.value}</p>
-              <p className="text-xs text-gray-400">{kpi.label}</p>
+              <p className="text-2xl font-extrabold text-gray-900">{kpi.value}</p>
+              <p className="text-sm text-gray-500">{kpi.label}</p>
             </div>
           </motion.div>
         ))}
       </motion.div>
 
-      <div className="mb-6">
-        <DynamicPricingRulesSection onToast={handleToast} />
-      </div>
-
       {!loadingLivePrices && !loadError && (
-        <div className="space-y-4 pb-8">
-          <ServicesSection onToast={handleToast} />
-          <RulesSection onToast={handleToast} />
-          <BathroomsSection onToast={handleToast} />
-          <ExtraRoomsSection onToast={handleToast} />
-          <ExtrasSection onToast={handleToast} />
-          <CleanerPricingSection onToast={handleToast} />
-          <PromoCodesSection onToast={handleToast} />
-          <PriceCalculator />
+        <div className="grid grid-cols-1 gap-8 pb-8 xl:grid-cols-[2fr_1fr]">
+          <div className="space-y-8 min-w-0">
+            <EngineSection
+              title="Base pricing"
+              tooltip="Service catalogue base and per-room line items that feed the engine"
+              dirty={sectionDirty.base}
+            >
+              <ServicesSection onToast={handleToast} />
+              <RulesSection onToast={handleToast} />
+            </EngineSection>
+
+            <Accordion
+              type="multiple"
+              defaultValue={['adjustments', 'extras', 'labour']}
+              className="space-y-4"
+            >
+              <AccordionItem
+                value="adjustments"
+                className="rounded-2xl border border-gray-100 bg-white px-2 shadow-sm"
+              >
+                <AccordionTrigger className="px-4 py-3 text-xl font-semibold hover:no-underline [&[data-state=open]]:pb-2">
+                  <span className="flex items-center gap-2 text-left">
+                    <SlidersHorizontal className="h-5 w-5 shrink-0 text-violet-600" aria-hidden />
+                    Adjustments
+                    {sectionDirty.adjustments ? (
+                      <span className="text-sm font-normal text-blue-600">(unsaved edits)</span>
+                    ) : null}
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="space-y-4 px-4 pb-4">
+                  <BathroomsSection onToast={handleToast} />
+                  <ExtraRoomsSection onToast={handleToast} />
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem
+                value="extras"
+                className="rounded-2xl border border-gray-100 bg-white px-2 shadow-sm"
+              >
+                <AccordionTrigger className="px-4 py-3 text-xl font-semibold hover:no-underline [&[data-state=open]]:pb-2">
+                  <span className="flex items-center gap-2 text-left">
+                    <Boxes className="h-5 w-5 shrink-0 text-emerald-600" aria-hidden />
+                    Extras
+                    {sectionDirty.extras ? (
+                      <span className="text-sm font-normal text-blue-600">(unsaved edits)</span>
+                    ) : null}
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pb-4">
+                  <ExtrasSection onToast={handleToast} />
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem
+                value="labour"
+                className="rounded-2xl border border-gray-100 bg-white px-2 shadow-sm"
+              >
+                <AccordionTrigger className="px-4 py-3 text-xl font-semibold hover:no-underline [&[data-state=open]]:pb-2">
+                  <span className="flex items-center gap-2 text-left">
+                    <Users className="h-5 w-5 shrink-0 text-sky-600" aria-hidden />
+                    Labour
+                    {sectionDirty.labor ? (
+                      <span className="text-sm font-normal text-blue-600">(unsaved edits)</span>
+                    ) : null}
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pb-4">
+                  <CleanerPricingSection onToast={handleToast} />
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem
+                value="dynamic"
+                className="rounded-2xl border border-gray-100 bg-white px-2 shadow-sm"
+              >
+                <AccordionTrigger className="px-4 py-3 text-xl font-semibold hover:no-underline [&[data-state=open]]:pb-2">
+                  <span className="flex items-center gap-2 text-left">
+                    <Zap className="h-5 w-5 shrink-0 text-amber-500" aria-hidden />
+                    Dynamic rules
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pb-4">
+                  <DynamicPricingRulesSection onToast={handleToast} />
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem
+                value="discounts"
+                className="rounded-2xl border border-gray-100 bg-white px-2 shadow-sm"
+              >
+                <AccordionTrigger className="px-4 py-3 text-xl font-semibold hover:no-underline [&[data-state=open]]:pb-2">
+                  <span className="flex items-center gap-2 text-left">
+                    <Percent className="h-5 w-5 shrink-0 text-rose-600" aria-hidden />
+                    Discounts
+                    {sectionDirty.promos ? (
+                      <span className="text-sm font-normal text-blue-600">(unsaved edits)</span>
+                    ) : null}
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pb-4">
+                  <PromoCodesSection onToast={handleToast} />
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
+
+          <div className="min-w-0 xl:max-w-none">
+            <div className="sticky top-4 max-h-[calc(100vh-2rem)] space-y-4 overflow-y-auto pr-2">
+              <PricingEnginePanel engineVersion={engineVersion} engineUpdatedAt={engineUpdatedAt} />
+            </div>
+          </div>
         </div>
       )}
 

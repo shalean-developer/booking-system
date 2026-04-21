@@ -521,6 +521,64 @@ export interface Database {
         };
         Relationships: [];
       };
+      /** Customer profiles — stub matches common queries; extend as needed. */
+      customers: {
+        Row: {
+          id: string;
+          email: string;
+          phone: string | null;
+          first_name: string | null;
+          last_name: string | null;
+          auth_user_id: string | null;
+          address_line1: string | null;
+          address_suburb: string | null;
+          address_city: string | null;
+          total_bookings: number | null;
+          paystack_authorization_code: string | null;
+          paystack_authorization_email: string | null;
+          paystack_authorization_reusable: boolean | null;
+          paystack_authorization_signature: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          email: string;
+          phone?: string | null;
+          first_name?: string | null;
+          last_name?: string | null;
+          auth_user_id?: string | null;
+          address_line1?: string | null;
+          address_suburb?: string | null;
+          address_city?: string | null;
+          total_bookings?: number | null;
+          paystack_authorization_code?: string | null;
+          paystack_authorization_email?: string | null;
+          paystack_authorization_reusable?: boolean | null;
+          paystack_authorization_signature?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          phone?: string | null;
+          first_name?: string | null;
+          last_name?: string | null;
+          auth_user_id?: string | null;
+          address_line1?: string | null;
+          address_suburb?: string | null;
+          address_city?: string | null;
+          total_bookings?: number | null;
+          paystack_authorization_code?: string | null;
+          paystack_authorization_email?: string | null;
+          paystack_authorization_reusable?: boolean | null;
+          paystack_authorization_signature?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       payment_validation_failure_counters: {
         Row: {
           payment_reference: string;
@@ -560,6 +618,192 @@ export interface Database {
           event_type?: string;
           properties?: Record<string, unknown>;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      email_subscribers: {
+        Row: {
+          id: string;
+          email: string;
+          name: string | null;
+          subscribed: boolean;
+          whatsapp_number: string | null;
+          prefers_whatsapp: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          email: string;
+          name?: string | null;
+          subscribed?: boolean;
+          whatsapp_number?: string | null;
+          prefers_whatsapp?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          name?: string | null;
+          subscribed?: boolean;
+          whatsapp_number?: string | null;
+          prefers_whatsapp?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      email_events: {
+        Row: {
+          id: string;
+          user_id: string;
+          event_type: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          event_type: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          event_type?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      email_campaigns: {
+        Row: {
+          id: string;
+          subject: string;
+          segment: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          subject: string;
+          segment: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          subject?: string;
+          segment?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      email_logs: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          email: string;
+          subject: string;
+          status: string;
+          campaign_id: string | null;
+          channel: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          email: string;
+          subject: string;
+          status?: string;
+          campaign_id?: string | null;
+          channel?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string | null;
+          email?: string;
+          subject?: string;
+          status?: string;
+          campaign_id?: string | null;
+          channel?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      whatsapp_conversations: {
+        Row: {
+          id: string;
+          phone_e164: string;
+          last_intent: string | null;
+          last_message: string | null;
+          last_reply: string | null;
+          updated_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          phone_e164: string;
+          last_intent?: string | null;
+          last_message?: string | null;
+          last_reply?: string | null;
+          updated_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          phone_e164?: string;
+          last_intent?: string | null;
+          last_message?: string | null;
+          last_reply?: string | null;
+          updated_at?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      whatsapp_booking_sessions: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          phone_e164: string;
+          step: string;
+          data: Record<string, unknown>;
+          updated_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          phone_e164: string;
+          step?: string;
+          data?: Record<string, unknown>;
+          updated_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string | null;
+          phone_e164?: string;
+          step?: string;
+          data?: Record<string, unknown>;
+          updated_at?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      whatsapp_payment_notifications: {
+        Row: {
+          booking_id: string;
+          kind: string;
+          sent_at: string;
+        };
+        Insert: {
+          booking_id: string;
+          kind?: string;
+          sent_at?: string;
+        };
+        Update: {
+          booking_id?: string;
+          kind?: string;
+          sent_at?: string;
         };
         Relationships: [];
       };

@@ -26,6 +26,7 @@ import {
 import { getBookingRevenueCents } from '@/shared/finance-engine';
 import { normalizeBookingTimeToSlotId } from '@/lib/booking-time-slots';
 import { BOOKING_DEFAULT_CITY } from '@/lib/contact';
+import { generateReferralCode } from '@/lib/loyalty/referral-code';
 import type { CustomerDashboardStats } from '@/lib/dashboard-data/customer-stats';
 
 /** Defaults when `dashboardStats` is still loading — matches `CustomerDashboardStats`. */
@@ -71,9 +72,9 @@ export interface PortalUser {
   phone: string;
   /** DB customer id — used for referral signup links. */
   customerId: string | null;
-  /** Populated only when `customers.referral_code` exists (see dashboard API). */
+  /** Shareable code; from DB or derived from customer id (same algorithm as `ensureCustomerReferralCode`). */
   referralCode: string | null;
-  /** True when a real referral code is available — no synthetic codes. */
+  /** True when the account is linked to a customer row (code or derived SHALEAN… code). */
   referralEnabled: boolean;
   rewardTier: string | null;
   rewardPoints: number;
@@ -520,7 +521,9 @@ function invalidateDashboardCache() {
 
 function rewardMeta(customer: ApiCustomer | null, stats?: DashboardStatsPayload | null) {
   const pts = Math.max(0, Math.round(Number(customer?.rewardsPoints) || 0));
-  const code = customer?.referralCode?.trim();
+  const raw = customer?.referralCode?.trim();
+  const code =
+    raw || (customer?.id ? generateReferralCode(customer.id) : '');
   const referralEnabled = Boolean(code);
   const tierRaw = (stats?.userTier ?? customer?.userTier ?? 'bronze').toLowerCase();
   const completed = stats?.completedCount ?? 0;
@@ -533,7 +536,7 @@ function rewardMeta(customer: ApiCustomer | null, stats?: DashboardStatsPayload 
   const loyaltyLifetimePoints = Math.max(0, Math.round(Number(lifetimeRaw) || 0));
 
   return {
-    referralCode: referralEnabled ? code! : null,
+    referralCode: referralEnabled ? code : null,
     referralEnabled,
     rewardTier: tierRaw,
     rewardPoints: pts,

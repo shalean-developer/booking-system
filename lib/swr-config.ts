@@ -5,6 +5,27 @@
 
 import { SWRConfiguration } from 'swr';
 
+/** Browser / undici fetch failures (offline, DNS, CORS, mixed content, etc.) */
+function isFetchConnectivityError(error: unknown): boolean {
+  if (error instanceof TypeError) {
+    const m = (error.message || '').toLowerCase();
+    return (
+      m.includes('fetch') ||
+      m.includes('network') ||
+      m.includes('load failed') ||
+      m.includes('failed to fetch') ||
+      m.includes('network request failed') ||
+      m.includes('fetch failed') ||
+      m.includes('failed to load') ||
+      m.includes('connection')
+    );
+  }
+  if (typeof DOMException !== 'undefined' && error instanceof DOMException) {
+    return error.name === 'NetworkError';
+  }
+  return false;
+}
+
 // Custom fetcher function
 export async function fetcher<T>(url: string): Promise<T> {
   const startTime = Date.now();
@@ -233,26 +254,18 @@ export async function fetcher<T>(url: string): Promise<T> {
     
     // Log network errors with more detail
     if (errorName === 'AbortError' || (error instanceof Error && error.name === 'AbortError')) {
-      console.error('[SWR Fetcher] Request timeout:', { 
-        url, 
-        duration: `${duration}ms`,
-        error: errorMessage,
-      });
-    } else if (error instanceof TypeError && (error.message?.includes('fetch') || error.message?.includes('network'))) {
-      // Network connectivity issues
-      const networkErrorDetails = {
-        url: url || 'unknown',
-        error: errorMessage || error?.message || String(error) || 'Network connectivity error',
-        name: errorName || 'TypeError',
-        duration: `${duration}ms`,
-        hint: 'Check if the server is running and accessible',
-        originalError: error instanceof Error ? {
-          name: error.name,
-          message: error.message,
-          stack: error.stack?.substring(0, 200),
-        } : String(error),
-      };
-      console.error('[SWR Fetcher] Network connectivity error:', networkErrorDetails);
+      console.warn(
+        `[SWR Fetcher] Request aborted or timeout url=${url} duration=${duration}ms message=${errorMessage}`,
+      );
+    } else if (isFetchConnectivityError(error)) {
+      const msg =
+        error instanceof Error && error.message
+          ? error.message
+          : errorMessage || 'fetch failed';
+      // Log a single line — some consoles render object literals as "{}" for non-serializable values
+      console.warn(
+        `[SWR Fetcher] Network connectivity error url=${url} duration=${duration}ms name=${errorName} message=${msg}`,
+      );
     } else {
       // Log with safe error information - build object carefully
       const logData: Record<string, any> = {

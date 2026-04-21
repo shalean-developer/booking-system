@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCleanerSession, createCleanerSupabaseClient, cleanerIdToUuid } from '@/lib/cleaner-auth';
+import { getCleanerSession, cleanerIdToUuid } from '@/lib/cleaner-auth';
+import { createServiceClient } from '@/lib/supabase-server';
+import { isCleanerAssignedToBooking } from '@/lib/cleaner-booking-assignment';
 
 export async function POST(
   request: NextRequest,
@@ -27,17 +29,29 @@ export async function POST(
       );
     }
 
-    const supabase = await createCleanerSupabaseClient();
+    const cleanerUuid = cleanerIdToUuid(session.id);
+    const supabase = createServiceClient();
 
-    // Check if booking exists and is assigned to this cleaner
     const { data: booking, error: fetchError } = await supabase
       .from('bookings')
       .select('*')
       .eq('id', bookingId)
-      .eq('cleaner_id', cleanerIdToUuid(session.id))
       .maybeSingle();
 
     if (fetchError || !booking) {
+      return NextResponse.json(
+        { ok: false, error: 'Booking not found or not assigned to you' },
+        { status: 404 }
+      );
+    }
+
+    const allowed = await isCleanerAssignedToBooking(
+      supabase,
+      bookingId,
+      cleanerUuid,
+      booking
+    );
+    if (!allowed) {
       return NextResponse.json(
         { ok: false, error: 'Booking not found or not assigned to you' },
         { status: 404 }
@@ -64,7 +78,7 @@ export async function POST(
     const { data: customerRating, error: ratingError } = await supabase
       .from('customer_ratings')
       .insert({
-        cleaner_id: cleanerIdToUuid(session.id),
+        cleaner_id: cleanerUuid,
         booking_id: bookingId,
         customer_phone: booking.customer_phone,
         rating,

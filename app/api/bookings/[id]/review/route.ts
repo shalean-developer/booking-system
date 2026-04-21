@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase-server';
+import { resolvePrimaryCleanerUuidForReview } from '@/lib/reviews/resolve-cleaner-for-review';
 
 export async function POST(
   request: NextRequest,
@@ -88,7 +89,9 @@ export async function POST(
     // Get booking and verify ownership
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .select('id, customer_id, cleaner_id, status, customer_reviewed')
+      .select(
+        'id, customer_id, cleaner_id, assigned_cleaner_id, assigned_cleaners, status, customer_reviewed'
+      )
       .eq('id', bookingId)
       .maybeSingle();
 
@@ -116,14 +119,6 @@ export async function POST(
       );
     }
 
-    // Verify no cleaner assigned (can't review if no cleaner)
-    if (!booking.cleaner_id || booking.cleaner_id === 'manual') {
-      return NextResponse.json(
-        { ok: false, error: 'Cannot review booking without an assigned cleaner' },
-        { status: 400 }
-      );
-    }
-
     // Check if already reviewed
     if (booking.customer_reviewed) {
       return NextResponse.json(
@@ -132,19 +127,10 @@ export async function POST(
       );
     }
 
-
-    // Convert cleaner_id from TEXT to UUID
-    let cleanerUuid: string;
-    try {
-      cleanerUuid = booking.cleaner_id; // Already validated it's not 'manual'
-      // Validate it's a proper UUID format
-      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanerUuid)) {
-        throw new Error('Invalid UUID format');
-      }
-    } catch (e) {
-      console.error('Invalid cleaner UUID:', booking.cleaner_id);
+    const cleanerUuid = resolvePrimaryCleanerUuidForReview(booking);
+    if (!cleanerUuid) {
       return NextResponse.json(
-        { ok: false, error: 'Invalid cleaner assignment' },
+        { ok: false, error: 'Cannot review booking without an assigned cleaner' },
         { status: 400 }
       );
     }

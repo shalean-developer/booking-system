@@ -44,7 +44,7 @@ import {
   SettingsPage,
   type NewBookingRecord,
 } from './DashboardPages';
-import { PricingPage } from './PricingPage';
+import { PricingEngineWorkspace } from './pricing-engine-dashboard';
 import { DashboardHome } from './dashboard-home';
 import { RevenueDashboard } from './revenue-dashboard';
 import type { NavId } from '@/components/admin/types';
@@ -53,7 +53,7 @@ import type { NavId } from '@/components/admin/types';
 
 interface NavItem {
   /** Full-page routes under `/admin/...`, not an SPA panel */
-  id: NavId | 'schedule' | 'invoices' | 'blog' | 'growth';
+  id: NavId | 'schedule' | 'invoices' | 'blog' | 'growth' | 'profit';
   label: string;
   icon: React.ReactNode;
   badge?: number;
@@ -383,6 +383,12 @@ export function AdminDashboard() {
     return [
       { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-4.5 w-4.5" /> },
       { id: 'revenue', label: 'Revenue', icon: <CircleDollarSign className="h-4.5 w-4.5" /> },
+      {
+        id: 'profit',
+        label: 'Profit',
+        icon: <TrendingUp className="h-4.5 w-4.5" />,
+        href: '/admin/profit',
+      },
       { id: 'bookings', label: 'Bookings', icon: <CalendarDays className="h-4.5 w-4.5" />, badge: b },
       {
         id: 'schedule',
@@ -526,7 +532,7 @@ export function AdminDashboard() {
     if (activeNav === 'pricing') {
       return (
         <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
-          <PricingPage />
+          <PricingEngineWorkspace />
         </main>
       );
     }

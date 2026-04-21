@@ -171,7 +171,7 @@ export function SuburbPageTemplate({
     },
     {
       question: `How much does cleaning cost in ${suburb}?`,
-      answer: `Cleaning prices in ${suburb} start from R250 for regular cleaning, depending on property size and service type. Deep cleaning starts from R450, and move-in/out cleaning from R980. Get an instant quote online or contact us for custom pricing.`
+      answer: `Pricing depends on property size, service type, and add-ons. Use our instant online quote for current rates, or visit our pricing page for a full breakdown.`
     },
     {
       question: `Are cleaning products and equipment included?`,
@@ -289,23 +289,8 @@ export function SuburbPageTemplate({
 
   const geoCoordinates = getSuburbCoordinates(suburb, city);
 
-  // Service-specific price ranges
-  const servicePriceRanges = {
-    "Regular Cleaning": "R250-R800",
-    "Home Cleaning": "R250-R800",
-    "Apartment Cleaning": "R200-R600",
-    "Deep Cleaning": "R450-R1500",
-    "Move-in/Move-out Cleaning": "R980-R2500",
-    "Move In/Out & Turnover Cleaning": "R980-R2500",
-    "Office Cleaning": "R180-R1200",
-    "Commercial Office Cleaning": "R180-R1200",
-    "Airbnb Cleaning": "R230-R800",
-    "Airbnb Turnover Cleaning": "R230-R800",
-    "Window Cleaning": "R150-R500",
-    "Home Maintenance Cleaning": "R250-R800",
-    "Carpet Cleaning": "R300-R1000",
-    "Post-Construction Cleaning": "R1200-R3500"
-  };
+  /** Non-numeric placeholder — actual amounts come from live pricing_config / quote flow. */
+  const catalogPriceRangeLabel = 'Varies — instant quote online';
 
   // Generate service offers with price ranges
   const serviceOffers = [
@@ -317,7 +302,7 @@ export function SuburbPageTemplate({
         "serviceType": "Home Cleaning",
         "description": "Weekly and bi-weekly housekeeping services"
       },
-      "priceRange": servicePriceRanges["Regular Cleaning"],
+      "priceRange": catalogPriceRangeLabel,
       "priceCurrency": "ZAR",
       "availability": "https://schema.org/InStock",
       "url": "https://shalean.co.za/services/regular-cleaning"
@@ -330,7 +315,7 @@ export function SuburbPageTemplate({
         "serviceType": "Deep Cleaning",
         "description": "Comprehensive deep cleaning for thorough home reset"
       },
-      "priceRange": servicePriceRanges["Deep Cleaning"],
+      "priceRange": catalogPriceRangeLabel,
       "priceCurrency": "ZAR",
       "availability": "https://schema.org/InStock",
       "url": "https://shalean.co.za/services/deep-cleaning"
@@ -343,7 +328,7 @@ export function SuburbPageTemplate({
         "serviceType": "Apartment Cleaning",
         "description": "Specialized cleaning services for apartments and condos"
       },
-      "priceRange": servicePriceRanges["Apartment Cleaning"],
+      "priceRange": catalogPriceRangeLabel,
       "priceCurrency": "ZAR",
       "availability": "https://schema.org/InStock",
       "url": "https://shalean.co.za/services/apartment-cleaning"
@@ -356,7 +341,7 @@ export function SuburbPageTemplate({
         "serviceType": "Move In/Out & Turnover Cleaning",
         "description": "Professional move-in/out and end of lease cleaning"
       },
-      "priceRange": servicePriceRanges["Move In/Out & Turnover Cleaning"],
+      "priceRange": catalogPriceRangeLabel,
       "priceCurrency": "ZAR",
       "availability": "https://schema.org/InStock",
       "url": "https://shalean.co.za/services/move-turnover"
@@ -369,7 +354,7 @@ export function SuburbPageTemplate({
         "serviceType": "Commercial Office Cleaning",
         "description": "Professional commercial cleaning services for offices"
       },
-      "priceRange": servicePriceRanges["Office Cleaning"],
+      "priceRange": catalogPriceRangeLabel,
       "priceCurrency": "ZAR",
       "availability": "https://schema.org/InStock",
       "url": "https://shalean.co.za/services/office-cleaning"
@@ -382,7 +367,7 @@ export function SuburbPageTemplate({
         "serviceType": "Airbnb Turnover Cleaning",
         "description": "Fast turnover cleaning for short-term rentals"
       },
-      "priceRange": servicePriceRanges["Airbnb Cleaning"],
+      "priceRange": catalogPriceRangeLabel,
       "priceCurrency": "ZAR",
       "availability": "https://schema.org/InStock",
       "url": "https://shalean.co.za/services/airbnb-cleaning"
@@ -395,7 +380,7 @@ export function SuburbPageTemplate({
         "serviceType": "Window Cleaning",
         "description": "Professional window cleaning for crystal clear results"
       },
-      "priceRange": servicePriceRanges["Window Cleaning"],
+      "priceRange": catalogPriceRangeLabel,
       "priceCurrency": "ZAR",
       "availability": "https://schema.org/InStock",
       "url": "https://shalean.co.za/services/window-cleaning"
@@ -408,7 +393,7 @@ export function SuburbPageTemplate({
         "serviceType": "Home Maintenance Cleaning",
         "description": "Regular home maintenance cleaning for ongoing upkeep"
       },
-      "priceRange": servicePriceRanges["Home Maintenance Cleaning"],
+      "priceRange": catalogPriceRangeLabel,
       "priceCurrency": "ZAR",
       "availability": "https://schema.org/InStock",
       "url": "https://shalean.co.za/services/home-maintenance"

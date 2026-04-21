@@ -65,8 +65,9 @@ export function Header({ variant = 'default' }: HeaderProps) {
   const [isScrollingUp, setIsScrollingUp] = useState(false);
   const lastScrollY = useRef(0);
   
-  // Check if we're in booking flow
-  const isBookingFlow = pathname?.startsWith('/booking');
+  // Check if we're in booking flow (legacy `/booking/*` or `/booking-v2/*`)
+  const isBookingFlow =
+    pathname?.startsWith('/booking') || pathname?.startsWith('/booking-v2');
   // Plan flow: /booking/plan (legacy redirect) or /booking/service/[serviceType]/plan
   const isPlanFlow =
     pathname?.startsWith('/booking/plan') ||

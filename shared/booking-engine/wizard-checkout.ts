@@ -22,8 +22,8 @@ export type WizardPendingPricingContext = {
     engineFinalCents: number | null;
   };
   lineCalc: BookingPriceResult | null;
-  /** Server-confirmed total (ZAR) from pricing preview; falls back to client line total. */
-  checkoutTotalZar: number | undefined;
+  /** Locked total (ZAR) from persisted pricing snapshot — must match `booking_pricing_snapshots.final_price`. */
+  checkoutTotalZar: number;
   estimatedMaxHours: number;
   companyCosts: {
     equipmentCostCents: number;
@@ -59,7 +59,7 @@ export function buildWizardPendingBookingPayload(
     : undefined;
   const extrasQuantities = buildExtrasQuantitiesByIdFromWizard(data.extras, data.extrasQuantities);
   const eff = getEffectiveRoomCounts(data);
-  const serverTotal = ctx.checkoutTotalZar ?? ctx.pricing.total;
+  const serverTotal = ctx.checkoutTotalZar;
   const equipmentRequired =
     (data.service === 'standard' || data.service === 'airbnb') && data.scheduleEquipmentPref === 'bring';
   const equipmentFee =
@@ -114,5 +114,10 @@ export function buildWizardPendingBookingPayload(
     equipmentCostCents: ctx.companyCosts?.equipmentCostCents,
     extraCleanerFeeCents: ctx.companyCosts?.extraCleanerFeeCents,
     ...(typeof ctx.use_points === 'number' && ctx.use_points > 0 ? { use_points: ctx.use_points } : {}),
+    ...(data.pricing_hash ? { pricing_hash: data.pricing_hash } : {}),
+    ...(data.pricing_expires_at ? { pricing_expires_at: data.pricing_expires_at } : {}),
+    ...(data.pricing_version ? { pricing_version: data.pricing_version } : {}),
+    ...(data.pricing_lock_token ? { pricing_lock_token: data.pricing_lock_token } : {}),
+    ...(data.pricing_snapshot_id ? { pricing_snapshot_id: data.pricing_snapshot_id } : {}),
   };
 }

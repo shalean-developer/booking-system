@@ -5,6 +5,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { BookingPaidRow } from '@/lib/payments/booking-types';
+import { parseBookingIdFromBookingPrefixedReference } from '@/lib/payment-reference';
 
 export type { BookingPaidRow } from '@/lib/payments/booking-types';
 
@@ -21,7 +22,7 @@ export {
  * Do not select `bedrooms` / `bathrooms` / `extras` — many deployments only store those inside `price_snapshot` (pending insert does not denormalize them).
  */
 const SELECT_COLS =
-  'id, customer_id, points_redeemed, cleaner_id, booking_date, booking_time, expected_end_time, service_type, customer_name, customer_email, customer_phone, address_line1, address_suburb, address_city, total_amount, price, tip_amount, service_fee, frequency_discount, frequency, surge_pricing_applied, surge_amount, requires_team, notes, price_snapshot, status, payment_reference, paystack_ref, zoho_invoice_id, invoice_url, payment_status, equipment_required, equipment_fee';
+  'id, customer_id, points_redeemed, cleaner_id, booking_date, booking_time, expected_end_time, service_type, customer_name, customer_email, customer_phone, address_line1, address_suburb, address_city, total_amount, price, tip_amount, service_fee, frequency_discount, frequency, surge_pricing_applied, surge_amount, requires_team, notes, price_snapshot, status, payment_reference, paystack_ref, zoho_invoice_id, invoice_url, payment_status, equipment_required, equipment_fee, pricing_snapshot_id';
 
 export async function paystackVerifyTransaction(
   secretKey: string,
@@ -40,10 +41,21 @@ export type PaystackVerifyDetailed =
   | { outcome: 'pending'; detail?: string }
   | { outcome: 'failed'; reason: string };
 
+export type PaystackVerifyOptions = {
+  /**
+   * When true (payment status polling only): Paystack sometimes returns 404 / "transaction reference not found"
+   * for a short window after a successful charge while the transaction is indexed. Treat as pending so the
+   * client can keep polling instead of showing a false failure.
+   */
+  notFoundAsPending?: boolean;
+};
+
 export async function paystackVerifyDetailed(
   secretKey: string,
   reference: string,
+  options?: PaystackVerifyOptions,
 ): Promise<PaystackVerifyDetailed> {
+  const soft404 = options?.notFoundAsPending === true;
   const res = await fetch(
     `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
     {
@@ -66,7 +78,11 @@ export async function paystackVerifyDetailed(
 
   if (!res.ok) {
     const msg = json.message || `Paystack HTTP ${res.status}`;
-    if (res.status === 404 || /not\s*found/i.test(msg)) {
+    const isNotFoundCase = res.status === 404 || /not\s*found/i.test(msg);
+    if (isNotFoundCase) {
+      if (soft404) {
+        return { outcome: 'pending', detail: msg };
+      }
       return { outcome: 'failed', reason: msg };
     }
     // Transient or still indexing — prefer pending over hard fail
@@ -106,18 +122,86 @@ export async function paystackVerifyDetailed(
   };
 }
 
+/**
+ * Payment status polling: verify against Paystack using the callback reference first, then any refs
+ * already stored on the booking (webhook may have run before the browser polls). Uses soft 404 handling
+ * so a briefly missing transaction does not surface as an immediate hard error.
+ */
+export async function verifyPaystackTransactionForBookingPoll(
+  secretKey: string,
+  primaryReference: string,
+  booking: BookingPaidRow,
+): Promise<{
+  detailed: PaystackVerifyDetailed;
+  /** Set when verification succeeds — use for finalize / emails */
+  verifiedReference: string | null;
+}> {
+  const refs: string[] = [];
+  const push = (r: string | null | undefined) => {
+    const t = (r ?? '').trim();
+    if (t && !refs.includes(t)) refs.push(t);
+  };
+  push(primaryReference);
+  push(booking.paystack_ref);
+  push(booking.payment_reference);
+
+  let lastFailed: PaystackVerifyDetailed | null = null;
+  let anyPending: PaystackVerifyDetailed | null = null;
+  for (const ref of refs) {
+    const detailed = await paystackVerifyDetailed(secretKey, ref, { notFoundAsPending: true });
+    if (detailed.outcome === 'success') {
+      return { detailed, verifiedReference: ref };
+    }
+    if (detailed.outcome === 'pending') {
+      anyPending = detailed;
+    } else {
+      lastFailed = detailed;
+    }
+  }
+  if (anyPending) {
+    return { detailed: anyPending, verifiedReference: null };
+  }
+  return {
+    detailed: lastFailed ?? { outcome: 'failed', reason: 'Could not verify payment' },
+    verifiedReference: null,
+  };
+}
+
+export { parseBookingIdFromBookingPrefixedReference } from '@/lib/payment-reference';
+
+/** True when the booking row reflects a completed payment (webhook / fulfill pipeline). */
+export function isBookingPaidInDatabase(
+  booking: Pick<BookingPaidRow, 'status' | 'payment_status'>,
+): boolean {
+  const st = String(booking.status || '').toLowerCase();
+  if (st === 'paid') return true;
+  const ps = String(booking.payment_status || '').toLowerCase();
+  return ps === 'success' || ps === 'paid';
+}
+
+/** Latest row for polling — avoids stale reads when the Paystack webhook just updated the booking. */
+export async function fetchBookingForPaymentVerificationById(
+  supabase: SupabaseClient,
+  bookingId: string,
+): Promise<BookingPaidRow | null> {
+  const { data } = await supabase.from('bookings').select(SELECT_COLS).eq('id', bookingId).maybeSingle();
+  return (data as BookingPaidRow) ?? null;
+}
+
 export async function fetchBookingForPaymentVerification(
   supabase: SupabaseClient,
   reference: string,
 ): Promise<BookingPaidRow | null> {
   if (reference.startsWith('booking-')) {
-    const id = reference.slice('booking-'.length);
-    const { data: byPref } = await supabase
-      .from('bookings')
-      .select(SELECT_COLS)
-      .eq('id', id)
-      .maybeSingle();
-    if (byPref) return byPref as BookingPaidRow;
+    const idFromRef = parseBookingIdFromBookingPrefixedReference(reference);
+    if (idFromRef) {
+      const { data: byPref } = await supabase
+        .from('bookings')
+        .select(SELECT_COLS)
+        .eq('id', idFromRef)
+        .maybeSingle();
+      if (byPref) return byPref as BookingPaidRow;
+    }
   }
 
   const { data: byId } = await supabase
@@ -144,7 +228,10 @@ export async function fetchBookingForPaymentVerification(
 }
 
 export function referenceMatchesBooking(booking: BookingPaidRow, reference: string): boolean {
-  if (reference === booking.id || reference === `booking-${booking.id}`) return true;
+  if (reference === booking.id) return true;
+  if (reference === `booking-${booking.id}`) return true;
+  const parsed = parseBookingIdFromBookingPrefixedReference(reference);
+  if (parsed && parsed === booking.id) return true;
   if (booking.paystack_ref && reference === booking.paystack_ref) return true;
   if (booking.payment_reference && reference === booking.payment_reference) return true;
   return false;

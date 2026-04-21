@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
+import { createClient, createServiceClientForSchema } from '@/lib/supabase-server';
 import { ensureCustomerReferralCode } from '@/lib/loyalty/referral-code-server';
+import { onCustomerSignup } from '@/lib/email/marketing-events';
 
 /**
  * API endpoint to link existing customer profiles to auth users
@@ -138,6 +139,17 @@ export async function POST(req: Request) {
 
       console.log('✅ Customer profile linked successfully!');
       await ensureCustomerReferralCode(supabase, updatedCustomer.id);
+      try {
+        const svc = createServiceClientForSchema();
+        await onCustomerSignup(svc, {
+          authUserId: auth_user_id,
+          email,
+          firstName: profileDetails.firstName,
+          lastName: profileDetails.lastName,
+        });
+      } catch (mErr) {
+        console.warn('[marketing] signup sync', mErr);
+      }
       return NextResponse.json({
         ok: true,
         linked: true,
@@ -205,6 +217,17 @@ export async function POST(req: Request) {
     }
 
     console.log('✅ Customer profile created successfully!');
+    try {
+      const svc = createServiceClientForSchema();
+      await onCustomerSignup(svc, {
+        authUserId: auth_user_id,
+        email,
+        firstName: profileDetails.firstName,
+        lastName: profileDetails.lastName,
+      });
+    } catch (mErr) {
+      console.warn('[marketing] signup sync', mErr);
+    }
     return NextResponse.json({
       ok: true,
       linked: false,

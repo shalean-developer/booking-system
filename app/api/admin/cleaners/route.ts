@@ -1,81 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, isAdmin } from '@/lib/supabase-server';
 import { hashPassword, normalizePhoneNumber, sanitizeCleanerForAdmin, validatePhoneNumber } from '@/lib/cleaner-auth';
-import { isExcludedFromRevenueReporting } from '@/lib/booking-revenue-exclusion';
-import { isCompletedBooking } from '@/shared/dashboard-data';
-import { getCleanerPayoutCents } from '@/shared/finance-engine';
+import { attachCleanerStats } from '@/lib/admin/attach-cleaner-stats';
 
 export const dynamic = 'force-dynamic';
-
-type SupabaseServer = Awaited<ReturnType<typeof createClient>>;
-
-/** Attach booking stats and ratings to a cleaner list (batch). */
-async function attachCleanerStats(supabase: SupabaseServer, cleaners: any[]) {
-  const cleanerIds = (cleaners || []).map((c: any) => c.id);
-  const bookingCounts = new Map<string, { total: number; completed: number; revenue: number }>();
-  const ratingMap = new Map<string, number>();
-
-  if (cleanerIds.length > 0) {
-    const { data: bookings } = await supabase
-      .from('bookings')
-      .select('cleaner_id, status, cleaner_earnings, payment_status')
-      .in('cleaner_id', cleanerIds);
-
-    bookings?.forEach((booking: any) => {
-      if (!booking.cleaner_id) return;
-      const existing = bookingCounts.get(booking.cleaner_id) || { total: 0, completed: 0, revenue: 0 };
-      existing.total += 1;
-      if (isCompletedBooking(booking.status)) {
-        existing.completed += 1;
-      }
-      const payoutCents = getCleanerPayoutCents(booking);
-      if (
-        payoutCents > 0 &&
-        !isExcludedFromRevenueReporting({
-          payment_status: booking.payment_status,
-          status: booking.status,
-        })
-      ) {
-        existing.revenue += payoutCents;
-      }
-      bookingCounts.set(booking.cleaner_id, existing);
-    });
-
-    const { data: reviews } = await supabase
-      .from('cleaner_reviews')
-      .select('cleaner_id, overall_rating')
-      .in('cleaner_id', cleanerIds);
-
-    const reviewsByCleaner = new Map<string, number[]>();
-    reviews?.forEach((review: any) => {
-      if (!review.cleaner_id) return;
-      const ratings = reviewsByCleaner.get(review.cleaner_id) || [];
-      ratings.push(review.overall_rating);
-      reviewsByCleaner.set(review.cleaner_id, ratings);
-    });
-
-    reviewsByCleaner.forEach((ratings, cleanerId) => {
-      const avg = ratings.reduce((sum, r) => sum + r, 0) / ratings.length;
-      ratingMap.set(cleanerId, Math.round(avg * 10) / 10);
-    });
-  }
-
-  return (cleaners || []).map((cleaner: any) => {
-    const stats = bookingCounts.get(cleaner.id) || { total: 0, completed: 0, revenue: 0 };
-    const averageRating =
-      cleaner.rating !== null && cleaner.rating !== undefined
-        ? parseFloat(cleaner.rating.toString())
-        : (ratingMap.get(cleaner.id) || null);
-
-    return {
-      ...sanitizeCleanerForAdmin(cleaner as Record<string, unknown>),
-      total_bookings: stats.total,
-      completed_bookings: stats.completed,
-      total_revenue: stats.revenue,
-      average_rating: averageRating,
-    };
-  });
-}
 
 export async function GET(request: NextRequest) {
   try {

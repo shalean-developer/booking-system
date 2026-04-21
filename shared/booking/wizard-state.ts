@@ -1,4 +1,5 @@
 import type { BookingFormData, ServiceType } from '@/components/booking-system-types';
+import type { WizardDisplayPricing } from '@/shared/booking-engine/wizard-display-pricing';
 import { MAX_TEAM_SIZE, MIN_TEAM_SIZE } from '@/lib/team-optimizer';
 import { WIZARD_DEFAULT_FORM } from './wizard-defaults';
 
@@ -34,6 +35,7 @@ function normalizeWizardParsed(merged: BookingFormData): BookingFormData {
     teamSizeUserOverride: Boolean(merged.teamSizeUserOverride),
     pricingMode: mode,
     basicPlannedHours: basicH,
+    pricing: merged.pricing ?? null,
   };
 }
 
@@ -49,13 +51,22 @@ export function createInitialWizardState(options: {
   };
   if (typeof window === 'undefined') return normalizeWizardParsed(base);
   try {
-    const stored = window.sessionStorage.getItem(options.storageKey);
+    const stored = window.localStorage.getItem(options.storageKey);
     if (stored) {
-      const parsed = JSON.parse(stored) as Partial<BookingFormData>;
+      const parsed = JSON.parse(stored) as Partial<BookingFormData> & {
+        wizardPriceLock?: WizardDisplayPricing | null;
+      };
+      const pricingFromLegacy =
+        parsed.pricing ?? (parsed.wizardPriceLock != null ? parsed.wizardPriceLock : undefined);
+      const { wizardPriceLock: _drop, ...parsedRest } = parsed;
+      const merged: Partial<BookingFormData> = {
+        ...parsedRest,
+        ...(pricingFromLegacy !== undefined ? { pricing: pricingFromLegacy } : {}),
+      };
       if (options.serviceFromPath) {
-        return normalizeWizardParsed({ ...base, ...parsed, service: options.serviceFromPath });
+        return normalizeWizardParsed({ ...base, ...merged, service: options.serviceFromPath });
       }
-      return normalizeWizardParsed({ ...base, ...parsed });
+      return normalizeWizardParsed({ ...base, ...merged });
     }
   } catch {
     // ignore storage errors

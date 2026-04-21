@@ -37,4 +37,5 @@ export const WIZARD_DEFAULT_FORM: BookingFormData = {
   teamSizeUserOverride: false,
   pricingMode: 'basic',
   basicPlannedHours: 3,
+  pricing: null,
 };

@@ -13,7 +13,14 @@ export function getPaymentValidationFailureAlertThreshold(): number {
 export async function recordPaymentValidationFailure(
   supabase: SupabaseClient,
   paymentReference: string,
-  failureType: 'payment_amount_mismatch' | 'invalid_currency' | 'payment_reference_mismatch',
+  failureType:
+    | 'payment_amount_mismatch'
+    | 'invalid_currency'
+    | 'payment_reference_mismatch'
+    | 'snapshot_not_found'
+    | 'snapshot_metadata_mismatch'
+    | 'pricing_hash_metadata_mismatch'
+    | 'pricing_snapshot_validation_failed',
 ): Promise<void> {
   const ref = paymentReference.trim();
   if (!ref) return;

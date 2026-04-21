@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCleanerSession, createCleanerSupabaseClient, cleanerIdToUuid } from '@/lib/cleaner-auth';
 import { generateReviewRequestEmail, sendEmail } from '@/lib/email';
-import { createServiceClient } from '@/lib/supabase-server';
+import { createServiceClient, createServiceClientForSchema } from '@/lib/supabase-server';
+import { onBookingCompleted } from '@/lib/email/marketing-events';
 import { sendWhatsAppTemplate } from '@/lib/notifications/whatsapp';
 import { logNotification } from '@/lib/notifications/log';
 import { sendCustomerNotification } from '@/lib/notifications/sendCustomerNotification';
@@ -395,6 +396,30 @@ export async function PATCH(
         }
       } catch (walletErr) {
         console.warn('⚠️ Wallet credit error:', walletErr);
+      }
+    }
+
+    if (newStatus === 'completed' && updatedBooking.customer_id) {
+      try {
+        const svc = createServiceClientForSchema();
+        const { data: cust } = await svc
+          .from('customers')
+          .select('auth_user_id, email, first_name, last_name')
+          .eq('id', updatedBooking.customer_id)
+          .maybeSingle();
+        const uid = cust?.auth_user_id;
+        const em = (cust?.email || updatedBooking.customer_email || '').trim();
+        if (uid && em) {
+          await onBookingCompleted(svc, {
+            userId: uid,
+            customerEmail: em,
+            customerName:
+              [cust?.first_name, cust?.last_name].filter(Boolean).join(' ').trim() ||
+              (typeof updatedBooking.customer_name === 'string' ? updatedBooking.customer_name : null),
+          });
+        }
+      } catch (mErr) {
+        console.warn('[marketing] booking_completed lifecycle', mErr);
       }
     }
 

@@ -18,7 +18,7 @@ const SLUG_TO_MODE: Record<string, Core | 'carpet-per-room'> = {
 };
 
 /**
- * Public service detail pages — “From …” line from `pricing_config` (fallback: `lib/pricing` PRICING).
+ * Public service detail pages — “From …” line from `pricing_config` (no static catalog fallback).
  */
 export async function getServicePageFromPrice(slug: string): Promise<string> {
   let pricing: PricingData | null = null;

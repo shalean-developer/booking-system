@@ -4,6 +4,7 @@ import { fetchActivePricing } from '@/lib/pricing-db';
 import { Resend } from 'resend';
 import {
   sendEmail,
+  sendEmailSafe,
   validateResendConfig,
   sendBookingEmailWithData,
   type EmailData,
@@ -18,7 +19,7 @@ import { SITE_SUPPORT_EMAIL } from '@/lib/site-config';
 import { resolveAdminNotificationEmail } from '@/lib/admin-email';
 import { adminBookingNotificationTemplate } from '@/shared/email/templates/admin-booking-notification';
 
-export { sendEmail, validateResendConfig };
+export { sendEmail, sendEmailSafe, validateResendConfig };
 
 const resendClient = new Resend(process.env.RESEND_API_KEY);
 

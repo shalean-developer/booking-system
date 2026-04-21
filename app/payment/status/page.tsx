@@ -5,8 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
 import { supportWhatsAppUrlWithText } from '@/lib/contact';
+import { parseBookingIdFromBookingPrefixedReference } from '@/lib/payment-reference';
 
-const POLL_MS = 2000;
+const POLL_MS = 3000;
 /** Paystack can take >10s to report success; avoid false failures while still pending. */
 const MAX_ATTEMPTS = 20;
 /** Avoid infinite spinner if Paystack/API never responds. */
@@ -29,7 +30,7 @@ async function fetchVerifyPoll(search: string): Promise<Response> {
   const ctrl = new AbortController();
   const kill = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
   try {
-    return await fetch(`/api/payment/verify?${search}`, {
+    return await fetch(`/api/paystack/verify?${search}`, {
       cache: 'no-store',
       signal: ctrl.signal,
     });
@@ -53,16 +54,39 @@ function PaymentStatusInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const reference =
+  const urlReference =
     searchParams.get('reference')?.trim() ||
     searchParams.get('trxref')?.trim() ||
     '';
-  const bookingHint =
+  const urlBookingHint =
     searchParams.get('booking_id')?.trim() ||
     searchParams.get('ref')?.trim() ||
     searchParams.get('id')?.trim() ||
     '';
   const ct = searchParams.get('ct')?.trim() || '';
+  const [storedReference, setStoredReference] = useState('');
+  const [storedBookingHint, setStoredBookingHint] = useState('');
+
+  useEffect(() => {
+    try {
+      if (!urlReference) {
+        const r = localStorage.getItem('paystack_last_reference')?.trim() || '';
+        if (r) setStoredReference(r);
+      }
+      if (!urlBookingHint) {
+        const bid = localStorage.getItem('paystack_last_booking_id')?.trim() || '';
+        if (bid) setStoredBookingHint(bid);
+      }
+    } catch {
+      // no-op
+    }
+  }, [urlReference, urlBookingHint]);
+
+  const reference = urlReference || storedReference;
+  const bookingHint =
+    urlBookingHint ||
+    storedBookingHint ||
+    (reference ? parseBookingIdFromBookingPrefixedReference(reference) || '' : '');
 
   const [phase, setPhase] = useState<'processing' | 'timeout' | 'failed' | 'error'>('processing');
   const [failMessage, setFailMessage] = useState<string | null>(null);
@@ -70,9 +94,9 @@ function PaymentStatusInner() {
 
   const paymentRetryHref = useMemo(() => {
     if (bookingHint) {
-      return `/booking/payment?bookingId=${encodeURIComponent(bookingHint)}`;
+      return `/booking-v2/payment?bookingId=${encodeURIComponent(bookingHint)}`;
     }
-    return '/booking/payment';
+    return '/booking-v2/payment';
   }, [bookingHint]);
 
   const statusPageHref = useMemo(() => {
@@ -95,7 +119,7 @@ function PaymentStatusInner() {
       q.set('ref', bookingId);
       if (ct) q.set('ct', ct);
       q.set('verified', '1');
-      return `/booking/confirmation?${q.toString()}`;
+      return `/booking-v2/confirmation?${q.toString()}`;
     },
     [reference, ct],
   );
@@ -108,12 +132,14 @@ function PaymentStatusInner() {
     }
 
     let cancelled = false;
-    let attempt = 0;
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    let attempts = 0;
+    let isRequestInFlight = false;
+    let interval: ReturnType<typeof setInterval> | undefined;
 
     const runAttempt = async () => {
-      if (cancelled) return;
-      attempt += 1;
+      if (cancelled || isRequestInFlight) return;
+      isRequestInFlight = true;
+      attempts += 1;
 
       try {
         const params = new URLSearchParams();
@@ -144,17 +170,20 @@ function PaymentStatusInner() {
         }
 
         if (data.status === 'failed') {
-          setPhase('failed');
-          setFailMessage(data.message || 'Payment could not be confirmed.');
+          // Treat transient failures as pending confirmation to avoid false negatives.
+          if (attempts >= MAX_ATTEMPTS) {
+            setPhase('timeout');
+            setFailMessage("We're still confirming your payment…");
+            return;
+          }
           return;
         }
 
         if (data.status === 'pending') {
-          if (attempt >= MAX_ATTEMPTS) {
+          if (attempts >= MAX_ATTEMPTS) {
             setPhase('timeout');
             return;
           }
-          timer = setTimeout(runAttempt, POLL_MS);
           return;
         }
 
@@ -162,25 +191,38 @@ function PaymentStatusInner() {
         setFailMessage(data.message || 'Unexpected response from server.');
       } catch {
         if (cancelled) return;
-        if (attempt >= MAX_ATTEMPTS) {
+        if (attempts >= MAX_ATTEMPTS) {
           setPhase('timeout');
+          setFailMessage("We're still confirming your payment…");
           return;
         }
-        timer = setTimeout(runAttempt, POLL_MS);
+      } finally {
+        isRequestInFlight = false;
       }
     };
 
     setPhase('processing');
     setFailMessage(null);
     void runAttempt();
+    interval = setInterval(() => {
+      void runAttempt();
+    }, POLL_MS);
 
     return () => {
       cancelled = true;
-      if (timer) clearTimeout(timer);
+      if (interval) clearInterval(interval);
     };
   }, [reference, bookingHint, router, buildConfirmationUrl, pollKey]);
 
   const restartPolling = () => {
+    try {
+      const r = localStorage.getItem('paystack_last_reference')?.trim() || '';
+      const b = localStorage.getItem('paystack_last_booking_id')?.trim() || '';
+      if (r) setStoredReference(r);
+      if (b) setStoredBookingHint(b);
+    } catch {
+      // no-op
+    }
     setPhase('processing');
     setPollKey((k) => k + 1);
   };
@@ -248,6 +290,7 @@ function PaymentStatusInner() {
             This can take a few seconds. Please wait or check again. If you were charged, we&apos;ll email you
             when it clears — or message us on WhatsApp.
           </p>
+          {failMessage ? <p className="mt-2 text-sm text-zinc-600">{failMessage}</p> : null}
           <div className="mt-6 flex flex-col gap-3">
             <button
               type="button"

@@ -8,6 +8,8 @@ import { AdminSidebar } from '@/components/admin/navigation/sidebar';
 function usesStandaloneAdminChrome(pathname: string | null) {
   if (!pathname) return false;
   if (pathname === '/admin') return true;
+  if (pathname === '/admin/pricing') return true;
+  if (pathname === '/admin/quotes') return true;
   if (pathname === '/admin/schedule' || pathname.startsWith('/admin/schedule/')) return true;
   if (pathname === '/admin/growth' || pathname.startsWith('/admin/growth/')) return true;
   return false;

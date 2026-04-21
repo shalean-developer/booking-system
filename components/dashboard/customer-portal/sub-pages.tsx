@@ -1437,22 +1437,63 @@ function EarnSharePage({ onNavigate }: { onNavigate: (page: PageId) => void }) {
   const { user } = useProfile();
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = () => {
-    if (!user.referralEnabled) return;
-    const payload = user.customerId
+  const shareLink =
+    user.customerId && user.referralEnabled
       ? getAbsoluteReferralSignupUrl(user.customerId)
-      : user.referralCode ?? '';
-    if (!payload) return;
-    navigator.clipboard.writeText(payload).catch(() => {});
+      : user.referralCode
+        ? getAbsoluteReferralSignupUrl(user.referralCode)
+        : '';
+
+  const handleCopyLink = () => {
+    if (!user.referralEnabled || !shareLink) return;
+    navigator.clipboard.writeText(shareLink).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const handleCopyCode = () => {
+    if (!user.referralEnabled || !user.referralCode) return;
+    navigator.clipboard.writeText(user.referralCode).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const whatsappHref = shareLink
+    ? `https://wa.me/?text=${encodeURIComponent(
+        `Join Shalean with my link — professional home cleaning in Cape Town:\n${shareLink}`,
+      )}`
+    : '';
+
+  const mailHref = shareLink
+    ? `mailto:?subject=${encodeURIComponent('Join me on Shalean')}&body=${encodeURIComponent(
+        `Hi,\n\nI'd love for you to try Shalean home cleaning. Sign up with my link:\n${shareLink}\n\nThanks!`,
+      )}`
+    : '';
 
   return (
     <div className="min-h-screen bg-[#f8f9fb]">
       <PageHeader title="Earn & Share" subtitle="Invite friends and earn rewards when they book" />
       <div className="w-full px-4 sm:px-6 lg:px-8 py-6 pb-24 lg:pb-10">
-        <div className="max-w-lg mx-auto space-y-4">
+        <div className="max-w-lg mx-auto space-y-5">
+          <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Your rewards</p>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-2xl font-extrabold text-gray-900">{user.rewardPoints} pts</p>
+                <p className="text-sm text-gray-500 mt-0.5 capitalize">
+                  {user.rewardTier ? `${user.rewardTier} member` : 'Member'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onNavigate('rewards')}
+                className="text-xs font-bold text-blue-600 hover:underline shrink-0"
+              >
+                View history →
+              </button>
+            </div>
+          </div>
+
           <div className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl p-6 shadow-sm">
             <div className="flex items-center gap-2 mb-2">
               <Sparkles className="w-5 h-5 text-blue-200" />
@@ -1460,59 +1501,124 @@ function EarnSharePage({ onNavigate }: { onNavigate: (page: PageId) => void }) {
             </div>
             {user.referralEnabled ? (
               <>
-                <p className="text-sm text-blue-100 leading-relaxed mb-5">
-                  Share your code and earn rewards when friends book.
+                <p className="text-sm text-blue-100 leading-relaxed mb-4">
+                  Share your personal link or code. When friends sign up and complete a booking, you both benefit from
+                  Shalean rewards.
                 </p>
+
+                <p className="text-[11px] font-semibold text-blue-200/90 uppercase tracking-wide mb-1.5">Your code</p>
                 <div className="flex items-center gap-2 bg-white/15 border border-white/20 rounded-xl px-3 py-2.5">
-                  <p className="flex-1 text-sm font-bold text-white tracking-widest font-mono">{user.referralCode}</p>
+                  <p className="flex-1 text-sm font-bold text-white tracking-widest font-mono break-all">
+                    {user.referralCode}
+                  </p>
                   <motion.button
                     type="button"
                     whileTap={{ scale: 0.9 }}
-                    onClick={handleCopy}
+                    onClick={handleCopyCode}
                     className="flex-shrink-0 w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
-                    aria-label={user.customerId ? 'Copy referral signup link' : 'Copy referral code'}
+                    aria-label="Copy referral code"
                   >
                     {copied ? <Check className="w-4 h-4 text-white" /> : <Copy className="w-4 h-4 text-white" />}
                   </motion.button>
                 </div>
-                {copied && (
-                  <p className="text-[11px] text-blue-200 mt-2 text-center font-semibold">Copied to clipboard</p>
-                )}
-                {user.customerId ? (
-                  <motion.a
-                    href={getReferralSignupPath(user.customerId)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="mt-4 w-full py-2.5 rounded-xl bg-white text-blue-600 text-sm font-bold flex items-center justify-center gap-1.5 hover:bg-blue-50 transition-colors"
-                  >
-                    <span>Open friend signup link</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </motion.a>
-                ) : (
+
+                {shareLink ? (
+                  <p className="text-[11px] text-blue-200/80 mt-3 break-all line-clamp-2" title={shareLink}>
+                    {shareLink}
+                  </p>
+                ) : null}
+
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {user.customerId ? (
+                    <motion.a
+                      href={getReferralSignupPath(user.customerId)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="py-2.5 rounded-xl bg-white text-blue-600 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-blue-50 transition-colors"
+                    >
+                      <span>Open signup page</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </motion.a>
+                  ) : null}
                   <motion.button
                     type="button"
-                    whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => onNavigate('rewards')}
-                    className="mt-4 w-full py-2.5 rounded-xl bg-white text-blue-600 text-sm font-bold flex items-center justify-center gap-1.5 hover:bg-blue-50 transition-colors"
+                    onClick={handleCopyLink}
+                    disabled={!shareLink}
+                    className="py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
                   >
-                    <span>Rewards</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <Copy className="w-3.5 h-3.5" />
+                    Copy invite link
                   </motion.button>
+                  {whatsappHref ? (
+                    <a
+                      href={whatsappHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors sm:col-span-1"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      WhatsApp
+                    </a>
+                  ) : null}
+                  {mailHref ? (
+                    <a
+                      href={mailHref}
+                      className="py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      <Mail className="w-3.5 h-3.5" />
+                      Email
+                    </a>
+                  ) : null}
+                </div>
+
+                {copied && (
+                  <p className="text-[11px] text-blue-200 mt-3 text-center font-semibold">Copied to clipboard</p>
                 )}
               </>
             ) : (
-              <p className="text-sm text-blue-100 leading-relaxed">
-                Referral system coming soon. We&apos;re finishing the rewards experience — check back later.
-              </p>
+              <div className="space-y-3">
+                <p className="text-sm text-blue-100 leading-relaxed">
+                  We couldn&apos;t load your referral details yet. Open the dashboard home or pull to refresh — if this
+                  persists, contact support so we can link your account.
+                </p>
+                <motion.button
+                  type="button"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => onNavigate('dashboard')}
+                  className="w-full py-2.5 rounded-xl bg-white text-blue-600 text-sm font-bold flex items-center justify-center gap-1.5 hover:bg-blue-50 transition-colors"
+                >
+                  <span>Back to dashboard</span>
+                  <ArrowRight className="w-4 h-4" />
+                </motion.button>
+              </div>
             )}
           </div>
-          <p className="text-xs text-center text-gray-400">
-            {user.rewardPoints} pts
-            {user.rewardTier ? ` · ${user.rewardTier} member` : ''}
-          </p>
+
+          <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-3">
+            <p className="text-sm font-bold text-gray-900">How it works</p>
+            <ol className="space-y-3 text-sm text-gray-600 list-decimal list-inside">
+              <li>
+                <span className="ml-0.5">Share your link or code with friends.</span>
+              </li>
+              <li>
+                <span className="ml-0.5">They create a Shalean account and book a clean.</span>
+              </li>
+              <li>
+                <span className="ml-0.5">Rewards are tracked on your profile when visits complete.</span>
+              </li>
+            </ol>
+            <button
+              type="button"
+              onClick={() => onNavigate('rewards')}
+              className="text-xs font-bold text-blue-600 hover:underline"
+            >
+              See points &amp; referral perks on Rewards →
+            </button>
+          </div>
         </div>
       </div>
     </div>

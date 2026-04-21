@@ -1,23 +1,17 @@
 'use client';
 
-import { BookingSystem } from '@/components/booking-system';
-import type { BookingFormData } from '@/lib/useBookingFormData';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
-// Map URL slugs to BookingSystem ServiceType
-const SLUG_TO_SERVICE: Record<string, 'standard' | 'deep' | 'move' | 'airbnb' | 'carpet'> = {
-  standard: 'standard',
-  deep: 'deep',
-  'move-in-out': 'move',
-  airbnb: 'airbnb',
-  carpet: 'carpet',
-};
-
-interface BookingFlowWrapperProps {
-  initialFormData?: BookingFormData | null;
-  initialServiceSlug?: string;
-}
-
-export function BookingFlowWrapper({ initialFormData, initialServiceSlug }: BookingFlowWrapperProps) {
-  const initialService = initialServiceSlug ? SLUG_TO_SERVICE[initialServiceSlug] : undefined;
-  return <BookingSystem initialFormData={initialFormData} initialService={initialService} />;
+/** @deprecated Public wizard lives at `/booking-v2`. */
+export function BookingFlowWrapper() {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace('/booking-v2');
+  }, [router]);
+  return (
+    <div className="flex min-h-[40vh] items-center justify-center bg-zinc-50 text-sm text-zinc-600">
+      Redirecting to booking…
+    </div>
+  );
 }

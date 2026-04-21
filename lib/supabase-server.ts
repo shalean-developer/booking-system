@@ -1,15 +1,17 @@
 /**
  * Supabase Server Client for API Routes
- * 
+ *
  * Use this in API routes to properly detect authenticated users
  * This uses @supabase/ssr to correctly read auth cookies in Next.js App Router
+ *
+ * `createServiceClient` / `createServiceClientForSchema` live in `./supabase-service-role`
+ * (no `next/headers`) so Pages Router and other bundles do not pull App-only APIs.
  */
 
-import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/types/database';
+
+export { createServiceClient, createServiceClientForSchema } from '@/lib/supabase-service-role';
 
 function requirePublicSupabaseEnv() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -23,6 +25,7 @@ function requirePublicSupabaseEnv() {
 }
 
 export async function createClient() {
+  const { cookies } = await import('next/headers');
   const cookieStore = await cookies();
   const { url, anonKey } = requirePublicSupabaseEnv();
 
@@ -47,47 +50,6 @@ export async function createClient() {
       },
     }
   );
-}
-
-/**
- * Create Supabase client with service role key (bypasses RLS)
- * Use this in API routes where you need to bypass Row Level Security
- * and perform operations that require elevated permissions
- */
-export function createServiceClient() {
-  const { url } = requirePublicSupabaseEnv();
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  if (!serviceKey) {
-    throw new Error(
-      'SUPABASE_SERVICE_ROLE_KEY is missing. Add it to .env.local (server-only; never NEXT_PUBLIC_). Project Settings → API → service_role: https://supabase.com/dashboard/project/_/settings/api',
-    );
-  }
-
-  return createServerClient(
-    url,
-    serviceKey,
-    {
-      cookies: {
-        get() {
-          return undefined; // Service role doesn't need cookies
-        },
-        set() {
-          // Service role doesn't need to set cookies
-        },
-        remove() {
-          // Service role doesn't need to remove cookies
-        },
-      },
-    }
-  );
-}
-
-/**
- * Service-role client cast to `Database` for modules that only touch tables present in `types/database.ts`.
- * The global `createServiceClient()` stays untyped so incomplete schema stubs do not break the whole app.
- */
-export function createServiceClientForSchema(): SupabaseClient<Database> {
-  return createServiceClient() as unknown as SupabaseClient<Database>;
 }
 
 /**

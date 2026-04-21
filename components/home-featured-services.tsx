@@ -4,10 +4,22 @@ import { MapPin, ArrowRight, ArrowUpRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { PRICING } from '@/lib/pricing';
+import { useMemo } from 'react';
+import { InstantPrice } from '@/components/InstantPrice';
+import type { InstantPricingInput } from '@/hooks/useInstantPricing';
+import type { ServiceType } from '@/types/booking';
+import { getMarketingInstantPriceInputDefaults } from '@/lib/booking/marketing-instant-price-defaults';
 
-const featuredServices = [
+const featuredServices: Array<{
+  id: number;
+  category: string;
+  title: string;
+  location: string;
+  description: string;
+  serviceType: ServiceType;
+  image: string;
+  imagePosition: 'left' | 'right';
+}> = [
   {
     id: 1,
     category: 'Cleaning',
@@ -31,27 +43,7 @@ const featuredServices = [
 ];
 
 export function HomeFeaturedServices() {
-  const [prices, setPrices] = useState<Record<string, string>>({
-    Standard: `From R${Math.round(PRICING.services.Standard.base)}`,
-    Deep: `From R${Math.round(PRICING.services.Deep.base)}`,
-  });
-
-  useEffect(() => {
-    fetch('/api/services/check')
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.services) {
-          const priceMap: Record<string, string> = {};
-          data.services.forEach((service: { service_type: string; base: number }) => {
-            priceMap[service.service_type] = `From R${Math.round(service.base ?? 0)}`;
-          });
-          setPrices(priceMap);
-        }
-      })
-      .catch(() => {
-        // Keep default fallback prices
-      });
-  }, []);
+  const defaults = useMemo(() => getMarketingInstantPriceInputDefaults(), []);
 
   return (
     <section className="py-16 sm:py-20 lg:py-24 bg-white">
@@ -77,14 +69,18 @@ export function HomeFeaturedServices() {
         {/* Featured Services List */}
         <div className="space-y-8 lg:space-y-12">
           {featuredServices.map((service) => {
-            const serviceType = service.serviceType;
-            const price: string =
-              serviceType && prices[serviceType]
-                ? prices[serviceType]
-                : serviceType === 'Deep'
-                  ? `From R${Math.round(PRICING.services.Deep.base)}`
-                  : `From R${Math.round(PRICING.services.Standard.base)}`;
-            
+            const instantInput: InstantPricingInput = {
+              service: service.serviceType,
+              bedrooms: defaults.bedrooms,
+              bathrooms: defaults.bathrooms,
+              extraRooms: 0,
+              extras: [],
+              date: defaults.date,
+              time: defaults.time,
+              pricingMode: 'premium',
+              address: { suburb: 'Cape Town', city: 'Cape Town' },
+            };
+
             return (
             <div
               key={service.id}
@@ -111,9 +107,7 @@ export function HomeFeaturedServices() {
 
                 {/* Price and Book Button */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                  <span className="text-2xl sm:text-3xl font-bold text-gray-900">
-                    {price}
-                  </span>
+                  <InstantPrice input={instantInput} />
                   <Button
                     className="bg-primary hover:bg-primary/90 text-white rounded-full pl-6 pr-2 py-2.5 text-sm font-medium transition-colors gap-3"
                     asChild

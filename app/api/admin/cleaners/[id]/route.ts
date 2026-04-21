@@ -1,8 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient, isAdmin } from '@/lib/supabase-server';
 import { hashPassword, normalizePhoneNumber, sanitizeCleanerForAdmin, validatePhoneNumber } from '@/lib/cleaner-auth';
+import { attachCleanerStats } from '@/lib/admin/attach-cleaner-stats';
 
 export const dynamic = 'force-dynamic';
+
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    if (!(await isAdmin())) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 403 });
+    }
+
+    const { id } = await params;
+    const supabase = await createClient();
+
+    const { data: cleaner, error } = await supabase.from('cleaners').select('*').eq('id', id).maybeSingle();
+
+    if (error || !cleaner) {
+      return NextResponse.json({ ok: false, error: 'Cleaner not found' }, { status: 404 });
+    }
+
+    const [withStats] = await attachCleanerStats(supabase, [cleaner]);
+    return NextResponse.json({ ok: true, cleaner: withStats });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    console.error('GET /api/admin/cleaners/[id]:', error);
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+  }
+}
 
 export async function PATCH(
   request: NextRequest,

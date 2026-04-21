@@ -24,6 +24,10 @@ interface StickyCTAProps {
   priceSummary?: ReactNode;
   /** Accessible label for the price expand control */
   priceSummaryTitle?: string;
+  /** Extra content below helper text (e.g. subtle login link) */
+  footerSlot?: ReactNode;
+  /** When false, hides trailing arrow on primary CTA */
+  showCtaArrow?: boolean;
 }
 
 export function StickyCTA({
@@ -37,6 +41,8 @@ export function StickyCTA({
   className,
   priceSummary,
   priceSummaryTitle = 'Price summary',
+  footerSlot,
+  showCtaArrow = true,
 }: StickyCTAProps) {
   const [summaryOpen, setSummaryOpen] = useState(false);
   const showPriceExpand = Boolean(totalLabel && priceSummary);
@@ -114,13 +120,14 @@ export function StickyCTA({
             )}
           >
             <span className="truncate">{buttonLabel}</span>
-            {!disabled ? <ArrowRight size={18} className="flex-shrink-0" aria-hidden /> : null}
+            {!disabled && showCtaArrow ? <ArrowRight size={18} className="flex-shrink-0" aria-hidden /> : null}
           </button>
         </div>
 
         {helperText ? (
-          <p className="px-4 pb-3 text-center text-xs text-gray-500 -mt-1">{helperText}</p>
+          <p className="px-4 pb-2 text-center text-xs text-gray-500 -mt-1">{helperText}</p>
         ) : null}
+        {footerSlot ? <div className="px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">{footerSlot}</div> : null}
       </motion.div>
 
       {showPriceExpand ? (

@@ -26,6 +26,7 @@ import {
   PieChart,
   TrendingUp,
   Activity,
+  Megaphone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -72,7 +73,7 @@ const navigationSections: NavSection[] = [
   {
     title: 'Financial',
     items: [
-  { name: 'Profit', href: '/admin/profit', icon: PieChart },
+  { name: 'Profit', href: '/admin/profit', icon: TrendingUp },
   { name: 'Payments', href: '/admin/payments', icon: DollarSign },
       { name: 'Invoices', href: '/admin/invoices', icon: FileText },
       { name: 'Pricing', href: '/admin/pricing', icon: Tag },
@@ -83,6 +84,7 @@ const navigationSections: NavSection[] = [
   {
     title: 'Content',
     items: [
+      { name: 'Marketing email', href: '/admin/marketing', icon: Megaphone },
       { name: 'Blog', href: '/admin/blog', icon: BookOpen },
       { name: 'SEO Dashboard', href: '/admin/seo', icon: FileText },
       { name: 'Cron Logs', href: '/admin/cron-logs', icon: FileText },

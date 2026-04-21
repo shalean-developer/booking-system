@@ -1,4 +1,9 @@
 import crypto from 'crypto';
+import {
+  createPricingLockSignature,
+  tryPricingIntegritySecret,
+  verifyPricingLock,
+} from '@/lib/pricing/verify-lock';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { BookingBodyForPricing } from '@/lib/booking-server-pricing';
 import { computeAuthoritativeBookingPricing } from '@/lib/booking-server-pricing';
@@ -46,9 +51,7 @@ type PricingLockClaims = {
 };
 
 function getPricingLockSecret(): string | null {
-  const key = process.env.PRICING_INTEGRITY_SIGNING_KEY?.trim();
-  if (key) return key;
-  return null;
+  return tryPricingIntegritySecret();
 }
 
 function toBase64Url(input: Buffer | string): string {
@@ -66,21 +69,40 @@ function fromBase64Url(input: string): Buffer {
 }
 
 export function createPricingLockToken(claims: PricingLockClaims): string | null {
-  const secret = getPricingLockSecret();
-  if (!secret) return null;
-  const header = toBase64Url(JSON.stringify({ alg: 'HS256', typ: 'PRC' }));
-  const payload = toBase64Url(toStableJson(claims));
-  const data = `${header}.${payload}`;
-  const sig = crypto.createHmac('sha256', secret).update(data).digest();
-  return `${data}.${toBase64Url(sig)}`;
+  try {
+    return createPricingLockSignature(claims.pricing_hash);
+  } catch {
+    return null;
+  }
 }
 
 export function verifyPricingLockToken(
   token: string,
-  expected: { service: string; date: string; time: string },
+  expected: { service: string; date: string; time: string; pricing_hash?: string },
 ): PricingLockClaims | null {
   const secret = getPricingLockSecret();
   if (!secret) return null;
+
+  /** v3: HMAC-SHA256(hex) of pricing_hash only — cents come from persisted snapshot row. */
+  if (!token.includes('.') && expected.pricing_hash) {
+    try {
+      if (verifyPricingLock({ hash: expected.pricing_hash, token })) {
+        return {
+          pricing_hash: expected.pricing_hash,
+          total_amount_cents: 0,
+          pricing_version: '',
+          pricing_expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+          service: expected.service,
+          date: expected.date,
+          time: expected.time,
+        };
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }
+
   const parts = token.split('.');
   if (parts.length !== 3) return null;
   const [header, payload, signature] = parts;
