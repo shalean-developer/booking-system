@@ -1,0 +1,134 @@
+"use client";
+
+import { lazy, Suspense, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import BookingLayout from "@/components/booking/BookingLayout";
+import { SectionCard } from "@/components/booking/SectionCard";
+import { HomeDetails } from "@/components/booking/HomeDetails";
+import { RecommendedExtras } from "@/components/booking/RecommendedExtras";
+import { SmartRetentionBanner } from "@/components/booking/SmartRetentionBanner";
+import { useBookingVipTier } from "@/components/booking/useBookingVipTier";
+import { usePastBookingHints } from "@/lib/booking/usePastBookingHints";
+import { useLockedBooking } from "@/components/booking/useLockedBooking";
+import { useBookingStep1 } from "@/components/booking/useBookingStep1";
+import { bookingFlowHref } from "@/lib/booking/bookingFlow";
+import { bookingCopy } from "@/lib/booking/copy";
+import { clearLockedBookingFromStorage } from "@/lib/booking/lockedBooking";
+import { clearSelectedCleanerFromStorage } from "@/lib/booking/cleanerSelection";
+import { CleaningFrequencySelector } from "@/components/booking/CleaningFrequencySelector";
+
+const ExtrasSection = lazy(() =>
+  import("@/components/booking/ExtrasSection").then((m) => ({ default: m.ExtrasSection })),
+);
+
+export function StepDetailsForm() {
+  const router = useRouter();
+  const copy = bookingCopy.details;
+  const booking = useBookingStep1();
+  const { state, setState, maxRooms, blockedExtras, canContinue } = booking;
+
+  const { tier: vipTier } = useBookingVipTier();
+  const pastHints = usePastBookingHints();
+  const locked = useLockedBooking();
+  const isLocked = locked != null;
+  const skipLockClearOnMount = useRef(true);
+
+  useEffect(() => {
+    if (skipLockClearOnMount.current) {
+      skipLockClearOnMount.current = false;
+      return;
+    }
+    if (!locked) return;
+    clearLockedBookingFromStorage();
+    clearSelectedCleanerFromStorage();
+  }, [
+    locked,
+    state.rooms,
+    state.bathrooms,
+    state.extraRooms,
+    state.extras.join(","),
+    state.cleaningFrequency,
+    state.service_type,
+    state.service,
+  ]);
+
+  const recurringDiscountPct =
+    state.cleaningFrequency === "weekly" ? 0.1 : state.cleaningFrequency === "biweekly" ? 0.05 : 0;
+
+  const goWhen = () => {
+    if (!canContinue) return;
+    router.push(bookingFlowHref("when"));
+  };
+
+  return (
+    <BookingLayout
+      summaryState={state}
+      canContinue={canContinue}
+      onContinue={goWhen}
+      continueLabel={copy.cta}
+    >
+      <div className="space-y-6 pb-6">
+        {isLocked ? (
+          <div
+            className="rounded-xl border border-amber-200/90 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/35 dark:text-amber-100"
+            role="status"
+          >
+            <span>This booking is locked for checkout. Continue when you are ready to schedule or pay.</span>
+          </div>
+        ) : null}
+
+        {!isLocked ? <SmartRetentionBanner /> : null}
+
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">{copy.title}</h1>
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{copy.subtitle}</p>
+        </div>
+
+        <fieldset
+          disabled={isLocked}
+          className="min-w-0 space-y-5 border-0 p-0 disabled:pointer-events-none disabled:opacity-[0.55]"
+        >
+          <SectionCard title={copy.homeDetailsTitle} description={copy.homeDetailsHint}>
+            <HomeDetails state={state} maxRooms={maxRooms} setState={setState} omitLocation />
+          </SectionCard>
+
+          <SectionCard title="Choose cleaning frequency" description="Most popular: Weekly cleaning">
+            <CleaningFrequencySelector
+              value={state.cleaningFrequency}
+              onChange={(next) => setState((p) => ({ ...p, cleaningFrequency: next }))}
+            />
+            {recurringDiscountPct > 0 ? (
+              <p className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-xs font-medium text-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
+                {state.cleaningFrequency === "weekly"
+                  ? "Weekly plan: 10% off each visit — applied at checkout after your time is locked."
+                  : "Every 2 weeks: 5% off each visit — applied at checkout after your time is locked."}
+              </p>
+            ) : null}
+          </SectionCard>
+
+          <Suspense
+            fallback={
+              <div className="rounded-2xl border border-dashed border-zinc-200 px-4 py-8 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                Loading extras…
+              </div>
+            }
+          >
+            <SectionCard title={copy.extrasTitle} description={copy.reassurance}>
+              <ExtrasSection state={state} blockedExtras={blockedExtras} setState={setState} />
+            </SectionCard>
+          </Suspense>
+
+          {state.service ? (
+            <RecommendedExtras
+              state={state}
+              setState={setState}
+              blockedExtras={blockedExtras}
+              userTier={vipTier}
+              pastHints={pastHints}
+            />
+          ) : null}
+        </fieldset>
+      </div>
+    </BookingLayout>
+  );
+}
