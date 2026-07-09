@@ -27,6 +27,8 @@ export interface BookingState {
   carpetDetails?: BookingCarpetDetails | null;
   /** Carpet V4: rug count (optional; aligns with `carpetDetails.numberOfLooseCarpets`). */
   rugs?: number;
+  /** Carpet V4: carpet room count (optional; aligns with `carpetDetails.numberOfRooms`). */
+  carpets?: number;
   extras: string[];
   extrasQuantities: Record<string, number>;
   notes: string;
